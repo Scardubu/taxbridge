@@ -1,0 +1,30 @@
+{
+  "home": {
+    "welcome": "Welcome back",
+    "createInvoice": "Create Invoice",
+    "monthlySales": "Monthly Sales",
+    "offlineNotice": "You can create invoices offline. We will sync when you have internet."
+  },
+  "create": {
+    "title": "Create Invoice",
+    "customer": "Customer Name",
+    "addItem": "Add Item",
+    "description": "Description",
+    "quantity": "Qty",
+    "unitPrice": "Unit Price",
+    "save": "Save Invoice"
+  },
+  "invoices": {
+    "title": "Invoices",
+    "empty": "No invoices yet",
+    "pull": "Pull to refresh"
+  },
+  "settings": {
+    "title": "Settings",
+    "language": "Language",
+    "english": "English",
+    "pidgin": "Pidgin",
+    "apiUrl": "API Server URL",
+    "save": "Save"
+  }
+}

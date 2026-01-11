@@ -1,0 +1,69 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+.next/
+.vercel/
+
+# Environment files
+.env
+.env.*
+!.env.production.example
+!.env.local.example
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Expo
+.expo/
+.expo-shared/
+
+# Android
+android/app/build/
+android/.gradle/
+
+# iOS
+ios/Pods/
+ios/build/
+
+# OS
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# IDE
+.idea/
+.vscode/
+*.sublime-*
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+terraform.tfvars
+infra/terraform/.terraform.lock.hcl
+
+# Docker
+*.tar
+
+# Secrets (never commit)
+*.pem
+*.key
+google-play-service-account.json
+service-account.json
+
+# Load test results
+load-test-results.json
+
+# Generated files
+lib/ubl-invoice-2.1.xsd

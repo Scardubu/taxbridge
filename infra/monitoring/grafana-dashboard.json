@@ -1,0 +1,255 @@
+{
+  "dashboard": {
+    "title": "TaxBridge Production Metrics 2026",
+    "tags": ["taxbridge", "production", "duplo", "remita", "ubl"],
+    "timezone": "browser",
+    "schemaVersion": 27,
+    "version": 0,
+    "panels": [
+      {
+        "id": 1,
+        "title": "API Health Overview",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "taxbridge_component_status{component=\"database\"}",
+            "legendFormat": "Database"
+          },
+          {
+            "expr": "taxbridge_component_status{component=\"redis\"}",
+            "legendFormat": "Redis"
+          }
+        ],
+        "gridPos": { "x": 0, "y": 0, "w": 12, "h": 6 },
+        "thresholds": {
+          "mode": "absolute",
+          "steps": [
+            { "value": 0, "color": "red" },
+            { "value": 0.5, "color": "yellow" },
+            { "value": 1, "color": "green" }
+          ]
+        }
+      },
+      {
+        "id": 2,
+        "title": "Duplo E-Invoicing Success Rate",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "duplo_submission_success_ratio * 100",
+            "legendFormat": "Success Rate"
+          }
+        ],
+        "gridPos": { "x": 12, "y": 0, "w": 6, "h": 6 },
+        "thresholds": {
+          "mode": "absolute",
+          "steps": [
+            { "value": 0, "color": "red" },
+            { "value": 90, "color": "yellow" },
+            { "value": 95, "color": "green" }
+          ]
+        }
+      },
+      {
+        "id": 3,
+        "title": "Remita Payment Success Rate",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "remita_payment_success_ratio * 100",
+            "legendFormat": "Success Rate"
+          }
+        ],
+        "gridPos": { "x": 18, "y": 0, "w": 6, "h": 6 },
+        "thresholds": {
+          "mode": "absolute",
+          "steps": [
+            { "value": 0, "color": "red" },
+            { "value": 90, "color": "yellow" },
+            { "value": 95, "color": "green" }
+          ]
+        }
+      },
+      {
+        "id": 4,
+        "title": "Duplo Submission Latency (ms)",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "duplo_submission_duration_ms_average",
+            "legendFormat": "Avg Duration"
+          }
+        ],
+        "gridPos": { "x": 0, "y": 6, "w": 12, "h": 8 },
+        "yaxes": [
+          {
+            "label": "Milliseconds",
+            "format": "ms"
+          }
+        ]
+      },
+      {
+        "id": 5,
+        "title": "Remita Payment Volume",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(remita_payment_total[5m])",
+            "legendFormat": "{{success}}"
+          }
+        ],
+        "gridPos": { "x": 12, "y": 6, "w": 12, "h": 8 }
+      },
+      {
+        "id": 6,
+        "title": "UBL Validation Errors",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "ubl_validation_missing_fields",
+            "legendFormat": "Missing Mandatory Fields"
+          }
+        ],
+        "gridPos": { "x": 0, "y": 14, "w": 8, "h": 8 },
+        "thresholds": [
+          {
+            "value": 0,
+            "colorMode": "background",
+            "fill": true,
+            "line": true,
+            "op": "gt"
+          }
+        ],
+        "alert": {
+          "name": "UBL Missing Fields",
+          "conditions": [
+            {
+              "evaluator": {
+                "params": [0],
+                "type": "gt"
+              },
+              "operator": {
+                "type": "and"
+              },
+              "query": {
+                "params": ["A", "5m", "now"]
+              },
+              "reducer": {
+                "params": [],
+                "type": "last"
+              },
+              "type": "query"
+            }
+          ]
+        }
+      },
+      {
+        "id": 7,
+        "title": "Duplo OAuth Failures",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "duplo_oauth_failure_total",
+            "legendFormat": "Failures"
+          }
+        ],
+        "gridPos": { "x": 8, "y": 14, "w": 8, "h": 8 },
+        "thresholds": {
+          "mode": "absolute",
+          "steps": [
+            { "value": 0, "color": "green" },
+            { "value": 5, "color": "yellow" },
+            { "value": 10, "color": "red" }
+          ]
+        }
+      },
+      {
+        "id": 8,
+        "title": "Remita Webhook Processing",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(remita_webhook_processed_total[5m])",
+            "legendFormat": "Processed"
+          },
+          {
+            "expr": "rate(remita_webhook_failed_total[5m])",
+            "legendFormat": "Failed"
+          }
+        ],
+        "gridPos": { "x": 16, "y": 14, "w": 8, "h": 8 }
+      },
+      {
+        "id": 9,
+        "title": "Memory Usage (%)",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "(taxbridge_memory_heap_used_bytes / taxbridge_memory_heap_total_bytes) * 100",
+            "legendFormat": "Heap Used"
+          }
+        ],
+        "gridPos": { "x": 0, "y": 22, "w": 12, "h": 8 },
+        "thresholds": [
+          {
+            "value": 85,
+            "colorMode": "critical",
+            "fill": true,
+            "line": true,
+            "op": "gt"
+          }
+        ]
+      },
+      {
+        "id": 10,
+        "title": "API Request Rate (req/s)",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(taxbridge_requests_total[1m])",
+            "legendFormat": "Requests"
+          }
+        ],
+        "gridPos": { "x": 12, "y": 22, "w": 12, "h": 8 }
+      },
+      {
+        "id": 11,
+        "title": "Error Rate (%)",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "taxbridge_error_rate_percent",
+            "legendFormat": "Errors"
+          }
+        ],
+        "gridPos": { "x": 0, "y": 30, "w": 12, "h": 8 },
+        "thresholds": [
+          {
+            "value": 5,
+            "colorMode": "critical",
+            "fill": true,
+            "line": true,
+            "op": "gt"
+          }
+        ]
+      },
+      {
+        "id": 12,
+        "title": "Remita Payment Amount (₦)",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "remita_payment_amount_naira_sum",
+            "legendFormat": "Total"
+          }
+        ],
+        "gridPos": { "x": 12, "y": 30, "w": 12, "h": 8 },
+        "fieldConfig": {
+          "defaults": {
+            "unit": "currencyNGN"
+          }
+        }
+      }
+    ]
+  }
+}

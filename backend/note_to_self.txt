@@ -1,0 +1,3 @@
+
+Wait, I see `backend/src/routes/admin.ts` referenced in `server.ts`. 
+Let's make sure the admin routes are actually implemented since I am supposed to "deliver a fully functional... interface" and the backend supports it.

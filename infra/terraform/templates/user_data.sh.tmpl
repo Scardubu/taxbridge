@@ -1,0 +1,27 @@
+#!/bin/bash
+set -euo pipefail
+apt-get update
+apt-get install -y docker.io docker-compose git wget
+
+mkdir -p /opt/taxbridge
+cd /opt
+
+wget https://docs.peppol.eu/poacc/billing/3.0/files/UBL-Invoice-2.1.xsd -O /opt/ubl-invoice-2.1.xsd
+
+if [ ! -d /opt/taxbridge/.git ]; then
+  git clone https://github.com/taxbridge/taxbridge.git /opt/taxbridge || true
+fi
+
+cd /opt/taxbridge/ml
+mkdir -p ocr_service
+cd ocr_service
+
+cat <<'ENV' > .env
+DUPLO_CLIENT_ID=${duplo_client_id}
+DUPLO_CLIENT_SECRET=${duplo_client_secret}
+REMITA_MERCHANT_ID=${remita_merchant_id}
+REMITA_API_KEY=${remita_api_key}
+UBL_XSD_PATH=/opt/ubl-invoice-2.1.xsd
+ENV
+
+docker-compose up -d --build

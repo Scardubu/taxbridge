@@ -1,0 +1,11 @@
+{
+  "name": "taxbridge",
+  "private": true,
+  "packageManager": "yarn@1.22.22",
+  "workspaces": [
+    "mobile",
+    "backend",
+    "ml",
+    "infra"
+  ]
+}

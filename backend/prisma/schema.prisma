@@ -1,0 +1,162 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  phone     String
+  nin       String?  @map("nin")
+  smsOptIn  Boolean  @default(false) @map("sms_opt_in")
+  name      String
+  tin       String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  invoices  Invoice[]
+
+  auditLogs AuditLog[]
+
+  @@unique([phone], map: "users_phone_unique")
+  @@map("users")
+}
+
+model Invoice {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String   @map("user_id") @db.Uuid
+  customerName String?  @map("customer_name")
+  status       String   @default("queued") // queued, processing, stamped, failed
+  subtotal     Decimal  @db.Decimal(12, 2)
+  vat          Decimal  @db.Decimal(12, 2)
+  total        Decimal  @db.Decimal(12, 2)
+  items        Json
+  ublXml       String?  @map("ubl_xml") @db.Text
+  nrsReference String?  @map("nrs_reference")
+  qrCode       String?  @map("qr_code") @db.Text
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  user         User     @relation(fields: [userId], references: [id])
+
+  syncQueue    SyncQueue[]
+  payments     Payment[]
+
+  // Performance indexes for common query patterns
+  @@index([status])                    // Filter by invoice status (queued, stamped, failed)
+  @@index([userId])                    // List user's invoices
+  @@index([createdAt])                 // Recent invoices sorting
+  @@index([nrsReference])              // Lookup by NRS reference
+  @@index([status, userId])            // User's invoices by status
+  @@map("invoices")
+}
+
+model SyncQueue {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  invoiceId  String   @map("invoice_id") @db.Uuid
+  status     String
+  retryCount Int      @default(0) @map("retry_count")
+  error      String?  @db.Text
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  invoice    Invoice  @relation(fields: [invoiceId], references: [id])
+
+  // Performance indexes for queue processing
+  @@index([status])                    // Filter pending sync items
+  @@index([invoiceId])                 // Lookup by invoice
+  @@index([status, retryCount])        // Find items ready for retry
+  @@map("sync_queue")
+}
+
+model AuditLog {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  action    String
+  userId    String?  @map("user_id") @db.Uuid
+  metadata  Json     @default("{}")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user      User?    @relation(fields: [userId], references: [id])
+
+  // Performance indexes for audit queries
+  @@index([userId])                    // User's audit trail
+  @@index([action])                    // Filter by action type
+  @@index([createdAt])                 // Recent activity
+  @@map("audit_logs")
+}
+
+model IdempotencyCache {
+  key          String   @id
+  requestHash  String   @map("request_hash")
+  method       String
+  path         String
+  statusCode   Int      @map("status_code")
+  responseBody Json     @map("response_body")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@map("idempotency_cache")
+}
+
+model Payment {
+  id             String   @id @default(uuid()) @db.Uuid
+  invoiceId      String   @map("invoice_id") @db.Uuid
+  invoice        Invoice  @relation(fields: [invoiceId], references: [id])
+  rrr            String   @unique
+  amount         Decimal  @db.Decimal(12, 2)
+  status         String   @default("pending")
+  payerName      String
+  payerEmail     String
+  payerPhone     String
+  transactionRef String?
+  paidAt         DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Performance indexes for payment queries
+  @@index([invoiceId])                 // Lookup payments by invoice
+  @@index([status])                    // Filter by payment status
+  @@index([createdAt])                 // Recent payments
+  @@index([status, createdAt])         // Dashboard analytics
+  @@map("payments")
+}
+
+model SMSDelivery {
+  id            String   @id @default(uuid()) @db.Uuid
+  to            String
+  messageId     String?
+  provider      String
+  status        String
+  providerPayload Json   @default("{}")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Performance indexes for SMS tracking
+  @@index([to])                        // Lookup by recipient
+  @@index([status])                    // Filter by delivery status
+  @@index([messageId])                 // Lookup by provider message ID
+  @@index([createdAt])                 // Recent messages
+  @@map("sms_deliveries")
+}
+
+model Alert {
+  id             String    @id
+  type           String
+  severity       String
+  title          String
+  message        String    @db.Text
+  timestamp      DateTime  @default(now())
+  resolved       Boolean   @default(false)
+  resolvedAt     DateTime?
+  acknowledgedBy String?
+  acknowledgedAt DateTime?
+  metadata       Json      @default("{}")
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  // Performance indexes for alert monitoring
+  @@index([type, severity, resolved])         // Combined filter for dashboard
+  @@index([resolved, timestamp])              // Active alerts by recency
+  @@index([severity])                         // Filter by severity level
+  @@map("alerts")
+}

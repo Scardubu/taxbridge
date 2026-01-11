@@ -1,0 +1,68 @@
+services:
+  - type: web
+    name: taxbridge-api
+    env: node
+    plan: starter
+    region: oregon
+    branch: main
+    autoDeploy: true
+    buildCommand: >-
+      cd backend && yarn install --frozen-lockfile && yarn build &&
+      wget https://docs.peppol.eu/poacc/billing/3.0/files/UBL-Invoice-2.1.xsd -O lib/ubl-invoice-2.1.xsd
+    startCommand: cd backend && yarn start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: taxbridge-redis
+          property: connectionString
+      - key: DUPLO_CLIENT_ID
+        sync: false
+      - key: DUPLO_CLIENT_SECRET
+        sync: false
+      - key: REMITA_MERCHANT_ID
+        sync: false
+      - key: REMITA_API_KEY
+        sync: false
+      - key: REMITA_WEBHOOK_SECRET
+        sync: false
+      - key: UBL_XSD_PATH
+        value: lib/ubl-invoice-2.1.xsd
+  - type: worker
+    name: taxbridge-worker
+    env: node
+    plan: starter
+    region: oregon
+    branch: main
+    buildCommand: cd backend && yarn install --frozen-lockfile && yarn build
+    startCommand: cd backend && yarn worker
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: taxbridge-redis
+          property: connectionString
+      - key: DUPLO_CLIENT_ID
+        sync: false
+      - key: DUPLO_CLIENT_SECRET
+        sync: false
+      - key: REMITA_MERCHANT_ID
+        sync: false
+      - key: REMITA_API_KEY
+        sync: false
+      - key: UBL_XSD_PATH
+        value: lib/ubl-invoice-2.1.xsd
+  - type: redis
+    name: taxbridge-redis
+    plan: starter
+    region: oregon
+    maxmemoryPolicy: allkeys-lru

@@ -1,0 +1,355 @@
+name: Backend CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master, develop ]
+
+env:
+  NODE_VERSION: '18'
+  DUPLO_CLIENT_ID: ${{ secrets.DUPLO_CLIENT_ID }}
+  DUPLO_CLIENT_SECRET: ${{ secrets.DUPLO_CLIENT_SECRET }}
+  DUPLO_API_URL: ${{ secrets.DUPLO_API_URL }}
+  REMITA_API_KEY: ${{ secrets.REMITA_API_KEY }}
+  REMITA_MERCHANT_ID: ${{ secrets.REMITA_MERCHANT_ID }}
+  REMITA_SERVICE_TYPE_ID: ${{ secrets.REMITA_SERVICE_TYPE_ID }}
+
+jobs:
+  # Unit Tests (60% of test pyramid)
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'yarn'
+
+      - name: Install dependencies
+        run: |
+          yarn install --frozen-lockfile
+          yarn --cwd backend install --frozen-lockfile
+
+      - name: Run unit tests with coverage
+        run: yarn --cwd backend test:unit
+        env:
+          CI: true
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./backend/coverage/lcov.info
+          flags: unit-tests
+          name: codecov-umbrella
+
+  # Integration Tests (25% of test pyramid)
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: taxbridge_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'yarn'
+
+      - name: Install dependencies
+        run: |
+          yarn install --frozen-lockfile
+          yarn --cwd backend install --frozen-lockfile
+
+      - name: Setup database
+        run: |
+          yarn --cwd backend prisma:generate
+          yarn --cwd backend db:migrate
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/taxbridge_test
+
+      - name: Run integration tests
+        run: yarn --cwd backend test:integration
+        env:
+          CI: true
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/taxbridge_test
+          REDIS_URL: redis://localhost:6379
+
+      - name: Test Duplo integration
+        run: yarn --cwd backend node_modules/.bin/jest src/integrations/duplo.integration.test.ts --verbose
+        env:
+          CI: true
+          NODE_ENV: test
+
+      - name: Test Remita integration
+        run: yarn --cwd backend node_modules/.bin/jest src/integrations/remita.integration.test.ts --verbose
+        env:
+          CI: true
+          NODE_ENV: test
+
+  # E2E Tests (10% of test pyramid)
+  e2e-tests:
+    name: End-to-End Tests
+    runs-on: ubuntu-latest
+    needs: [unit-tests, integration-tests]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'yarn'
+
+      - name: Install dependencies
+        run: |
+          yarn install --frozen-lockfile
+          yarn --cwd backend install --frozen-lockfile
+
+      - name: Start services
+        run: |
+          docker-compose -f infra/docker-compose.dev.yml up -d
+          sleep 30
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/taxbridge
+          REDIS_URL: redis://localhost:6379
+
+      - name: Wait for backend to be ready
+        run: |
+          timeout 60 bash -c 'until curl -f http://localhost:3000/api/health; do sleep 2; done'
+
+      - name: Run E2E tests
+        run: yarn --cwd backend test:e2e
+        env:
+          CI: true
+          BASE_URL: http://localhost:3000
+
+      - name: Cleanup
+        run: docker-compose -f infra/docker-compose.dev.yml down
+
+  # Security Tests (5% of test pyramid)
+  security-tests:
+    name: Security Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'yarn'
+
+      - name: Install dependencies
+        run: |
+          yarn install --frozen-lockfile
+          yarn --cwd backend install --frozen-lockfile
+
+      - name: Run npm audit
+        run: yarn --cwd backend test:security
+
+      - name: Run OWASP ZAP Baseline Scan
+        uses: zaproxy/action-baseline@v0.7.0
+        with:
+          target: 'http://localhost:3000'
+          rules_file_name: '.zap/rules.tsv'
+          cmd_options: '-a'
+
+  # Performance/Load Tests
+  performance-tests:
+    name: Performance Tests
+    runs-on: ubuntu-latest
+    needs: [integration-tests]
+    if: github.ref == 'refs/heads/develop' || github.event_name == 'pull_request'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'yarn'
+
+      - name: Install k6
+        run: |
+          sudo gpg -k
+          sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D69
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update
+          sudo apt-get install k6
+
+      - name: Install dependencies
+        run: |
+          yarn install --frozen-lockfile
+          yarn --cwd backend install --frozen-lockfile
+
+      - name: Start backend server
+        run: |
+          yarn --cwd backend prisma:generate
+          yarn --cwd backend db:migrate
+          yarn --cwd backend dev &
+          sleep 30
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/taxbridge_test
+          REDIS_URL: redis://localhost:6379
+
+      - name: Run load tests
+        run: |
+          cd backend
+          k6 run --out json=load-test-results.json load-test/k6-script.js
+        env:
+          BASE_URL: http://localhost:3000
+
+      - name: Upload load test results
+        uses: actions/upload-artifact@v3
+        with:
+          name: load-test-results
+          path: backend/load-test-results.json
+
+      - name: Performance quality gates
+        run: |
+          # Check if load tests meet performance criteria
+          node backend/scripts/check-performance-gates.js
+
+  # OCR Processing Tests
+  ocr-tests:
+    name: OCR Processing Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'yarn'
+
+      - name: Install dependencies
+        run: |
+          yarn install --frozen-lockfile
+          yarn --cwd backend install --frozen-lockfile
+
+      - name: Run OCR tests
+        run: yarn --cwd backend ocr:test
+
+      - name: Run OCR assertions
+        run: yarn --cwd backend ocr:assert
+        env:
+          CI: true
+
+  # Build and Package
+  build:
+    name: Build Application
+    runs-on: ubuntu-latest
+    needs: [unit-tests, integration-tests]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'yarn'
+
+      - name: Install dependencies
+        run: |
+          yarn install --frozen-lockfile
+          yarn --cwd backend install --frozen-lockfile
+
+      - name: Build backend
+        run: yarn --cwd backend build
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: backend-build
+          path: backend/dist/
+
+  # Deploy to Staging
+  deploy-staging:
+    name: Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: [unit-tests, integration-tests, e2e-tests, security-tests, build]
+    if: github.ref == 'refs/heads/develop'
+    environment: staging
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: backend-build
+          path: backend/dist/
+
+      - name: Deploy to staging
+        run: |
+          echo "Deploying to staging environment..."
+          # Add your staging deployment commands here
+          # Example: docker build, push to registry, update k8s, etc.
+
+  # Deploy to Production
+  deploy-production:
+    name: Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [unit-tests, integration-tests, e2e-tests, security-tests, performance-tests, build]
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+    environment: production
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: backend-build
+          path: backend/dist/
+
+      - name: Deploy to production
+        run: |
+          echo "Deploying to production environment..."
+          # Add your production deployment commands here
+          # Example: docker build, push to registry, update k8s, etc.
+
+      - name: Post-deployment health check
+        run: |
+          timeout 300 bash -c 'until curl -f https://api.taxbridge.com/api/health; do sleep 10; done'
+
+      - name: Post-deployment smoke tests
+        run: |
+          curl -f https://api.taxbridge.com/api/health
+          curl -f https://api.taxbridge.com/api/invoices

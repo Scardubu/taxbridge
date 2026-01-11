@@ -1,0 +1,138 @@
+groups:
+  - name: taxbridge_critical
+    interval: 1m
+    rules:
+      - alert: ServiceDown
+        expr: up == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Service {{ $labels.instance }} is down"
+          description: "{{ $labels.instance }} has been unreachable for more than 2 minutes."
+
+      - alert: DatabaseConnectionDown
+        expr: taxbridge_component_status{component="database"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Database connection lost"
+          description: "PostgreSQL database is unreachable."
+
+      - alert: RedisConnectionDown
+        expr: taxbridge_component_status{component="redis"} < 0.5
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Redis connection lost or degraded"
+          description: "Redis cache is unreachable or responding slowly."
+
+      - alert: HighMemoryUsage
+        expr: (taxbridge_memory_heap_used_bytes / taxbridge_memory_heap_total_bytes) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage detected"
+          description: "Memory usage is at {{ $value | humanizePercentage }}."
+
+      - alert: HighErrorRate
+        expr: taxbridge_error_rate_percent > 5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High API error rate"
+          description: "Error rate is {{ $value | humanizePercentage }} (threshold: 5%)."
+
+  - name: taxbridge_duplo
+    interval: 1m
+    rules:
+      - alert: DuploOAuthFailureHigh
+        expr: rate(duplo_oauth_failure_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High Duplo OAuth failure rate"
+          description: "OAuth token exchange failing at {{ $value }} req/s."
+
+      - alert: DuploSubmissionFailureHigh
+        expr: duplo_submission_success_ratio < 0.9
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Duplo e-invoice submission success rate low"
+          description: "Success rate: {{ $value | humanizePercentage }} (threshold: 90%)."
+
+      - alert: DuploSubmissionSlow
+        expr: duplo_submission_duration_ms_average > 5000
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Duplo submission latency high"
+          description: "Average latency: {{ $value }}ms (threshold: 5s)."
+
+      - alert: UBLValidationFailure
+        expr: ubl_validation_missing_fields > 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "UBL validation failing with missing fields"
+          description: "{{ $value }} mandatory fields missing from sample UBL (55 required)."
+
+  - name: taxbridge_remita
+    interval: 1m
+    rules:
+      - alert: RemitaPaymentFailureHigh
+        expr: remita_payment_success_ratio < 0.9
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Remita RRR generation success rate low"
+          description: "Success rate: {{ $value | humanizePercentage }} (threshold: 90%)."
+
+      - alert: RemitaStatusCheckFailure
+        expr: rate(remita_status_failure_total[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High Remita status check failure rate"
+          description: "Failing at {{ $value }} req/s."
+
+      - alert: RemitaWebhookValidationFailure
+        expr: rate(remita_webhook_failed_total[5m]) > 0.02
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Remita webhook validation failures"
+          description: "Failed webhooks: {{ $value }} req/s (check signature verification)."
+
+  - name: taxbridge_performance
+    interval: 1m
+    rules:
+      - alert: SlowAPIResponseTime
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 0.5
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "API p95 latency high"
+          description: "95th percentile response time: {{ $value }}s (threshold: 500ms)."
+
+      - alert: QueueBacklog
+        expr: sum(bull_queue_waiting) > 100
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Message queue backlog"
+          description: "{{ $value }} jobs waiting (threshold: 100)."

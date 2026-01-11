@@ -1,0 +1,402 @@
+[
+  {
+    "id": "einvoice_duplo",
+    "question_en": "How do I submit an e-invoice using Duplo?",
+    "question_pidgin": "How I go submit e-invoice with Duplo?",
+    "answer_en": "Use Duplo API (OAuth 2.0): Prepare UBL 3.0 XML with 55 mandatory fields (e.g., cbc:ID, cbc:IssueDate, cac:AccountingSupplierParty with TIN, cac:InvoiceLine for items/taxRate=7.5, cac:TaxTotal, cac:LegalMonetaryTotal). POST to /v1/einvoice/submit; get IRN/stamp. TaxBridge automates this—chat 'Submit invoice' to start.",
+    "answer_pidgin": "Use Duplo API: Make UBL XML with important parts like ID, date, your TIN, items with 7.5% VAT, total. Send to dem endpoint; get stamp. TaxBridge go do am—say 'Submit invoice'.",
+    "tags": ["einvoice", "duplo", "ubl", "submission"]
+  },
+  {
+    "id": "remita_payment",
+    "question_en": "How do I make a tax payment with Remita?",
+    "question_pidgin": "How I go pay tax with Remita?",
+    "answer_en": "Generate RRR via POST /ecomm/init.reg (with amount, orderId, hash=SHA512). Pay via bank/USSD. Check status with GET /ecomm/status.reg. TaxBridge integrates—chat 'Pay VAT' for RRR.",
+    "answer_pidgin": "Make RRR with Remita API, pay am. TaxBridge go help—say 'Pay VAT'.",
+    "tags": ["remita", "payment", "rrr"]
+  },
+  {
+    "id": "vat_rate_2026",
+    "question_en": "What is the VAT rate for 2026?",
+    "question_pidgin": "Wetin be VAT rate for 2026?",
+    "answer_en": "VAT rate remains 7.5% for 2026 under Nigeria Tax Act 2025. All taxable goods and services must charge 7.5% VAT. Exemptions include basic food items, medical supplies, and educational services.",
+    "answer_pidgin": "VAT still be 7.5% for 2026. Everything wey sell must get 7.5% VAT, except food, medicine, and school things.",
+    "tags": ["vat", "rate", "2026", "tax"]
+  },
+  {
+    "id": "mandatory_einvoicing",
+    "question_en": "Is e-invoicing mandatory in 2026?",
+    "question_pidgin": "E-invoicing compulsory for 2026?",
+    "answer_en": "Yes, e-invoicing is mandatory for all businesses with turnover > NGN 25M annually. Must use NITDA-accredited APP like Duplo. Invoices must be in UBL 3.0 format and submitted to NRS within 24 hours of issuance.",
+    "answer_pidgin": "Yes, if your business pass NGN 25M per year, you must use e-invoice. You need APP like Duplo, and format must be UBL 3.0.",
+    "tags": ["einvoice", "mandatory", "nrs", "compliance"]
+  },
+  {
+    "id": "ubl_required_fields",
+    "question_en": "What are the required UBL 3.0 fields for e-invoices?",
+    "question_pidgin": "Wetin be the important UBL 3.0 fields for e-invoice?",
+    "answer_en": "UBL 3.0 requires 55 mandatory fields: cbc:ID (invoice number), cbc:IssueDate, cbc:InvoiceTypeCode, cac:AccountingSupplierParty (with TIN), cac:AccountingCustomerParty, cac:InvoiceLine (items with quantity/price/VAT), cac:TaxTotal, cac:LegalMonetaryTotal (lineExtensionAmount, taxInclusiveAmount, payableAmount).",
+    "answer_pidgin": "UBL 3.0 need 55 important things: invoice number, date, customer TIN, your TIN, items wey you sell with price, VAT, and total amount.",
+    "tags": ["ubl", "fields", "einvoice", "validation"]
+  },
+  {
+    "id": "tax_exemption_threshold",
+    "question_en": "What is the tax exemption threshold for small businesses?",
+    "question_pidgin": "How much small business no go pay tax?",
+    "answer_en": "Businesses with annual turnover < NGN 800,000 are exempt from Company Income Tax. However, VAT registration and filing may still be required if turnover > NGN 25M. E-invoicing compliance still applies.",
+    "answer_pidgin": "If your business no reach NGN 800,000 per year, you no go pay company tax. But if you pass NGN 25M, you still need to do VAT and e-invoice.",
+    "tags": ["exemption", "threshold", "small_business", "turnover"]
+  },
+  {
+    "id": "withholding_tax_foreign",
+    "question_en": "What is the withholding tax rate for foreign payments?",
+    "question_pidgin": "How much be withholding tax for foreign money?",
+    "answer_en": "Withholding tax on foreign payments to non-residents is 10% for royalties, dividends, interest, and technical services under Nigeria Tax Act 2025. Must be deducted at source and remitted to NRS.",
+    "answer_pidgin": "For foreign people wey you pay, you must remove 10% tax from royalty, dividend, interest, and service money before you pay dem.",
+    "tags": ["withholding_tax", "foreign", "nrs", "deduction"]
+  },
+  {
+    "id": "penalty_late_filing",
+    "question_en": "What are the penalties for late tax filing?",
+    "question_pidgin": "Wetin be punishment if I late file tax?",
+    "answer_en": "Late filing penalty: NGN 25,000 for first month, NGN 5,000 for subsequent months. Interest accrues at 21% per annum on unpaid tax. E-invoice non-compliance: NGN 100,000 per invoice or 2% of turnover, whichever is higher.",
+    "answer_pidgin": "If you late file tax, na NGN 25,000 for first month, then NGN 5,000 every other month. Government go still charge 21% interest on the money wey you owe.",
+    "tags": ["penalty", "late_filing", "interest", "compliance"]
+  },
+  {
+    "id": "digital_audit_risk",
+    "question_en": "How does NRS digital audit work in 2026?",
+    "question_pidgin": "How NRS digital audit dey work for 2026?",
+    "answer_en": "NRS uses AI-powered real-time audit on all e-invoices. System flags anomalies: missing TINs, incorrect VAT calculations, duplicate invoices, and suspicious patterns. High-risk businesses get monthly compliance reviews. Keep clean records to avoid audit triggers.",
+    "answer_pidgin": "NRS computer dey check all your e-invoices immediately. If something no correct, like wrong VAT or missing TIN, system go flag am. Make sure everything correct to avoid wahala.",
+    "tags": ["audit", "nrs", "digital", "compliance", "ai"]
+  },
+  {
+    "id": "receipt_ocr_query",
+    "question_en": "Can I ask about receipts I've scanned?",
+    "question_pidgin": "I fit ask about receipt wey I scan?",
+    "answer_en": "Yes! TaxBridge OCR extracts data from receipts. Ask questions like 'What was the VAT on my last receipt?' or 'How much did I spend on office supplies?' The chatbot analyzes your scanned receipts and provides tax-relevant insights.",
+    "answer_pidgin": "Yes! TaxBridge fit read your receipt. You fit ask 'How much VAT for my last receipt?' or 'How much I spend for office things?'",
+    "tags": ["ocr", "receipt", "scanning", "query"]
+  },
+  {
+    "id": "ussd_fallback",
+    "question_en": "How can I use tax services without internet?",
+    "question_pidgin": "How I go use tax service if I no get internet?",
+    "answer_en": "Dial *347*12# for TaxBridge USSD service. Available in English and Pidgin. Check VAT rates, calculate tax, get compliance reminders, and receive SMS updates. Works on any basic phone, no data required.",
+    "answer_pidgin": "Dial *347*12# for TaxBridge USSD. You fit use am for English or Pidgin. No need internet, e go work for any phone.",
+    "tags": ["ussd", "offline", "feature_phone", "accessibility"]
+  },
+  {
+    "id": "peppol_compliance",
+    "question_en": "What is Peppol BIS Billing 3.0 compliance?",
+    "question_pidgin": "Wetin be Peppol BIS Billing 3.0 compliance?",
+    "answer_en": "Peppol BIS Billing 3.0 (May 2025) is the international standard for e-invoices adopted by NRS. Ensures cross-border compatibility and automated processing. Your UBL 3.0 invoices must follow Peppol profile: urn:fdc:peppol.eu:2017:poacc:billing:01:1.0",
+    "answer_pidgin": "Peppol be international rule for e-invoice wey NRS follow. Your invoice must follow this format so e go work for other countries too.",
+    "tags": ["peppol", "bis", "compliance", "international", "ubl"]
+  },
+  {
+    "id": "tax_deadlines_2026",
+    "question_en": "What are the tax filing deadlines for 2026?",
+    "question_pidgin": "When be tax deadline for 2026?",
+    "answer_en": "Company Income Tax: 6 months after financial year end. VAT: Monthly filing by 21st of following month. Withholding Tax: 21st of month following deduction. E-invoice submission: Within 24 hours of issuance.",
+    "answer_pidgin": "Company tax: 6 months after your year end. VAT: Every month before 21st of next month. E-invoice: Submit within 24 hours after you issue am.",
+    "tags": ["deadline", "filing", "2026", "calendar"]
+  },
+  {
+    "id": "tin_registration",
+    "question_en": "How do I register for TIN?",
+    "question_pidgin": "How I go register for TIN?",
+    "answer_en": "Register TIN online at tax.nirs.gov.ng or visit NRS office. Required: business registration documents, ID proof, address verification. Processing takes 5-7 working days. TIN is required for e-invoicing and tax compliance.",
+    "answer_pidgin": "Go to tax.nirs.gov.ng or NRS office to register TIN. You need business papers, ID, and address proof. E go take 5-7 days. You need TIN for e-invoice.",
+    "tags": ["tin", "registration", "nrs", "compliance"]
+  },
+  {
+    "id": "invoice_validation",
+    "question_en": "How do I validate my UBL invoice before submission?",
+    "question_pidgin": "How I go check if my UBL invoice correct before I submit?",
+    "answer_en": "Use TaxBridge validation tool: Upload UBL XML, system checks all 55 mandatory fields, VAT calculations, and Peppol compliance. Common errors: missing TIN, incorrect tax rates, wrong date formats, invalid currency codes.",
+    "answer_pidgin": "Use TaxBridge to check your UBL invoice. E go tell you if anything wrong, like missing TIN or wrong VAT. Fix am before you submit.",
+    "tags": ["validation", "ubl", "precheck", "errors"]
+  },
+  {
+    "id": "payment_confirmation",
+    "question_en": "How do I confirm my tax payment was successful?",
+    "question_pidgin": "How I go know if my tax payment enter?",
+    "answer_en": "Check payment status via Remita using RRR number. TaxBridge also sends SMS confirmation when payment is verified. Allow 24-48 hours for processing. Keep payment receipts for audit purposes.",
+    "answer_pidgin": "Check your RRR number for Remita. TaxBridge go send you SMS when payment confirm. Wait 1-2 days for processing.",
+    "tags": ["payment", "confirmation", "remita", "status"]
+  },
+  {
+    "id": "tax_credit_refund",
+    "question_en": "Can I get tax credits or refunds?",
+    "question_pidgin": "I fit get tax credit or refund?",
+    "answer_en": "Yes, you can claim tax credits for overpaid VAT, withholding tax, or advance tax. File refund claim with supporting documents within 6 years. Processing takes 90-120 days. Must have valid TIN and compliant filing history.",
+    "answer_pidgin": "Yes, if you pay too much tax, you fit ask for refund back. You need correct papers and clean tax history. E go take 3-4 months.",
+    "tags": ["refund", "credit", "overpayment", "claim"]
+  },
+  {
+    "id": "record_keeping_requirements",
+    "question_en": "How long must I keep tax records?",
+    "question_pidgin": "How many years I must keep tax papers?",
+    "answer_en": "Keep all tax records for minimum 6 years from filing date. Includes invoices, receipts, bank statements, contracts, and correspondence. Digital records acceptable if properly backed up and accessible for audit.",
+    "answer_pidgin": "Keep all your tax papers for at least 6 years. This include invoice, receipt, bank statement, and contracts.",
+    "tags": ["records", "retention", "audit", "documentation"]
+  },
+  {
+    "id": "mobile_app_features",
+    "question_en": "What can I do with the TaxBridge mobile app?",
+    "question_pidgin": "Wetin I fit do with TaxBridge app?",
+    "answer_en": "Create and submit e-invoices, scan receipts with OCR, make payments via Remita, track tax deadlines, chat with AI assistant, receive compliance alerts, and access USSD fallback. Works offline with sync when online.",
+    "answer_pidgin": "With TaxBridge app, you fit create e-invoice, scan receipt, pay tax, check deadline, chat with AI, and get SMS alert. E work even if you no get internet.",
+    "tags": ["mobile", "app", "features", "offline"]
+  },
+  {
+    "id": "data_privacy_compliance",
+    "question_en": "How does TaxBridge protect my data privacy?",
+    "question_pidgin": "How TaxBridge dey protect my data?",
+    "answer_en": "TaxBridge is NDPC-compliant: encrypts all sensitive data (TIN, NIN, phone), maintains audit logs, allows data export and deletion. Data stored in Nigeria, minimal collection, explicit consent required for SMS communications.",
+    "answer_pidgin": "TaxBridge dey protect your data well well. Everything coded, your TIN and phone safe. You fit delete your data anytime. NDPC approve am.",
+    "tags": ["privacy", "ndpc", "data", "security", "compliance"]
+  },
+  {
+    "id": "api_integration_support",
+    "question_en": "Can I integrate TaxBridge with my accounting software?",
+    "question_pidgin": "I fit connect TaxBridge with my accounting software?",
+    "answer_en": "Yes, TaxBridge provides REST APIs for invoice creation, payment processing, and tax calculations. Webhooks for real-time status updates. SDKs available for Node.js, Python, and PHP. OAuth 2.0 authentication required.",
+    "answer_pidgin": "Yes, TaxBridge get API wey you fit use with your accounting software. E go tell you when payment complete and tax ready.",
+    "tags": ["api", "integration", "webhook", "sdk", "automation"]
+  },
+  {
+    "id": "multilingual_support",
+    "question_en": "What languages does TaxBridge support?",
+    "question_pidgin": "Which languages TaxBridge support?",
+    "answer_en": "TaxBridge supports English and Nigerian Pidgin for chatbot, USSD, and SMS. Voice recognition available for both languages. Plans to add Hausa, Yoruba, and Igbo in 2026 based on user demand.",
+    "answer_pidgin": "TaxBridge speak English and Pidgin for chat, USSD, and SMS. Voice dey work for both languages. Soon e go add Hausa, Yoruba, and Igbo.",
+    "tags": ["language", "pidgin", "english", "voice", "accessibility"]
+  },
+  {
+    "id": "cost_structure",
+    "question_en": "What are the costs for using TaxBridge?",
+    "question_pidgin": "How much be TaxBridge cost?",
+    "answer_en": "Free tier: 10 invoices/month, basic support. Pro tier: NGN 2,000/month for unlimited invoices, priority support, API access. Transaction fees: NGN 20-50 per e-invoice submission via Duplo. No hidden charges.",
+    "answer_pidgin": "TaxBridge get free version wey you fit use 10 invoice every month. If you need more, na NGN 2,000 per month. Each e-invoice submission cost small money.",
+    "tags": ["pricing", "cost", "free", "pro", "fees"]
+  },
+  {
+    "id": "disaster_recovery",
+    "question_en": "What happens if TaxBridge systems go down?",
+    "question_pidgin": "Wetin happen if TaxBridge no work?",
+    "answer_en": "99.9% uptime SLA with automatic failover. Data backed up across multiple Nigerian data centers. Offline mode available for critical functions. Extended deadlines granted during system outages exceeding 4 hours.",
+    "answer_pidgin": "TaxBridge dey work 99.9% of the time. If system break, e go change to backup automatically. You still fit do some things offline.",
+    "tags": ["uptime", "backup", "recovery", "sla", "reliability"]
+  },
+  {
+    "id": "training_support",
+    "question_en": "What training and support does TaxBridge provide?",
+    "question_pidgin": "Which training and support TaxBridge get?",
+    "answer_en": "Free video tutorials in English and Pidgin, live webinars monthly, 24/7 chat support, phone support during business hours, on-site training for businesses >50 employees. Community forum for peer support.",
+    "answer_pidgin": "TaxBridge get free video training, monthly webinar, 24/7 chat support, and phone support for big businesses. You fit learn from other users for forum too.",
+    "tags": ["training", "support", "tutorial", "webinar", "community"]
+  },
+  {
+    "id": "regulatory_updates",
+    "question_en": "How does TaxBridge handle regulatory changes?",
+    "question_pidgin": "How TaxBridge dey handle when government change tax rules?",
+    "answer_en": "Real-time regulatory monitoring system. Automatic updates for tax rates, forms, and compliance requirements. Users notified via SMS and in-app alerts. 30-day transition period for major changes.",
+    "answer_pidgin": "TaxBridge dey watch government rules well well. When anything change, system go update automatically and tell you for SMS.",
+    "tags": ["regulations", "updates", "compliance", "changes", "notifications"]
+  },
+  {
+    "id": "invoice_correction",
+    "question_en": "How do I correct a submitted e-invoice?",
+    "question_pidgin": "How I go correct e-invoice wey I don submit?",
+    "answer_en": "Submit credit note for full or partial amount within 7 days of error. Reference original invoice IRN. Both documents must be UBL 3.0 compliant. Keep audit trail explaining correction reason.",
+    "answer_pidgin": "If you make mistake for invoice, submit credit note to cancel am or correct am. You must reference the original invoice IRN.",
+    "tags": ["correction", "credit_note", "error", "amendment", "irn"]
+  },
+  {
+    "id": "batch_submission",
+    "question_en": "Can I submit multiple invoices at once?",
+    "question_pidgin": "I fit submit many invoices together?",
+    "answer_en": "Yes, batch submission supports up to 100 invoices per API call. Each invoice must have unique ID and be UBL 3.0 compliant. Processing time: 2-5 minutes per batch. Partial success handling available.",
+    "answer_pidgin": "Yes, you fit submit up to 100 invoices at the same time. Each one must get correct UBL format and unique number.",
+    "tags": ["batch", "bulk", "multiple", "efficiency", "api"]
+  },
+  {
+    "id": "tax_calculator",
+    "question_en": "How does the tax calculator work?",
+    "question_pidgin": "How the tax calculator dey work?",
+    "answer_en": "Input amount and tax type. Calculator applies correct rates (VAT 7.5%, WHT varies by type). Considers exemptions and thresholds. Provides breakdown: net amount, tax amount, gross total. Available in app, USSD, and API.",
+    "answer_pidgin": "Put amount and tell calculator which tax. E go calculate the correct tax for you, show you the breakdown of everything.",
+    "tags": ["calculator", "computation", "rates", "breakdown", "tools"]
+  },
+  {
+    "id": "audit_preparation",
+    "question_en": "How do I prepare for tax audit?",
+    "question_pidgin": "How I go prepare for tax audit?",
+    "answer_en": "Organize all invoices and receipts by date. Ensure TIN validity for all transactions. Verify VAT calculations. Check e-invoice submission logs. Prepare bank statements and contracts. Use TaxBridge audit checklist tool.",
+    "answer_pidgin": "Arrange all your papers well, check say your TIN correct, make sure VAT calculation right. TaxBridge get checklist wey go help you.",
+    "tags": ["audit", "preparation", "checklist", "documentation", "readiness"]
+  },
+  {
+    "id": "cross_border_tax",
+    "question_en": "What about cross-border transactions?",
+    "question_pidgin": "Wetin about transactions wey involve other countries?",
+    "answer_en": "Exports: zero-rated VAT (0%). Imports: VAT + customs duty at point of entry. Services to non-residents: may be exempt. Withholding tax applies to foreign payments. Use Peppol for international e-invoices.",
+    "answer_pidgin": "If you sell things for other countries, no VAT (0%). If you buy from outside, you go pay VAT and customs duty. For foreign payments, withholding tax apply.",
+    "tags": ["cross_border", "international", "exports", "imports", "foreign"]
+  },
+  {
+    "id": "employee_tax",
+    "question_en": "How do I handle employee taxes?",
+    "question_pidgin": "How I go handle employee tax?",
+    "answer_en": "Register for PAYE, deduct monthly from salaries. Rates: 7% (NGN 300K), 11% (NGN 300K-600K), 15% (NGN 600K-1.1M), 19% (NGN 1.1M-1.6M), 21% (NGN 1.6M-3.2M), 24% (>NGN 3.2M). Remit to NRS by 10th of following month.",
+    "answer_pidgin": "Register for PAYE, remove tax from salary every month. The percentage depend on how much the person earn. Pay the money to NRS before 10th of next month.",
+    "tags": ["paye", "employee", "salary", "deduction", "payroll"]
+  },
+  {
+    "id": "startup_tax_guide",
+    "question_en": "Tax guide for new startups?",
+    "question_pidgin": "Tax guide for new business?",
+    "answer_en": "Register business name with CAC. Get TIN from NRS. Open business bank account. Register for VAT if turnover > NGN 25M. File nil returns if no income. Keep records from day 1. Use TaxBridge startup checklist.",
+    "answer_pidgin": "Register your business with CAC, get TIN, open business account. If you go make more than NGN 25M, register for VAT. Start keeping records from day one.",
+    "tags": ["startup", "new_business", "registration", "checklist", "guide"]
+  },
+  {
+    "id": "tax_incentives",
+    "question_en": "Are there tax incentives available?",
+    "question_pidgin": "Any tax incentives wey dey available?",
+    "answer_en": "Pioneer status: 3-5 years tax holiday for new industries. Agricultural tax holidays. Export expansion grants. R&D tax credits. SME loans with tax benefits. Apply through Federal Ministry of Finance.",
+    "answer_pidgin": "Government get tax holiday for new business for 3-5 years. Farming and export business get special benefits. You fit apply for R&D tax credit too.",
+    "tags": ["incentives", "holidays", "benefits", "pioneer", "relief"]
+  },
+  {
+    "id": "dispute_resolution",
+    "question_en": "How do I dispute tax assessments?",
+    "question_pidgin": "How I go argue if tax assessment no correct?",
+    "answer_en": "File objection within 30 days of assessment notice. Provide supporting evidence. Appeal to Tax Appeal Tribunal if rejected. Can seek judicial review. Use TaxBridge dispute template and legal assistance.",
+    "answer_pidgin": "If you no agree with tax assessment, you get 30 days to complain with evidence. If them reject, you fit go to Tax Appeal Tribunal.",
+    "tags": ["dispute", "objection", "appeal", "tribunal", "legal"]
+  },
+  {
+    "id": "cryptocurrency_tax",
+    "question_en": "How is cryptocurrency taxed?",
+    "question_pidgin": "How dem dey tax cryptocurrency?",
+    "answer_en": "Crypto treated as capital asset. Capital gains tax: 10% on profits. No VAT on crypto transactions. Must declare holdings in tax returns. Record-keeping essential for cost basis calculation.",
+    "answer_pidgin": "Crypto be like property for tax. If you sell am for profit, you go pay 10% capital gains tax. No VAT on crypto transactions.",
+    "tags": ["crypto", "cryptocurrency", "bitcoin", "capital_gains", "digital_assets"]
+  },
+  {
+    "id": "gig_economy_tax",
+    "question_en": "Tax rules for gig workers and freelancers?",
+    "question_pidgin": "Tax rules for people wey do freelance work?",
+    "answer_en": "Register as self-employed. Pay personal income tax annually. Register for VAT if annual income > NGN 25M. Keep all invoices and receipts. Can claim business expenses (internet, equipment, etc.).",
+    "answer_pidgin": "If you do freelance work, register as self-employed. Pay tax every year. If you make more than NGN 25M, you need VAT. Keep all your papers.",
+    "tags": ["gig", "freelance", "self_employed", "personal_income", "expenses"]
+  },
+  {
+    "id": "real_estate_tax",
+    "question_en": "What are the real estate taxes?",
+    "question_pidgin": "Wetin be real estate tax?",
+    "answer_en": "Capital gains tax: 10% on property sales. Rental income: 10% withholding tax if landlord is company, 7.5% VAT on commercial rents. Property tenement rates: state-level, varies by location.",
+    "answer_pidgin": "If you sell house, you go pay 10% capital gains tax. If you rent out property for business, na 7.5% VAT. State still get their own property tax.",
+    "tags": ["real_estate", "property", "rental", "capital_gains", "tenement"]
+  },
+  {
+    "id": "non_profit_tax",
+    "question_en": "Tax rules for non-profits and NGOs?",
+    "question_pidgin": "Tax rules for NGOs and non-profits?",
+    "answer_en": "Registered NGOs get tax exemption on donations and grants. Must file annual returns. Commercial activities taxed at normal rates. Must maintain proper books and comply with reporting requirements.",
+    "answer_pidgin": "If your NGO register well, you no go pay tax on donations and grants. But if you do business, you go pay normal tax. You must still file returns every year.",
+    "tags": ["ngo", "non_profit", "charity", "exemption", "compliance"]
+  },
+  {
+    "id": "tax_loss_carryforward",
+    "question_en": "Can I carry forward tax losses?",
+    "question_pidgin": "I fit carry tax loss go next year?",
+    "answer_en": "Yes, business losses can be carried forward for up to 4 years. Cannot be carried back. Must be properly documented and claimed in tax returns. Losses from different business lines cannot be combined.",
+    "answer_pidgin": "Yes, if your business loss money, you fit use that loss to reduce tax for next 4 years. But you must document am well.",
+    "tags": ["losses", "carryforward", "tax_relief", "documentation"]
+  },
+  {
+    "id": "vat_refund_process",
+    "question_en": "How do I get VAT refunds?",
+    "question_pidgin": "How I go get VAT refund?",
+    "answer_en": "Apply for VAT refund if input tax > output tax. Submit Form VAT 001 with supporting documents. Processing takes 60-90 days. Must have valid TIN and compliant filing history for 6 months.",
+    "answer_pidgin": "If the VAT wey you pay pass the VAT wey you collect, you fit ask for refund. Fill Form VAT 001 with all your papers. E go take 2-3 months.",
+    "tags": ["vat", "refund", "input_tax", "output_tax", "process"]
+  },
+  {
+    "id": "tax_amnesty_2026",
+    "question_en": "Is there tax amnesty in 2026?",
+    "question_pidgin": "Any tax amnesty for 2026?",
+    "answer_en": "No general amnesty scheduled for 2026. However, voluntary disclosure programs available for undeclared income. Penalty waivers possible for first-time offenders who self-report. Consult TaxBridge for eligibility.",
+    "answer_pidgin": "No general amnesty for 2026, but if you self-report money wey you no declare before, government fit reduce your punishment.",
+    "tags": ["amnesty", "voluntary_disclosure", "penalty_waiver", "compliance"]
+  },
+  {
+    "id": "environmental_tax",
+    "question_en": "Are there environmental taxes?",
+    "question_pidgin": "Any environmental taxes dey?",
+    "answer_en": "Carbon tax under consideration (2027). Plastic tax: NGN 10 per kg on single-use plastics. Environmental levy on certain industries. Green energy incentives available for solar and renewable energy investments.",
+    "answer_pidgin": "Government dey plan carbon tax for 2027. Plastic tax na NGN 10 per kg. If you invest in solar energy, you fit get tax benefits.",
+    "tags": ["environmental", "carbon_tax", "plastic_tax", "green_energy", "sustainability"]
+  },
+  {
+    "id": "digital_services_tax",
+    "question_en": "Tax on digital services?",
+    "question_pidgin": "Tax for digital services?",
+    "answer_en": "VAT applies to digital services sold to Nigerian customers. Foreign digital platforms must register for VAT if annual sales > NGN 25M. Rate: 7.5%. Withholding tax may apply to payments to foreign providers.",
+    "answer_pidgin": "If you sell digital things to Nigeria customers, you must collect 7.5% VAT. Foreign companies wey sell to Nigeria must register if them pass NGN 25M.",
+    "tags": ["digital", "services", "vat", "foreign_platforms", "technology"]
+  },
+  {
+    "id": "tax_compliance_certification",
+    "question_en": "How do I get tax compliance certificate?",
+    "question_pidgin": "How I go get tax compliance certificate?",
+    "answer_en": "Apply online at tax.nirs.gov.ng after filing all required returns and paying outstanding taxes. Processing: 5-10 working days. Required for government contracts, loans, and certain business licenses. Valid for 12 months.",
+    "answer_pidgin": "Apply for tax clearance certificate online after you pay all your tax and file all returns. E go take 5-10 days. You need am for government work and bank loans.",
+    "tags": ["certificate", "compliance", "tax_clearance", "government", "contracts"]
+  },
+  {
+    "id": "succession_tax",
+    "question_en": "What about inheritance and succession taxes?",
+    "question_pidgin": "Wetin about inheritance tax?",
+    "answer_en": "No inheritance tax in Nigeria (abolished 1996). However, capital gains tax applies to property sales from estates. Estate administration may have tax implications. Seek professional advice for complex situations.",
+    "answer_pidgin": "Nigeria no get inheritance tax again since 1996. But if estate sell property, capital gains tax go apply. For complicated cases, ask tax expert.",
+    "tags": ["inheritance", "succession", "estate", "capital_gains", "family"]
+  },
+  {
+    "id": "tax_planning_tips",
+    "question_en": "What are some tax planning tips?",
+    "question_pidgin": "Which tax planning tips you get?",
+    "answer_en": "Keep accurate records, claim all eligible deductions, time income/expenses strategically, use tax-efficient investment vehicles, consider incorporation vs sole proprietorship, stay updated on changes, use TaxBridge planning tools.",
+    "answer_pidgin": "Keep correct records, claim all deductions wey you suppose claim, plan when to receive money and when to spend, use TaxBridge tools to help you plan well.",
+    "tags": ["planning", "strategy", "tips", "optimization", "advice"]
+  },
+  {
+    "id": "industry_specific_tax",
+    "question_en": "Industry-specific tax rules?",
+    "question_pidgin": "Different tax rules for different industries?",
+    "answer_en": "Oil & Gas: Petroleum Profit Tax (85%). Manufacturing: 20% after incentives. Agriculture: Various exemptions. IT: Pioneer status possible. Healthcare: Some exemptions. Consult TaxBridge for your specific industry.",
+    "answer_pidgin": "Different industries get different tax. Oil and gas na 85%, manufacturing 20%, farming get exemptions. Check TaxBridge for your own industry.",
+    "tags": ["industry", "sector", "specific", "petroleum", "manufacturing"]
+  },
+  {
+    "id": "tax_technology_trends",
+    "question_en": "What are the latest tax technology trends?",
+    "question_pidgin": "Wetin be the latest tax technology trends?",
+    "answer_en": "AI-powered audit automation, blockchain for tax transparency, real-time e-invoicing, predictive tax analytics, digital tax assistants (like TaxBridge!), automated compliance monitoring, cloud-based tax management.",
+    "answer_pidgin": "Tax technology don advance well well: AI dey help check tax, blockchain for transparency, real-time e-invoice, and digital tax assistant like TaxBridge!",
+    "tags": ["technology", "trends", "ai", "blockchain", "automation", "future"]
+  },
+  {
+    "id": "tax_bridge_roadmap",
+    "question_en": "What's coming next for TaxBridge?",
+    "question_pidgin": "Wetin TaxBridge get plan for future?",
+    "answer_en": "2026 roadmap: Voice commands in 3 more languages, AI tax advisor, predictive audit alerts, integration with major accounting software, blockchain invoice verification, expanded API ecosystem, mobile wallet payments.",
+    "answer_pidgin": "For 2026, TaxBridge go add voice for Hausa/Yoruba/Igbo, AI tax advisor, better audit alerts, and connect with more accounting software.",
+    "tags": ["roadmap", "future", "features", "development", "innovation"]
+  }
+]
