@@ -318,7 +318,7 @@ Content-Type: application/json
   - [ ] Payment status updates trigger mobile sync
 - [ ] Health check endpoints:
   - [ ] `/health` returns 200 when DB + Redis healthy
-  - [ ] `/health/duplo` validates DigiTax connectivity
+  - [ ] `/health/digitax` validates DigiTax connectivity (legacy `/health/duplo` alias supported)
   - [ ] `/health/remita` validates Remita gateway
   - [ ] `/health/db` checks database connection
   - [ ] `/health/queues` checks BullMQ queue status

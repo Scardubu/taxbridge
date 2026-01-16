@@ -69,11 +69,13 @@ create_monitor "TaxBridge API Health" "https://$BASE_DOMAIN/health" 2 300 '"stat
 create_monitor "TaxBridge API Ready" "https://$BASE_DOMAIN/ready" 2 300 '"status":"ready"'
 create_monitor "TaxBridge Metrics" "https://$BASE_DOMAIN/metrics" 1 600
 
-# Integration Health Endpoints (Duplo/DigiTax for NRS e-invoicing)
+# Integration Health Endpoints (DigiTax for NRS e-invoicing)
 echo ""
-echo "🔗 Creating Duplo Integration Monitors..."
-create_monitor "TaxBridge Duplo Health" "https://$BASE_DOMAIN/health/duplo" 2 300 '"status":"healthy"'
-create_monitor "Duplo API Gateway" "https://api.duplo.co" 1 300
+echo "🔗 Creating DigiTax Integration Monitors..."
+create_monitor "TaxBridge DigiTax Health" "https://$BASE_DOMAIN/health/digitax" 2 300 '"status":"healthy"'
+
+# Optional legacy alias monitor (backward-compatible)
+create_monitor "TaxBridge DigiTax Health (alias /health/duplo)" "https://$BASE_DOMAIN/health/duplo" 2 300 '"status":"healthy"'
 
 # Remita Payment Gateway Monitors
 echo ""

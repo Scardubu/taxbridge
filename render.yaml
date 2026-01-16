@@ -80,7 +80,7 @@ services:
         sync: false
       
       # CORS Configuration
-      - key: CORS_ORIGINS
+      - key: ALLOWED_ORIGINS
         value: https://taxbridge.ng,https://admin.taxbridge.ng,https://www.taxbridge.ng,https://taxbridge-api.onrender.com
       
       # UBL Validation

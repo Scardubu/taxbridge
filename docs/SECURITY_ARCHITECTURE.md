@@ -214,7 +214,7 @@ Sensitive data scrubbing:
 - Token caching in Redis (expires 1 hour)
 - Webhook signature verification (HMAC-SHA256)
 - Idempotency keys prevent duplicate submissions
-- Health check endpoint: `/health/duplo`
+- Health check endpoint: `/health/digitax` (legacy `/health/duplo` alias supported)
 
 ### 4.2 Remita Payment Gateway
 

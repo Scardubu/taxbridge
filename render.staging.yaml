@@ -50,7 +50,7 @@ services:
         sync: false
       - key: SENTRY_DSN
         sync: false
-      - key: CORS_ORIGINS
+      - key: ALLOWED_ORIGINS
         value: https://staging.taxbridge.ng,https://admin-staging.taxbridge.ng,http://localhost:19006,http://10.0.2.2:3000
       - key: UBL_XSD_PATH
         value: lib/ubl-invoice-2.1.xsd

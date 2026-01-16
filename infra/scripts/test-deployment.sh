@@ -83,14 +83,21 @@ test_endpoint "$API_URL/ready" 200 "Readiness probe"
 # Test 3: Metrics Endpoint
 test_endpoint "$API_URL/metrics" 200 "Prometheus metrics"
 
-# Test 4: Duplo Health
-log_test "Duplo/DigiTax integration health"
-duplo_response=$(curl -s "$API_URL/health/duplo" || echo "{}")
-duplo_status=$(echo "$duplo_response" | grep -o '"status":"[^"]*"' | cut -d'"' -f4 || echo "unknown")
-if [ "$duplo_status" = "healthy" ] || [ "$duplo_status" = "degraded" ]; then
-  log_pass "Duplo health check (status: $duplo_status)"
+# Test 4: DigiTax Health (canonical) with legacy alias fallback
+log_test "DigiTax integration health"
+digitax_response=$(curl -s "$API_URL/health/digitax" || echo "{}")
+digitax_status=$(echo "$digitax_response" | grep -o '"status":"[^"]*"' | cut -d'"' -f4 || echo "unknown")
+
+# Backward-compatible fallback for older deployments
+if [ "$digitax_status" = "unknown" ] || [ -z "$digitax_status" ]; then
+  digitax_response=$(curl -s "$API_URL/health/duplo" || echo "{}")
+  digitax_status=$(echo "$digitax_response" | grep -o '"status":"[^"]*"' | cut -d'"' -f4 || echo "unknown")
+fi
+
+if [ "$digitax_status" = "healthy" ] || [ "$digitax_status" = "degraded" ]; then
+  log_pass "DigiTax health check (status: $digitax_status)"
 else
-  log_fail "Duplo health check failed (status: $duplo_status)"
+  log_fail "DigiTax health check failed (status: $digitax_status)"
 fi
 
 # Test 5: Remita Health
@@ -135,9 +142,9 @@ else
   log_fail "Invoice API unexpected response ($invoice_status)"
 fi
 
-# Test 10: Payment RRR Generation (validation error expected)
-log_test "Payment RRR API endpoint (validation)"
-rrr_status=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$API_URL/api/v1/payments/generate-rrr" \
+# Test 10: Payment Generation (validation error expected)
+log_test "Payment generate API endpoint (validation)"
+rrr_status=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$API_URL/api/v1/payments/generate" \
   -H "Content-Type: application/json" \
   -d '{}' || echo "000")
 if [ "$rrr_status" = "400" ]; then

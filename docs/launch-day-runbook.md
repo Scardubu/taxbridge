@@ -121,7 +121,7 @@
 - [ ] Verify all services healthy
   ```bash
   curl https://api.taxbridge.ng/health
-  curl https://api.taxbridge.ng/health/duplo
+  curl https://api.taxbridge.ng/health/digitax
   curl https://api.taxbridge.ng/health/remita
   ```
 - [ ] Confirm database connections

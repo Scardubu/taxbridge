@@ -38,7 +38,7 @@ VERSION=$VERSION docker compose -f infra/docker-compose.prod.yml pull || true
 VERSION=$VERSION docker compose -f infra/docker-compose.prod.yml up -d --remove-orphans
 
 sleep 10
-curl -fsS https://api.taxbridge.ng/health/duplo
+curl -fsS https://api.taxbridge.ng/health/digitax || curl -fsS https://api.taxbridge.ng/health/duplo
 curl -fsS https://api.taxbridge.ng/health/remita
 
 if [ -n "${SLACK_WEBHOOK_URL:-}" ]; then

@@ -147,21 +147,28 @@ fi
 # 3. Integration Health Checks
 section "3. Integration Health Checks"
 
-# DigiTax/Duplo
-if timeout 10 curl -f -s "${BACKEND_URL}/health/duplo" > /dev/null 2>&1; then
-    DUPLO_JSON=$(curl -s "${BACKEND_URL}/health/duplo" || echo "{}")
+# DigiTax (canonical) with legacy alias fallback
+if timeout 10 curl -f -s "${BACKEND_URL}/health/digitax" > /dev/null 2>&1; then
+    DIGITAX_JSON=$(curl -s "${BACKEND_URL}/health/digitax" || echo "{}")
+elif timeout 10 curl -f -s "${BACKEND_URL}/health/duplo" > /dev/null 2>&1; then
+    DIGITAX_JSON=$(curl -s "${BACKEND_URL}/health/duplo" || echo "{}")
+else
+    DIGITAX_JSON="{}"
+fi
+
+if [ "$DIGITAX_JSON" != "{}" ]; then
     if command -v jq &> /dev/null; then
-        DUPLO_STATUS=$(echo "$DUPLO_JSON" | jq -r '.status // "unknown"')
-        if [ "$DUPLO_STATUS" = "healthy" ]; then
-            check_pass "DigiTax/Duplo integration healthy"
+        DIGITAX_STATUS=$(echo "$DIGITAX_JSON" | jq -r '.status // "unknown"')
+        if [ "$DIGITAX_STATUS" = "healthy" ]; then
+            check_pass "DigiTax integration healthy"
         else
-            check_warn "DigiTax/Duplo status: $DUPLO_STATUS"
+            check_warn "DigiTax status: $DIGITAX_STATUS"
         fi
     else
-        check_pass "DigiTax/Duplo endpoint responding"
+        check_pass "DigiTax endpoint responding"
     fi
 else
-    check_warn "DigiTax/Duplo health check inconclusive"
+    check_warn "DigiTax health check inconclusive"
 fi
 
 # Remita
