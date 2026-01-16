@@ -4,6 +4,20 @@ import { createInvoice } from './api';
 import { getPendingInvoices, markInvoiceSynced, updateInvoiceStatus } from './database';
 import { setInvoiceRetryMetadata } from './database';
 
+function extractApiStatus(err: unknown): number | null {
+  const msg = err instanceof Error ? err.message : String(err);
+  const match = /API error\s+(\d{3})\b/.exec(msg);
+  if (!match) return null;
+  const parsed = Number(match[1]);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function isRetryableStatus(status: number): boolean {
+  // Retry server errors and explicit rate limiting/timeouts.
+  if (status >= 500) return true;
+  return status === 408 || status === 429;
+}
+
 export async function syncPendingInvoices(): Promise<{ synced: number; failed: number }> {
   const pending = await getPendingInvoices();
   let synced = 0;
@@ -22,11 +36,21 @@ export async function syncPendingInvoices(): Promise<{ synced: number; failed: n
 
       while (attempt < maxAttempts) {
         try {
-          const result = await createInvoice({ customerName: inv.customerName ?? undefined, items });
+          const result = await createInvoice(
+            { customerName: inv.customerName ?? undefined, items },
+            { idempotencyKey: inv.id }
+          );
           successResult = result;
           break;
         } catch (err) {
           lastError = err;
+
+          const status = extractApiStatus(err);
+          if (status !== null && !isRetryableStatus(status)) {
+            // Non-retryable API error (e.g. auth/validation). Don't backoff-retry.
+            break;
+          }
+
           attempt += 1;
           const backoff = Math.min(30_000, 1000 * Math.pow(2, attempt - 1)); // cap at 30s
           const nextRetry = new Date(Date.now() + backoff).toISOString();

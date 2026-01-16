@@ -1,75 +1,135 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { NewInvoiceInput } from '../types/invoice';
+
+import { getApiBaseUrl, setApiBaseUrl } from './config';
+import { clearAuthTokens, getAccessToken, getRefreshToken, setAuthTokens } from './authTokens';
 
 export type CreateInvoiceResponse = {
   invoiceId: string;
   status: string;
 };
 
-const API_BASE_URL_KEY = 'taxbridge_api_base_url';
+export { getApiBaseUrl, setApiBaseUrl };
 
-export async function getApiBaseUrl(): Promise<string> {
+export type CreateInvoiceOptions = {
+  idempotencyKey?: string;
+};
+
+type RequestOptions = {
+  idempotencyKey?: string;
+  skipAuth?: boolean;
+  retryOnUnauthorized?: boolean;
+};
+
+let refreshInFlight: Promise<string | null> | null = null;
+
+async function parseErrorBody(res: Response): Promise<string> {
+  const text = await res.text().catch(() => '');
+  if (!text) return '';
   try {
-    const customUrl = await AsyncStorage.getItem(API_BASE_URL_KEY);
-    if (customUrl) {
-      return customUrl;
-    }
-  } catch (error) {
-    console.warn('Failed to load custom API URL:', error);
+    const parsed = JSON.parse(text);
+    if (typeof parsed?.error === 'string') return parsed.error;
+    if (typeof parsed?.message === 'string') return parsed.message;
+    if (typeof parsed?.error?.message === 'string') return parsed.error.message;
+  } catch {
+    // fall back to plain text
   }
-  
-  // Default for development - works with emulator
-  return __DEV__ ? 'http://10.0.2.2:3000' : 'https://api.taxbridge.ng';
+  return text;
 }
 
-export async function setApiBaseUrl(url: string): Promise<void> {
-  try {
-    await AsyncStorage.setItem(API_BASE_URL_KEY, url);
-  } catch (error) {
-    console.error('Failed to save API URL:', error);
-    throw error;
+async function refreshAccessToken(baseUrl: string): Promise<string | null> {
+  const refreshToken = await getRefreshToken();
+  if (!refreshToken) return null;
+
+  if (!refreshInFlight) {
+    refreshInFlight = (async () => {
+      const res = await fetch(`${baseUrl}/api/v1/auth/refresh`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json'
+        },
+        body: JSON.stringify({ refreshToken })
+      });
+
+      if (!res.ok) {
+        await clearAuthTokens();
+        return null;
+      }
+
+      const data = (await res.json()) as { accessToken?: string };
+      if (!data?.accessToken) {
+        await clearAuthTokens();
+        return null;
+      }
+
+      await setAuthTokens({ accessToken: data.accessToken, refreshToken });
+      return data.accessToken;
+    })().finally(() => {
+      refreshInFlight = null;
+    });
   }
+
+  return refreshInFlight;
 }
 
-export async function createInvoice(input: NewInvoiceInput): Promise<CreateInvoiceResponse> {
-  const baseUrl = await getApiBaseUrl();
-  const res = await fetch(`${baseUrl}/api/v1/invoices`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      customerName: input.customerName,
-      items: input.items
-    })
-  });
-
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new Error(`API error ${res.status}: ${text}`);
-  }
-
-  return (await res.json()) as CreateInvoiceResponse;
-}
-
-async function request(method: string, path: string, body?: any) {
+async function requestJson(method: string, path: string, body?: any, options: RequestOptions = {}) {
   const baseUrl = await getApiBaseUrl();
   const url = `${baseUrl}/api/v1${path.startsWith('/') ? path : `/${path}`}`;
-  const res = await fetch(url, {
-    method,
-    headers: { 'Content-Type': 'application/json' },
-    body: body ? JSON.stringify(body) : undefined
-  });
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    Accept: 'application/json',
+    ...(options.idempotencyKey ? { 'Idempotency-Key': options.idempotencyKey } : {})
+  };
+
+  if (!options.skipAuth) {
+    const accessToken = await getAccessToken();
+    if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
+  }
+
+  const doFetch = () =>
+    fetch(url, {
+      method,
+      headers,
+      body: body ? JSON.stringify(body) : undefined
+    });
+
+  let res = await doFetch();
+
+  if (res.status === 401 && !options.skipAuth && options.retryOnUnauthorized !== false) {
+    const nextToken = await refreshAccessToken(baseUrl);
+    if (nextToken) {
+      headers.Authorization = `Bearer ${nextToken}`;
+      res = await doFetch();
+    }
+  }
 
   if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new Error(`API error ${res.status}: ${text}`);
+    const detail = await parseErrorBody(res);
+    throw new Error(`API error ${res.status}: ${detail}`);
   }
 
   return res.json();
 }
 
+export async function createInvoice(
+  input: NewInvoiceInput,
+  options: CreateInvoiceOptions = {}
+): Promise<CreateInvoiceResponse> {
+  return (await requestJson(
+    'POST',
+    '/invoices',
+    {
+      customerName: input.customerName,
+      items: input.items
+    },
+    {
+      idempotencyKey: options.idempotencyKey
+    }
+  )) as CreateInvoiceResponse;
+}
+
 export const api = {
-  post: (path: string, body?: any) => request('POST', path, body),
-  get: (path: string) => request('GET', path)
+  post: (path: string, body?: any, options?: RequestOptions) => requestJson('POST', path, body, options),
+  get: (path: string, options?: RequestOptions) => requestJson('GET', path, undefined, options)
 };

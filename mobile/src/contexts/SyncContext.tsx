@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useRef, useState } from 'r
 import { Alert } from 'react-native';
 import { useNetwork } from './NetworkContext';
 import { syncPendingInvoices } from '../services/sync';
+import { getAccessToken } from '../services/authTokens';
 
 type SyncResult = { synced: number; failed: number };
 
@@ -25,6 +26,11 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
   const [lastSyncAt, setLastSyncAt] = useState<number | null>(null);
   const isOnlinePrev = useRef<boolean | null>(null);
   const syncInProgress = useRef(false);
+
+  async function hasAuthToken(): Promise<boolean> {
+    const token = await getAccessToken();
+    return Boolean(token);
+  }
 
   async function doSyncWithBackoff(maxAttempts = 3): Promise<SyncResult> {
     let attempt = 0;
@@ -70,6 +76,11 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
       return { synced: 0, failed: 0 };
     }
 
+    if (!(await hasAuthToken())) {
+      Alert.alert('Sign in required', 'Please sign in in Settings > Account & Sync to sync invoices.');
+      return { synced: 0, failed: 0 };
+    }
+
     if (syncInProgress.current) return { synced: 0, failed: 0 };
 
     setIsSyncing(true);
@@ -99,6 +110,8 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
       // became online
       // run background sync but don't block UI; show a small alert only if something synced/failed
       (async () => {
+        // If the user is not signed in, don't auto-sync.
+        if (!(await hasAuthToken())) return;
         setIsSyncing(true);
         syncInProgress.current = true;
         try {

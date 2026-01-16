@@ -2,10 +2,13 @@ import { useEffect, useState, useCallback, memo } from 'react';
 import { Pressable, SafeAreaView, StyleSheet, Text, TextInput, View, Alert, ScrollView, Linking } from 'react-native';
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
+import Constants from 'expo-constants';
 
 import i18n, { type SupportedLanguage } from '../i18n';
 import { getSetting, setSetting, getInvoices, clearSyncedLocalInvoices } from '../services/database';
 import { getApiBaseUrl, setApiBaseUrl } from '../services/api';
+import { getAccessToken } from '../services/authTokens';
+import * as authApi from '../services/authApi';
 import { useFormValidation, validationRules, showValidationError } from '../utils/validation';
 import AnimatedButton from '../components/AnimatedButton';
 import { useNetwork } from '../contexts/NetworkContext';
@@ -23,15 +26,35 @@ interface SettingSection {
 function SettingsScreen() {
   const { t } = useTranslation();
   const { isOnline } = useNetwork();
-  const { lastSyncAt } = useSyncContext();
+  const { lastSyncAt, manualSync } = useSyncContext();
   const [lang, setLang] = useState<SupportedLanguage>('en');
   const [storageStats, setStorageStats] = useState({ total: 0, synced: 0, pending: 0 });
   const [expandedSection, setExpandedSection] = useState<string | null>('language');
+
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
+  const [authName, setAuthName] = useState('');
+  const [authPhone, setAuthPhone] = useState('');
+  const [authPassword, setAuthPassword] = useState('');
+  const [registerUserId, setRegisterUserId] = useState<string | null>(null);
+  const [authOtp, setAuthOtp] = useState('');
+  const [mfaToken, setMfaToken] = useState<string | null>(null);
+  const [totpCode, setTotpCode] = useState('');
+  const [isAuthSubmitting, setIsAuthSubmitting] = useState(false);
 
   const { values, errors, touched, setValue, setTouchedField, validateAll } = useFormValidation(
     { apiUrl: '' },
     { apiUrl: validationRules.apiUrl }
   );
+
+  const refreshAuthStatus = useCallback(async () => {
+    try {
+      const token = await getAccessToken();
+      setIsAuthenticated(Boolean(token));
+    } catch {
+      setIsAuthenticated(false);
+    }
+  }, []);
 
   useEffect(() => {
     void getSetting(LANGUAGE_KEY)
@@ -48,7 +71,163 @@ function SettingsScreen() {
     }).catch(() => undefined);
 
     loadStorageStats();
-  }, [setValue]);
+    void refreshAuthStatus();
+  }, [loadStorageStats, refreshAuthStatus, setValue]);
+
+  const resetAuthForms = useCallback(() => {
+    setAuthName('');
+    setAuthPhone('');
+    setAuthPassword('');
+    setRegisterUserId(null);
+    setAuthOtp('');
+    setMfaToken(null);
+    setTotpCode('');
+  }, []);
+
+  const handleLogin = useCallback(async () => {
+    if (isAuthSubmitting) return;
+    if (!isOnline) {
+      Alert.alert('Offline', 'Please connect to the internet to sign in. You can keep creating invoices offline.');
+      return;
+    }
+    if (!authPhone.trim() || authPhone.trim().length < 10) {
+      showValidationError('Validation Error', 'Enter a valid phone number');
+      return;
+    }
+    if (!authPassword || authPassword.length < 6) {
+      showValidationError('Validation Error', 'Enter your password (min 6 characters)');
+      return;
+    }
+
+    setIsAuthSubmitting(true);
+    try {
+      const res = await authApi.login(authPhone.trim(), authPassword);
+      if ((res as any)?.requiresMfa && (res as any)?.mfaToken) {
+        setMfaToken((res as any).mfaToken);
+        Alert.alert('MFA Required', 'Enter your authenticator code to finish signing in.');
+        return;
+      }
+
+      await refreshAuthStatus();
+      Alert.alert('Signed in', 'Sync is now enabled on this device.');
+      resetAuthForms();
+      if (isOnline) {
+        void manualSync();
+      }
+    } catch {
+      showValidationError('Sign-in failed', 'Please check your phone number and password and try again.');
+    } finally {
+      setIsAuthSubmitting(false);
+    }
+  }, [authPassword, authPhone, isAuthSubmitting, isOnline, manualSync, refreshAuthStatus, resetAuthForms]);
+
+  const handleMfaVerify = useCallback(async () => {
+    if (isAuthSubmitting) return;
+    if (!isOnline) {
+      Alert.alert('Offline', 'Please connect to the internet to verify MFA.');
+      return;
+    }
+    if (!mfaToken) {
+      showValidationError('Missing step', 'Please start sign-in again.');
+      return;
+    }
+    if (!totpCode.trim() || totpCode.trim().length < 4) {
+      showValidationError('Validation Error', 'Enter your authenticator code');
+      return;
+    }
+
+    setIsAuthSubmitting(true);
+    try {
+      await authApi.mfaLogin(mfaToken, totpCode.trim());
+      await refreshAuthStatus();
+      Alert.alert('Signed in', 'Sync is now enabled on this device.');
+      resetAuthForms();
+      if (isOnline) {
+        void manualSync();
+      }
+    } catch {
+      showValidationError('MFA failed', 'Please check the code and try again.');
+    } finally {
+      setIsAuthSubmitting(false);
+    }
+  }, [isAuthSubmitting, isOnline, manualSync, mfaToken, refreshAuthStatus, resetAuthForms, totpCode]);
+
+  const handleRegister = useCallback(async () => {
+    if (isAuthSubmitting) return;
+    if (!isOnline) {
+      Alert.alert('Offline', 'Please connect to the internet to create an account.');
+      return;
+    }
+    if (!authName.trim() || authName.trim().length < 2) {
+      showValidationError('Validation Error', 'Enter your full name');
+      return;
+    }
+    if (!authPhone.trim() || authPhone.trim().length < 10) {
+      showValidationError('Validation Error', 'Enter a valid phone number');
+      return;
+    }
+    if (!authPassword || authPassword.length < 6) {
+      showValidationError('Validation Error', 'Create a password (min 6 characters)');
+      return;
+    }
+
+    setIsAuthSubmitting(true);
+    try {
+      const res = await authApi.register(authPhone.trim(), authName.trim(), authPassword);
+      setRegisterUserId(res.userId);
+      Alert.alert('Verify phone', 'Enter the OTP sent to your phone to finish setup.');
+    } catch {
+      showValidationError('Signup failed', 'Could not create account. Please try again.');
+    } finally {
+      setIsAuthSubmitting(false);
+    }
+  }, [authName, authPassword, authPhone, isAuthSubmitting, isOnline]);
+
+  const handleVerifyOtp = useCallback(async () => {
+    if (isAuthSubmitting) return;
+    if (!isOnline) {
+      Alert.alert('Offline', 'Please connect to the internet to verify your phone.');
+      return;
+    }
+    if (!registerUserId) {
+      showValidationError('Missing step', 'Please create your account first.');
+      return;
+    }
+    if (!authOtp.trim() || authOtp.trim().length < 4) {
+      showValidationError('Validation Error', 'Enter the OTP');
+      return;
+    }
+
+    setIsAuthSubmitting(true);
+    try {
+      await authApi.verifyPhone(registerUserId, authOtp.trim());
+      await refreshAuthStatus();
+      Alert.alert('Account ready', 'Your phone is verified and sync is now enabled.');
+      resetAuthForms();
+      if (isOnline) {
+        void manualSync();
+      }
+    } catch {
+      showValidationError('Verification failed', 'Please check the OTP and try again.');
+    } finally {
+      setIsAuthSubmitting(false);
+    }
+  }, [authOtp, isAuthSubmitting, isOnline, manualSync, refreshAuthStatus, registerUserId, resetAuthForms]);
+
+  const handleLogout = useCallback(async () => {
+    if (isAuthSubmitting) return;
+    setIsAuthSubmitting(true);
+    try {
+      await authApi.logout();
+      await refreshAuthStatus();
+      Alert.alert('Signed out', 'This device is now signed out. Offline invoices remain on your phone.');
+      resetAuthForms();
+    } catch {
+      showValidationError('Sign-out failed', 'Please try again.');
+    } finally {
+      setIsAuthSubmitting(false);
+    }
+  }, [isAuthSubmitting, refreshAuthStatus, resetAuthForms]);
 
   const loadStorageStats = useCallback(async () => {
     try {
@@ -313,6 +492,173 @@ function SettingsScreen() {
           )}
         </Animated.View>
 
+        {/* Account & Sync Section */}
+        <Animated.View entering={FadeInDown.duration(300).delay(450)}>
+          <Pressable style={styles.sectionHeader} onPress={() => toggleSection('account')}>
+            <View style={styles.sectionTitleRow}>
+              <Text style={styles.sectionIcon}>👤</Text>
+              <Text style={styles.sectionTitle}>Account & Sync</Text>
+            </View>
+            <Text style={styles.expandIcon}>{expandedSection === 'account' ? '▼' : '▶'}</Text>
+          </Pressable>
+
+          {expandedSection === 'account' && (
+            <Animated.View entering={FadeIn.duration(200)} style={styles.sectionContent}>
+              <Text style={styles.helperText}>
+                Sign in to enable cross-device sync, secure invoice submission, and payments. You can still create invoices offline without signing in.
+              </Text>
+
+              {isAuthenticated ? (
+                <View style={styles.accountCard}>
+                  <View style={styles.accountRow}>
+                    <Text style={styles.accountStatusDot}>🟢</Text>
+                    <View style={styles.accountStatusInfo}>
+                      <Text style={styles.accountStatusTitle}>Signed in</Text>
+                      <Text style={styles.accountStatusSubtitle}>Sync and payments are enabled on this device</Text>
+                    </View>
+                  </View>
+                  <View style={styles.row}>
+                    <AnimatedButton
+                      title="Sync now"
+                      onPress={() => void manualSync()}
+                      loading={isAuthSubmitting}
+                      style={{ flex: 1 }}
+                    />
+                    <AnimatedButton
+                      title="Log out"
+                      onPress={() => void handleLogout()}
+                      variant="secondary"
+                      loading={isAuthSubmitting}
+                      style={{ flex: 1 }}
+                    />
+                  </View>
+                </View>
+              ) : (
+                <>
+                  <View style={styles.row}>
+                    <Pressable
+                      style={[styles.option, authMode === 'login' && styles.optionActive]}
+                      onPress={() => {
+                        setAuthMode('login');
+                        setRegisterUserId(null);
+                        setMfaToken(null);
+                      }}
+                    >
+                      <Text style={[styles.optionText, authMode === 'login' && styles.optionTextActive]}>Sign in</Text>
+                    </Pressable>
+                    <Pressable
+                      style={[styles.option, authMode === 'register' && styles.optionActive]}
+                      onPress={() => {
+                        setAuthMode('register');
+                        setRegisterUserId(null);
+                        setMfaToken(null);
+                      }}
+                    >
+                      <Text style={[styles.optionText, authMode === 'register' && styles.optionTextActive]}>Create account</Text>
+                    </Pressable>
+                  </View>
+
+                  {authMode === 'register' && (
+                    <>
+                      <Text style={styles.label}>Full name</Text>
+                      <TextInput
+                        style={styles.input}
+                        value={authName}
+                        onChangeText={setAuthName}
+                        placeholder="e.g. Amina Yusuf"
+                        placeholderTextColor="#98A2B3"
+                        autoCapitalize="words"
+                      />
+                    </>
+                  )}
+
+                  <Text style={styles.label}>Phone number</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={authPhone}
+                    onChangeText={setAuthPhone}
+                    placeholder="08012345678"
+                    placeholderTextColor="#98A2B3"
+                    keyboardType="phone-pad"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                  />
+
+                  <Text style={styles.label}>Password</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={authPassword}
+                    onChangeText={setAuthPassword}
+                    placeholder="••••••••"
+                    placeholderTextColor="#98A2B3"
+                    secureTextEntry
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                  />
+
+                  {mfaToken && (
+                    <>
+                      <Text style={styles.label}>Authenticator code</Text>
+                      <TextInput
+                        style={styles.input}
+                        value={totpCode}
+                        onChangeText={setTotpCode}
+                        placeholder="123456"
+                        placeholderTextColor="#98A2B3"
+                        keyboardType="number-pad"
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                      />
+                      <AnimatedButton
+                        title="Verify MFA"
+                        onPress={() => void handleMfaVerify()}
+                        loading={isAuthSubmitting}
+                      />
+                    </>
+                  )}
+
+                  {authMode === 'login' && !mfaToken && (
+                    <AnimatedButton
+                      title="Sign in"
+                      onPress={() => void handleLogin()}
+                      loading={isAuthSubmitting}
+                    />
+                  )}
+
+                  {authMode === 'register' && !registerUserId && (
+                    <AnimatedButton
+                      title="Create account"
+                      onPress={() => void handleRegister()}
+                      loading={isAuthSubmitting}
+                    />
+                  )}
+
+                  {authMode === 'register' && registerUserId && (
+                    <>
+                      <Text style={styles.label}>OTP</Text>
+                      <TextInput
+                        style={styles.input}
+                        value={authOtp}
+                        onChangeText={setAuthOtp}
+                        placeholder="123456"
+                        placeholderTextColor="#98A2B3"
+                        keyboardType="number-pad"
+                        autoCapitalize="none"
+                        autoCorrect={false}
+                      />
+                      <AnimatedButton
+                        title="Verify phone"
+                        onPress={() => void handleVerifyOtp()}
+                        loading={isAuthSubmitting}
+                      />
+                    </>
+                  )}
+                </>
+              )}
+            </Animated.View>
+          )}
+        </Animated.View>
+
         {/* Community Section */}
         <Animated.View entering={FadeInDown.duration(300).delay(500)}>
           <Pressable style={styles.sectionHeader} onPress={() => toggleSection('community')}>
@@ -373,7 +719,7 @@ function SettingsScreen() {
 
               <View style={styles.securityFeatures}>
                 <View style={styles.featureItem}>
-                  <Text style={styles.featureIcon}>�</Text>
+                  <Text style={styles.featureIcon}>🔐</Text>
                   <Text style={styles.featureText}>Local-first storage</Text>
                 </View>
                 <View style={styles.featureItem}>
@@ -391,7 +737,7 @@ function SettingsScreen() {
 
         {/* App Info */}
         <Animated.View entering={FadeInDown.duration(300).delay(700)} style={styles.appInfo}>
-          <Text style={styles.appName}>TaxBridge v5.0.0</Text>
+          <Text style={styles.appName}>TaxBridge v{Constants.expoConfig?.version || '5.0.2'}</Text>
           <Text style={styles.appTagline}>Simplify Your Taxes, Bridge Your Future</Text>
           <Text style={styles.copyright}>© 2026 TaxBridge. All rights reserved.</Text>
         </Animated.View>
@@ -549,6 +895,38 @@ const styles = StyleSheet.create({
     color: '#667085',
     marginTop: 12,
     textAlign: 'center',
+  },
+
+  // Account
+  accountCard: {
+    backgroundColor: '#F0FDF4',
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: '#86EFAC',
+    marginTop: 12,
+  },
+  accountRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 12,
+  },
+  accountStatusDot: {
+    fontSize: 16,
+  },
+  accountStatusInfo: {
+    flex: 1,
+  },
+  accountStatusTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#166534',
+  },
+  accountStatusSubtitle: {
+    fontSize: 12,
+    color: '#166534',
+    marginTop: 2,
   },
   
   // Storage

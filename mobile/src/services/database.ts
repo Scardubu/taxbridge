@@ -347,24 +347,3 @@ export async function setSetting(key: string, value: string): Promise<void> {
   await AsyncStorage.setItem(STORAGE_SETTINGS_KEY, JSON.stringify(obj));
 }
 
-const API_BASE_URL_KEY = 'api:baseUrl';
-const DEFAULT_API_URL = 'http://localhost:3000';
-
-export async function getApiBaseUrl(): Promise<string> {
-  try {
-    const url = await getSetting(API_BASE_URL_KEY);
-    return url || DEFAULT_API_URL;
-  } catch {
-    return DEFAULT_API_URL;
-  }
-}
-
-export async function setApiBaseUrl(url: string): Promise<void> {
-  // Validate URL format
-  try {
-    new URL(url);
-  } catch {
-    throw new Error('Invalid URL format');
-  }
-  await setSetting(API_BASE_URL_KEY, url);
-}

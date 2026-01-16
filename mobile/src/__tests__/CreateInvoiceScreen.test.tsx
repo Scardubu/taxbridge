@@ -10,8 +10,12 @@ jest.mock('../services/database', () => ({
   markInvoiceSynced: jest.fn().mockResolvedValue(undefined),
   updateInvoiceStatus: jest.fn().mockResolvedValue(undefined),
   getSetting: jest.fn().mockResolvedValue(null),
-  getApiBaseUrl: jest.fn().mockResolvedValue('http://localhost'),
   setSetting: jest.fn().mockResolvedValue(undefined),
+}));
+
+jest.mock('../services/config', () => ({
+  getApiBaseUrl: jest.fn().mockResolvedValue('http://localhost'),
+  setApiBaseUrl: jest.fn().mockResolvedValue(undefined),
 }));
 
 // Mock AnimatedButton to a simple pressable for testing

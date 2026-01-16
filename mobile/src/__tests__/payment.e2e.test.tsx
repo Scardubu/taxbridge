@@ -6,6 +6,13 @@ import { api } from '../services/api';
 
 // Mock dependencies
 jest.mock('../services/api');
+jest.mock('../services/authTokens', () => ({
+  getAccessToken: jest.fn().mockResolvedValue('test-access-token')
+}));
+jest.mock('../contexts/NetworkContext', () => ({
+  useNetwork: () => ({ isOnline: true, isConnected: true, connectionType: 'wifi', forceCheck: async () => true }),
+  NetworkProvider: ({ children }: any) => children
+}));
 jest.mock('../contexts/LoadingContext', () => {
   const React = require('react');
   return {
@@ -165,13 +172,9 @@ describe('PaymentScreen E2E Tests', () => {
     });
 
     test('handles API errors gracefully', async () => {
-      (api.post as jest.Mock).mockRejectedValueOnce({
-        response: {
-          data: {
-            error: 'Invoice must be NRS-stamped before payment',
-          },
-        },
-      });
+      (api.post as jest.Mock).mockRejectedValueOnce(
+        new Error('API error 400: Invoice must be NRS-stamped before payment')
+      );
 
       const { getByPlaceholderText, getByText } = render(
         <PaymentScreen route={mockRoute} />
@@ -349,13 +352,7 @@ describe('PaymentScreen E2E Tests', () => {
         amount: 1000,
       });
       
-      (api.get as jest.Mock).mockRejectedValueOnce({
-        response: {
-          data: {
-            error: 'No payment found',
-          },
-        },
-      });
+      (api.get as jest.Mock).mockRejectedValueOnce(new Error('API error 404: No payment found'));
 
       const { getByPlaceholderText, getByText } = render(<PaymentScreen route={mockRoute} />);
 

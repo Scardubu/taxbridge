@@ -3,6 +3,8 @@ import { View, Text, TextInput, TouchableOpacity, Alert, ActivityIndicator, Styl
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { api } from '../services/api';
 import { LoadingContext } from '../contexts/LoadingContext';
+import { useNetwork } from '../contexts/NetworkContext';
+import { getAccessToken } from '../services/authTokens';
 
 type PaymentRouteParams = {
   Payment: {
@@ -44,6 +46,7 @@ export default function PaymentScreen({ route: propRoute }: PaymentScreenProps =
   const invoice = getInvoice();
   const navigation = useNavigation();
   const { setLoading: setAppLoading } = React.useContext(LoadingContext);
+  const { isOnline } = useNetwork();
   const isMountedRef = useRef(true);
 
   // Cleanup on unmount
@@ -79,6 +82,34 @@ export default function PaymentScreen({ route: propRoute }: PaymentScreenProps =
 
   const handleGenerateRRR = async () => {
     if (!validateInputs()) return;
+
+    if (!isOnline) {
+      Alert.alert('Offline', 'Connect to the internet to generate an RRR.');
+      return;
+    }
+
+    const token = await getAccessToken();
+    if (!token) {
+      Alert.alert(
+        'Sign in required',
+        'Please sign in in Settings > Account & Sync before generating a payment code.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Go to Settings',
+            onPress: () => {
+              try {
+                // Navigate to Settings tab inside MainTabs
+                (navigation as any).navigate('MainTabs', { screen: 'Settings' });
+              } catch {
+                // no-op
+              }
+            }
+          }
+        ]
+      );
+      return;
+    }
 
     if (isMountedRef.current) {
       setLocalLoading(true);
@@ -133,8 +164,9 @@ export default function PaymentScreen({ route: propRoute }: PaymentScreenProps =
       );
     } catch (error: any) {
       if (!isMountedRef.current) return;
-      const errorMessage = error.response?.data?.error || error.message || 'Failed to generate RRR';
-      Alert.alert('Error', errorMessage);
+      const rawMessage = error?.message || 'Failed to generate RRR';
+      const cleanMessage = typeof rawMessage === 'string' ? rawMessage.replace(/^API error\s+\d{3}:\s*/i, '') : String(rawMessage);
+      Alert.alert('Error', cleanMessage);
     } finally {
       if (isMountedRef.current) {
         setLocalLoading(false);
@@ -145,6 +177,33 @@ export default function PaymentScreen({ route: propRoute }: PaymentScreenProps =
 
   const handleCheckStatus = async () => {
     if (!invoice.id) return;
+
+    if (!isOnline) {
+      Alert.alert('Offline', 'Connect to the internet to check payment status.');
+      return;
+    }
+
+    const token = await getAccessToken();
+    if (!token) {
+      Alert.alert(
+        'Sign in required',
+        'Please sign in in Settings > Account & Sync before checking payment status.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Go to Settings',
+            onPress: () => {
+              try {
+                (navigation as any).navigate('MainTabs', { screen: 'Settings' });
+              } catch {
+                // no-op
+              }
+            }
+          }
+        ]
+      );
+      return;
+    }
 
     if (isMountedRef.current) {
       setLocalLoading(true);
@@ -170,8 +229,9 @@ export default function PaymentScreen({ route: propRoute }: PaymentScreenProps =
       }
     } catch (error: any) {
       if (!isMountedRef.current) return;
-      const errorMessage = error.response?.data?.error || 'Failed to check status';
-      Alert.alert('Error', errorMessage);
+      const rawMessage = error?.message || 'Failed to check status';
+      const cleanMessage = typeof rawMessage === 'string' ? rawMessage.replace(/^API error\s+\d{3}:\s*/i, '') : String(rawMessage);
+      Alert.alert('Error', cleanMessage);
     } finally {
       if (isMountedRef.current) {
         setLocalLoading(false);

@@ -20,11 +20,13 @@ import { useTranslation } from 'react-i18next';
 import Animated, { FadeIn, FadeInDown, FadeInRight, FadeOut, SlideInRight, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 
 import type { InvoiceItem } from '../types/invoice';
-import { saveInvoice, getApiBaseUrl } from '../services/database';
+import { saveInvoice } from '../services/database';
+import { getApiBaseUrl } from '../services/config';
 import { useFormValidation, validationRules, showValidationError } from '../utils/validation';
 import { extractReceiptData, validateOCRResult } from '../services/ocr';
 import AnimatedButton from '../components/AnimatedButton';
 import { useLoading } from '../contexts/LoadingContext';
+import { generateUuid } from '../utils/uuid';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -35,9 +37,7 @@ type WizardStep = 'customer' | 'items' | 'review';
 type CameraFacing = 'front' | 'back';
 
 function createLocalId(): string {
-  const t = Date.now().toString(16);
-  const r = Math.floor(Math.random() * 1e9).toString(16);
-  return `local_${t}_${r}`;
+  return generateUuid();
 }
 
 export default function CreateInvoiceScreen(props: any) {

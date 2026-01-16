@@ -4,6 +4,10 @@ import { Text } from 'react-native';
 
 jest.useRealTimers();
 
+jest.mock('../../services/authTokens', () => ({
+  getAccessToken: jest.fn().mockResolvedValue('test-access-token')
+}));
+
 // Provide a mock NetworkContext module with a setter so tests can update it safely
 jest.mock('../NetworkContext', () => {
   let current = { isOnline: false, isConnected: false, connectionType: null, forceCheck: async () => true };
