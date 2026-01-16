@@ -77,7 +77,7 @@ class RemitaClient {
         status: response.status === 200 ? 'healthy' : 'degraded',
         latency,
       };
-    } catch (_error) {
+    } catch {
       return {
         status: 'error',
         latency: null,

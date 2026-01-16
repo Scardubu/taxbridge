@@ -6,8 +6,9 @@
   "regions": ["iad1"],
   "env": {
     "NEXT_PUBLIC_APP_URL": "https://admin.taxbridge.com.ng",
+    "BACKEND_URL": "https://api.taxbridge.com.ng",
     "NEXT_PUBLIC_BACKEND_URL": "https://api.taxbridge.com.ng",
-    "NEXT_PUBLIC_ADMIN_API_KEY": "@admin_api_key",
+    "ADMIN_API_KEY": "@admin_api_key",
     "DUPLO_API_URL": "https://api.duplo.co",
     "DUPLO_CLIENT_ID": "@duplo_client_id",
     "DUPLO_CLIENT_SECRET": "@duplo_client_secret",

@@ -1,30 +1,16 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 
-const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3000';
+const BACKEND_URL = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000';
 
-interface HealthResponse {
-  status: 'healthy' | 'degraded' | 'error';
-  provider?: string;
-  latency?: number;
-  timestamp: string;
-  error?: string;
-  mode?: string;
-}
-
-interface IntegrationsResponse {
-  status: 'healthy' | 'degraded' | 'error';
-  integrations: {
-    duplo: HealthResponse;
-    remita: HealthResponse;
-  };
-  timestamp: string;
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : 'Unknown error';
 }
 
 /**
  * GET /api/admin/health
  * Fetches overall backend health status
  */
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const response = await fetch(`${BACKEND_URL}/health`, {
       method: 'GET',
@@ -40,11 +26,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(data, {
       status: response.ok ? 200 : 503,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     return NextResponse.json(
       {
         status: 'error',
-        error: error.message || 'Failed to reach backend',
+        error: getErrorMessage(error) || 'Failed to reach backend',
         timestamp: new Date().toISOString(),
       },
       { status: 503 }

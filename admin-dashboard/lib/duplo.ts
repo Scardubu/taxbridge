@@ -90,7 +90,7 @@ class DuploClient {
         status: response.data.status === 'ok' ? 'healthy' : 'degraded',
         latency,
       };
-    } catch (_error) {
+    } catch {
       return {
         status: 'error',
         latency: null,

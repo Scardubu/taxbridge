@@ -14,7 +14,7 @@ class BackendAPIError extends Error {
   }
 }
 
-const rawBaseUrl = (process.env.BACKEND_URL || 'http://localhost:3000').replace(/\/$/, '');
+const rawBaseUrl = (process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000').replace(/\/$/, '');
 const adminBaseUrl = `${rawBaseUrl}/admin`;
 
 const adminApiKeys = (process.env.ADMIN_API_KEYS || process.env.ADMIN_API_KEY || '')

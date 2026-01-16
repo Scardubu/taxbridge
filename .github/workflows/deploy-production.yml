@@ -263,8 +263,8 @@ jobs:
 
       - name: Integration smoke tests
         run: |
-          # Test Duplo integration health
-          curl -sf https://staging-api.taxbridge.ng/health/duplo || echo "Duplo check (mock mode expected)"
+          # Test DigiTax integration health (canonical) with legacy alias fallback
+          curl -sf https://staging-api.taxbridge.ng/health/digitax || curl -sf https://staging-api.taxbridge.ng/health/duplo || echo "DigiTax check (mock mode expected)"
           
           # Test Remita integration health  
           curl -sf https://staging-api.taxbridge.ng/health/remita || echo "Remita check (mock mode expected)"
@@ -284,7 +284,7 @@ jobs:
         run: |
           echo "🔐 Production deployment requires:"
           echo "  - NDPC DPIA approval"
-          echo "  - Duplo/DigiTax certification"
+          echo "  - DigiTax certification"
           echo "  - Security scan clearance"
           echo ""
           echo "Proceeding with deployment..."
@@ -310,8 +310,8 @@ jobs:
           curl -sf https://api.taxbridge.ng/health || exit 1
           echo "✅ Main health: OK"
           
-          # Duplo integration
-          curl -sf https://api.taxbridge.ng/health/duplo || echo "⚠️ Duplo degraded"
+          # DigiTax integration (canonical) with legacy alias fallback
+          curl -sf https://api.taxbridge.ng/health/digitax || curl -sf https://api.taxbridge.ng/health/duplo || echo "⚠️ DigiTax degraded"
           
           # Remita integration
           curl -sf https://api.taxbridge.ng/health/remita || echo "⚠️ Remita degraded"
@@ -420,7 +420,8 @@ jobs:
           echo ""
           echo "Monitoring endpoints:"
           echo "  - https://api.taxbridge.ng/health"
-          echo "  - https://api.taxbridge.ng/health/duplo"
+          echo "  - https://api.taxbridge.ng/health/digitax (canonical)"
+          echo "  - https://api.taxbridge.ng/health/duplo (legacy alias)"
           echo "  - https://api.taxbridge.ng/health/remita"
           echo "  - https://api.taxbridge.ng/health/integrations"
           echo ""
