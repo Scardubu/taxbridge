@@ -68,5 +68,3 @@ services:
     plan: starter
     region: oregon
     maxmemoryPolicy: allkeys-lru
-    ipAllowList:
-      - source: render
