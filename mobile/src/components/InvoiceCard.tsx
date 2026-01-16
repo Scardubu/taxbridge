@@ -72,14 +72,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E4E7EC',
     marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
     elevation: 2,
+    // @ts-ignore - boxShadow for web compatibility
+    boxShadow: '0px 1px 2px rgba(0, 0, 0, 0.05)',
   },
   row: {
     flexDirection: 'row',

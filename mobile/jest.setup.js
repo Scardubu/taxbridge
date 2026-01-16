@@ -1,6 +1,20 @@
 // Define __DEV__ for React Native compatibility
 global.__DEV__ = true;
 
+// Mock expo-constants to silence test warnings
+jest.mock('expo-constants', () => ({
+  __esModule: true,
+  default: {
+    expoConfig: {
+      name: 'TaxBridge',
+      slug: 'taxbridge',
+      version: '1.0.0',
+    },
+    manifest: {},
+    platform: { ios: {}, android: {}, web: {} },
+  },
+}));
+
 // Mock React Native core components - complete mock without requiring actual RN
 jest.mock('react-native', () => {
   const React = require('react');
@@ -30,6 +44,7 @@ jest.mock('react-native', () => {
       select: (obj) => obj.ios || obj.default,
       Version: 14,
     },
+    SafeAreaView: mockComponent('SafeAreaView'),
     View: mockComponent('View'),
     Text: mockComponent('Text'),
     TextInput: mockComponent('TextInput'),
@@ -162,27 +177,123 @@ jest.mock('react-i18next', () => ({
 
 // Mock react-native-safe-area-context to avoid SafeAreaView issues
 jest.mock('react-native-safe-area-context', () => ({
-  SafeAreaProvider: ({ children }: any) => children,
-  SafeAreaView: ({ children }: any) => children,
+  SafeAreaProvider: ({ children }) => children,
+  SafeAreaView: ({ children }) => children,
   useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
 }));
 
 // Mock react-native-reanimated to avoid native worklets initialization
 jest.mock('react-native-reanimated', () => {
+  const React = require('react');
+  const { View, Text, Image, ScrollView } = require('react-native');
+  
+  // Create a chainable animation builder mock
+  const createAnimationMock = () => {
+    const mock = {
+      duration: () => mock,
+      delay: () => mock,
+      springify: () => mock,
+      damping: () => mock,
+      mass: () => mock,
+      stiffness: () => mock,
+      overshootClamping: () => mock,
+      restDisplacementThreshold: () => mock,
+      restSpeedThreshold: () => mock,
+      withInitialValues: () => mock,
+      withCallback: () => mock,
+      easing: () => mock,
+      build: () => mock,
+    };
+    return mock;
+  };
+
+  // Create mock animated components
+  const createAnimatedComponent = (Component) => {
+    const AnimatedComponent = React.forwardRef((props, ref) => {
+      return React.createElement(Component, { ...props, ref });
+    });
+    AnimatedComponent.displayName = `Animated(${Component.displayName || Component.name || 'Component'})`;
+    return AnimatedComponent;
+  };
+
+  // Pre-create animated versions of common components
+  const AnimatedView = createAnimatedComponent(View);
+  const AnimatedText = createAnimatedComponent(Text);
+  const AnimatedImage = createAnimatedComponent(Image);
+  const AnimatedScrollView = createAnimatedComponent(ScrollView);
+
   // Return the mock as the default export and named exports
   const mockReanimated = {
-    Animated: {
-      createAnimatedComponent: (Component: any) => Component,
-    },
-    useSharedValue: (v: any) => ({ value: v }),
+    // Animated namespace with components
+    View: AnimatedView,
+    Text: AnimatedText,
+    Image: AnimatedImage,
+    ScrollView: AnimatedScrollView,
+    createAnimatedComponent,
+    // Hooks
+    useSharedValue: (v) => ({ value: v }),
     useAnimatedStyle: () => ({}),
     useAnimatedReaction: jest.fn(),
-    withSpring: (v: any) => v,
-    withTiming: (v: any) => v,
+    useDerivedValue: (fn) => ({ value: fn() }),
+    useAnimatedGestureHandler: () => ({}),
     useAnimatedScrollHandler: () => jest.fn(),
-    runOnUI: (fn: any) => fn,
-    runOnJS: (fn: any) => fn,
-    interpolateColor: (value: any, inputRange: any[], outputRange: any[]) => outputRange[0],
+    // Animation functions
+    withSpring: (v) => v,
+    withTiming: (v) => v,
+    withDelay: (_, v) => v,
+    withSequence: (...args) => args[0],
+    withRepeat: (v) => v,
+    cancelAnimation: jest.fn(),
+    // Worklet utilities
+    runOnUI: (fn) => fn,
+    runOnJS: (fn) => fn,
+    // Interpolation
+    interpolate: (value, inputRange, outputRange) => outputRange[0],
+    interpolateColor: (_value, _inputRange, outputRange) => outputRange[0],
+    // Animation presets (entering/exiting animations)
+    FadeIn: createAnimationMock(),
+    FadeOut: createAnimationMock(),
+    FadeInUp: createAnimationMock(),
+    FadeInDown: createAnimationMock(),
+    FadeInLeft: createAnimationMock(),
+    FadeInRight: createAnimationMock(),
+    FadeOutUp: createAnimationMock(),
+    FadeOutDown: createAnimationMock(),
+    FadeOutLeft: createAnimationMock(),
+    FadeOutRight: createAnimationMock(),
+    SlideInUp: createAnimationMock(),
+    SlideInDown: createAnimationMock(),
+    SlideInLeft: createAnimationMock(),
+    SlideInRight: createAnimationMock(),
+    SlideOutUp: createAnimationMock(),
+    SlideOutDown: createAnimationMock(),
+    SlideOutLeft: createAnimationMock(),
+    SlideOutRight: createAnimationMock(),
+    ZoomIn: createAnimationMock(),
+    ZoomOut: createAnimationMock(),
+    BounceIn: createAnimationMock(),
+    BounceOut: createAnimationMock(),
+    // Layout animations
+    Layout: createAnimationMock(),
+    LinearTransition: createAnimationMock(),
+    // Easing
+    Easing: {
+      linear: (x) => x,
+      ease: (x) => x,
+      quad: (x) => x,
+      cubic: (x) => x,
+      poly: () => (x) => x,
+      sin: (x) => x,
+      circle: (x) => x,
+      exp: (x) => x,
+      elastic: () => (x) => x,
+      back: () => (x) => x,
+      bounce: (x) => x,
+      bezier: () => (x) => x,
+      in: (fn) => fn,
+      out: (fn) => fn,
+      inOut: (fn) => fn,
+    },
   };
   
   return {
@@ -196,6 +307,7 @@ jest.mock('react-native-reanimated', () => {
 jest.mock('expo-modules-core', () => {
   return {
     createPermissionHook: () => [null, jest.fn()],
+    requireOptionalNativeModule: () => null,
     NativeModulesProxy: {},
     EventEmitter: class {
       addListener() { return { remove: () => {} }; }
@@ -209,6 +321,7 @@ jest.mock('expo-camera', () => {
   const React = require('react');
   const { View } = require('react-native');
 
+  // Legacy Camera component
   const Camera = React.forwardRef((props, ref) => {
     React.useImperativeHandle(ref, () => ({
       takePictureAsync: jest.fn(async () => ({ uri: 'file://mock-camera.jpg' })),
@@ -217,11 +330,32 @@ jest.mock('expo-camera', () => {
   });
 
   Camera.requestCameraPermissionsAsync = jest.fn(async () => ({ status: 'granted' }));
+  
+  // New CameraView component (expo-camera v15+)
+  const CameraView = React.forwardRef((props, ref) => {
+    React.useImperativeHandle(ref, () => ({
+      takePictureAsync: jest.fn(async () => ({ uri: 'file://mock-camera.jpg' })),
+    }));
+    return React.createElement(View, props, props.children);
+  });
+
+  CameraView.requestCameraPermissionsAsync = jest.fn(async () => ({ status: 'granted' }));
+
   const CameraType = { back: 'back', front: 'front' };
+
+  // useCameraPermissions hook mock
+  const useCameraPermissions = () => {
+    return [
+      { granted: true, status: 'granted', canAskAgain: true },
+      jest.fn(async () => ({ granted: true, status: 'granted', canAskAgain: true })),
+    ];
+  };
 
   return {
     Camera,
+    CameraView,
     CameraType,
+    useCameraPermissions,
   };
 });
 

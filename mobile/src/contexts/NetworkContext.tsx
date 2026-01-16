@@ -13,6 +13,7 @@ const NetworkContext = createContext<NetworkContextType>({
   isConnected: true,
   isOnline: true,
   connectionType: null,
+  forceCheck: async () => true,
 });
 
 export function useNetwork() {

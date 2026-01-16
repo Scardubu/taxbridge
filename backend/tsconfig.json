@@ -11,7 +11,8 @@
     "noImplicitAny": false,
     "allowJs": true,
     "resolveJsonModule": true,
-    "declaration": true
+    "declaration": true,
+    "ignoreDeprecations": "6.0"
   },
   "include": ["src", "db", "integrations"],
   "exclude": [

@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { HealthCard } from '@/components/HealthCard';
 import { DuploHealthChart } from '@/components/charts/DuploHealthChart';
 import { RemitaTransactionChart } from '@/components/charts/RemitaTransactionChart';
+import { LaunchMetricsWidget, LaunchMetricsData } from '@/components/LaunchMetricsWidget';
 import { Badge } from '@/components/ui/badge';
 
 interface DashboardStats {
@@ -64,9 +65,57 @@ export default function DashboardPage() {
     refreshInterval: 30000, // Refresh every 30 seconds
   });
 
+  const {
+    data: launchMetrics,
+    error: launchMetricsError,
+    isLoading: isLaunchMetricsLoading
+  } = useSWR<LaunchMetricsData>('/api/admin/launch-metrics', fetcher, {
+    refreshInterval: 60000
+  });
+
   const lastChecked = useMemo(() => {
     return stats ? new Date().toLocaleTimeString() : '';
   }, [stats]);
+
+  const lastLaunchRefresh = useMemo(() => {
+    return launchMetrics ? new Date(launchMetrics.timestamp).toLocaleTimeString() : '';
+  }, [launchMetrics]);
+
+  const classifyAnomaly = (message: string) => {
+    const normalized = message.toLowerCase();
+    if (normalized.startsWith('critical')) {
+      return {
+        label: 'Critical',
+        iconBg: 'bg-rose-100',
+        iconColor: 'text-rose-700',
+        badgeClass: 'border-rose-200 bg-rose-50 text-rose-700'
+      };
+    }
+    if (normalized.startsWith('high')) {
+      return {
+        label: 'High',
+        iconBg: 'bg-orange-100',
+        iconColor: 'text-orange-700',
+        badgeClass: 'border-orange-200 bg-orange-50 text-orange-700'
+      };
+    }
+    if (normalized.includes('failed') || normalized.includes('warning') || normalized.includes('latency')) {
+      return {
+        label: 'Warning',
+        iconBg: 'bg-amber-100',
+        iconColor: 'text-amber-700',
+        badgeClass: 'border-amber-200 bg-amber-50 text-amber-700'
+      };
+    }
+    return {
+      label: 'Info',
+      iconBg: 'bg-blue-100',
+      iconColor: 'text-blue-700',
+      badgeClass: 'border-blue-200 bg-blue-50 text-blue-700'
+    };
+  };
+
+  const anomalyItems = launchMetrics?.anomalies ?? [];
 
   if (error) {
     return (
@@ -217,6 +266,89 @@ export default function DashboardPage() {
             lastChecked={lastChecked}
             description="Payment processing & RRR generation"
           />
+        </div>
+      </div>
+
+      {/* Launch readiness and guardrails */}
+      <div>
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-800">Launch Readiness</h2>
+            <p className="text-sm text-slate-500">
+              Financial guardrails tracked in real time (NRR, GRR, MRR, churn)
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="text-xs">Target NRR ≥ 110%</Badge>
+            <Badge variant="outline" className="text-xs">GRR ≥ 95%</Badge>
+          </div>
+        </div>
+        <div className="grid gap-4 lg:grid-cols-3">
+          <div className="lg:col-span-2">
+            <LaunchMetricsWidget metrics={launchMetrics} isLoading={isLaunchMetricsLoading} />
+          </div>
+          <Card className="h-full">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base font-medium">Risk & Alerts</CardTitle>
+                <Badge
+                  variant={anomalyItems.length ? 'destructive' : 'secondary'}
+                  className="text-xs"
+                >
+                  {anomalyItems.length ? `${anomalyItems.length} open` : 'Stable'}
+                </Badge>
+              </div>
+              <p className="text-xs text-slate-500 mt-1">Backed by alerting + payment signals</p>
+            </CardHeader>
+            <CardContent>
+              {launchMetricsError ? (
+                <div className="rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+                  Failed to refresh launch metrics. {launchMetricsError.message || 'Please retry shortly.'}
+                </div>
+              ) : anomalyItems.length === 0 ? (
+                <div className="rounded-lg border border-dashed border-emerald-200 bg-emerald-50/60 p-4 text-sm text-emerald-700">
+                  No anomalies detected. Guardrails holding steady as of {lastLaunchRefresh || 'now'}.
+                </div>
+              ) : (
+                <ul className="space-y-3">
+                  {anomalyItems.map((item, index) => {
+                    const meta = classifyAnomaly(item);
+                    return (
+                      <li
+                        key={`${item}-${index}`}
+                        className="flex items-start gap-3 rounded-lg border p-3 transition-colors hover:bg-slate-50"
+                      >
+                        <div className={`rounded-full p-2 ${meta.iconBg}`}>
+                          <svg
+                            className={`w-4 h-4 ${meta.iconColor}`}
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M12 9v4m0 4h.01M10.29 3.86l-7.4 12.8A1 1 0 003.7 18h16.6a1 1 0 00.86-1.52l-7.4-12.8a1 1 0 00-1.72 0z"
+                            />
+                          </svg>
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-slate-800">{item}</p>
+                          <p className="text-xs text-slate-500 mt-1">
+                            Last check {lastLaunchRefresh || 'moments ago'}
+                          </p>
+                        </div>
+                        <Badge variant="outline" className={`text-[11px] ${meta.badgeClass}`}>
+                          {meta.label}
+                        </Badge>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </CardContent>
+          </Card>
         </div>
       </div>
 

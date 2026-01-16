@@ -8,17 +8,36 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  phone     String
-  nin       String?  @map("nin")
-  smsOptIn  Boolean  @default(false) @map("sms_opt_in")
-  name      String
-  tin       String?
-  createdAt DateTime @default(now()) @map("created_at")
+  id                     String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  phone                  String
+  nin                    String?  @map("nin")
+  smsOptIn               Boolean  @default(false) @map("sms_opt_in")
+  name                   String
+  tin                    String?
+  email                  String?  @unique
+  passwordHash           String?  @map("password_hash")
+  verificationToken      String?  @map("verification_token")
+  verificationTokenExpiry DateTime? @map("verification_token_expiry")
+  verified               Boolean  @default(false)
+  failedLoginAttempts    Int      @default(0) @map("failed_login_attempts")
+  mfaEnabled             Boolean  @default(false) @map("mfa_enabled")
+  mfaSecret              String?  @map("mfa_secret")
+  mfaTempSecret          String?  @map("mfa_temp_secret")
+  lastLoginAt            DateTime? @map("last_login_at")
+  lastLoginDevice        String?  @map("last_login_device")
+  duploClientId          String?  @map("duplo_client_id")
+  duploClientSecret      String?  @map("duplo_client_secret")
+  remitaMerchantId       String?  @map("remita_merchant_id")
+  remitaApiKey           String?  @map("remita_api_key")
+  ecdsaPrivateKey        String?  @map("ecdsa_private_key")
+  deleted                Boolean  @default(false)
+  deletedAt              DateTime? @map("deleted_at")
+  createdAt              DateTime @default(now()) @map("created_at")
+  updatedAt              DateTime @updatedAt @map("updated_at")
 
-  invoices  Invoice[]
-
-  auditLogs AuditLog[]
+  invoices               Invoice[]
+  auditLogs              AuditLog[]
+  consents               UserConsent[]
 
   @@unique([phone], map: "users_phone_unique")
   @@map("users")
@@ -159,4 +178,21 @@ model Alert {
   @@index([resolved, timestamp])              // Active alerts by recency
   @@index([severity])                         // Filter by severity level
   @@map("alerts")
+}
+
+model UserConsent {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @db.Uuid
+  consentType String
+  granted     Boolean  @default(false)
+  grantedAt   DateTime?
+  revokedAt   DateTime?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  user        User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, consentType], map: "user_consent_unique")
+  @@index([consentType])
+  @@map("user_consents")
 }

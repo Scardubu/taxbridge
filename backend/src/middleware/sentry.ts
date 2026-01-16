@@ -1,5 +1,4 @@
 import * as Sentry from '@sentry/node';
-import * as SentryTracing from '@sentry/tracing';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import path from 'path';
 
@@ -29,8 +28,6 @@ export interface UblValidationSnapshot {
   error?: string;
 }
 
-const requestProperty = Symbol('sentryTransaction');
-
 export function setupSentry(app: FastifyInstance): boolean {
   if (initialized || !process.env.SENTRY_DSN) {
     return initialized;
@@ -42,8 +39,9 @@ export function setupSentry(app: FastifyInstance): boolean {
     release: process.env.VERSION || process.env.npm_package_version || 'development',
     tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.2 : 1.0,
     integrations: [
-      new Sentry.Integrations.Http({ tracing: true }),
-      new SentryTracing.Integrations.Postgres()
+      Sentry.httpIntegration({ breadcrumbs: true }),
+      Sentry.postgresIntegration(),
+      Sentry.fastifyIntegration()
     ],
     beforeSend(event, hint) {
       if (event.request) {
@@ -71,29 +69,16 @@ export function setupSentry(app: FastifyInstance): boolean {
     }
   });
 
+  Sentry.setupFastifyErrorHandler(app);
+
   app.addHook('onRequest', (request, _reply, done) => {
     const routePath = (request as any).routerPath || request.url;
-    const transaction = Sentry.startTransaction({
-      op: 'http.server',
-      name: `${request.method} ${routePath}`
-    });
-
-    (request as any)[requestProperty] = transaction;
-
-    Sentry.getCurrentHub().configureScope(scope => {
-      scope.setSpan(transaction);
+    const scope = Sentry.getCurrentScope();
+    if (scope) {
       scope.setTag('request_id', String(request.id));
-    });
-
-    done();
-  });
-
-  app.addHook('onResponse', (request, reply, done) => {
-    const transaction = (request as any)[requestProperty];
-    if (transaction) {
-      transaction.setHttpStatus(reply.statusCode);
-      transaction.finish();
+      scope.setTag('route', `${request.method} ${routePath}`);
     }
+
     done();
   });
 

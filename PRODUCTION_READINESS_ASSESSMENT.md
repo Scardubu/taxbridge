@@ -11,8 +11,8 @@
 |-----------|-------|--------|-----------|
 | **Backend** | 68 | ✅ Passing | Jest 29.7 + Supertest |
 | **Admin Dashboard** | 8 | ✅ Passing | Jest 29.7 + @testing-library/react |
-| **Mobile** | 38 | ✅ Passing | Jest 30 + jest-expo 54 |
-| **Total** | **114+** | ✅ All Passing | - |
+| **Mobile** | 136 | ✅ Passing | Jest 29.7 + jest-expo 54 |
+| **Total** | **212+** | ✅ All Passing | - |
 
 ---
 
@@ -23,7 +23,14 @@
 - ✅ Peppol BIS Billing 3.0 compliance documentation
 - ✅ Duplo integration tests (OAuth, DB persistence, audit trails)
 - ✅ Remita integration tests (webhook idempotency, signature verification)
-- ✅ Mobile E2E tests (38 tests across 4 suites)
+- ✅ Mobile E2E tests (136 tests across 7 suites)
+  - ✅ OnboardingSystem integration (29 tests)
+  - ✅ Tax calculators (50+ tests)
+  - ✅ Mock FIRS simulation (40+ tests)
+  - ✅ Payment E2E flow (16 tests)
+  - ✅ Invoice creation (2 tests)
+  - ✅ Sync context (1 test)
+  - ✅ Core E2E integration (19 tests)
 - ✅ Admin dashboard tests (8 tests)
 - ✅ Enhanced k6 load tests with specialized scenarios
 - ✅ CI/CD workflow with automated quality gates
@@ -33,9 +40,13 @@
 - `backend/src/__tests__/ubl.generator.unit.test.ts` ✅
 - `backend/src/integrations/duplo.integration.test.ts` ✅
 - `backend/src/integrations/remita.integration.test.ts` ✅
-- `mobile/src/__tests__/payment.e2e.test.tsx` ✅ (16 tests)
+- `mobile/__tests__/OnboardingSystem.integration.test.tsx` ✅ (29 tests)
+- `mobile/__tests__/taxCalculator.test.ts` ✅ (50+ tests)
+- `mobile/__tests__/mockFIRS.test.ts` ✅ (40+ tests)
+- `mobile/__tests__/payment.e2e.test.tsx` ✅ (16 tests)
 - `mobile/src/__tests__/e2e.test.tsx` ✅ (19 tests)
 - `mobile/src/__tests__/CreateInvoiceScreen.test.tsx` ✅ (2 tests)
+- `mobile/src/__tests__/SyncContext.test.tsx` ✅ (1 test)
 - `admin-dashboard/__tests__/components/` ✅ (8 tests)
 - `backend/load-test/k6-script.js` ✅
 - `.github/workflows/test-automation.yml` ✅

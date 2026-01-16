@@ -1,5 +1,6 @@
 {
   "name": "taxbridge",
+  "version": "5.0.2",
   "private": true,
   "packageManager": "yarn@1.22.22",
   "workspaces": [
@@ -7,5 +8,8 @@
     "backend",
     "ml",
     "infra"
-  ]
+  ],
+  "resolutions": {
+    "expo-constants": "18.0.13"
+  }
 }

@@ -1,19 +1,43 @@
 {
   "cli": {
-    "version": ">= 6.0.0"
+    "version": ">= 6.0.0",
+    "appVersionSource": "remote"
   },
   "build": {
     "development": {
       "developmentClient": true,
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_API_URL": "http://localhost:3000"
+        "EXPO_PUBLIC_API_URL": "http://localhost:3000",
+        "EXPO_PUBLIC_ENV": "development"
+      },
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "staging": {
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://api-staging.taxbridge.ng",
+        "EXPO_PUBLIC_ENV": "staging",
+        "EXPO_PUBLIC_SENTRY_DSN": "https://staging@sentry.io/project",
+        "EXPO_PUBLIC_MIXPANEL_TOKEN": "staging_mixpanel_token"
+      },
+      "android": {
+        "buildType": "apk",
+        "gradleCommand": ":app:assembleRelease"
+      },
+      "ios": {
+        "simulator": false,
+        "buildConfiguration": "Release",
+        "resourceClass": "m-medium"
       }
     },
     "preview": {
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://api-staging.taxbridge.ng"
+        "EXPO_PUBLIC_API_URL": "https://api-staging.taxbridge.ng",
+        "EXPO_PUBLIC_ENV": "preview"
       },
       "android": {
         "buildType": "apk"
@@ -21,17 +45,31 @@
     },
     "production": {
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://api.taxbridge.ng"
+        "EXPO_PUBLIC_API_URL": "https://api.taxbridge.ng",
+        "EXPO_PUBLIC_ENV": "production",
+        "EXPO_PUBLIC_SENTRY_DSN": "https://prod@sentry.io/project",
+        "EXPO_PUBLIC_MIXPANEL_TOKEN": "prod_mixpanel_token"
       },
       "android": {
-        "buildType": "aab"
+        "buildType": "app-bundle"
       },
       "ios": {
-        "resourceClass": "m-medium"
+        "resourceClass": "m-medium",
+        "buildConfiguration": "Release"
       }
     }
   },
   "submit": {
+    "staging": {
+      "android": {
+        "track": "internal"
+      },
+      "ios": {
+        "appleId": "your-apple-id@example.com",
+        "ascAppId": "1234567890",
+        "appleTeamId": "TEAM_ID"
+      }
+    },
     "production": {
       "ios": {
         "appleId": "your-apple-id@example.com",

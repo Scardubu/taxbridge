@@ -12,8 +12,21 @@ import {
   Pressable
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import Icon from 'react-native-vector-icons/MaterialIcons';
-import Voice from '@react-native-voice/voice';
+
+// Optional imports - these may not be installed
+// @ts-ignore - Icon may not be installed
+let Icon: any = null;
+try {
+  // @ts-ignore
+  Icon = require('react-native-vector-icons/MaterialIcons').default;
+} catch { /* not installed */ }
+
+// @ts-ignore - Voice may not be installed
+let Voice: any = null;
+try {
+  // @ts-ignore
+  Voice = require('@react-native-voice/voice').default;
+} catch { /* not installed */ }
 
 interface Message {
   id: string;
@@ -37,20 +50,29 @@ export default function ChatbotScreen({ navigation, userId }: ChatbotScreenProps
   const [isRecording, setIsRecording] = useState(false);
   const [showLanguageModal, setShowLanguageModal] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
+  const isMountedRef = useRef(true);
 
   useEffect(() => {
-    // Initialize voice recognition
-    Voice.onSpeechStart = () => setIsRecording(true);
-    Voice.onSpeechEnd = () => setIsRecording(false);
-    Voice.onSpeechResults = (e) => {
-      if (e.value && e.value[0]) {
-        setInputText(e.value[0]);
-      }
-    };
-    Voice.onSpeechError = (e) => {
-      console.error('Voice error:', e);
-      setIsRecording(false);
-    };
+    isMountedRef.current = true;
+    
+    // Initialize voice recognition if available
+    if (Voice) {
+      Voice.onSpeechStart = () => {
+        if (isMountedRef.current) setIsRecording(true);
+      };
+      Voice.onSpeechEnd = () => {
+        if (isMountedRef.current) setIsRecording(false);
+      };
+      Voice.onSpeechResults = (e: { value?: string[] }) => {
+        if (isMountedRef.current && e.value && e.value[0]) {
+          setInputText(e.value[0]);
+        }
+      };
+      Voice.onSpeechError = (e: { error?: { message?: string } }) => {
+        console.error('Voice error:', e);
+        if (isMountedRef.current) setIsRecording(false);
+      };
+    }
 
     // Welcome message
     const welcomeMessage: Message = {
@@ -66,6 +88,7 @@ export default function ChatbotScreen({ navigation, userId }: ChatbotScreenProps
     setMessages([welcomeMessage]);
 
     return () => {
+      isMountedRef.current = false;
       Voice.destroy().then(Voice.removeAllListeners);
     };
   }, []);
@@ -80,9 +103,11 @@ export default function ChatbotScreen({ navigation, userId }: ChatbotScreenProps
       timestamp: new Date()
     };
 
-    setMessages(prev => [...prev, userMessage]);
-    setInputText('');
-    setIsLoading(true);
+    if (isMountedRef.current) {
+      setMessages(prev => [...prev, userMessage]);
+      setInputText('');
+      setIsLoading(true);
+    }
 
     try {
       const response = await fetch('http://localhost:3000/api/chatbot', {
@@ -97,6 +122,8 @@ export default function ChatbotScreen({ navigation, userId }: ChatbotScreenProps
         })
       });
 
+      if (!isMountedRef.current) return;
+
       const data = await response.json();
 
       const botMessage: Message = {
@@ -108,17 +135,22 @@ export default function ChatbotScreen({ navigation, userId }: ChatbotScreenProps
         apiData: data.apiData
       };
 
-      setMessages(prev => [...prev, botMessage]);
+      if (isMountedRef.current) {
+        setMessages(prev => [...prev, botMessage]);
+      }
 
       // Show API action buttons if available
-      if (data.apiAction && data.apiData) {
+      if (data.apiAction && data.apiData && isMountedRef.current) {
         setTimeout(() => {
-          showAPIActionDialog(data.apiAction, data.apiData);
+          if (isMountedRef.current) {
+            showAPIActionDialog(data.apiAction, data.apiData);
+          }
         }, 1000);
       }
 
     } catch (error) {
       console.error('Chatbot error:', error);
+      if (!isMountedRef.current) return;
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         text: 'Sorry, I am having trouble connecting. Please try again.',
@@ -127,7 +159,9 @@ export default function ChatbotScreen({ navigation, userId }: ChatbotScreenProps
       };
       setMessages(prev => [...prev, errorMessage]);
     } finally {
-      setIsLoading(false);
+      if (isMountedRef.current) {
+        setIsLoading(false);
+      }
     }
   };
 

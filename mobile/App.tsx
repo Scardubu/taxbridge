@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { StatusBar, View } from 'expo-status-bar';
+import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -11,6 +11,7 @@ import { ErrorBoundary } from './src/components/ErrorBoundary';
 import { NetworkProvider } from './src/contexts/NetworkContext';
 import { SyncProvider } from './src/contexts/SyncContext';
 import { LoadingProvider } from './src/contexts/LoadingContext';
+import { OnboardingProvider, useOnboarding } from './src/contexts/OnboardingContext';
 import LoadingOverlay from './src/components/LoadingOverlay';
 import NetworkStatus from './src/components/NetworkStatus';
 import HomeScreen from './src/screens/HomeScreen';
@@ -18,12 +19,36 @@ import CreateInvoiceScreen from './src/screens/CreateInvoiceScreen';
 import InvoicesScreen from './src/screens/InvoicesScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import PaymentScreen from './src/screens/PaymentScreen';
+import OnboardingScreen from './src/screens/OnboardingScreen';
 
 // Initialize Sentry early
 initSentry();
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
+
+function AppNavigator() {
+  const { isOnboardingComplete } = useOnboarding();
+
+  if (!isOnboardingComplete) {
+    return (
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+      </Stack.Navigator>
+    );
+  }
+
+  return (
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="MainTabs" component={TabNavigator} />
+      <Stack.Screen
+        name="Payment"
+        component={PaymentScreen}
+        options={{ animation: 'slide_from_right' }}
+      />
+    </Stack.Navigator>
+  );
+}
 
 function TabNavigator() {
   return (
@@ -67,30 +92,25 @@ export default function App() {
       <NetworkProvider>
         <SyncProvider>
           <LoadingProvider>
-            <NavigationContainer
-              onStateChange={(state) => {
-                const currentRoute = state?.routes[state.index]?.name;
-                if (currentRoute) {
-                  addBreadcrumb({
-                    category: 'navigation',
-                    message: `Navigated to ${currentRoute}`,
-                    level: 'info',
-                  });
-                }
-              }}
-            >
-              <StatusBar style="dark" />
-              <NetworkStatus />
-              <LoadingOverlay />
-              <Stack.Navigator screenOptions={{ headerShown: false }}>
-                <Stack.Screen name="MainTabs" component={TabNavigator} />
-                <Stack.Screen
-                  name="Payment"
-                  component={PaymentScreen}
-                  options={{ animationEnabled: true }}
-                />
-              </Stack.Navigator>
-            </NavigationContainer>
+            <OnboardingProvider>
+              <NavigationContainer
+                onStateChange={(state) => {
+                  const currentRoute = state?.routes[state.index]?.name;
+                  if (currentRoute) {
+                    addBreadcrumb({
+                      category: 'navigation',
+                      message: `Navigated to ${currentRoute}`,
+                      level: 'info',
+                    });
+                  }
+                }}
+              >
+                <StatusBar style="dark" />
+                <NetworkStatus />
+                <LoadingOverlay />
+                <AppNavigator />
+              </NavigationContainer>
+            </OnboardingProvider>
           </LoadingProvider>
         </SyncProvider>
       </NetworkProvider>

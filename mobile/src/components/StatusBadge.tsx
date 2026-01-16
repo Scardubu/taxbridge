@@ -29,11 +29,7 @@ export default function StatusBadge(props: { status: InvoiceStatus }) {
 }
 
 const styles = StyleSheet.create({
-  return (
-    <View style={[styles.badge, { backgroundColor: bg, borderColor: color }]}>
-      <Text style={[styles.text, { color }]}>{props.status.toUpperCase()}</Text>
-    </View>
-  );
+  badge: {
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 999,

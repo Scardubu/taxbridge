@@ -1,13 +1,23 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Alert, ActivityIndicator, StyleSheet } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { api } from '../services/api';
 import { LoadingContext } from '../contexts/LoadingContext';
 
+type PaymentRouteParams = {
+  Payment: {
+    invoice: {
+      id: string;
+      total: number;
+      customerName?: string;
+    };
+  };
+};
+
 interface PaymentScreenProps {
-  route: {
-    params: {
-      invoice: {
+  route?: {
+    params?: {
+      invoice?: {
         id: string;
         total: number;
         customerName?: string;
@@ -16,10 +26,33 @@ interface PaymentScreenProps {
   };
 }
 
-export default function PaymentScreen({ route }: PaymentScreenProps) {
-  const { invoice } = route.params;
+export default function PaymentScreen({ route: propRoute }: PaymentScreenProps = {}) {
+  // Get invoice from props or navigation route
+  const getInvoice = () => {
+    if (propRoute?.params?.invoice) {
+      return propRoute.params.invoice;
+    }
+    try {
+      // eslint-disable-next-line react-hooks/rules-of-hooks
+      const hookRoute = useRoute<RouteProp<PaymentRouteParams, 'Payment'>>();
+      return hookRoute?.params?.invoice ?? { id: '', total: 0, customerName: '' };
+    } catch {
+      return { id: '', total: 0, customerName: '' };
+    }
+  };
+  
+  const invoice = getInvoice();
   const navigation = useNavigation();
   const { setLoading: setAppLoading } = React.useContext(LoadingContext);
+  const isMountedRef = useRef(true);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   const [payerName, setPayerName] = useState('');
   const [payerEmail, setPayerEmail] = useState('');
@@ -47,8 +80,10 @@ export default function PaymentScreen({ route }: PaymentScreenProps) {
   const handleGenerateRRR = async () => {
     if (!validateInputs()) return;
 
-    setLocalLoading(true);
-    setAppLoading?.(true);
+    if (isMountedRef.current) {
+      setLocalLoading(true);
+      setAppLoading?.(true);
+    }
     try {
       const response = await api.post('/payments/generate', {
         invoiceId: invoice.id,
@@ -56,6 +91,8 @@ export default function PaymentScreen({ route }: PaymentScreenProps) {
         payerEmail: payerEmail.trim(),
         payerPhone: payerPhone.trim()
       });
+
+      if (!isMountedRef.current) return;
 
       const { rrr: generatedRRR, paymentUrl: url, amount } = response;
 
@@ -95,21 +132,29 @@ export default function PaymentScreen({ route }: PaymentScreenProps) {
         ]
       );
     } catch (error: any) {
+      if (!isMountedRef.current) return;
       const errorMessage = error.response?.data?.error || error.message || 'Failed to generate RRR';
       Alert.alert('Error', errorMessage);
     } finally {
-      setLocalLoading(false);
-      setAppLoading?.(false);
+      if (isMountedRef.current) {
+        setLocalLoading(false);
+        setAppLoading?.(false);
+      }
     }
   };
 
   const handleCheckStatus = async () => {
     if (!invoice.id) return;
 
-    setLocalLoading(true);
-    setAppLoading?.(true);
+    if (isMountedRef.current) {
+      setLocalLoading(true);
+      setAppLoading?.(true);
+    }
     try {
       const response = await api.get(`/payments/${invoice.id}/status`);
+      
+      if (!isMountedRef.current) return;
+      
       const { status } = response;
 
       Alert.alert(
@@ -119,14 +164,19 @@ export default function PaymentScreen({ route }: PaymentScreenProps) {
       );
 
       if (status === 'paid') {
-        setTimeout(() => navigation.goBack(), 2000);
+        setTimeout(() => {
+          if (isMountedRef.current) navigation.goBack();
+        }, 2000);
       }
     } catch (error: any) {
+      if (!isMountedRef.current) return;
       const errorMessage = error.response?.data?.error || 'Failed to check status';
       Alert.alert('Error', errorMessage);
     } finally {
-      setLocalLoading(false);
-      setAppLoading?.(false);
+      if (isMountedRef.current) {
+        setLocalLoading(false);
+        setAppLoading?.(false);
+      }
     }
   };
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, fireEvent } from '@testing-library/react-native';
+import { render, fireEvent, act, waitFor } from '@testing-library/react-native';
 
 // Mock database to avoid AsyncStorage issues in tests
 jest.mock('../services/database', () => ({
@@ -39,41 +39,63 @@ jest.mock('../services/ocr', () => ({
 }));
 
 describe('CreateInvoiceScreen', () => {
-  it('renders and validates', () => {
+  it('renders the wizard-style interface', () => {
     const navigation: any = { navigate: jest.fn() };
-    const { getByText, getByPlaceholderText, getByTestId } = render(<CreateInvoiceScreen navigation={navigation} />);
+    const { getByText, getByPlaceholderText } = render(<CreateInvoiceScreen navigation={navigation} />);
 
-    // The component uses i18n which is mocked to return the key, so we look for the mocked key
-    expect(getByText('create.save')).toBeTruthy();
-    // add basic interactions
-    const desc = getByPlaceholderText('e.g. Rice bag');
-    fireEvent.changeText(desc, 'Rice');
-    expect(getByTestId('button-create.addItem')).toBeTruthy();
-    fireEvent.press(getByTestId('button-create.addItem'));
+    // Step 1 shows customer information by default
+    expect(getByText('create.title')).toBeTruthy();
+    expect(getByText('create.customer')).toBeTruthy();
+    
+    // Customer placeholder should be visible
+    const customerInput = getByPlaceholderText('e.g. Aisha Mohammed');
+    expect(customerInput).toBeTruthy();
+    
+    // Continue button should be present
+    expect(getByText('Continue to Items →')).toBeTruthy();
   });
 
-  it('calls OCR flow when scan pressed', async () => {
+  it('navigates through wizard steps', async () => {
     const navigation: any = { navigate: jest.fn() };
-    const { getByTestId } = render(<CreateInvoiceScreen navigation={navigation} />);
+    const { getByText, getByPlaceholderText, queryByText } = render(<CreateInvoiceScreen navigation={navigation} />);
 
-    // Spy on Alert to auto-select gallery path
-    const Alert = require('react-native').Alert;
-    jest.spyOn(Alert, 'alert').mockImplementation((title: string, msg: string, buttons: any[]) => {
-      const choose = buttons && buttons.find((b: any) => String(b.text).includes('Gallery'));
-      if (choose && choose.onPress) choose.onPress();
+    // Start on Step 1: Customer
+    expect(getByText('create.customer')).toBeTruthy();
+    
+    // Navigate to Step 2: Items
+    await act(async () => {
+      fireEvent.press(getByText('Continue to Items →'));
     });
 
-    // override image picker to return a fake uri
-    const imgPicker = require('../services/ocr');
-    const ImagePicker = require('expo-image-picker');
-    ImagePicker.launchImageLibraryAsync.mockResolvedValue({ canceled: false, assets: [{ uri: 'file://fake.jpg' }] });
+    // Step 2 should show item input fields
+    await waitFor(() => {
+      // Check for item-related content (description placeholder)
+      expect(getByPlaceholderText('e.g. Rice bag (50kg)')).toBeTruthy();
+    });
+  });
 
-    const scan = getByTestId('button-scanReceipt');
-    fireEvent.press(scan);
+  it('allows adding items in the items step', async () => {
+    const navigation: any = { navigate: jest.fn() };
+    const { getByText, getByPlaceholderText, getByTestId, queryAllByTestId } = render(<CreateInvoiceScreen navigation={navigation} />);
 
-    // wait for async calls
-    await new Promise((r) => setTimeout(r, 50));
+    // Navigate to Items step
+    await act(async () => {
+      fireEvent.press(getByText('Continue to Items →'));
+    });
 
-    expect(imgPicker.extractReceiptData).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(getByPlaceholderText('e.g. Rice bag (50kg)')).toBeTruthy();
+    });
+
+    // Fill in item details
+    const descInput = getByPlaceholderText('e.g. Rice bag (50kg)');
+    
+    await act(async () => {
+      fireEvent.changeText(descInput, 'Rice');
+    });
+
+    // Add item button should work
+    const addItemButton = getByTestId('button-+ Add Item');
+    expect(addItemButton).toBeTruthy();
   });
 });

@@ -3,6 +3,7 @@ import path from 'path';
 import cors from '@fastify/cors';
 import fastifyCompress from '@fastify/compress';
 import fastifyEnv from '@fastify/env';
+import helmet from '@fastify/helmet';
 import { Prisma, PrismaClient } from '@prisma/client';
 import { z, ZodError } from 'zod';
 import { serializerCompiler, validatorCompiler, ZodTypeProvider } from 'fastify-type-provider-zod';
@@ -15,6 +16,8 @@ import ussdRoutes from './routes/ussd';
 import smsRoutes from './routes/sms';
 import chatbotRoutes from './routes/chatbot';
 import { adminRoutes } from './routes/admin';
+import authRoutes from './routes/auth';
+import privacyRoutes from './routes/privacy';
 import {
   closeInvoiceSyncQueue,
   closeRedisConnection,
@@ -24,6 +27,7 @@ import {
 import { startDeadlineReminderCron } from './services/deadlineReminder';
 import { healthCheckAllProviders, getProviderHealth } from './integrations/comms/client';
 import { createLogger } from './lib/logger';
+import { getPrismaClient, disconnectPrisma } from './lib/prisma';
 import { securityMiddleware, checkRateLimit } from './lib/security';
 import { 
   createRequestContext, 
@@ -33,9 +37,11 @@ import {
 } from './lib/request-tracer';
 import { setupSentry, checkDuploHealth as observeDuploHealth, checkRemitaHealth as observeRemitaHealth, validateSampleUBL as runUblHealthCheck, captureWithSentry, isSentryEnabled } from './middleware/sentry';
 import { metrics } from './services/metrics';
+import { initializeDLQMonitoring, shutdownDLQMonitoring, getDLQMonitor } from './services/dlq-monitor';
+import { initializePoolMonitoring, shutdownPoolMonitoring, getPoolMonitor } from './services/pool-metrics';
 
 const log = createLogger('server');
-const prisma = new PrismaClient();
+const prisma = getPrismaClient();
 
 // Health check tracking
 let healthCheckInterval: NodeJS.Timeout | null = null;
@@ -150,9 +156,11 @@ app.setErrorHandler((error, request, reply) => {
 
 const envSchema = {
   type: 'object',
-  required: ['DATABASE_URL', 'REDIS_URL', 'DIGITAX_API_URL'],
+  required: ['DATABASE_URL', 'REDIS_URL', 'DIGITAX_API_URL', 'JWT_SECRET', 'JWT_REFRESH_SECRET', 'ENCRYPTION_KEY'],
   properties: {
     DATABASE_URL: { type: 'string' },
+    DATABASE_POOL_MAX: { type: 'string', default: '10' },
+    DATABASE_POOL_TIMEOUT_MS: { type: 'string', default: '5000' },
     PORT: { type: 'string', default: '3000' },
     REDIS_URL: { type: 'string' },
     DIGITAX_API_URL: { type: 'string' },
@@ -178,10 +186,36 @@ const envSchema = {
     TERMII_SIGNATURE_SECRET: { type: 'string' },
     TERMII_SENDER: { type: 'string' },
     // Security settings
+    JWT_SECRET: { type: 'string' },
+    JWT_REFRESH_SECRET: { type: 'string' },
+    JWT_SECRET_PREVIOUS: { type: 'string' },
+    JWT_REFRESH_SECRET_PREVIOUS: { type: 'string' },
+    ENCRYPTION_KEY: { type: 'string' },
+    SESSION_SECRET: { type: 'string' },
+    WEBHOOK_SECRET: { type: 'string' },
     ALLOWED_ORIGINS: { type: 'string' },
     REQUIRE_SMS_SIGNATURE: { type: 'string', default: '0' },
     ENABLE_DEADLINE_REMINDERS: { type: 'string', default: 'true' },
     TEST_PHONE_NUMBER: { type: 'string' },
+    PRISMA_SLOW_QUERY_MS: { type: 'string', default: '500' },
+    // Queue + worker tuning
+    INVOICE_SYNC_CONCURRENCY: { type: 'string', default: '5' },
+    INVOICE_SYNC_MAX_ATTEMPTS: { type: 'string', default: '5' },
+    INVOICE_SYNC_BACKOFF_MS: { type: 'string', default: '5000' },
+    INVOICE_SYNC_RATE_LIMIT: { type: 'string', default: '8' },
+    INVOICE_SYNC_RATE_DURATION_MS: { type: 'string', default: '1000' },
+    INVOICE_SYNC_FAILURE_THRESHOLD: { type: 'string', default: '5' },
+    INVOICE_SYNC_FAILURE_WINDOW_MS: { type: 'string', default: '60000' },
+    INVOICE_SYNC_FAILURE_COOLDOWN_MS: { type: 'string', default: '60000' },
+    INVOICE_SYNC_TIMEOUT_MS: { type: 'string', default: '120000' },
+    INVOICE_SYNC_LOCK_DURATION_MS: { type: 'string', default: '120000' },
+    INVOICE_SYNC_REMOVE_ON_COMPLETE: { type: 'string', default: '200' },
+    PAYMENT_WEBHOOK_CONCURRENCY: { type: 'string', default: '3' },
+    PAYMENT_WEBHOOK_MAX_ATTEMPTS: { type: 'string', default: '4' },
+    PAYMENT_WEBHOOK_BACKOFF_MS: { type: 'string', default: '3000' },
+    PAYMENT_WEBHOOK_TIMEOUT_MS: { type: 'string', default: '60000' },
+    PAYMENT_WEBHOOK_LOCK_DURATION_MS: { type: 'string', default: '60000' },
+    PAYMENT_WEBHOOK_REMOVE_ON_COMPLETE: { type: 'string', default: '100' },
     // Monitoring
     ENABLE_METRICS: { type: 'string', default: 'true' },
     METRICS_INTERVAL: { type: 'string', default: '60000' }, // 1 minute
@@ -190,6 +224,28 @@ const envSchema = {
 } as const;
 
 async function bootstrap() {
+  // Register helmet for security headers
+  await app.register(helmet, {
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        scriptSrc: ["'self'"],
+        imgSrc: ["'self'", 'data:', 'https:'],
+        connectSrc: ["'self'"],
+        fontSrc: ["'self'"],
+        objectSrc: ["'none'"],
+        mediaSrc: ["'self'"],
+        frameSrc: ["'none'"]
+      }
+    },
+    hsts: {
+      maxAge: 31536000,
+      includeSubDomains: true,
+      preload: true
+    }
+  });
+
   await app.register(cors, { 
     origin: process.env.ALLOWED_ORIGINS?.split(',') || '*',
     credentials: true
@@ -212,6 +268,17 @@ async function bootstrap() {
   const sentryReady = setupSentry(app);
   if (sentryReady) {
     log.info('Sentry monitoring enabled');
+  }
+
+  // Initialize monitoring services
+  if (process.env.ENABLE_DLQ_MONITORING !== 'false') {
+    initializeDLQMonitoring(['invoice-sync', 'payment-webhook', 'email-queue', 'sms-queue']);
+    log.info('DLQ monitoring enabled');
+  }
+
+  if (process.env.ENABLE_POOL_MONITORING !== 'false') {
+    initializePoolMonitoring();
+    log.info('Connection pool monitoring enabled');
   }
 
   // Health check endpoints
@@ -316,6 +383,104 @@ async function bootstrap() {
       return reply.status(503).send({ 
         status: 'not-ready', 
         error: 'Services not ready' 
+      });
+    }
+  });
+
+  // Production metrics endpoint (supports JSON and Prometheus format)
+  app.get('/metrics', async (req, reply) => {
+    try {
+      const acceptHeader = req.headers.accept || '';
+      const queryFormat = (req.query as Record<string, string>)?.format;
+      const wantsPrometheus = acceptHeader.includes('text/plain') || 
+                              acceptHeader.includes('application/openmetrics-text') ||
+                              queryFormat === 'prometheus';
+      
+      const poolMonitor = getPoolMonitor();
+      const dlqMonitor = getDLQMonitor();
+      const uptime = process.uptime();
+      const memUsage = process.memoryUsage();
+      const errorRate = serverMetrics.requestCount > 0 
+        ? (serverMetrics.errorCount / serverMetrics.requestCount * 100).toFixed(2) 
+        : '0.00';
+
+      // Prometheus text format
+      if (wantsPrometheus) {
+        const coreMetrics = `
+# HELP taxbridge_uptime_seconds Server uptime in seconds
+# TYPE taxbridge_uptime_seconds gauge
+taxbridge_uptime_seconds ${uptime.toFixed(2)}
+
+# HELP taxbridge_requests_total Total number of requests
+# TYPE taxbridge_requests_total counter
+taxbridge_requests_total ${serverMetrics.requestCount}
+
+# HELP taxbridge_errors_total Total number of errors
+# TYPE taxbridge_errors_total counter
+taxbridge_errors_total ${serverMetrics.errorCount}
+
+# HELP taxbridge_error_rate_percent Error rate percentage
+# TYPE taxbridge_error_rate_percent gauge
+taxbridge_error_rate_percent ${errorRate}
+
+# HELP taxbridge_memory_heap_used_bytes Heap memory used
+# TYPE taxbridge_memory_heap_used_bytes gauge
+taxbridge_memory_heap_used_bytes ${memUsage.heapUsed}
+
+# HELP taxbridge_memory_heap_total_bytes Total heap memory
+# TYPE taxbridge_memory_heap_total_bytes gauge
+taxbridge_memory_heap_total_bytes ${memUsage.heapTotal}
+
+# HELP taxbridge_memory_rss_bytes Resident set size
+# TYPE taxbridge_memory_rss_bytes gauge
+taxbridge_memory_rss_bytes ${memUsage.rss}
+
+# HELP taxbridge_component_status Component health status (1=healthy, 0.5=degraded, 0=error)
+# TYPE taxbridge_component_status gauge
+taxbridge_component_status{component="database"} ${serverMetrics.componentStatus.database === 'healthy' ? 1 : serverMetrics.componentStatus.database === 'degraded' ? 0.5 : 0}
+taxbridge_component_status{component="redis"} ${serverMetrics.componentStatus.redis === 'healthy' ? 1 : serverMetrics.componentStatus.redis === 'degraded' ? 0.5 : 0}
+taxbridge_component_status{component="queues"} ${serverMetrics.componentStatus.queues === 'healthy' ? 1 : serverMetrics.componentStatus.queues === 'degraded' ? 0.5 : 0}
+taxbridge_component_status{component="sms"} ${serverMetrics.componentStatus.sms === 'healthy' ? 1 : serverMetrics.componentStatus.sms === 'degraded' ? 0.5 : 0}
+`.trim();
+
+        const promExtension = metrics.formatPrometheusMetrics();
+        const payload = [coreMetrics, promExtension].filter(Boolean).join('\n\n');
+        
+        reply.header('Content-Type', 'text/plain; version=0.0.4');
+        return reply.send(payload);
+      }
+
+      // JSON format (default)
+      const metricsData: any = {
+        timestamp: new Date().toISOString(),
+        uptime: process.uptime(),
+        server: {
+          requestCount: serverMetrics.requestCount,
+          errorCount: serverMetrics.errorCount,
+          errorRate: errorRate + '%',
+        },
+        memory: {
+          heapUsed: memUsage.heapUsed,
+          heapTotal: memUsage.heapTotal,
+          rss: memUsage.rss,
+        },
+        componentStatus: serverMetrics.componentStatus,
+      };
+
+      if (poolMonitor) {
+        metricsData.connectionPools = await poolMonitor.getCurrentMetrics();
+      }
+
+      if (dlqMonitor) {
+        metricsData.queues = await dlqMonitor.getMetrics();
+      }
+
+      return reply.send(metricsData);
+    } catch (error) {
+      app.log.error({ err: error }, 'Metrics collection failed');
+      return reply.status(500).send({ 
+        error: 'Failed to collect metrics',
+        timestamp: new Date().toISOString()
       });
     }
   });
@@ -457,68 +622,6 @@ async function bootstrap() {
     }
   });
 
-  // Metrics endpoint (Prometheus-compatible format for monitoring)
-  app.get('/metrics', async (_req, reply) => {
-    if (process.env.ENABLE_METRICS !== 'true') {
-      return reply.status(404).send({ error: 'Metrics not enabled' });
-    }
-    
-    try {
-      const uptime = process.uptime();
-      const memUsage = process.memoryUsage();
-      const errorRate = serverMetrics.requestCount > 0 
-        ? (serverMetrics.errorCount / serverMetrics.requestCount * 100).toFixed(2) 
-        : '0.00';
-      
-      // Prometheus text format
-      const coreMetrics = `
-# HELP taxbridge_uptime_seconds Server uptime in seconds
-# TYPE taxbridge_uptime_seconds gauge
-taxbridge_uptime_seconds ${uptime.toFixed(2)}
-
-# HELP taxbridge_requests_total Total number of requests
-# TYPE taxbridge_requests_total counter
-taxbridge_requests_total ${serverMetrics.requestCount}
-
-# HELP taxbridge_errors_total Total number of errors
-# TYPE taxbridge_errors_total counter
-taxbridge_errors_total ${serverMetrics.errorCount}
-
-# HELP taxbridge_error_rate_percent Error rate percentage
-# TYPE taxbridge_error_rate_percent gauge
-taxbridge_error_rate_percent ${errorRate}
-
-# HELP taxbridge_memory_heap_used_bytes Heap memory used
-# TYPE taxbridge_memory_heap_used_bytes gauge
-taxbridge_memory_heap_used_bytes ${memUsage.heapUsed}
-
-# HELP taxbridge_memory_heap_total_bytes Total heap memory
-# TYPE taxbridge_memory_heap_total_bytes gauge
-taxbridge_memory_heap_total_bytes ${memUsage.heapTotal}
-
-# HELP taxbridge_memory_rss_bytes Resident set size
-# TYPE taxbridge_memory_rss_bytes gauge
-taxbridge_memory_rss_bytes ${memUsage.rss}
-
-# HELP taxbridge_component_status Component health status (1=healthy, 0.5=degraded, 0=error)
-# TYPE taxbridge_component_status gauge
-taxbridge_component_status{component="database"} ${serverMetrics.componentStatus.database === 'healthy' ? 1 : serverMetrics.componentStatus.database === 'degraded' ? 0.5 : 0}
-taxbridge_component_status{component="redis"} ${serverMetrics.componentStatus.redis === 'healthy' ? 1 : serverMetrics.componentStatus.redis === 'degraded' ? 0.5 : 0}
-taxbridge_component_status{component="queues"} ${serverMetrics.componentStatus.queues === 'healthy' ? 1 : serverMetrics.componentStatus.queues === 'degraded' ? 0.5 : 0}
-taxbridge_component_status{component="sms"} ${serverMetrics.componentStatus.sms === 'healthy' ? 1 : serverMetrics.componentStatus.sms === 'degraded' ? 0.5 : 0}
-`.trim();
-
-  const promExtension = metrics.formatPrometheusMetrics();
-  const payload = [coreMetrics, promExtension].filter(Boolean).join('\n\n');
-      
-      reply.header('Content-Type', 'text/plain; version=0.0.4');
-  return reply.send(payload);
-    } catch (error) {
-      app.log.error({ err: error }, 'Metrics collection failed');
-      return reply.status(500).send({ error: 'Failed to collect metrics' });
-    }
-  });
-
   await app.register(invoicesRoutes, { prisma });
   await app.register(ocrRoutes);
   await app.register(paymentsRoutes, { prisma });
@@ -526,6 +629,8 @@ taxbridge_component_status{component="sms"} ${serverMetrics.componentStatus.sms 
   await app.register(smsRoutes, { prisma });
   await app.register(chatbotRoutes);
   await app.register(adminRoutes, { prefix: '/admin', prisma });
+  await app.register(authRoutes);
+  await app.register(privacyRoutes);
 
   // Optionally start background payment worker in the same process when explicitly enabled.
   if (String(process.env.START_PAYMENT_WORKER || '').toLowerCase() === 'true') {
@@ -562,13 +667,45 @@ taxbridge_component_status{component="sms"} ${serverMetrics.componentStatus.sms 
     }
   }, 5000); // 5 seconds after startup
 
-  await app.listen({ port, host: '0.0.0.0' });
-  
-  log.info('TaxBridge server started', {
-    port,
-    env: process.env.NODE_ENV || 'development',
-    pid: process.pid
-  });
+  async function listenWithOptionalFallback(startPort: number) {
+    const allowFallback =
+      (String(process.env.ALLOW_PORT_FALLBACK || '').toLowerCase() === 'true' ||
+        String(process.env.ALLOW_PORT_FALLBACK || '') === '1') &&
+      String(process.env.NODE_ENV || '').toLowerCase() !== 'production';
+
+    const maxAttempts = allowFallback ? 5 : 1;
+    let lastError: unknown;
+
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      const candidate = startPort + attempt;
+      try {
+        await app.listen({ port: candidate, host: '0.0.0.0' });
+        return candidate;
+      } catch (err: any) {
+        lastError = err;
+
+        if (err?.code === 'EADDRINUSE') {
+          if (!allowFallback) {
+            log.error(
+              `Failed to start server: Port ${candidate} already in use. Stop the other process or set PORT to a free port.`
+            );
+            throw err;
+          }
+
+          log.warn(`Port ${candidate} in use; trying next port`);
+          continue;
+        }
+
+        throw err;
+      }
+    }
+
+    throw lastError;
+  }
+
+  const boundPort = await listenWithOptionalFallback(port);
+
+  log.info(`TaxBridge server started on port ${boundPort} (env: ${process.env.NODE_ENV || 'development'}, pid: ${process.pid})`);
 }
 
 // Health monitoring function
@@ -652,9 +789,14 @@ async function gracefulShutdown(signal: string) {
       closePaymentQueue().catch(err => log.error('Error closing payment queue', { err }))
     ]);
     
+    // Shutdown monitoring services
+    log.info('Shutting down monitoring services');
+    shutdownDLQMonitoring();
+    shutdownPoolMonitoring();
+    
     // Close database connections
     log.info('Closing database connections');
-    await prisma.$disconnect().catch(err => log.error('Error closing database', { err }));
+    await disconnectPrisma().catch(err => log.error('Error closing database', { err }));
     
     // Close Redis connections
     log.info('Closing Redis connections');

@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Animated } from 'react-native';
 import { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 
 interface StatusBadgeProps {
-  status: 'queued' | 'processing' | 'completed' | 'failed';
+  status: 'queued' | 'processing' | 'completed' | 'failed' | 'stamped';
   size?: 'small' | 'medium' | 'large';
 }
 
@@ -48,6 +48,12 @@ export default function StatusBadge({ status, size = 'medium' }: StatusBadgeProp
           backgroundColor: '#FEE2E2',
           color: '#991B1B',
           text: 'Failed',
+        };
+      case 'stamped':
+        return {
+          backgroundColor: '#D1FAE5',
+          color: '#065F46',
+          text: 'Stamped',
         };
       default:
         return {

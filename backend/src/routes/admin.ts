@@ -48,6 +48,24 @@ interface MonthlyDataPoint {
 export async function adminRoutes(app: FastifyInstance, options: { prisma: PrismaClient }) {
   const { prisma } = options;
 
+  function monthWindow(date: Date) {
+    const start = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1, 0, 0, 0));
+    const end = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 1, 0, 0, 0));
+    return { start, end };
+  }
+
+  function asNumber(value: any): number {
+    if (value === null || value === undefined) return 0;
+    if (typeof value === 'number') return value;
+    if (typeof value === 'string') {
+      const n = Number(value);
+      return Number.isFinite(n) ? n : 0;
+    }
+    if (typeof value?.toNumber === 'function') return value.toNumber();
+    const n = Number(value);
+    return Number.isFinite(n) ? n : 0;
+  }
+
   // Authentication middleware for admin routes
   app.addHook('preHandler', async (request, reply) => {
     await requireAdminApiKey(request, reply);
@@ -158,6 +176,120 @@ export async function adminRoutes(app: FastifyInstance, options: { prisma: Prism
     } catch (error) {
       console.error('Error fetching admin stats:', error);
       reply.code(500).send({ error: 'Internal server error' });
+    }
+  });
+
+  // Launch metrics: NRR/GRR computed from successful payments month-over-month
+  app.get('/launch-metrics', async (_request, reply) => {
+    try {
+      const now = new Date();
+      const currentWindow = monthWindow(now);
+      const prevMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1, 0, 0, 0));
+      const previousWindow = monthWindow(prevMonth);
+
+      const [currentPayments, previousPayments, failedPayments24h, activeAlerts] = await Promise.all([
+        prisma.payment.findMany({
+          where: {
+            createdAt: { gte: currentWindow.start, lt: currentWindow.end },
+            status: 'successful'
+          },
+          select: {
+            amount: true,
+            createdAt: true,
+            invoice: { select: { userId: true } }
+          }
+        }),
+        prisma.payment.findMany({
+          where: {
+            createdAt: { gte: previousWindow.start, lt: previousWindow.end },
+            status: 'successful'
+          },
+          select: {
+            amount: true,
+            createdAt: true,
+            invoice: { select: { userId: true } }
+          }
+        }),
+        prisma.payment.count({
+          where: {
+            createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+            status: 'failed'
+          }
+        }),
+        prisma.alert.findMany({
+          where: { resolved: false, severity: { in: ['high', 'critical'] } },
+          orderBy: { timestamp: 'desc' },
+          take: 5,
+          select: { severity: true, title: true }
+        })
+      ]);
+
+      const currentByUser = new Map<string, number>();
+      const previousByUser = new Map<string, number>();
+
+      for (const payment of currentPayments) {
+        const userId = payment.invoice.userId;
+        currentByUser.set(userId, (currentByUser.get(userId) || 0) + asNumber(payment.amount));
+      }
+
+      for (const payment of previousPayments) {
+        const userId = payment.invoice.userId;
+        previousByUser.set(userId, (previousByUser.get(userId) || 0) + asNumber(payment.amount));
+      }
+
+      const prevUsers = Array.from(previousByUser.keys());
+      const prevRevenueTotal = prevUsers.reduce((acc, userId) => acc + (previousByUser.get(userId) || 0), 0);
+      const nrrNumerator = prevUsers.reduce((acc, userId) => acc + (currentByUser.get(userId) || 0), 0);
+      const grrNumerator = prevUsers.reduce(
+        (acc, userId) => acc + Math.min(currentByUser.get(userId) || 0, previousByUser.get(userId) || 0),
+        0
+      );
+
+      const nrr = prevRevenueTotal > 0 ? (nrrNumerator / prevRevenueTotal) * 100 : 0;
+      const grr = prevRevenueTotal > 0 ? (grrNumerator / prevRevenueTotal) * 100 : 0;
+
+      const mrr = Array.from(currentByUser.values()).reduce((acc, v) => acc + v, 0);
+      const mrrPrev = Array.from(previousByUser.values()).reduce((acc, v) => acc + v, 0);
+
+      const churnedUsers = prevUsers.filter((userId) => (currentByUser.get(userId) || 0) === 0).length;
+      const expansionRevenue = prevUsers.reduce(
+        (acc, userId) => acc + Math.max(0, (currentByUser.get(userId) || 0) - (previousByUser.get(userId) || 0)),
+        0
+      );
+      const contractionRevenue = prevUsers.reduce(
+        (acc, userId) => acc + Math.max(0, (previousByUser.get(userId) || 0) - (currentByUser.get(userId) || 0)),
+        0
+      );
+
+      const newRevenue = Array.from(currentByUser.entries())
+        .filter(([userId]) => !previousByUser.has(userId))
+        .reduce((acc, [, v]) => acc + v, 0);
+
+      const anomalies: string[] = [];
+      if (failedPayments24h > 0) anomalies.push(`Failed payments last 24h: ${failedPayments24h}`);
+      for (const alert of activeAlerts) anomalies.push(`${alert.severity.toUpperCase()}: ${alert.title}`);
+
+      return reply.send({
+        timestamp: new Date().toISOString(),
+        window: {
+          current: { start: currentWindow.start.toISOString(), end: currentWindow.end.toISOString() },
+          previous: { start: previousWindow.start.toISOString(), end: previousWindow.end.toISOString() }
+        },
+        mrr,
+        mrrPrev,
+        paidUsers: currentByUser.size,
+        paidUsersPrev: previousByUser.size,
+        nrr,
+        grr,
+        churnedUsers,
+        expansionRevenue,
+        contractionRevenue,
+        newRevenue,
+        anomalies
+      });
+    } catch (error) {
+      console.error('Error fetching launch metrics:', error);
+      return reply.code(500).send({ error: 'Internal server error' });
     }
   });
 

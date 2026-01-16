@@ -14,6 +14,8 @@ const LoadingContext = createContext<LoadingContextType>({
   setLoadingMessage: () => {},
 });
 
+export { LoadingContext };
+
 export function useLoading() {
   const context = useContext(LoadingContext);
   if (!context) {

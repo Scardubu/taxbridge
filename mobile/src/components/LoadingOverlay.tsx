@@ -76,13 +76,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
     elevation: 8,
-    shadowColor: '#000000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
+    // @ts-ignore - boxShadow for web compatibility
+    boxShadow: '0px 4px 16px rgba(0, 0, 0, 0.15)',
   },
   message: {
     fontSize: 16,
