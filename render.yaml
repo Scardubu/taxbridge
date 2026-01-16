@@ -1,71 +1,172 @@
+# TaxBridge Production Render Blueprint
+# Service ID: srv-d5ks7of5r7bs73cl7om0
+# Last Updated: January 16, 2026
+#
+# IMPORTANT: All secrets must be set in Render Dashboard
+# See: backend/.env.production for required values
+# Do NOT commit secrets to this file
+
 services:
+  # ============================================
+  # API SERVICE (Main Web Backend)
+  # ============================================
   - type: web
     name: taxbridge-api
-    env: node
+    runtime: node
     plan: starter
     region: oregon
     branch: master
     autoDeploy: true
     buildCommand: >-
-      cd backend && yarn install --frozen-lockfile && yarn build &&
-      wget https://docs.peppol.eu/poacc/billing/3.0/files/UBL-Invoice-2.1.xsd -O lib/ubl-invoice-2.1.xsd
+      cd backend && 
+      yarn install --frozen-lockfile && 
+      yarn build && 
+      mkdir -p lib && 
+      wget -q https://docs.peppol.eu/poacc/billing/3.0/files/UBL-Invoice-2.1.xsd -O lib/ubl-invoice-2.1.xsd || true
     startCommand: cd backend && yarn start
     healthCheckPath: /health
     envVars:
+      # Node Environment
       - key: NODE_ENV
         value: production
+      - key: PORT
+        value: 3000
+      - key: LOG_LEVEL
+        value: info
+      
+      # Database - SET IN RENDER DASHBOARD
+      # Value: postgresql://postgres:newleaF12!%40%24@db.hojzknpqniugotvtzszn.supabase.co:5432/postgres
       - key: DATABASE_URL
         sync: false
+      
+      # Redis (Render Managed)
       - key: REDIS_URL
         fromService:
           type: redis
           name: taxbridge-redis
           property: connectionString
+      
+      # Integration Mode (Production = real APIs)
+      - key: DIGITAX_MOCK_MODE
+        value: "false"
+      - key: REMITA_MOCK_MODE
+        value: "false"
+      
+      # DigiTax / NRS Credentials - SET IN RENDER DASHBOARD
       - key: DUPLO_CLIENT_ID
         sync: false
       - key: DUPLO_CLIENT_SECRET
         sync: false
+      
+      # Remita Payment Gateway - SET IN RENDER DASHBOARD
       - key: REMITA_MERCHANT_ID
         sync: false
       - key: REMITA_API_KEY
+        sync: false
+      - key: REMITA_SERVICE_TYPE_ID
+        sync: false
+      
+      # Security Secrets - SET IN RENDER DASHBOARD (64-char hex)
+      # Generate with: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+      - key: JWT_SECRET
+        sync: false
+      - key: ENCRYPTION_KEY
+        sync: false
+      - key: SESSION_SECRET
+        sync: false
+      - key: WEBHOOK_SECRET
         sync: false
       - key: REMITA_WEBHOOK_SECRET
         sync: false
+      
+      # CORS Configuration
+      - key: CORS_ORIGINS
+        value: https://taxbridge.ng,https://admin.taxbridge.ng,https://www.taxbridge.ng,https://taxbridge-api.onrender.com
+      
+      # UBL Validation
       - key: UBL_XSD_PATH
         value: lib/ubl-invoice-2.1.xsd
+      
+      # Monitoring
+      - key: ENABLE_METRICS
+        value: "true"
+      - key: SENTRY_DSN
+        sync: false
 
+  # ============================================
+  # WORKER SERVICE (BullMQ Job Processor)
+  # ============================================
   - type: worker
     name: taxbridge-worker
-    env: node
+    runtime: node
     plan: starter
     region: oregon
     branch: master
+    autoDeploy: true
     buildCommand: cd backend && yarn install --frozen-lockfile && yarn build
     startCommand: cd backend && yarn worker
     envVars:
+      # Node Environment
       - key: NODE_ENV
         value: production
+      - key: LOG_LEVEL
+        value: info
+      
+      # Database - SET IN RENDER DASHBOARD (same as API service)
       - key: DATABASE_URL
         sync: false
+      
+      # Redis (Render Managed)
       - key: REDIS_URL
         fromService:
           type: redis
           name: taxbridge-redis
           property: connectionString
+      
+      # Integration Mode
+      - key: DIGITAX_MOCK_MODE
+        value: "false"
+      - key: REMITA_MOCK_MODE
+        value: "false"
+      
+      # DigiTax / NRS Credentials - SET IN RENDER DASHBOARD
       - key: DUPLO_CLIENT_ID
         sync: false
       - key: DUPLO_CLIENT_SECRET
         sync: false
+      
+      # Remita Payment Gateway - SET IN RENDER DASHBOARD
       - key: REMITA_MERCHANT_ID
         sync: false
       - key: REMITA_API_KEY
         sync: false
+      - key: REMITA_SERVICE_TYPE_ID
+        sync: false
+      
+      # Security Secrets - SET IN RENDER DASHBOARD (same as API service)
+      - key: JWT_SECRET
+        sync: false
+      - key: ENCRYPTION_KEY
+        sync: false
+      - key: WEBHOOK_SECRET
+        sync: false
+      - key: REMITA_WEBHOOK_SECRET
+        sync: false
+      
+      # UBL Validation
       - key: UBL_XSD_PATH
         value: lib/ubl-invoice-2.1.xsd
+      
+      # Monitoring
+      - key: SENTRY_DSN
+        sync: false
 
+  # ============================================
+  # REDIS CACHE SERVICE
+  # ============================================
   - type: redis
     name: taxbridge-redis
     plan: starter
     region: oregon
     maxmemoryPolicy: allkeys-lru
-    ipAllowList: []  # Empty list allows connections from Render services
+    ipAllowList: []  # Allow connections from all Render services

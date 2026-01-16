@@ -1,0 +1,126 @@
+# TaxBridge Staging Environment - Render Blueprint
+# Deploy: render blueprint create --repo taxbridge --file render.staging.yaml
+
+services:
+  - type: web
+    name: taxbridge-api-staging
+    env: node
+    plan: starter
+    region: oregon
+    branch: staging
+    autoDeploy: true
+    buildCommand: >-
+      cd backend && yarn install --frozen-lockfile && yarn build &&
+      wget https://docs.peppol.eu/poacc/billing/3.0/files/UBL-Invoice-2.1.xsd -O lib/ubl-invoice-2.1.xsd || true
+    startCommand: cd backend && yarn start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: staging
+      - key: DIGITAX_MOCK_MODE
+        value: true
+      - key: REMITA_MOCK_MODE
+        value: true
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: taxbridge-redis-staging
+          property: connectionString
+      - key: DUPLO_CLIENT_ID
+        value: staging_dummy_client_id
+      - key: DUPLO_CLIENT_SECRET
+        value: staging_dummy_client_secret
+      - key: REMITA_MERCHANT_ID
+        value: staging_dummy_merchant
+      - key: REMITA_API_KEY
+        value: staging_dummy_api_key
+      - key: REMITA_SERVICE_TYPE_ID
+        value: staging_dummy_service
+      - key: REMITA_WEBHOOK_SECRET
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: ENCRYPTION_KEY
+        sync: false
+      - key: SESSION_SECRET
+        sync: false
+      - key: WEBHOOK_SECRET
+        sync: false
+      - key: SENTRY_DSN
+        sync: false
+      - key: CORS_ORIGINS
+        value: https://staging.taxbridge.ng,https://admin-staging.taxbridge.ng,http://localhost:19006,http://10.0.2.2:3000
+      - key: UBL_XSD_PATH
+        value: lib/ubl-invoice-2.1.xsd
+      - key: ENABLE_METRICS
+        value: true
+      - key: LOG_LEVEL
+        value: debug
+      - key: RATE_LIMIT_MAX
+        value: 200
+      - key: DB_POOL_MAX
+        value: 10
+
+  - type: worker
+    name: taxbridge-worker-staging
+    env: node
+    plan: starter
+    region: oregon
+    branch: staging
+    autoDeploy: true
+    buildCommand: cd backend && yarn install --frozen-lockfile && yarn build
+    startCommand: cd backend && yarn worker
+    envVars:
+      - key: NODE_ENV
+        value: staging
+      - key: DIGITAX_MOCK_MODE
+        value: true
+      - key: REMITA_MOCK_MODE
+        value: true
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: taxbridge-redis-staging
+          property: connectionString
+      - key: DUPLO_CLIENT_ID
+        value: staging_dummy_client_id
+      - key: DUPLO_CLIENT_SECRET
+        value: staging_dummy_client_secret
+      - key: REMITA_MERCHANT_ID
+        value: staging_dummy_merchant
+      - key: REMITA_API_KEY
+        value: staging_dummy_api_key
+      - key: REMITA_SERVICE_TYPE_ID
+        value: staging_dummy_service
+      - key: JWT_SECRET
+        sync: false
+      - key: ENCRYPTION_KEY
+        sync: false
+      - key: SESSION_SECRET
+        sync: false
+      - key: WEBHOOK_SECRET
+        sync: false
+      - key: SENTRY_DSN
+        sync: false
+      - key: UBL_XSD_PATH
+        value: lib/ubl-invoice-2.1.xsd
+      - key: LOG_LEVEL
+        value: debug
+
+  - type: redis
+    name: taxbridge-redis-staging
+    plan: starter
+    region: oregon
+    maxmemoryPolicy: allkeys-lru
+    ipAllowList: []  # Empty list allows connections from Render services
+
+databases:
+  - name: taxbridge-db-staging
+    databaseName: taxbridge_staging
+    user: taxbridge_staging
+    plan: starter
+    region: oregon

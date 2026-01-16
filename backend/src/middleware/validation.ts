@@ -3,8 +3,8 @@ import createDOMPurify from 'dompurify';
 import { JSDOM } from 'jsdom';
 import { parseStringPromise } from 'xml2js';
 
-const window = new JSDOM('').window as unknown as Window;
-const DOMPurify = createDOMPurify(window);
+const jsdomWindow = new JSDOM('').window;
+const DOMPurify = createDOMPurify(jsdomWindow as unknown as typeof globalThis);
 
 export const schemas = {
   phoneNumber: z.string().regex(/^\+234[789]\d{9}$/, 'Invalid Nigerian phone number'),
@@ -72,7 +72,7 @@ export function validateRequest<T extends ZodSchema>(schema: T) {
       if (error instanceof ZodError) {
         return reply.status(400).send({
           error: 'Validation failed',
-          details: error.errors.map(err => ({
+          details: error.issues.map(err => ({
             field: err.path.join('.'),
             message: err.message
           }))

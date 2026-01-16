@@ -7,28 +7,33 @@
 **Mobile-first, NRS-compliant e-invoicing platform for Nigerian SMEs**
 
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](https://expo.dev/accounts/scardubu/projects/taxbridge)
-[![Version](https://img.shields.io/badge/version-5.0.1-blue)](/)
-[![Tests](https://img.shields.io/badge/tests-137%20passing-success)](/)
+[![Version](https://img.shields.io/badge/version-5.0.2-blue)](/)
+[![Tests](https://img.shields.io/badge/tests-205%20passing-success)](/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](/)
+[![Production](https://img.shields.io/badge/status-ready-success)]()
 
-[Documentation](docs/PRD.md) • [Quick Start](#-quick-start) • [API Reference](#-api-endpoints) • [Download APK](https://expo.dev/accounts/scardubu/projects/taxbridge/builds/8280a391-df67-438a-80db-e9bfe484559d)
+[Documentation](docs/PRD.md) • [Quick Start](#-quick-start) • [API Reference](#-api-endpoints) • [Production Guide](PRODUCTION_FINALIZATION_SUMMARY.md)
 
 </div>
 
 ---
 
-## 🚀 Latest Release: v5.0.1 (January 15, 2026)
+## 🚀 Latest Release: v5.0.2 (January 16, 2026)
 
-### Download & Install
-- **Android APK:** [Download from Expo](https://expo.dev/accounts/scardubu/projects/taxbridge/builds/8280a391-df67-438a-80db-e9bfe484559d)
+### Production Status
+- **Status:** ✅ PRODUCTION READY - F3 Deployment Pending
+- **Android Build:** [Download .aab](https://expo.dev/artifacts/eas/9s5EqcGyEZPpWwdQ1cgoxP.aab)
+- **Build ID:** 446d5211-e437-438c-9fc1-c56361286855
 - **Project Dashboard:** [View on Expo](https://expo.dev/accounts/scardubu/projects/taxbridge)
 
-### What's New
-- ✅ 137 tests passing (100% success rate)
-- ✅ Production-ready APK build
-- ✅ OTA updates enabled via EAS Update
-- ✅ Enhanced Jest mocks for expo-camera and react-native-reanimated
+### What's New in v5.0.2
+- ✅ 205 tests passing (137 mobile + 68 backend, 100% success rate)
+- ✅ Production-ready Android App Bundle (.aab) for Play Store
+- ✅ Complete staging deployment automation
+- ✅ Integration contracts formalized
+- ✅ Health check system with 5 endpoints
+- ✅ Database migration automation
+- ✅ Zero TypeScript errors across all layers
 
 ---
 
