@@ -33,6 +33,7 @@ services:
         sync: false
       - key: UBL_XSD_PATH
         value: lib/ubl-invoice-2.1.xsd
+
   - type: worker
     name: taxbridge-worker
     env: node
@@ -61,8 +62,11 @@ services:
         sync: false
       - key: UBL_XSD_PATH
         value: lib/ubl-invoice-2.1.xsd
+
   - type: redis
     name: taxbridge-redis
     plan: starter
     region: oregon
     maxmemoryPolicy: allkeys-lru
+    ipAllowList:
+      - source: render
