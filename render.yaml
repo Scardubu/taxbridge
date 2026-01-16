@@ -68,3 +68,4 @@ services:
     plan: starter
     region: oregon
     maxmemoryPolicy: allkeys-lru
+    ipAllowList: []  # Empty list allows connections from Render services
