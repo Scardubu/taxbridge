@@ -22,10 +22,10 @@ This guide provides step-by-step instructions for deploying TaxBridge to product
    - Project created
    - Database connection string
 
-4. **Duplo/DigiTax Production Credentials**
-   - Client ID
-   - Client Secret
-   - API URL: `https://api.duplo.co`
+4. **DigiTax (APP) Production Credentials**
+   - API URL (base)
+   - API key
+   - HMAC secret (if provided by your APP)
 
 5. **Remita Merchant Account**
    - Merchant ID
@@ -54,6 +54,9 @@ duplo_client_id      = "your-duplo-client-id"
 duplo_client_secret  = "your-duplo-client-secret"
 remita_merchant_id   = "your-remita-merchant-id"
 remita_api_key       = "your-remita-api-key"
+
+# Note: TaxBridge backend uses DigiTax env vars at runtime (see render.yaml).
+# Terraform variables here are illustrative and should match your infra module.
 ```
 
 ### 1.2 Deploy Infrastructure
@@ -87,8 +90,10 @@ In Render Dashboard, set these environment variables:
 ```bash
 DATABASE_URL=postgresql://postgres:[PASSWORD]@db.[PROJECT].supabase.co:5432/postgres
 REDIS_URL=redis://default:[PASSWORD]@[HOST]:6379
-DUPLO_CLIENT_ID=your_production_client_id
-DUPLO_CLIENT_SECRET=your_production_client_secret
+DIGITAX_API_URL=https://api.digitax.ng
+DIGITAX_API_KEY=your_digitax_api_key
+DIGITAX_HMAC_SECRET=your_digitax_hmac_secret_optional
+DIGITAX_MOCK_MODE=false
 REMITA_MERCHANT_ID=your_merchant_id
 REMITA_API_KEY=your_production_api_key
 REMITA_SERVICE_TYPE_ID=your_service_type_id
@@ -115,8 +120,8 @@ git push origin main
 curl https://api.taxbridge.ng/health
 # Expected: {"status":"ok","timestamp":"...","uptime":...}
 
-curl https://api.taxbridge.ng/health/duplo
-# Expected: {"status":"healthy","provider":"duplo",...}
+curl https://api.taxbridge.ng/health/digitax
+# Expected: {"status":"healthy","provider":"digitax",...}
 
 curl https://api.taxbridge.ng/health/remita
 # Expected: {"status":"healthy","provider":"remita",...}
@@ -214,7 +219,9 @@ eas submit --platform android --latest
 ### 5.2 Configure Environment Variables
 
 ```bash
-NEXT_PUBLIC_API_URL=https://api.taxbridge.ng
+NEXT_PUBLIC_APP_URL=https://admin.taxbridge.ng
+BACKEND_URL=https://api.taxbridge.ng
+ADMIN_API_KEY=[admin_key]
 ```
 
 ### 5.3 Deploy
@@ -287,8 +294,8 @@ TXT   _dmarc.taxbridge.ng       → "v=DMARC1; p=quarantine; rua=mailto:admin@ta
 # Health check
 curl https://api.taxbridge.ng/health
 
-# Duplo connectivity
-curl https://api.taxbridge.ng/health/duplo
+# DigiTax connectivity
+curl https://api.taxbridge.ng/health/digitax
 
 # Remita connectivity
 curl https://api.taxbridge.ng/health/remita
@@ -317,20 +324,18 @@ curl -X POST https://api.taxbridge.ng/api/v1/invoices \
 ### 8.3 Payment Flow
 
 ```bash
-# Generate RRR
-curl -X POST https://api.taxbridge.ng/api/v1/payments/generate-rrr \
-  -H "Content-Type: application/json" \
-  -d '{
-    "amount": 1075,
-    "payerName": "Test User",
-    "payerEmail": "test@example.com",
-    "payerPhone": "+2348012345678",
-    "description": "Test payment",
-    "invoiceId": "TEST-001"
-  }'
+# Generate RRR (invoice must be NRS-stamped first)
+curl -X POST https://api.taxbridge.ng/api/v1/payments/generate \
+   -H "Content-Type: application/json" \
+   -d '{
+      "invoiceId": "<UUID>",
+      "payerName": "Test User",
+      "payerEmail": "test@example.com",
+      "payerPhone": "08012345678"
+   }'
 
-# Check status
-curl https://api.taxbridge.ng/api/v1/payments/status/[RRR]
+# Check payment status by invoiceId
+curl https://api.taxbridge.ng/api/v1/payments/<UUID>/status
 ```
 
 ---
@@ -338,7 +343,7 @@ curl https://api.taxbridge.ng/api/v1/payments/status/[RRR]
 ## Step 9: Go Live Checklist
 
 - [ ] All services healthy (API, OCR, Database, Redis)
-- [ ] Duplo OAuth working
+- [ ] DigiTax connectivity working
 - [ ] Remita RRR generation working
 - [ ] Mobile app approved on App Store & Play Store
 - [ ] Admin dashboard accessible
@@ -390,7 +395,7 @@ Monitoring:              $0 (free tiers)
 -----------------------------------
 Total Base:           $55/month
 
-+ Duplo fees:         ₦20-50/invoice
++ DigiTax fees:       per APP agreement
 + Remita fees:        1-2% of transaction
 ```
 
@@ -436,12 +441,12 @@ redis-cli -h [host] -p 6379 -a [password]
 
 ## Troubleshooting
 
-### Issue: Duplo health check failing
+### Issue: DigiTax health check failing
 
 **Solution:**
-1. Verify credentials in Render environment variables
-2. Check if Duplo API is accessible: `curl https://api.duplo.co`
-3. Regenerate OAuth token manually and test
+1. Verify `DIGITAX_API_URL` and `DIGITAX_API_KEY` in Render environment variables
+2. Check if the DigiTax base URL is reachable: `curl https://api.digitax.ng`
+3. If you are in staging, confirm `DIGITAX_MOCK_MODE=true` for mock-only flows
 
 ### Issue: Remita RRR generation timeout
 

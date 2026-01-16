@@ -189,9 +189,10 @@ This document summarizes the production-grade monitoring and alerting system imp
 
 | Endpoint | Purpose |
 |----------|---------|
-| `GET /health/duplo` | Duplo OAuth connectivity check |
+| `GET /health/digitax` | DigiTax connectivity check (canonical) |
+| `GET /health/duplo` | Legacy alias for DigiTax health |
 | `GET /health/remita` | Remita gateway availability check |
-| `GET /health/integrations` | Combined Duplo + Remita status |
+| `GET /health/integrations` | Combined DigiTax + Remita status |
 
 ### Prometheus Metrics Endpoint
 
@@ -303,8 +304,8 @@ VERSION=1.0.0  # Git tag for release tracking
 
 ### Manual Testing
 ```bash
-# Test Duplo health
-curl https://api.taxbridge.ng/health/duplo
+# Test DigiTax health
+curl https://api.taxbridge.ng/health/digitax
 
 # Test Remita health
 curl https://api.taxbridge.ng/health/remita
@@ -339,14 +340,15 @@ npm install @sentry/node@^8.31.0 @sentry/tracing@^7.120.3
 ## 🚀 Deployment Checklist
 
 - [ ] Set `SENTRY_DSN` and `SENTRY_ENVIRONMENT` in production environment
-- [ ] Verify Duplo production credentials (`DUPLO_CLIENT_ID`, `DUPLO_CLIENT_SECRET`)
+- [ ] Verify DigiTax production credentials (`DIGITAX_API_KEY`, `DIGITAX_HMAC_SECRET`)
 - [ ] Verify Remita production credentials (`REMITA_MERCHANT_ID`, `REMITA_API_KEY`)
 - [ ] Enable `ENABLE_METRICS=true` in production
 - [ ] Deploy Grafana dashboard from `infra/monitoring/grafana-dashboard.json`
 - [ ] Deploy Prometheus alert rules from `infra/monitoring/alert-rules.yml`
 - [ ] Configure Uptime Robot monitors for:
   - `https://api.taxbridge.ng/health`
-  - `https://api.taxbridge.ng/health/duplo`
+  - `https://api.taxbridge.ng/health/digitax` (canonical)
+  - `https://api.taxbridge.ng/health/duplo` (legacy alias)
   - `https://api.taxbridge.ng/health/remita`
 - [ ] Test alert notifications (Slack webhook, email, SMS)
 - [ ] Review on-call rotation schedule
@@ -390,7 +392,7 @@ npm install @sentry/node@^8.31.0 @sentry/tracing@^7.120.3
 ✅ **Custom metrics** for Duplo, Remita, UBL validation exposed via `/metrics`  
 ✅ **Grafana dashboard** with 12 panels tracking all critical integrations  
 ✅ **Prometheus alert rules** for critical/warning thresholds  
-✅ **Enhanced health checks** (`/health`, `/health/duplo`, `/health/remita`) with UBL validation  
+✅ **Enhanced health checks** (`/health`, `/health/digitax`, `/health/remita`) with UBL validation  
 ✅ **On-call runbook** with incident procedures and escalation paths  
 ✅ **Cost-optimized stack** leveraging free tiers: $0-6/month MVP, $50-100/month at scale  
 ✅ **Instrumented integrations** with latency, success/failure tracking  

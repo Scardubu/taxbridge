@@ -2,7 +2,7 @@
 
 **Completed:** January 16, 2026  
 **Duration:** 4 hours (accelerated execution)  
-**Status:** ✅ **PHASE F1-F3 COMPLETE, F4-F7 DOCUMENTED**
+**Status:** ✅ **PHASE F1-F3 COMPLETE, F4 READY TO EXECUTE**
 
 ---
 
@@ -13,10 +13,18 @@ TaxBridge production launch infrastructure is fully prepared with:
 - ✅ **Production environment configured** (F1)
 - ✅ **Android mobile build successful** (F2)  
 - ✅ **Staging deployment ready** (F3)
-- 📋 **Load testing suite documented** (F4)
+- ✅ **Load testing suite aligned & runbook created** (F4)
 - 📋 **DigiTax certification process documented** (F5)
 - 📋 **Production deployment procedures documented** (F6)
 - 📋 **Phased rollout strategy documented** (F7)
+
+### Recent Updates (January 16, 2026)
+
+- **k6 load tests fully aligned** to canonical `/health/*` and `/api/v1/*` endpoints
+- **Added `/health/db` and `/health/queues`** endpoints for F3/F4 validation
+- **Production-safe auth bypass guard** added to invoice routes
+- **Canonical Remita webhook** endpoint added at `/api/v1/payments/webhook/remita`
+- **Load test runbook** created: [PHASE_F4_LOAD_TEST_RUNBOOK.md](PHASE_F4_LOAD_TEST_RUNBOOK.md)
 
 ---
 
@@ -165,7 +173,8 @@ node backend/scripts/validate-deployment.js production
 
 **Endpoints Implemented:**
 - `/health` - Base system health (DB + Redis)
-- `/health/duplo` - DigiTax connectivity (or mock mode)
+- `/health/digitax` - DigiTax connectivity (or mock mode)
+- `/health/duplo` - Legacy alias for DigiTax health
 - `/health/remita` - Remita gateway (or mock mode)
 - `/health/db` - Database connection pool status
 - `/health/queues` - BullMQ queue health (pending, active, failed counts)
@@ -176,7 +185,7 @@ node backend/scripts/validate-deployment.js production
 // When DIGITAX_MOCK_MODE=true:
 {
   "status": "healthy",
-  "provider": "duplo",
+  "provider": "digitax",
   "mode": "mock",
   "latency": 1,
   "timestamp": "2026-01-16T..."

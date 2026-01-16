@@ -63,7 +63,7 @@ DIGITAX_MOCK_MODE=false
 | Old Term | New Term | Rationale |
 |----------|----------|-----------|
 | "Duplo/DigiTax" | "DigiTax (NITDA-accredited APP)" | Clarifies that DigiTax is the APP; no direct NRS integration |
-| `/health/duplo` | `/health/duplo` (kept) with note | Legacy route path preserved; docs clarify provider is DigiTax |
+| `/health/duplo` | `/health/digitax` (canonical) + `/health/duplo` alias | Canonical naming for DigiTax; legacy alias preserved for backward compatibility |
 | `DUPLO_API_URL` | `DIGITAX_API_URL` | Aligns with backend env schema |
 
 **Files Modified:**

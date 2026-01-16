@@ -147,7 +147,7 @@ For **taxbridge-worker-staging** service, add same secrets (except `WEBHOOK_SECR
 - `DIGITAX_MOCK_MODE=true`
 - `REMITA_MOCK_MODE=true`
 - `LOG_LEVEL=debug`
-- `CORS_ORIGINS=https://staging.taxbridge.ng,...`
+- `ALLOWED_ORIGINS=https://staging.taxbridge.ng,...` (legacy `CORS_ORIGINS` also supported)
 
 **2.3 Review and Deploy:**
 - Click "Create Blueprint" or "Apply Changes"
@@ -296,12 +296,12 @@ curl https://taxbridge-api-staging-XXXXX.onrender.com/health
 }
 
 # DigiTax health (should be mock mode)
-curl https://taxbridge-api-staging-XXXXX.onrender.com/health/duplo
+curl https://taxbridge-api-staging-XXXXX.onrender.com/health/digitax
 
 # Expected:
 {
   "status": "healthy",
-  "provider": "duplo",
+  "provider": "digitax",
   "mode": "mock",
   "latency": 1,
   "timestamp": "..."
@@ -450,7 +450,7 @@ datasource db {
 **Cause:** Origin not whitelisted
 
 **Fix:**
-Add mobile app origin to `CORS_ORIGINS` env var:
+Add mobile app origin to `ALLOWED_ORIGINS` env var (legacy `CORS_ORIGINS` also supported):
 ```
 https://staging.taxbridge.ng,http://localhost:19006,http://10.0.2.2:3000
 ```

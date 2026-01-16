@@ -70,7 +70,7 @@
 - Docker image building and tagging
 - Database migration execution
 - UBL validation before deployment
-- Health check verification (API, Duplo, Remita)
+- Health check verification (API, DigiTax, Remita)
 - Slack notifications
 - 12-step production readiness validation
 
@@ -79,7 +79,7 @@
 ### 5. Backend Enhancements
 
 **Files Modified:**
-- [backend/src/server.ts](backend/src/server.ts) - Added `/health/duplo` and `/health/remita` endpoints
+- [backend/src/server.ts](backend/src/server.ts) - Added `/health/digitax` (and legacy `/health/duplo` alias) and `/health/remita` endpoints
 
 **Files Created:**
 - [backend/src/tools/ubl-validate.ts](backend/src/tools/ubl-validate.ts) - UBL 3.0 validation script (55 mandatory fields)
@@ -87,7 +87,8 @@
 
 **New Endpoints:**
 ```
-GET /health/duplo   - Duplo OAuth connectivity check
+GET /health/digitax - DigiTax connectivity check
+GET /health/duplo   - Legacy alias for DigiTax health
 GET /health/remita  - Remita gateway connectivity check
 ```
 
@@ -244,7 +245,7 @@ bash uptime-robot.sh
 - [x] EAS configuration for iOS and Android builds
 
 ### Backend ✅
-- [x] `/health/duplo` endpoint with OAuth validation
+- [x] `/health/digitax` endpoint with connectivity validation (legacy `/health/duplo` alias supported)
 - [x] `/health/remita` endpoint with gateway connectivity
 - [x] UBL 3.0 validation script (55 mandatory fields)
 - [x] Multi-stage Dockerfile with security hardening

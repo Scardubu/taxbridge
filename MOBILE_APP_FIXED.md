@@ -359,7 +359,7 @@ cd admin-dashboard
 
 # Create .env.local
 cp .env.example .env.local
-# Fill in NEXT_PUBLIC_API_URL=http://localhost:3000
+# Fill in BACKEND_URL=http://localhost:3000
 
 # Start Next.js
 yarn dev

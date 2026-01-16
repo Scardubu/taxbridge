@@ -115,7 +115,8 @@ backend/scripts/
 
 **Endpoints Implemented:**
 - `/health` - Base system health (DB + Redis)
-- `/health/duplo` - DigiTax connectivity
+- `/health/digitax` - DigiTax connectivity
+- `/health/duplo` - Legacy alias for DigiTax health
 - `/health/remita` - Remita gateway  
 - `/health/db` - Database connection pool
 - `/health/queues` - BullMQ queue status

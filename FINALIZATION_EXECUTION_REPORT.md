@@ -130,7 +130,8 @@ TaxBridge has been systematically prepared for production launch through compreh
    - Reviewed existing endpoints in [backend/src/routes/health.ts](backend/src/routes/health.ts)
    - Verified 5 endpoints implemented:
      - `/health` - Base system (DB + Redis)
-     - `/health/duplo` - DigiTax connectivity
+       - `/health/digitax` - DigiTax connectivity
+       - `/health/duplo` - Legacy alias for DigiTax health
      - `/health/remita` - Payment gateway
      - `/health/db` - Database pool status
      - `/health/queues` - BullMQ status

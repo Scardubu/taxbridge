@@ -226,12 +226,14 @@ curl -X POST https://api-staging.taxbridge.ng/api/invoices/submit \
 
 #### Remita (Payments)
 ```bash
-curl -X POST https://api-staging.taxbridge.ng/api/payments/remita/generate-rrr \
+curl -X POST https://api-staging.taxbridge.ng/api/v1/payments/generate \
   -H "Authorization: Bearer $STAGING_JWT" \
   -H "Content-Type: application/json" \
   -d '{
-    "amount": 5000,
-    "description": "Premium Plan - Monthly"
+    "invoiceId": "<UUID>",
+    "payerName": "Test User",
+    "payerEmail": "test@example.com",
+    "payerPhone": "08012345678"
   }'
 
 # Expected: 200 OK with RRR
@@ -256,7 +258,7 @@ curl -X POST https://api-staging.taxbridge.ng/api/notifications/sms \
 
 #### Test 1: User Registration
 ```bash
-curl -X POST https://api-staging.taxbridge.ng/api/auth/register \
+curl -X POST https://api-staging.taxbridge.ng/api/v1/auth/register \
   -H "Content-Type: application/json" \
   -d '{
     "name": "Test User",
@@ -270,7 +272,7 @@ curl -X POST https://api-staging.taxbridge.ng/api/auth/register \
 
 #### Test 2: Create Invoice
 ```bash
-curl -X POST https://api-staging.taxbridge.ng/api/invoices \
+curl -X POST https://api-staging.taxbridge.ng/api/v1/invoices \
   -H "Authorization: Bearer $JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -284,12 +286,14 @@ curl -X POST https://api-staging.taxbridge.ng/api/invoices \
 
 #### Test 3: Generate Payment (RRR)
 ```bash
-curl -X POST https://api-staging.taxbridge.ng/api/payments/remita/generate-rrr \
+curl -X POST https://api-staging.taxbridge.ng/api/v1/payments/generate \
   -H "Authorization: Bearer $JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
     "invoiceId": "invoice-id-from-step-2",
-    "amount": 5000
+    "payerName": "Test User",
+    "payerEmail": "test@example.com",
+    "payerPhone": "08012345678"
   }'
 
 # Expected: 200 OK with RRR

@@ -87,7 +87,7 @@ Location: `mobile/assets/`
 - [x] `mobile/src/services/api.ts`: Uses `__DEV__` flag
   - Development: `http://10.0.2.2:3000` (Android emulator)
   - Production: `https://api.taxbridge.ng`
-- [x] `mobile/src/services/database.ts`: Same pattern
+- [x] `mobile/src/services/config.ts`: Same pattern
 - [x] `mobile/src/screens/ChatbotScreen.tsx`: Uses `getApiBaseUrl()` service
 
 ### ✅ Admin Dashboard (Next.js)
@@ -96,9 +96,9 @@ Location: `mobile/assets/`
 
 ```bash
 # Required for production
-NEXT_PUBLIC_BASE_URL=https://admin.taxbridge.ng
-NEXT_PUBLIC_API_URL=https://api.taxbridge.ng
+NEXT_PUBLIC_APP_URL=https://admin.taxbridge.ng
 BACKEND_URL=https://api.taxbridge.ng
+ADMIN_API_KEY=<admin_key>
 
 # Optional (monitoring)
 NEXT_PUBLIC_SENTRY_DSN=<production_sentry_dsn>

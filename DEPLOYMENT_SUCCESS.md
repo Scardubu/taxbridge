@@ -192,7 +192,8 @@ POST /api/v1/privacy/consent            - Consent management
 ### Health Endpoints
 ```
 GET /health                - Server health status
-GET /health/duplo          - DigiTax integration health
+GET /health/digitax        - DigiTax integration health (canonical)
+GET /health/duplo          - Legacy alias for DigiTax health
 GET /health/remita         - Remita integration health
 GET /metrics               - Prometheus metrics
 ```

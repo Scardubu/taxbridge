@@ -298,8 +298,8 @@ GET /api/v1/invoices/:id
 ### Payments (Remita)
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `POST` | `/api/v1/payments/generate-rrr` | Generate Remita RRR |
-| `GET` | `/api/v1/payments/status/:rrr` | Check payment status |
+| `POST` | `/api/v1/payments/generate` | Generate Remita RRR (requires stamped invoice) |
+| `GET` | `/api/v1/payments/:invoiceId/status` | Check payment status |
 
 ### OCR
 | Method | Endpoint | Description |
@@ -365,6 +365,22 @@ ALLOWED_ORIGINS="http://localhost:3001,http://localhost:19006"
 BACKEND_URL=http://localhost:3000
 ADMIN_API_KEY=your-admin-key
 ```
+
+#### Mobile Authentication (JWT)
+
+TaxBridge mobile uses JWT auth for production API calls:
+
+- Tokens are stored on-device using `expo-secure-store` (with an AsyncStorage fallback for test/dev environments).
+- The mobile API client automatically attaches `Authorization: Bearer <accessToken>` when available.
+- If the backend returns `401`, the client will attempt a one-time refresh via `/api/v1/auth/refresh` (using the stored refresh token) and then retry.
+- Offline-first still applies: invoices can be created offline, but syncing pending invoices requires an authenticated session.
+
+Auth endpoints:
+- `POST /api/v1/auth/register`
+- `POST /api/v1/auth/verify-phone`
+- `POST /api/v1/auth/login`
+- `POST /api/v1/auth/refresh`
+- `POST /api/v1/auth/logout`
 
 ---
 

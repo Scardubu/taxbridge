@@ -65,21 +65,23 @@ SENTRY_ENVIRONMENT=production
 ### Admin Dashboard (Vercel/Netlify)
 
 ```bash
-NEXT_PUBLIC_BASE_URL=https://admin.taxbridge.ng
-NEXT_PUBLIC_API_URL=https://api.taxbridge.ng
+NEXT_PUBLIC_APP_URL=https://admin.taxbridge.ng
+BACKEND_URL=https://api.taxbridge.ng
+ADMIN_API_KEY=[admin_key]
 NEXT_PUBLIC_SENTRY_DSN=[admin_sentry_dsn]
 NEXT_PUBLIC_MIXPANEL_TOKEN=[production_token]
-BACKEND_URL=https://api.taxbridge.ng
 ```
 
 ### Mobile (EAS Secrets)
 
-Already configured in `mobile/eas.json` production profile:
+API base URL is configured in-app (Settings → API URL). Defaults:
+- Development: Android emulator -> http://10.0.2.2:3000
+- Production: https://api.taxbridge.ng
+
+Optional observability tokens can still be provided via EAS secrets (example):
 
 ```json
 {
-  "EXPO_PUBLIC_API_URL": "https://api.taxbridge.ng",
-  "EXPO_PUBLIC_ENV": "production",
   "EXPO_PUBLIC_SENTRY_DSN": "[mobile_sentry_dsn]",
   "EXPO_PUBLIC_MIXPANEL_TOKEN": "[production_token]"
 }
@@ -152,10 +154,12 @@ cd admin-dashboard
 vercel link
 
 # Set environment variables
-vercel env add NEXT_PUBLIC_BASE_URL production
+vercel env add NEXT_PUBLIC_APP_URL production
 # Enter: https://admin.taxbridge.ng
-vercel env add NEXT_PUBLIC_API_URL production
+vercel env add BACKEND_URL production
 # Enter: https://api.taxbridge.ng
+vercel env add ADMIN_API_KEY production
+# Enter: <admin key>
 
 # Deploy
 vercel --prod

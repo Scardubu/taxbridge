@@ -96,7 +96,8 @@ This document summarizes all production readiness implementations completed for 
 | Endpoint | Purpose |
 |----------|---------|
 | `GET /health` | Overall system health (DB, Redis) |
-| `GET /health/duplo` | Duplo/DigiTax OAuth connectivity |
+| `GET /health/digitax` | DigiTax connectivity (canonical) |
+| `GET /health/duplo` | Legacy alias for DigiTax health |
 | `GET /health/remita` | Remita gateway availability |
 | `GET /health/integrations` | Combined integrations status |
 
@@ -105,7 +106,7 @@ This document summarizes all production readiness implementations completed for 
 | Endpoint | Purpose |
 |----------|---------|
 | `/api/admin/health` | Proxy to backend health |
-| `/api/admin/health/duplo` | Duplo status for dashboard |
+| `/api/admin/health/duplo` | DigiTax status for dashboard (canonical backend path: `/health/digitax`) |
 | `/api/admin/health/remita` | Remita status for dashboard |
 | `/api/admin/health/integrations` | All integrations for dashboard |
 
@@ -225,7 +226,8 @@ npm run lint            # ESLint with zero warnings
 
 ### Post-Deployment
 - [ ] Verify `/health` returns 200
-- [ ] Verify `/health/duplo` (mock or live)
+- [ ] Verify `/health/digitax` (mock or live)
+- [ ] (Optional) Verify legacy alias `/health/duplo`
 - [ ] Verify `/health/remita` (mock or live)
 - [ ] Enable UptimeRobot monitoring
 - [ ] Test mobile app connectivity
@@ -237,7 +239,7 @@ npm run lint            # ESLint with zero warnings
 ```bash
 # Production health checks
 curl https://api.taxbridge.ng/health
-curl https://api.taxbridge.ng/health/duplo
+curl https://api.taxbridge.ng/health/digitax
 curl https://api.taxbridge.ng/health/remita
 curl https://api.taxbridge.ng/health/integrations
 
@@ -256,7 +258,7 @@ backend/package.json                                # Updated scripts
 backend/src/routes/health.ts                        # Rewritten: Health endpoints
 backend/src/tools/ubl-validate.ts                   # UBL 3.0 validation
 admin-dashboard/app/api/admin/health/route.ts       # NEW: Health API
-admin-dashboard/app/api/admin/health/duplo/route.ts # NEW: Duplo API
+admin-dashboard/app/api/admin/health/duplo/route.ts # NEW: DigiTax health proxy (legacy route path)
 admin-dashboard/app/api/admin/health/remita/route.ts# NEW: Remita API
 admin-dashboard/app/api/admin/health/integrations/route.ts # NEW: Combined API
 admin-dashboard/components/IntegrationHealthCard.tsx# NEW: Health display
@@ -267,7 +269,7 @@ admin-dashboard/components/IntegrationHealthCard.tsx# NEW: Health display
 ## Next Steps
 
 1. **Configure Production Secrets** - Add API keys to Render/Vercel dashboards
-2. **DigiTax Certification** - Complete Duplo sandbox testing
+2. **DigiTax Certification** - Complete sandbox testing
 3. **Mobile Release** - Configure Play Store / App Store credentials in EAS
 4. **Monitoring Setup** - Add UptimeRobot/Better Uptime monitors
 5. **Load Testing** - Run k6 tests against staging environment

@@ -23,7 +23,7 @@ This guide walks you through deploying TaxBridge to production after obtaining n
 
 ### Deployment Artifacts Added in January 2026
 
-- **Docker Runtime:** [infra/docker-compose.prod.yml](infra/docker-compose.prod.yml#L1) orchestrates API, worker, Redis, OCR, and hardened Nginx with `/health`, `/health/duplo`, `/health/remita` probes.
+- **Docker Runtime:** [infra/docker-compose.prod.yml](infra/docker-compose.prod.yml#L1) orchestrates API, worker, Redis, OCR, and hardened Nginx with `/health`, `/health/digitax`, `/health/remita` probes (legacy `/health/duplo` alias supported).
 - **Reverse Proxy:** [infra/nginx/nginx.conf](infra/nginx/nginx.conf#L1) enforces TLS 1.2+, Duplo/Remita webhook routing, and per-endpoint rate limits for low-bandwidth markets.
 - **Infrastructure as Code:** [infra/terraform/main.tf](infra/terraform/main.tf#L1) + [templates/user_data.sh.tmpl](infra/terraform/templates/user_data.sh.tmpl#L1) bootstrap the DigitalOcean OCR droplet (with Peppol BIS 3.0 XSD download) and Spaces bucket while documenting the AWS Lightsail alternative.
 - **Render Blueprint:** [render.yaml](render.yaml#L1) pins build/run commands, injects Duplo/Remita secrets, and downloads the UBL XSD during deploys.

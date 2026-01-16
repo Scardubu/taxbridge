@@ -166,9 +166,9 @@ yarn workspace admin-dashboard test
 ### Development (.env.local)
 
 ```bash
-# Mobile (mobile/.env.local)
-EXPO_PUBLIC_API_URL=http://localhost:3000
-EXPO_PUBLIC_ENV=development
+# Mobile
+# API base URL is configured in-app (Settings → API URL)
+# Defaults: Android emulator -> http://10.0.2.2:3000 (dev), Production -> https://api.taxbridge.ng
 
 # Backend (backend/.env)
 DATABASE_URL=postgresql://localhost:5432/taxbridge_dev
@@ -177,8 +177,8 @@ NODE_ENV=development
 PORT=3000
 
 # Admin Dashboard (admin-dashboard/.env.local)
-NEXT_PUBLIC_API_URL=http://localhost:3000
-NEXT_PUBLIC_ADMIN_API_KEY=dev_admin_key
+BACKEND_URL=http://localhost:3000
+ADMIN_API_KEY=dev_admin_key
 ```
 
 **Important:** Never commit `.env` files! Use `.env.example` as templates.
