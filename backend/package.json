@@ -31,7 +31,7 @@
     "ubl:validate": "ts-node src/tools/ubl-validate.ts",
     "ubl:validate:prod": "node dist/src/tools/ubl-validate.js",
     "ubl:download-xsd": "mkdir -p lib && curl -fsSL https://docs.peppol.eu/poacc/billing/3.0/files/UBL-Invoice-2.1.xsd -o lib/ubl-invoice-2.1.xsd || true",
-    "health:check": "curl -f http://localhost:3000/health && curl -f http://localhost:3000/health/duplo && curl -f http://localhost:3000/health/remita",
+    "health:check": "curl -f http://localhost:3000/health && curl -f http://localhost:3000/health/digitax && curl -f http://localhost:3000/health/remita",
     "lint": "eslint src/ --ext .ts --max-warnings 0",
     "lint:fix": "eslint src/ --ext .ts --fix"
   },

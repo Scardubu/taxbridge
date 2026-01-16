@@ -184,7 +184,7 @@ function loadConfig(): Config {
       removeOnFail: process.env.QUEUE_REMOVE_ON_FAIL
     },
     security: {
-      corsOrigins: process.env.CORS_ORIGINS,
+      corsOrigins: process.env.ALLOWED_ORIGINS || process.env.CORS_ORIGINS,
       rateLimitMax: process.env.RATE_LIMIT_MAX,
       rateLimitWindow: process.env.RATE_LIMIT_WINDOW,
       jwtSecret: process.env.JWT_SECRET,

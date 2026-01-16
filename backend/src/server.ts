@@ -29,6 +29,7 @@ import { healthCheckAllProviders, getProviderHealth } from './integrations/comms
 import { createLogger } from './lib/logger';
 import { getPrismaClient, disconnectPrisma } from './lib/prisma';
 import { securityMiddleware, checkRateLimit } from './lib/security';
+import { RateLimitError, formatErrorResponse } from './lib/errors';
 import { 
   createRequestContext, 
   cleanupRequestContext, 
@@ -100,10 +101,9 @@ app.addHook('onRequest', async (request, reply) => {
     const rateLimitResult = await checkRateLimit((request as any).clientIP, 'api', (request as any).clientIP);
     if (!rateLimitResult.allowed) {
       const resetTimeMs = rateLimitResult.resetTime instanceof Date ? rateLimitResult.resetTime.getTime() : Date.now() + 60000;
-      reply.code(429).send({
-        error: 'Rate limit exceeded',
-        retryAfter: Math.ceil((resetTimeMs - Date.now()) / 1000)
-      });
+      const retryAfter = Math.ceil((resetTimeMs - Date.now()) / 1000);
+      const err = new RateLimitError(retryAfter);
+      reply.code(err.statusCode).send(err.toJSON());
       return;
     }
   }
@@ -120,8 +120,6 @@ app.addHook('onResponse', async (request, reply) => {
 });
 
 app.setErrorHandler((error, request, reply) => {
-  const statusCode = (error as any)?.statusCode ?? 500;
-  
   // Track error metrics
   serverMetrics.errorCount++;
 
@@ -129,29 +127,13 @@ app.setErrorHandler((error, request, reply) => {
     captureWithSentry(error, request, reply);
   }
 
-  if (error instanceof ZodError) {
-    return reply.status(400).send({ 
-      error: 'Validation failed',
-      details: error.flatten() 
-    });
-  }
-
-  const publicMessage =
-    statusCode >= 500
-      ? 'Internal Server Error'
-      : error instanceof Error
-        ? error.message
-        : 'Bad Request';
+  const { statusCode, body } = formatErrorResponse(error);
 
   if (statusCode >= 500) {
     app.log.error({ err: error }, 'Server error');
   }
 
-  return reply.status(statusCode).send({ 
-    error: publicMessage,
-    code: statusCode,
-    timestamp: new Date().toISOString()
-  });
+  return reply.status(statusCode).send(body);
 });
 
 const envSchema = {
@@ -219,11 +201,20 @@ const envSchema = {
     // Monitoring
     ENABLE_METRICS: { type: 'string', default: 'true' },
     METRICS_INTERVAL: { type: 'string', default: '60000' }, // 1 minute
+    // Development/testing convenience (MUST remain disabled in production)
+    ALLOW_DEBUG_USER_ID_HEADER: { type: 'string', default: 'false' },
     NODE_ENV: { type: 'string', default: 'development' }
   }
 } as const;
 
 async function bootstrap() {
+  // Load and validate environment variables early so subsequent plugin configuration
+  // (CORS, integrations, etc.) sees values from `.env`.
+  await app.register(fastifyEnv, {
+    schema: envSchema,
+    dotenv: { path: path.resolve(process.cwd(), '.env') }
+  });
+
   // Register helmet for security headers
   await app.register(helmet, {
     contentSecurityPolicy: {
@@ -246,8 +237,16 @@ async function bootstrap() {
     }
   });
 
+  const corsOriginsRaw = (process.env.ALLOWED_ORIGINS ?? process.env.CORS_ORIGINS ?? '*').trim();
+  const corsOrigins = corsOriginsRaw === '*'
+    ? '*'
+    : corsOriginsRaw
+        .split(',')
+        .map((o) => o.trim())
+        .filter(Boolean);
+
   await app.register(cors, { 
-    origin: process.env.ALLOWED_ORIGINS?.split(',') || '*',
+    origin: corsOrigins,
     credentials: true
   });
 
@@ -258,11 +257,6 @@ async function bootstrap() {
     encodings: ['gzip', 'deflate'],
     // Don't compress already compressed formats
     inflateIfDeflated: true
-  });
-
-  await app.register(fastifyEnv, {
-    schema: envSchema,
-    dotenv: { path: path.resolve(process.cwd(), '.env') }
   });
 
   const sentryReady = setupSentry(app);
@@ -299,8 +293,8 @@ async function bootstrap() {
       serverMetrics.componentStatus.redis = redisLatency < 50 ? 'healthy' : 'degraded';
       serverMetrics.lastHealthCheck = Date.now();
       
-      const [duploHealth, remitaHealth, ublSnapshot] = await Promise.all([
-        observeDuploHealth().catch(() => ({ status: 'error', provider: 'duplo', timestamp: new Date().toISOString() } as const)),
+      const [digitaxHealth, remitaHealth, ublSnapshot] = await Promise.all([
+        observeDuploHealth().catch(() => ({ status: 'error', provider: 'digitax', timestamp: new Date().toISOString() } as const)),
         observeRemitaHealth().catch(() => ({ status: 'error', provider: 'remita', timestamp: new Date().toISOString() } as const)),
         runUblHealthCheck().catch(() => ({ status: 'error', missingFields: [], xsdValid: false, timestamp: new Date().toISOString() }))
       ]);
@@ -321,7 +315,10 @@ async function bootstrap() {
           redis: redisLatency
         },
         integrations: {
-          duplo: duploHealth,
+          // Canonical
+          digitax: digitaxHealth,
+          // Backward-compatible alias (older docs/monitors)
+          duplo: digitaxHealth,
           remita: remitaHealth
         },
         ubl: ublSnapshot
@@ -485,8 +482,8 @@ taxbridge_component_status{component="sms"} ${serverMetrics.componentStatus.sms 
     }
   });
 
-  // Duplo/DigiTax health check
-  app.get('/health/duplo', async (_req, reply) => {
+  // DigiTax health check
+  app.get('/health/digitax', async (_req, reply) => {
     const startTime = Date.now();
     try {
       const mockMode = String(process.env.DIGITAX_MOCK_MODE || 'false').toLowerCase() === 'true';
@@ -494,13 +491,92 @@ taxbridge_component_status{component="sms"} ${serverMetrics.componentStatus.sms 
       if (mockMode) {
         return reply.send({
           status: 'healthy',
-          provider: 'duplo',
+          provider: 'digitax',
           mode: 'mock',
           latency: 2,
           timestamp: new Date().toISOString()
         });
       }
 
+      const digitaxUrl = (process.env.DIGITAX_API_URL || '').trim();
+      if (!digitaxUrl) {
+        return reply.status(503).send({
+          status: 'error',
+          provider: 'digitax',
+          error: 'Missing DIGITAX_API_URL',
+          timestamp: new Date().toISOString()
+        });
+      }
+
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 5000);
+
+      try {
+        // Lightweight connectivity check (does not assume a specific DigiTax health endpoint)
+        const response = await fetch(digitaxUrl, { method: 'GET', signal: controller.signal });
+        
+        clearTimeout(timeout);
+        const latency = Date.now() - startTime;
+
+        if (response.ok || response.status === 302) {
+          return reply.send({
+            status: 'healthy',
+            provider: 'digitax',
+            latency,
+            timestamp: new Date().toISOString()
+          });
+        } else if (response.status >= 500) {
+          return reply.status(503).send({
+            status: 'error',
+            provider: 'digitax',
+            error: 'DigiTax gateway unavailable',
+            latency,
+            timestamp: new Date().toISOString()
+          });
+        } else {
+          return reply.send({
+            status: 'degraded',
+            provider: 'digitax',
+            statusCode: response.status,
+            latency,
+            timestamp: new Date().toISOString()
+          });
+        }
+      } catch (error: any) {
+        clearTimeout(timeout);
+        return reply.status(503).send({
+          status: 'error',
+          provider: 'digitax',
+          error: error.message || 'Connection failed',
+          latency: Date.now() - startTime,
+          timestamp: new Date().toISOString()
+        });
+      }
+    } catch (error) {
+      app.log.error({ err: error }, 'DigiTax health check failed');
+      return reply.status(503).send({
+        status: 'error',
+        provider: 'digitax',
+        error: 'Health check failed',
+        timestamp: new Date().toISOString()
+      });
+    }
+  });
+
+  // Backward-compatible alias (older docs/monitors).
+  // If legacy Duplo credentials are configured, run the legacy check;
+  // otherwise defer to the DigiTax check.
+  app.get('/health/duplo', async (_req, reply) => {
+    const hasLegacyDuploCreds = Boolean(process.env.DUPLO_CLIENT_ID && process.env.DUPLO_CLIENT_SECRET);
+    if (!hasLegacyDuploCreds) {
+      const injected = await app.inject({ method: 'GET', url: '/health/digitax' });
+      reply.code(injected.statusCode);
+      for (const [k, v] of Object.entries(injected.headers)) reply.header(k, v as any);
+      return reply.send(injected.json());
+    }
+
+    const startTime = Date.now();
+    try {
       const duploUrl = process.env.DUPLO_API_URL || 'https://api.duplo.co';
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 5000);
@@ -517,7 +593,7 @@ taxbridge_component_status{component="sms"} ${serverMetrics.componentStatus.sms 
           }),
           signal: controller.signal
         });
-        
+
         clearTimeout(timeout);
         const latency = Date.now() - startTime;
 
@@ -528,15 +604,15 @@ taxbridge_component_status{component="sms"} ${serverMetrics.componentStatus.sms 
             latency,
             timestamp: new Date().toISOString()
           });
-        } else {
-          return reply.status(503).send({
-            status: 'degraded',
-            provider: 'duplo',
-            error: `HTTP ${response.status}`,
-            latency,
-            timestamp: new Date().toISOString()
-          });
         }
+
+        return reply.status(503).send({
+          status: response.status >= 500 ? 'error' : 'degraded',
+          provider: 'duplo',
+          error: `HTTP ${response.status}`,
+          latency,
+          timestamp: new Date().toISOString()
+        });
       } catch (error: any) {
         clearTimeout(timeout);
         return reply.status(503).send({
@@ -617,6 +693,79 @@ taxbridge_component_status{component="sms"} ${serverMetrics.componentStatus.sms 
         status: 'error',
         provider: 'remita',
         error: 'Health check failed',
+        timestamp: new Date().toISOString()
+      });
+    }
+  });
+
+  // Database-only health check (used by F3/F4 validation scripts)
+  app.get('/health/db', async (_req, reply) => {
+    const startTime = Date.now();
+    try {
+      await prisma.$queryRaw`SELECT 1`;
+      const latency = Date.now() - startTime;
+
+      serverMetrics.componentStatus.database = latency < 100 ? 'healthy' : 'degraded';
+
+      return reply.send({
+        status: latency < 100 ? 'healthy' : 'degraded',
+        component: 'database',
+        latency,
+        poolMax: Number(process.env.DB_POOL_MAX || 10),
+        timestamp: new Date().toISOString()
+      });
+    } catch (error: any) {
+      serverMetrics.componentStatus.database = 'error';
+      app.log.error({ err: error }, 'Database health check failed');
+      return reply.status(503).send({
+        status: 'error',
+        component: 'database',
+        error: error.message || 'Connection failed',
+        timestamp: new Date().toISOString()
+      });
+    }
+  });
+
+  // Queue health check (BullMQ job counts)
+  app.get('/health/queues', async (_req, reply) => {
+    try {
+      const redis = getRedisConnection();
+      const pong = await redis.ping();
+      if (pong !== 'PONG') throw new Error('Redis ping failed');
+
+      // Retrieve queue job counts via BullMQ Queue class
+      const { Queue } = await import('bullmq');
+      const invoiceSyncQueue = new Queue('invoice-sync', { connection: redis });
+      const paymentQueue = new Queue('payment-webhooks', { connection: redis });
+
+      const [invoiceCounts, paymentCounts] = await Promise.all([
+        invoiceSyncQueue.getJobCounts(),
+        paymentQueue.getJobCounts()
+      ]);
+
+      // Clean up queue instances to avoid dangling listeners
+      await invoiceSyncQueue.close();
+      await paymentQueue.close();
+
+      const totalFailed = (invoiceCounts.failed || 0) + (paymentCounts.failed || 0);
+      const status = totalFailed > 100 ? 'degraded' : 'healthy';
+
+      serverMetrics.componentStatus.queues = status;
+
+      return reply.send({
+        status,
+        component: 'queues',
+        invoiceSync: invoiceCounts,
+        paymentWebhooks: paymentCounts,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error: any) {
+      serverMetrics.componentStatus.queues = 'error';
+      app.log.error({ err: error }, 'Queue health check failed');
+      return reply.status(503).send({
+        status: 'error',
+        component: 'queues',
+        error: error.message || 'Queue connection failed',
         timestamp: new Date().toISOString()
       });
     }

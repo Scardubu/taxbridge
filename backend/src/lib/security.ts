@@ -50,7 +50,7 @@ const SECURITY_CONFIG = {
   // Input sanitization
   enableInputSanitization: true,
   // CORS settings
-  allowedOrigins: process.env.ALLOWED_ORIGINS?.split(',') || ['*'],
+  allowedOrigins: (process.env.ALLOWED_ORIGINS ?? process.env.CORS_ORIGINS)?.split(',') || ['*'],
   // Request timeout
   requestTimeout: 30000, // 30 seconds
   // Maximum session duration

@@ -554,7 +554,7 @@ describe('Remita API Integration Tests', () => {
           key: cacheKey,
           requestHash,
           method: 'POST',
-          path: '/webhooks/remita/payment',
+          path: '/api/v1/payments/webhook/remita',
           statusCode: 200,
           responseBody: { received: true },
         },

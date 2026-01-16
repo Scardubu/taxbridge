@@ -1,12 +1,57 @@
 import { Prisma, PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import type { FastifyInstance } from 'fastify';
+import jwt from 'jsonwebtoken';
 
 import { computeRequestHash } from '../lib/idempotency';
 import { getInvoiceSyncQueue } from '../queue/client';
+import { AuthenticationError } from '../lib/errors';
 
 export default async function invoicesRoutes(app: FastifyInstance, opts: { prisma: PrismaClient }) {
   const prisma = opts.prisma;
+
+  function resolveUserIdFromRequest(req: any): string | null {
+    const authHeader = typeof req.headers?.authorization === 'string' ? req.headers.authorization : undefined;
+    const token = authHeader?.replace(/^Bearer\s+/i, '').trim();
+    if (token) {
+      const secrets = [process.env.JWT_SECRET, process.env.JWT_SECRET_PREVIOUS].filter(Boolean) as string[];
+      for (const secret of secrets) {
+        try {
+          const decoded = jwt.verify(token, secret) as { userId?: string };
+          if (decoded?.userId && typeof decoded.userId === 'string') return decoded.userId;
+        } catch {
+          // try next secret
+        }
+      }
+    }
+
+    const allowDebugHeader =
+      process.env.NODE_ENV !== 'production' &&
+      String(process.env.ALLOW_DEBUG_USER_ID_HEADER || 'false').toLowerCase() === 'true';
+
+    if (allowDebugHeader) {
+      const headerValue = req.headers?.['x-taxbridge-user-id'] ?? req.headers?.['x-user-id'];
+      const headerUserId = Array.isArray(headerValue) ? headerValue[0] : headerValue;
+      if (typeof headerUserId === 'string' && headerUserId.trim()) return headerUserId.trim();
+    }
+
+    return null;
+  }
+
+  async function getOrCreateDevUserId(): Promise<string> {
+    const devUserId = process.env.DEFAULT_DEV_USER_ID || '00000000-0000-0000-0000-000000000001';
+    const phone = process.env.DEFAULT_DEV_USER_PHONE || '00000000000';
+    const name = process.env.DEFAULT_DEV_USER_NAME || 'TaxBridge Test Merchant';
+    const tin = process.env.DEFAULT_DEV_USER_TIN || '12345678-0001';
+
+    await prisma.user.upsert({
+      where: { id: devUserId },
+      update: { name, tin },
+      create: { id: devUserId, phone, name, tin }
+    });
+
+    return devUserId;
+  }
 
   const InvoiceBodySchema = z.object({
     customerName: z.string().optional(),
@@ -103,21 +148,13 @@ export default async function invoicesRoutes(app: FastifyInstance, opts: { prism
 
       const { customerName, items } = req.body as z.infer<typeof InvoiceBodySchema>;
 
-      const devUserId = '00000000-0000-0000-0000-000000000001';
+      const resolvedUserId = resolveUserIdFromRequest(req);
+      const userId =
+        resolvedUserId ?? (process.env.NODE_ENV === 'production' ? null : await getOrCreateDevUserId());
 
-      await prisma.user.upsert({
-        where: { id: devUserId },
-        update: {
-          name: 'TaxBridge Test Merchant',
-          tin: '12345678-0001'
-        },
-        create: {
-          id: devUserId,
-          phone: '00000000000',
-          name: 'TaxBridge Test Merchant',
-          tin: '12345678-0001'
-        }
-      });
+      if (!userId) {
+        throw new AuthenticationError();
+      }
 
       const subtotalNumber = items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
       const vatNumber = subtotalNumber * 0.075;
@@ -125,7 +162,7 @@ export default async function invoicesRoutes(app: FastifyInstance, opts: { prism
 
       const invoice = await prisma.invoice.create({
         data: {
-          userId: devUserId,
+          userId,
           customerName,
           subtotal: new Prisma.Decimal(subtotalNumber.toFixed(2)),
           vat: new Prisma.Decimal(vatNumber.toFixed(2)),
@@ -177,11 +214,22 @@ export default async function invoicesRoutes(app: FastifyInstance, opts: { prism
       }
     },
     async (req, reply) => {
+      const resolvedUserId = resolveUserIdFromRequest(req);
+      const userId =
+        resolvedUserId ?? (process.env.NODE_ENV === 'production' ? null : await getOrCreateDevUserId());
+
+      if (!userId) {
+        throw new AuthenticationError();
+      }
+
       const query = req.query as z.infer<typeof InvoiceListQuerySchema>;
       const take = query.take ?? 50;
 
       const invoices = await prisma.invoice.findMany({
-        where: query.status ? { status: query.status } : undefined,
+        where: {
+          userId,
+          ...(query.status ? { status: query.status } : {})
+        },
         orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
         take,
         ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {})
@@ -215,7 +263,15 @@ export default async function invoicesRoutes(app: FastifyInstance, opts: { prism
     async (req, reply) => {
       const { id } = req.params as z.infer<typeof InvoiceParamsSchema>;
 
-      const invoice = await prisma.invoice.findUnique({ where: { id } });
+      const resolvedUserId = resolveUserIdFromRequest(req);
+      const userId =
+        resolvedUserId ?? (process.env.NODE_ENV === 'production' ? null : await getOrCreateDevUserId());
+
+      if (!userId) {
+        throw new AuthenticationError();
+      }
+
+      const invoice = await prisma.invoice.findFirst({ where: { id, userId } });
       if (!invoice) {
         return reply.status(404).send({ error: `Invoice with ID '${id}' not found` });
       }

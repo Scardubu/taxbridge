@@ -78,7 +78,8 @@ export default async function paymentRoutes(app: FastifyInstance, opts: { prisma
     return reply.send({ rrr: result.rrr, paymentUrl: result.paymentUrl, amount: parseFloat(invoice.total.toString()) });
   });
 
-  app.post('/webhooks/remita/payment', async (req, reply) => {
+  const REMITA_WEBHOOK_CANONICAL_PATH = '/api/v1/payments/webhook/remita';
+  const remitaWebhookHandler = async (req: any, reply: any) => {
     const signature = (req.headers['x-remita-signature'] as string) || '';
     const body = req.body as any;
     const payloadStr = JSON.stringify(body);
@@ -91,7 +92,8 @@ export default async function paymentRoutes(app: FastifyInstance, opts: { prisma
 
     // Idempotency: compute request hash and check cache
     try {
-      const requestHash = computeRequestHash({ method: 'POST', path: '/webhooks/remita/payment', body });
+      // Normalize path so legacy + canonical endpoints dedupe consistently
+      const requestHash = computeRequestHash({ method: 'POST', path: REMITA_WEBHOOK_CANONICAL_PATH, body });
       const cacheKey = `remita:webhook:${requestHash}`;
 
       const existing = await prisma.idempotencyCache.findUnique({ where: { key: cacheKey } });
@@ -106,7 +108,7 @@ export default async function paymentRoutes(app: FastifyInstance, opts: { prisma
           key: cacheKey,
           requestHash,
           method: 'POST',
-          path: '/webhooks/remita/payment',
+          path: REMITA_WEBHOOK_CANONICAL_PATH,
           statusCode: 202,
           responseBody: {}
         }
@@ -123,8 +125,10 @@ export default async function paymentRoutes(app: FastifyInstance, opts: { prisma
       if (!payment) {
         app.log.error({ rrr }, 'Payment not found for RRR');
         metrics.recordRemitaWebhook(false);
-        // update idempotency with 404
-        await prisma.idempotencyCache.update({ where: { key: cacheKey }, data: { statusCode: 404, responseBody: { error: 'Payment not found' } } });
+        await prisma.idempotencyCache.update({
+          where: { key: cacheKey },
+          data: { statusCode: 404, responseBody: { error: 'Payment not found' } }
+        });
         return reply.status(404).send({ error: 'Payment not found' });
       }
 
@@ -139,7 +143,12 @@ export default async function paymentRoutes(app: FastifyInstance, opts: { prisma
       metrics.recordRemitaWebhook(false);
       return reply.status(500).send({ error: 'Internal error' });
     }
-  });
+  };
+
+  // Canonical endpoint (documented)
+  app.post('/api/v1/payments/webhook/remita', remitaWebhookHandler);
+  // Legacy endpoint (backward compatibility)
+  app.post('/webhooks/remita/payment', remitaWebhookHandler);
 
   app.get('/api/v1/payments/:invoiceId/status', async (req, reply) => {
     const { invoiceId } = req.params as { invoiceId: string };

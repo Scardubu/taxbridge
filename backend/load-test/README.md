@@ -18,92 +18,93 @@ sudo apt-get install k6
 
 ## Usage
 
-### Basic Load Test
+#+#+#+#+--------------------------------------------------------------------------
+# TaxBridge Load Testing (Phase F4)
+
+This folder contains k6 load tests aligned to the **canonical TaxBridge backend API**.
+
+## Quick Start
+
+### Install k6
+
 ```bash
-# Run against local development server
-k6 run load-test/k6-script.js
+# Windows (Chocolatey)
+choco install k6
 
-# Run against staging server
-BASE_URL=https://staging.taxbridge.com k6 run load-test/k6-script.js
+# macOS
+brew install k6
 
-# Run with custom options
-k6 run --vus 50 --duration 10m load-test/k6-script.js
+# Linux
+sudo apt install k6
 ```
 
-### Specialized Tests
+### Run locally
 
-#### Duplo Stress Test
 ```bash
-k6 run -e SCENARIO=duploStressTest load-test/k6-script.js
+k6 run k6-script.js
 ```
 
-#### Remita Stress Test
+### Run against staging
+
 ```bash
-k6 run -e SCENARIO=remitaStressTest load-test/k6-script.js
+BASE_URL=https://taxbridge-staging.onrender.com \
+AUTH_TOKEN=... \
+k6 run k6-script.js
 ```
 
-#### API Spike Test
+## Auth
+
+Invoice and payment endpoints are authenticated.
+
+Preferred (staging/prod):
+- `AUTH_TOKEN` (JWT) is required.
+
+Local/dev convenience (do not use in production):
+- `ALLOW_DEV_USER_HEADER=true` and `USER_ID=<uuid>`
+  - Backend must be started with `ALLOW_DEBUG_USER_ID_HEADER=true` (and non-production `NODE_ENV`).
+
+## Endpoints Exercised
+
+- `GET /health`
+- `GET /health/digitax`
+- `GET /health/remita`
+- `POST /api/v1/invoices`
+- `GET /api/v1/invoices`
+- `GET /api/v1/invoices/:id` (polling for queue-driven stamping)
+- `POST /api/v1/payments/generate` (only when invoice is `stamped`)
+
+## Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `BASE_URL` | Backend base URL | `http://localhost:3000` |
+| `AUTH_TOKEN` | Bearer token for authenticated routes | (none) |
+| `INVOICE_STAMP_WAIT_SECONDS` | Max seconds to poll invoice status | `10` |
+| `EXPECT_STAMPED` | If `true`, fail iteration when invoice isn't stamped in time | `false` |
+| `ALLOW_DEV_USER_HEADER` | Enable `X-TaxBridge-User-Id` header mode (local/dev only) | `false` |
+| `USER_ID` | User id for `ALLOW_DEV_USER_HEADER` | (none) |
+| `STAMPED_INVOICE_ID` | Pre-stamped invoice id for `remitaStressTest` | (none) |
+| `BENCH_SAMPLES` | Iterations for `performanceBenchmark` | `20` |
+
+## Running Specific Scenarios
+
+k6 runs `default` unless you specify `--exec`.
+
 ```bash
-k6 run -e SCENARIO=apiSpikeTest load-test/k6-script.js
+# Spike a mix of health + invoice list
+k6 run --exec apiSpikeTest k6-script.js
+
+# Stress Remita generation against a known stamped invoice
+STAMPED_INVOICE_ID=... AUTH_TOKEN=... k6 run --exec remitaStressTest k6-script.js
+
+# Basic benchmark output
+AUTH_TOKEN=... k6 run --exec performanceBenchmark k6-script.js
 ```
 
-## Test Scenarios
+## Notes for Staging (Phase F3/F4)
 
-### 1. Health Check
-- **Endpoint**: `GET /api/health`
-- **Expected**: 200 OK, <100ms response time
-- **Purpose**: Verify API availability
-
-### 2. Duplo E-Invoice Submission
-- **Endpoint**: `POST /api/einvoice/submit`
-- **Expected**: 200/202, <2000ms response time
-- **Data**: Valid UBL 3.0 XML with 55 mandatory fields
-- **Purpose**: Test NRS e-invoicing integration
-
-### 3. E-Invoice Status Check
-- **Endpoint**: `GET /api/einvoice/status/{irn}`
-- **Expected**: 200, <1000ms response time
-- **Purpose**: Monitor invoice processing status
-
-### 4. Remita RRR Generation
-- **Endpoint**: `POST /api/payments/rrr`
-- **Expected**: 200/201, <3000ms response time
-- **Data**: Payment request with SHA512 hash
-- **Purpose**: Test payment gateway integration
-
-### 5. Payment Status Check
-- **Endpoint**: `GET /api/payments/status/{rrr}`
-- **Expected**: 200, <1000ms response time
-- **Purpose**: Monitor payment status
-
-### 6. Invoice List API
-- **Endpoint**: `GET /api/invoices`
-- **Expected**: 200, <500ms response time
-- **Purpose**: Test data retrieval performance
-
-### 7. OCR Processing
-- **Endpoint**: `POST /api/ocr/process`
-- **Expected**: 200/400, <5000ms response time
-- **Purpose**: Test receipt processing capabilities
-
-## Performance Thresholds
-
-- **p95 Response Time**: <300ms for all endpoints
-- **Error Rate**: <10% across all tests
-- **Duplo Submission**: <2000ms (95th percentile)
-- **Remita RRR**: <3000ms (95th percentile)
-- **Health Check**: <100ms (95th percentile)
-
-## Load Test Stages
-
-1. **Warm-up**: 2 minutes, 10 users
-2. **Baseline**: 5 minutes, 10 users
-3. **Moderate Load**: 2 minutes ramp to 50 users
-4. **Sustained Load**: 5 minutes, 50 users
-5. **High Load**: 2 minutes ramp to 100 users
-6. **Peak Load**: 5 minutes, 100 users
-7. **Cool-down**: 2 minutes ramp to 0 users
-
+- Stamping is queue-driven; ensure the worker/queue is running in staging.
+- If DigiTax is disabled or mocked in staging, invoices may remain `pending` — set `EXPECT_STAMPED=false` for baseline throughput testing.
 ## Metrics Collected
 
 - Response times (avg, min, max, p95, p99)

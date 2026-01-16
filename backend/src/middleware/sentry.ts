@@ -2,7 +2,6 @@ import * as Sentry from '@sentry/node';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import path from 'path';
 
-import { duploClient } from '../integrations/duplo';
 import { remitaClient } from '../integrations/remita';
 import { generateUBL, InvoiceData } from '../lib/ubl/generator';
 import { analyzeMandatoryFields } from '../lib/ubl/mandatoryFields';
@@ -13,7 +12,7 @@ let initialized = false;
 
 export interface IntegrationHealth {
   status: 'healthy' | 'degraded' | 'error';
-  provider: 'duplo' | 'remita';
+  provider: 'digitax' | 'duplo' | 'remita';
   latency?: number | null;
   timestamp: string;
   mode?: 'mock';
@@ -54,7 +53,9 @@ export function setupSentry(app: FastifyInstance): boolean {
       }
 
       const errorMessage = hint?.originalException instanceof Error ? hint.originalException.message : undefined;
-      if (errorMessage?.includes('Duplo')) {
+      if (errorMessage?.toLowerCase().includes('digitax')) {
+        event.tags = { ...event.tags, integration: 'digitax' };
+      } else if (errorMessage?.includes('Duplo')) {
         event.tags = { ...event.tags, integration: 'duplo' };
       }
       if (errorMessage?.includes('Remita')) {
@@ -115,7 +116,7 @@ export async function checkDuploHealth(): Promise<IntegrationHealth> {
   if (mockMode) {
     return {
       status: 'healthy',
-      provider: 'duplo',
+      provider: 'digitax',
       mode: 'mock',
       latency: 1,
       timestamp: new Date().toISOString()
@@ -123,11 +124,30 @@ export async function checkDuploHealth(): Promise<IntegrationHealth> {
   }
 
   try {
-    const result = await duploClient.checkHealth();
+    const digitaxUrl = (process.env.DIGITAX_API_URL || '').trim();
+    if (!digitaxUrl) {
+      return {
+        status: 'error',
+        provider: 'digitax',
+        latency: null,
+        error: 'Missing DIGITAX_API_URL',
+        timestamp: new Date().toISOString()
+      };
+    }
+
+    const controller = new AbortController();
+    const start = Date.now();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+
+    const response = await fetch(digitaxUrl, { method: 'GET', signal: controller.signal });
+    clearTimeout(timeout);
+
+    const latency = Date.now() - start;
+
     return {
-      status: result.status,
-      provider: 'duplo',
-      latency: result.latency ?? null,
+      status: response.ok || response.status === 302 ? 'healthy' : response.status >= 500 ? 'error' : 'degraded',
+      provider: 'digitax',
+      latency,
       timestamp: new Date().toISOString()
     };
   } catch (error: any) {
@@ -137,9 +157,9 @@ export async function checkDuploHealth(): Promise<IntegrationHealth> {
 
     return {
       status: 'error',
-      provider: 'duplo',
+      provider: 'digitax',
       latency: null,
-      error: error?.message || 'Duplo health check failed',
+      error: error?.message || 'DigiTax health check failed',
       timestamp: new Date().toISOString()
     };
   }

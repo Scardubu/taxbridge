@@ -31,7 +31,7 @@ const requiredVars = {
     'REMITA_SERVICE_TYPE_ID',
     'REMITA_WEBHOOK_SECRET',
     'SENTRY_DSN',
-    'CORS_ORIGINS'
+    'ALLOWED_ORIGINS'
   ],
   staging: []
 };
@@ -71,6 +71,22 @@ function validateEnvironment(env = 'staging') {
   // Check environment-specific required variables
   if (env === 'production') {
     for (const varName of requiredVars.production) {
+      if (varName === 'ALLOWED_ORIGINS') {
+        const hasAllowedOrigins = Boolean(process.env.ALLOWED_ORIGINS);
+        const hasLegacyCorsOrigins = Boolean(process.env.CORS_ORIGINS);
+
+        if (!hasAllowedOrigins && !hasLegacyCorsOrigins) {
+          errors.push('❌ Missing required variable for production: ALLOWED_ORIGINS');
+        } else if (!hasAllowedOrigins && hasLegacyCorsOrigins) {
+          warnings.push('⚠️  Using legacy CORS_ORIGINS in production; prefer ALLOWED_ORIGINS');
+          info.push('✅ CORS_ORIGINS is set (legacy)');
+        } else {
+          info.push('✅ ALLOWED_ORIGINS is set');
+        }
+
+        continue;
+      }
+
       if (!process.env[varName]) {
         errors.push(`❌ Missing required variable for production: ${varName}`);
       } else {
@@ -105,12 +121,13 @@ function validateEnvironment(env = 'staging') {
   info.push(`✅ REMITA_MOCK_MODE: ${remitaMockMode}`);
 
   // Validate CORS origins
-  if (process.env.CORS_ORIGINS) {
-    const origins = process.env.CORS_ORIGINS.split(',');
+  const corsOriginsRaw = process.env.ALLOWED_ORIGINS || process.env.CORS_ORIGINS;
+  if (corsOriginsRaw) {
+    const origins = corsOriginsRaw.split(',');
     if (origins.includes('*') && env === 'production') {
-      errors.push(`❌ CORS_ORIGINS cannot be '*' in production`);
+      errors.push(`❌ ALLOWED_ORIGINS cannot be '*' in production`);
     } else {
-      info.push(`✅ CORS_ORIGINS: ${origins.length} origins configured`);
+      info.push(`✅ ALLOWED_ORIGINS: ${origins.length} origins configured`);
     }
   }
 

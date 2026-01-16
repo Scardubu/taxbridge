@@ -168,8 +168,8 @@ backend/
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `POST` | `/api/v1/payments/generate-rrr` | Generate Remita RRR |
-| `GET` | `/api/v1/payments/status/:rrr` | Check payment status |
+| `POST` | `/api/v1/payments/generate` | Generate Remita RRR (requires stamped invoice) |
+| `GET` | `/api/v1/payments/:invoiceId/status` | Check payment status |
 
 ### OCR
 

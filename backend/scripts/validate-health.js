@@ -26,7 +26,8 @@ if (!baseUrl) {
 
 const endpoints = [
   { path: '/health', name: 'Base Health Check', required: true },
-  { path: '/health/duplo', name: 'DigiTax Health Check', required: false },
+  { path: '/health/digitax', name: 'DigiTax Health Check', required: false },
+  { path: '/health/duplo', name: 'Legacy Duplo Alias (DigiTax)', required: false },
   { path: '/health/remita', name: 'Remita Health Check', required: false },
   { path: '/health/db', name: 'Database Health Check', required: true },
   { path: '/health/queues', name: 'Queue Health Check', required: true }
