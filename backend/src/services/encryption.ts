@@ -1,5 +1,5 @@
 import crypto, { CipherGCM, DecipherGCM } from 'crypto';
-import type { PrismaClient } from '@prisma/client';
+import type { Prisma, PrismaClient } from '@prisma/client';
 import { createLogger } from '../lib/logger';
 
 const log = createLogger('encryption');
@@ -65,9 +65,7 @@ class EncryptionService {
 
 export const encryption = new EncryptionService();
 
-type PrismaMiddlewareParams = Parameters<PrismaClient['$use']>[0] extends (arg: infer T, next: any) => any
-  ? T
-  : never;
+type PrismaMiddlewareParams = Prisma.MiddlewareParams;
 
 function encryptUserFields(data: Record<string, any>): void {
   for (const field of SENSITIVE_FIELDS) {

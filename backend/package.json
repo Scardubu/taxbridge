@@ -4,6 +4,7 @@
   "private": true,
   "main": "index.js",
   "scripts": {
+    "postinstall": "prisma generate",
     "start:digitax-mock": "ts-node src/mocks/digitaxMock.ts",
     "db:migrate": "node db/migrate.js",
     "queue:worker": "ts-node src/queue/index.ts",
@@ -24,6 +25,10 @@
     "test:integration": "jest --testPathPattern=integration",
     "test:security": "bash security-tests/run-tests.sh http://localhost:3000",
     "test:performance": "k6 run load-test/k6-script.js",
+    "test:load:smoke": "k6 run load-test/k6-smoke.js",
+    "test:load:soak": "k6 run load-test/k6-soak.js",
+    "test:load:f4": "node load-test/run-f4-tests.js",
+    "secrets:generate": "node scripts/generate-secrets.js",
     "test:e2e": "jest --testPathPattern=e2e",
     "test:api": "jest --testPathPattern=integration --testNamePattern='(Duplo|Remita)'",
     "security:audit": "npm audit --audit-level=moderate",
@@ -31,6 +36,7 @@
     "ubl:validate": "ts-node src/tools/ubl-validate.ts",
     "ubl:validate:prod": "node dist/src/tools/ubl-validate.js",
     "ubl:download-xsd": "mkdir -p lib && curl -fsSL https://docs.peppol.eu/poacc/billing/3.0/files/UBL-Invoice-2.1.xsd -o lib/ubl-invoice-2.1.xsd || true",
+    "staging:validate": "node scripts/run-f3-staging.js",
     "health:check": "curl -f http://localhost:3000/health && curl -f http://localhost:3000/health/digitax && curl -f http://localhost:3000/health/remita",
     "lint": "eslint src/ --ext .ts --max-warnings 0",
     "lint:fix": "eslint src/ --ext .ts --fix"

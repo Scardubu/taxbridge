@@ -21,6 +21,7 @@ services:
       cd backend && 
       yarn install --frozen-lockfile && 
       yarn build && 
+      yarn prisma:generate && 
       mkdir -p lib && 
       wget -q https://docs.peppol.eu/poacc/billing/3.0/files/UBL-Invoice-2.1.xsd -O lib/ubl-invoice-2.1.xsd || true
     startCommand: cd backend && yarn start
@@ -103,7 +104,7 @@ services:
     region: oregon
     branch: master
     autoDeploy: true
-    buildCommand: cd backend && yarn install --frozen-lockfile && yarn build
+    buildCommand: cd backend && yarn install --frozen-lockfile && yarn build && yarn prisma:generate
     startCommand: cd backend && yarn worker
     envVars:
       # Node Environment

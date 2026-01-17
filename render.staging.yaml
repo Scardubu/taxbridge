@@ -4,13 +4,13 @@
 services:
   - type: web
     name: taxbridge-api-staging
-    env: node
+    runtime: node
     plan: starter
     region: oregon
     branch: staging
     autoDeploy: true
     buildCommand: >-
-      cd backend && yarn install --frozen-lockfile && yarn build &&
+      cd backend && yarn install --frozen-lockfile && yarn build && yarn prisma:generate &&
       wget https://docs.peppol.eu/poacc/billing/3.0/files/UBL-Invoice-2.1.xsd -O lib/ubl-invoice-2.1.xsd || true
     startCommand: cd backend && yarn start
     healthCheckPath: /health
@@ -60,17 +60,17 @@ services:
         value: debug
       - key: RATE_LIMIT_MAX
         value: 200
-      - key: DB_POOL_MAX
+      - key: DATABASE_POOL_MAX
         value: 10
 
   - type: worker
     name: taxbridge-worker-staging
-    env: node
+    runtime: node
     plan: starter
     region: oregon
     branch: staging
     autoDeploy: true
-    buildCommand: cd backend && yarn install --frozen-lockfile && yarn build
+    buildCommand: cd backend && yarn install --frozen-lockfile && yarn build && yarn prisma:generate
     startCommand: cd backend && yarn worker
     envVars:
       - key: NODE_ENV

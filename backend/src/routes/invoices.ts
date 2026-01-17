@@ -3,12 +3,18 @@ import { z } from 'zod';
 import type { FastifyInstance } from 'fastify';
 import jwt from 'jsonwebtoken';
 
-import { computeRequestHash } from '../lib/idempotency';
+import { computeRequestHash, isIdempotencyExpired } from '../lib/idempotency';
 import { getInvoiceSyncQueue } from '../queue/client';
 import { AuthenticationError } from '../lib/errors';
 
 export default async function invoicesRoutes(app: FastifyInstance, opts: { prisma: PrismaClient }) {
   const prisma = opts.prisma;
+
+  function shouldAllowDevUserFallback(): boolean {
+    const env = String(process.env.NODE_ENV || '').toLowerCase();
+    if (env === 'development' || env === 'test') return true;
+    return String(process.env.ALLOW_DEV_USER_FALLBACK || 'false').toLowerCase() === 'true';
+  }
 
   function resolveUserIdFromRequest(req: any): string | null {
     const authHeader = typeof req.headers?.authorization === 'string' ? req.headers.authorization : undefined;
@@ -132,6 +138,9 @@ export default async function invoicesRoutes(app: FastifyInstance, opts: { prism
       if (idempotencyKey) {
         const existing = await prisma.idempotencyCache.findUnique({ where: { key: idempotencyKey } });
         if (existing) {
+          if (isIdempotencyExpired(existing.createdAt)) {
+            await prisma.idempotencyCache.delete({ where: { key: idempotencyKey } });
+          } else {
           if (existing.requestHash !== requestHash) {
             return reply.status(409).send({ error: 'Idempotency-Key reuse with different request body' });
           }
@@ -143,6 +152,7 @@ export default async function invoicesRoutes(app: FastifyInstance, opts: { prism
           }
 
           return reply.status(200).send(parsed.data);
+          }
         }
       }
 
@@ -150,7 +160,7 @@ export default async function invoicesRoutes(app: FastifyInstance, opts: { prism
 
       const resolvedUserId = resolveUserIdFromRequest(req);
       const userId =
-        resolvedUserId ?? (process.env.NODE_ENV === 'production' ? null : await getOrCreateDevUserId());
+        resolvedUserId ?? (shouldAllowDevUserFallback() ? await getOrCreateDevUserId() : null);
 
       if (!userId) {
         throw new AuthenticationError();
@@ -164,22 +174,26 @@ export default async function invoicesRoutes(app: FastifyInstance, opts: { prism
         data: {
           userId,
           customerName,
-          subtotal: new Prisma.Decimal(subtotalNumber.toFixed(2)),
-          vat: new Prisma.Decimal(vatNumber.toFixed(2)),
-          total: new Prisma.Decimal(totalNumber.toFixed(2)),
+          subtotal: subtotalNumber.toFixed(2),
+          vat: vatNumber.toFixed(2),
+          total: totalNumber.toFixed(2),
           items,
           status: 'queued'
         }
       });
 
       const queue = getInvoiceSyncQueue();
+      const maxAttempts = Number.parseInt(process.env.INVOICE_SYNC_MAX_ATTEMPTS || '5', 10);
+      const backoffMs = Number.parseInt(process.env.INVOICE_SYNC_BACKOFF_MS || '1000', 10);
+      const removeOnComplete = Number.parseInt(process.env.INVOICE_SYNC_REMOVE_ON_COMPLETE || '200', 10);
+
       await queue.add(
         'sync',
         { invoiceId: invoice.id },
         {
-          attempts: 3,
-          backoff: { type: 'exponential', delay: 1000 },
-          removeOnComplete: true,
+          attempts: Number.isFinite(maxAttempts) && maxAttempts > 0 ? maxAttempts : 5,
+          backoff: { type: 'exponential', delay: Number.isFinite(backoffMs) && backoffMs > 0 ? backoffMs : 1000 },
+          removeOnComplete: Number.isFinite(removeOnComplete) ? removeOnComplete : true,
           removeOnFail: false
         }
       );
@@ -216,7 +230,7 @@ export default async function invoicesRoutes(app: FastifyInstance, opts: { prism
     async (req, reply) => {
       const resolvedUserId = resolveUserIdFromRequest(req);
       const userId =
-        resolvedUserId ?? (process.env.NODE_ENV === 'production' ? null : await getOrCreateDevUserId());
+        resolvedUserId ?? (shouldAllowDevUserFallback() ? await getOrCreateDevUserId() : null);
 
       if (!userId) {
         throw new AuthenticationError();
@@ -265,7 +279,7 @@ export default async function invoicesRoutes(app: FastifyInstance, opts: { prism
 
       const resolvedUserId = resolveUserIdFromRequest(req);
       const userId =
-        resolvedUserId ?? (process.env.NODE_ENV === 'production' ? null : await getOrCreateDevUserId());
+        resolvedUserId ?? (shouldAllowDevUserFallback() ? await getOrCreateDevUserId() : null);
 
       if (!userId) {
         throw new AuthenticationError();
@@ -331,9 +345,9 @@ export default async function invoicesRoutes(app: FastifyInstance, opts: { prism
         data: {
           customerName,
           items,
-          subtotal: new Prisma.Decimal(subtotalNumber.toFixed(2)),
-          vat: new Prisma.Decimal(vatNumber.toFixed(2)),
-          total: new Prisma.Decimal(totalNumber.toFixed(2)),
+          subtotal: subtotalNumber.toFixed(2),
+          vat: vatNumber.toFixed(2),
+          total: totalNumber.toFixed(2),
           status: 'queued',
           ublXml: null,
           nrsReference: null,
