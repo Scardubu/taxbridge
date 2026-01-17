@@ -6,10 +6,12 @@ import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { DuploHealthChart } from '@/components/charts/DuploHealthChart';
 import { RemitaTransactionChart } from '@/components/charts/RemitaTransactionChart';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell, PieLabelRenderProps } from 'recharts';
 import { Download, TrendingUp, Users, FileText, CreditCard, AlertTriangle } from 'lucide-react';
+import { FetchError, fetchJson } from '@/lib/fetcher';
 
 interface AnalyticsData {
   overview: {
@@ -75,12 +77,12 @@ interface AnalyticsData {
   };
 }
 
-const fetcher = (url: string) => fetch(url).then(res => res.json());
+const fetcher = (url: string): Promise<AnalyticsData> => fetchJson(url) as Promise<AnalyticsData>;
 
 export default function AnalyticsPage() {
   const [dateRange, setDateRange] = useState('30d'); // 7d, 30d, 90d
 
-  const { data: analytics, error } = useSWR<AnalyticsData>(
+  const { data: analytics, error } = useSWR<AnalyticsData, FetchError>(
     `/api/admin/analytics?range=${dateRange}`,
     fetcher,
     { refreshInterval: 60000 } // Refresh every minute
@@ -116,17 +118,30 @@ export default function AnalyticsPage() {
 
   if (error) {
     return (
-      <div className="p-6">
-        <div className="text-red-600">Failed to load analytics data</div>
-      </div>
+      <DashboardLayout>
+        <Alert variant="destructive">
+          <AlertTitle>Failed to load analytics</AlertTitle>
+          <AlertDescription>
+            {error instanceof FetchError ? error.message : 'An unexpected error occurred'}
+          </AlertDescription>
+        </Alert>
+      </DashboardLayout>
     );
   }
 
   if (!analytics) {
     return (
-      <div className="p-6">
-        <div className="text-gray-600">Loading analytics...</div>
-      </div>
+      <DashboardLayout>
+        <div className="space-y-4 animate-pulse">
+          <div className="h-8 bg-slate-200 rounded w-64" />
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div key={i} className="h-28 bg-slate-200 rounded-lg" />
+            ))}
+          </div>
+          <div className="h-96 bg-slate-200 rounded-lg" />
+        </div>
+      </DashboardLayout>
     );
   }
 

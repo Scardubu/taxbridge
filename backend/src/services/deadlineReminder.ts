@@ -1,9 +1,8 @@
 import cron from 'node-cron';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../lib/prisma';
 import { notifyFilingDeadline } from '../services/notifications';
 import { createLogger } from '../lib/logger';
 
-const prisma = new PrismaClient();
 const log = createLogger('deadline-reminder');
 
 // Run daily at 9 AM to check for upcoming deadlines (7 days from now)

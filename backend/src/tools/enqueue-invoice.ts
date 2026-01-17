@@ -1,10 +1,9 @@
 import dotenv from 'dotenv';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../lib/prisma';
 import { getInvoiceSyncQueue } from '../queue/client';
 
 dotenv.config();
 
-const prisma = new PrismaClient();
 
 async function run() {
   // create a test user

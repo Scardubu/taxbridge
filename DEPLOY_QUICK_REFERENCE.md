@@ -19,7 +19,7 @@ npm test              # Should: 68 tests passing
 # 2. Mobile validation
 cd ../mobile
 yarn tsc --noEmit     # Should: 0 errors
-yarn test             # Should: 137 tests passing
+yarn test             # Should: 139 tests passing
 
 # 3. Admin dashboard validation
 cd ../admin-dashboard

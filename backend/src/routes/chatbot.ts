@@ -1,6 +1,6 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../lib/prisma';
 import TaxChatbot from '../services/chatbot';
 import AnalyticsService from '../services/analytics';
 import { createLogger } from '../lib/logger';
@@ -20,7 +20,6 @@ const ChatAnalyticsSchema = z.object({
 });
 
 export default async function chatbotRoutes(fastify: FastifyInstance) {
-  const prisma = new PrismaClient();
   const chatbot = new TaxChatbot(prisma);
   const analytics = new AnalyticsService(prisma);
 

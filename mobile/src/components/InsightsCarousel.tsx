@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import InsightCard, { InsightType } from './InsightCard';
 import { useNetwork } from '../contexts/NetworkContext';
 import { useSyncContext } from '../contexts/SyncContext';
+import { colors, spacing, typography } from '../theme/tokens';
 
 const { width } = Dimensions.get('window');
 
@@ -177,29 +178,29 @@ export default memo(InsightsCarousel);
 
 const styles = StyleSheet.create({
   container: {
-    marginVertical: 16,
+    marginVertical: spacing.lg,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    marginBottom: 12,
+    paddingHorizontal: spacing.lg,
+    marginBottom: spacing.md,
   },
   sectionTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#101828',
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.extrabold,
+    color: colors.textPrimary,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: typography.letterSpacing.wide,
   },
   swipeHint: {
-    fontSize: 12,
-    color: '#667085',
-    fontWeight: '500',
+    fontSize: typography.size.xs,
+    color: colors.textMuted,
+    fontWeight: typography.weight.medium,
   },
   listContent: {
-    paddingLeft: 16,
-    paddingRight: 4,
+    paddingLeft: spacing.lg,
+    paddingRight: spacing.xs,
   },
 });

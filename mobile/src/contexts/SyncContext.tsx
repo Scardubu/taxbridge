@@ -4,7 +4,7 @@ import { useNetwork } from './NetworkContext';
 import { syncPendingInvoices } from '../services/sync';
 import { getAccessToken } from '../services/authTokens';
 
-type SyncResult = { synced: number; failed: number };
+type SyncResult = { synced: number; failed: number; deferred: number };
 
 interface SyncContextType {
   isSyncing: boolean;
@@ -34,7 +34,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
 
   async function doSyncWithBackoff(maxAttempts = 3): Promise<SyncResult> {
     let attempt = 0;
-    let lastResult: SyncResult = { synced: 0, failed: 0 };
+    let lastResult: SyncResult = { synced: 0, failed: 0, deferred: 0 };
 
     while (attempt < maxAttempts) {
       attempt += 1;
@@ -73,15 +73,15 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
   async function manualSync() {
     if (!isOnline) {
       Alert.alert('Offline', 'Cannot sync while offline');
-      return { synced: 0, failed: 0 };
+      return { synced: 0, failed: 0, deferred: 0 };
     }
 
     if (!(await hasAuthToken())) {
       Alert.alert('Sign in required', 'Please sign in in Settings > Account & Sync to sync invoices.');
-      return { synced: 0, failed: 0 };
+      return { synced: 0, failed: 0, deferred: 0 };
     }
 
-    if (syncInProgress.current) return { synced: 0, failed: 0 };
+    if (syncInProgress.current) return { synced: 0, failed: 0, deferred: 0 };
 
     setIsSyncing(true);
     syncInProgress.current = true;
@@ -91,13 +91,16 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
       if (res.synced > 0) {
         Alert.alert('Sync Complete', `Synced ${res.synced} invoice${res.synced > 1 ? 's' : ''}`);
       }
+      if (res.deferred > 0 && res.synced === 0 && res.failed === 0) {
+        Alert.alert('Sync Scheduled', `${res.deferred} invoice${res.deferred > 1 ? 's' : ''} will retry automatically when the network is stable.`);
+      }
       if (res.failed > 0) {
         Alert.alert('Sync Error', `${res.failed} invoice${res.failed > 1 ? 's' : ''} failed to sync`);
       }
       return res;
     } catch (err) {
       Alert.alert('Sync Failed', 'Automatic sync failed. Please try manually.');
-      return { synced: 0, failed: 0 };
+      return { synced: 0, failed: 0, deferred: 0 };
     } finally {
       syncInProgress.current = false;
       setIsSyncing(false);
@@ -118,9 +121,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
           const res = await doSyncWithBackoff();
           setLastSyncAt(Date.now());
           if (res.synced > 0) {
-            // soft notification
-            // eslint-disable-next-line no-console
-            console.log(`Auto-synced ${res.synced} invoices`);
+            // soft signal only; avoid noisy logging in production
           }
           if (res.failed > 0) {
             // surface important failures

@@ -8,6 +8,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import type { LocalInvoiceRow } from '../types/invoice';
 import AnimatedStatusBadge from './AnimatedStatusBadge';
+import { colors, spacing, radii, typography, shadows } from '../theme/tokens';
 
 const { width } = Dimensions.get('window');
 const SWIPE_THRESHOLD = 80;
@@ -194,8 +195,8 @@ export default memo(SwipeableInvoiceCard);
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 12,
-    marginHorizontal: 16,
+    marginBottom: spacing.md,
+    marginHorizontal: spacing.lg,
     position: 'relative',
   },
   actionsContainer: {
@@ -203,7 +204,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    borderRadius: 16,
+    borderRadius: radii.lg,
     overflow: 'hidden',
   },
   leftAction: {
@@ -211,46 +212,44 @@ const styles = StyleSheet.create({
     height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#059669',
-    borderTopLeftRadius: 16,
-    borderBottomLeftRadius: 16,
+    backgroundColor: colors.successDark,
+    borderTopLeftRadius: radii.lg,
+    borderBottomLeftRadius: radii.lg,
   },
   rightAction: {
     width: MAX_SWIPE,
     height: '100%',
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#DC2626',
-    borderTopRightRadius: 16,
-    borderBottomRightRadius: 16,
+    backgroundColor: colors.error,
+    borderTopRightRadius: radii.lg,
+    borderBottomRightRadius: radii.lg,
   },
   actionButton: {
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 12,
+    padding: spacing.md,
   },
   shareAction: {},
   deleteAction: {},
   actionIcon: {
-    fontSize: 24,
-    marginBottom: 4,
+    fontSize: typography.size.xl,
+    marginBottom: spacing.xs,
   },
   actionText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 12,
+    color: colors.textOnPrimary,
+    fontWeight: typography.weight.bold,
+    fontSize: typography.size.xs,
   },
   card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: '#E4E7EC',
-    elevation: 2,
-    // @ts-ignore - boxShadow for web compatibility
-    boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.06)',
+    borderColor: colors.borderSubtle,
+    ...shadows.sm,
   },
   cardInner: {
-    padding: 16,
+    padding: spacing.lg,
   },
   row: {
     flexDirection: 'row',
@@ -259,72 +258,72 @@ const styles = StyleSheet.create({
   },
   titleContainer: {
     flex: 1,
-    marginRight: 12,
+    marginRight: spacing.md,
   },
   title: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#101828',
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.bold,
+    color: colors.textPrimary,
   },
   invoiceId: {
     fontSize: 11,
-    color: '#667085',
+    color: colors.textMuted,
     fontFamily: 'monospace',
     marginTop: 2,
   },
   syncIndicator: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FEF3C7',
-    paddingHorizontal: 10,
+    backgroundColor: colors.warningBgLight,
+    paddingHorizontal: spacing.sm + 2,
     paddingVertical: 6,
-    borderRadius: 8,
-    marginVertical: 10,
+    borderRadius: radii.sm,
+    marginVertical: spacing.sm + 2,
     gap: 6,
   },
   syncDot: {
     width: 8,
     height: 8,
-    borderRadius: 4,
-    backgroundColor: '#F59E0B',
+    borderRadius: radii.full,
+    backgroundColor: colors.warning,
   },
   syncText: {
-    fontSize: 12,
-    color: '#92400E',
-    fontWeight: '500',
+    fontSize: typography.size.xs,
+    color: colors.warningDark,
+    fontWeight: typography.weight.medium,
   },
   metaContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: spacing.sm,
   },
   date: {
     fontSize: 13,
-    color: '#667085',
+    color: colors.textMuted,
   },
   itemCount: {
-    fontSize: 12,
-    color: '#667085',
-    backgroundColor: '#F2F4F7',
-    paddingHorizontal: 8,
+    fontSize: typography.size.xs,
+    color: colors.textMuted,
+    backgroundColor: colors.surfaceSlate,
+    paddingHorizontal: spacing.sm,
     paddingVertical: 2,
     borderRadius: 10,
   },
   amount: {
-    fontSize: 18,
-    fontWeight: '900',
-    color: '#101828',
+    fontSize: typography.size.lg,
+    fontWeight: typography.weight.black,
+    color: colors.textPrimary,
   },
   swipeHint: {
     alignItems: 'center',
-    marginTop: 10,
-    paddingTop: 8,
+    marginTop: spacing.sm + 2,
+    paddingTop: spacing.sm,
     borderTopWidth: 1,
-    borderTopColor: '#F2F4F7',
+    borderTopColor: colors.surfaceSlate,
   },
   swipeHintText: {
     fontSize: 11,
-    color: '#98A2B3',
-    fontWeight: '500',
+    color: colors.disabled,
+    fontWeight: typography.weight.medium,
   },
 });

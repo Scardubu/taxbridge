@@ -3,20 +3,10 @@ import { check, sleep } from 'k6';
 import { Rate } from 'k6/metrics';
 
 // Custom metrics for enhanced monitoring
-export let errorRate = new Rate('errors');
-export let duploErrorRate = new Rate('duplo_errors');
-export let remitaErrorRate = new Rate('remita_errors');
-export let apiLatency = new Rate('api_latency');
-
-// Enhanced test configuration for NRS 2026 compliance
-import http from 'k6/http';
-import { check, sleep } from 'k6';
-import { Rate } from 'k6/metrics';
-
-export let errorRate = new Rate('errors');
+export const errorRate = new Rate('errors');
 // Kept name for backward compatibility with existing dashboards
-export let duploErrorRate = new Rate('duplo_errors');
-export let remitaErrorRate = new Rate('remita_errors');
+export const duploErrorRate = new Rate('duplo_errors');
+export const remitaErrorRate = new Rate('remita_errors');
 
 export const options = {
   stages: [
@@ -204,27 +194,27 @@ export function teardown() {
 }
 
 export function apiSpikeTest() {
-  const requests = [];
+  const batchRequests = [];
   for (let i = 0; i < 50; i++) {
     if (i % 2 === 0) {
-      requests.push(http.asyncRequest('GET', `${BASE_URL}/health`, null, { tags: { name: 'spike-health' } }));
+      batchRequests.push(['GET', `${BASE_URL}/health`, null, { tags: { name: 'spike-health' } }]);
     } else {
-      requests.push(
-        http.asyncRequest('GET', `${BASE_URL}/api/v1/invoices?take=20`, null, {
-          headers: authHeaders(),
-          tags: { name: 'spike-invoice-list' },
-        })
-      );
+      batchRequests.push([
+        'GET',
+        `${BASE_URL}/api/v1/invoices?take=20`,
+        null,
+        { headers: authHeaders(), tags: { name: 'spike-invoice-list' } }
+      ]);
     }
   }
 
-  const responses = Promise.all(requests);
-  responses.forEach((response) => {
+  const responses = http.batch(batchRequests);
+  for (const response of responses) {
     check(response, {
       'spike test status is successful': (r) => r.status < 400,
-      'spike test response time < 5000ms': (r) => r.timings.duration < 5000,
+      'spike test response time < 5000ms': (r) => r.timings.duration < 5000
     }) || errorRate.add(1);
-  });
+  }
 }
 
 export function remitaStressTest() {

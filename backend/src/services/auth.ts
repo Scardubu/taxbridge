@@ -3,7 +3,7 @@ import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import QRCode from 'qrcode';
 import speakeasy from 'speakeasy';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../lib/prisma';
 
 import { sendSMS } from '../integrations/comms/client';
 import { createLogger } from '../lib/logger';
@@ -11,7 +11,6 @@ import { logSecurityEvent } from '../lib/security';
 import { getRedisConnection } from '../queue/client';
 import { encryption } from './encryption';
 
-const prisma = new PrismaClient();
 const redis = getRedisConnection();
 const log = createLogger('auth');
 

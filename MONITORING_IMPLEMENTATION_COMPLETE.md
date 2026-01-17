@@ -194,6 +194,8 @@ This document summarizes the production-grade monitoring and alerting system imp
 | `GET /health/remita` | Remita gateway availability check |
 | `GET /health/integrations` | Combined DigiTax + Remita status |
 
+**Operational Note:** The admin dashboard polls `/api/admin/health/integrations` (proxying this endpoint) every 30 seconds to render the live System Status banner and operator-facing status pill.
+
 ### Prometheus Metrics Endpoint
 
 **URL**: `GET /metrics`

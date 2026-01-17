@@ -76,19 +76,12 @@ RATE_LIMITS = {
    - No rotation scripts or vault integration exists
    - Risk: Compromised secrets require manual code/config changes
 
-2. **Missing JWT_REFRESH_SECRET in Schema**
-   - `backend/src/server.ts` `envSchema` does NOT include `JWT_REFRESH_SECRET`
-   - Code in `auth.ts` expects it: `const refreshSecret = process.env.JWT_REFRESH_SECRET;`
-   - **Impact:** Refresh token generation will fail in production if not set
+2. **Secret Schema Drift Risk**
+  - `JWT_REFRESH_SECRET` and `ENCRYPTION_KEY` are now explicitly validated in `backend/src/server.ts`
+  - **Risk:** Future edits could reintroduce drift between auth/encryption code and env validation
 
-3. **Missing ENCRYPTION_KEY in Schema**
-   - Required by `encryption.ts` for TIN/NIN encryption
-   - Fallback generates ephemeral key (data lost on restart!)
-   - **Impact:** Encrypted data unrecoverable after restarts without persistent key
-
-4. **Hardcoded Secrets in Test Files**
-   - `backend/src/tools/digitax-test.ts` line 11: `|| 'api_key_DMkWjuPjyibCGGFGKUxOzOzaVb6HsW7x'`
-   - Should use `.env.test` instead
+3. **Hardcoded Secrets in Tooling**
+  - Status: Fixed (removed hardcoded DigiTax key from `backend/src/tools/digitax-test.ts`)
 
 ### ✅ Immediate Actions Required
 

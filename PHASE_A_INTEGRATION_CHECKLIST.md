@@ -10,9 +10,9 @@
 
 | Component | TypeScript | Tests | Status |
 |-----------|------------|-------|--------|
-| **Mobile App** | ✅ 0 errors | ✅ 137/137 | PASS |
+| **Mobile App** | ✅ 0 errors | ✅ 139/139 | PASS |
 | **Backend API** | ✅ 0 errors | ✅ 68/68 | PASS |
-| **Admin Dashboard** | ✅ 0 errors | N/A | PASS |
+| **Admin Dashboard** | ✅ 0 errors | ✅ 8/8 | PASS |
 
 ---
 
@@ -54,9 +54,9 @@
 
 | Integration | Adapter | Mock Mode | Status |
 |-------------|---------|-----------|--------|
-| **DigiTax (NRS)** | `integrations/digitax/adapter.ts` | ✅ `DIGITAX_MOCK=true` | ✅ |
-| **Duplo (e-Invoice)** | `integrations/duplo.ts` | ✅ `DUPLO_MOCK=true` | ✅ |
-| **Remita (Payments)** | `integrations/remita.ts` | ✅ `REMITA_MOCK=true` | ✅ |
+| **DigiTax (NRS)** | `integrations/digitax/adapter.ts` | ✅ `DIGITAX_MOCK_MODE=true` | ✅ |
+| **Duplo (Legacy OAuth)** | `integrations/duplo.ts` | ✅ Use sandbox creds | ✅ |
+| **Remita (Payments)** | `integrations/remita.ts` | ✅ `REMITA_MOCK_MODE=true` | ✅ |
 | **SMS (AT/Termii)** | `integrations/sms/` | ✅ Sandbox keys | ✅ |
 
 **Compliance Notes:**
@@ -160,10 +160,9 @@ Server merge → Local update → UI refresh
 | `EXPO_PUBLIC_API_URL` | Mobile | Public API endpoint |
 
 ### Mock Mode Flags
-- `DIGITAX_MOCK=true` - Use DigiTax mock responses
-- `DUPLO_MOCK=true` - Use Duplo mock responses  
-- `REMITA_MOCK=true` - Use Remita mock responses
-- `SMS_SANDBOX=true` - Use SMS sandbox
+- `DIGITAX_MOCK_MODE=true` - Use DigiTax mock responses
+- `REMITA_MOCK_MODE=true` - Use Remita mock responses (RRR generation only; never marks paid)
+- SMS: use sandbox keys (or set provider to mock where supported)
 
 ---
 
@@ -196,7 +195,7 @@ Server merge → Local update → UI refresh
 ## 10. Phase A Completion Criteria
 
 - [x] All components compile without errors
-- [x] All tests pass (205 total: 137 mobile + 68 backend)
+- [x] All tests pass (215 total: 139 mobile + 68 backend + 8 admin)
 - [x] Integration touchpoints mapped and verified
 - [x] Version alignment documented
 - [x] Known issues fixed

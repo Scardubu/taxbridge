@@ -156,19 +156,58 @@ Deploy backend to staging and validate health, queues, and migrations before loa
 - Local migration attempt failed with `P1001` (cannot reach Supabase host).
 - DNS lookup for `db.<project-ref>.supabase.co` returns IPv6 only in this environment; local network lacks IPv6 connectivity.
 - Resolution path: run migrations from Render shell (same region/VPC), or set `MIGRATION_DATABASE_URL` to Supabase pooler **session** endpoint (IPv4) and run `node backend/scripts/run-migrations.js`.
+   - Example (session pooler / 5432): `postgresql://postgres.<project-ref>:<password>@aws-1-eu-west-1.pooler.supabase.com:5432/postgres`
+
+### Render Install Stability (F3)
+- If Render logs show `/bin/sh: 1: prisma: not found` during dependency installation, set `PRISMA_SKIP_POSTINSTALL_GENERATE=true` in the Render service Environment.
+   - This prevents `@prisma/client` from attempting `prisma generate` during `yarn install`; Prisma generation is executed explicitly during build/start.
+
+### Blueprint Not Applied (F3)
+- If Render logs show `Running 'cd backend && yarn start'` and Node `v22.x`, the service is not using the blueprint settings (`render.staging.yaml`).
+   - Fix: recreate via Blueprint Instance, or manually update the Render service Build/Start commands + Node version to match the blueprint.
 
 ### Deployment Blocker (F3)
 - Render service failing to start with `@prisma/client did not initialize yet` (missing Prisma Client in build output).
-- Resolution: ensure Prisma Client is generated during Render build and install.
+- Resolution: Prisma generation is now enforced at service start via backend lifecycle scripts (`prestart`/`preworker`), and Prisma CLI is included in backend production dependencies to avoid `prisma: not found` when Render installs in production mode.
    - Added `postinstall: prisma generate` in backend package.json.
    - Added `yarn prisma:generate` to Render build commands (API + worker, staging + production).
  - Additional blocker: `DIGITAX_API_URL` and `JWT_REFRESH_SECRET` were required by env schema but not set in Render.
     - Added `DIGITAX_API_URL` + `JWT_REFRESH_SECRET` to Render blueprints (staging + production).
 
-### Latest Execution (2026-01-17)
-- Render build failed with TypeScript errors in `src/routes/invoices.ts` and `src/services/encryption.ts`.
-- Fix applied: invoice decimals now use fixed-string values; encryption middleware typing uses `Prisma.MiddlewareParams`.
-- Backend build passes locally (`yarn build`).
+### Latest Execution (2026-01-17 16:00 UTC)
+
+**Root Cause Identified:**
+Render was **not using the blueprint file**. Services created via "New Web Service" ignore `render.staging.yaml` and use Render defaults:
+- Build: `yarn`
+- Start: `cd backend && yarn start`
+- Node: v22.x (latest)
+
+This caused:
+1. `prisma: not found` — `@prisma/client` postinstall runs `prisma generate` but Prisma CLI not on PATH
+2. `MODULE_NOT_FOUND: dist/src/server.js` — TypeScript never compiled (no build step)
+
+**Fix Applied:**
+1. Blueprint updated: `PRISMA_SKIP_POSTINSTALL_GENERATE=true`, `PORT=3000`, branch set to `master`
+2. F3 deployment guide rewritten with explicit "New Blueprint Instance" instructions
+3. Added manual service update fallback steps
+
+**Next Action:**
+Delete existing Render staging service and redeploy via **Blueprints → New Blueprint Instance** using `render.staging.yaml`.
+
+**Expected Build Logs (success):**
+```
+yarn install --frozen-lockfile --production=false
+yarn workspace @taxbridge/backend build
+yarn workspace @taxbridge/backend prisma:generate
+yarn workspace @taxbridge/backend ubl:download-xsd
+```
+
+**Expected Start Logs (success):**
+```
+Running 'yarn workspace @taxbridge/backend start'
+Node.js v20.19.4
+Server listening on port 3000
+```
 - Commit pushed to `master` and redeploy triggered.
 - Health validation against https://taxbridge-api.onrender.com still returns 502 (awaiting successful redeploy).
 

@@ -1,16 +1,8 @@
 import type { InvoiceItem } from '../types/invoice';
 
-import { createInvoice } from './api';
+import { ApiError, createInvoice } from './api';
 import { getPendingInvoices, markInvoiceSynced, updateInvoiceStatus } from './database';
 import { setInvoiceRetryMetadata } from './database';
-
-function extractApiStatus(err: unknown): number | null {
-  const msg = err instanceof Error ? err.message : String(err);
-  const match = /API error\s+(\d{3})\b/.exec(msg);
-  if (!match) return null;
-  const parsed = Number(match[1]);
-  return Number.isFinite(parsed) ? parsed : null;
-}
 
 function isRetryableStatus(status: number): boolean {
   // Retry server errors and explicit rate limiting/timeouts.
@@ -18,58 +10,78 @@ function isRetryableStatus(status: number): boolean {
   return status === 408 || status === 429;
 }
 
-export async function syncPendingInvoices(): Promise<{ synced: number; failed: number }> {
+function isNetworkError(err: unknown): boolean {
+  // fetch() typically throws TypeError on network failures.
+  if (err instanceof TypeError) return true;
+  const msg = err instanceof Error ? err.message : String(err);
+  return /network\s?error|failed\s?to\s?fetch|timeout|timed\s?out/i.test(msg);
+}
+
+function computeBackoffMs(attempt: number, retryAfterMs?: number): number {
+  // attempt is 1-based
+  const base = Math.min(5 * 60_000, 1000 * Math.pow(2, Math.max(0, attempt - 1))); // cap at 5 minutes
+  const jitter = Math.floor(Math.random() * 1000);
+  const serverHint = retryAfterMs !== undefined ? Math.min(5 * 60_000, Math.max(0, retryAfterMs)) : undefined;
+  return (serverHint ?? base) + jitter;
+}
+
+export async function syncPendingInvoices(): Promise<{ synced: number; failed: number; deferred: number }> {
   const pending = await getPendingInvoices();
   let synced = 0;
   let failed = 0;
+  let deferred = 0;
 
   for (const inv of pending) {
     try {
       await updateInvoiceStatus(inv.id, 'processing');
       const items = JSON.parse(inv.items) as InvoiceItem[];
+      const maxAttempts = 8;
+      const nextAttempt = (inv.attempts ?? 0) + 1;
 
-      // Retry with exponential backoff for transient network errors and persist attempts
-      const maxAttempts = 5;
-      let attempt = inv.attempts ?? 0;
-      let lastError: any = null;
-      let successResult: any = null;
+      try {
+        const result = await createInvoice(
+          { customerName: inv.customerName ?? undefined, items },
+          { idempotencyKey: inv.id }
+        );
 
-      while (attempt < maxAttempts) {
-        try {
-          const result = await createInvoice(
-            { customerName: inv.customerName ?? undefined, items },
-            { idempotencyKey: inv.id }
-          );
-          successResult = result;
-          break;
-        } catch (err) {
-          lastError = err;
+        await markInvoiceSynced({
+          id: inv.id,
+          serverId: result.invoiceId,
+          status: (result.status as any) || 'queued'
+        });
+        synced += 1;
+      } catch (err) {
+        const apiStatus = err instanceof ApiError ? err.status : null;
+        const retryable =
+          (apiStatus !== null && isRetryableStatus(apiStatus)) ||
+          (apiStatus === null && isNetworkError(err));
 
-          const status = extractApiStatus(err);
-          if (status !== null && !isRetryableStatus(status)) {
-            // Non-retryable API error (e.g. auth/validation). Don't backoff-retry.
-            break;
-          }
-
-          attempt += 1;
-          const backoff = Math.min(30_000, 1000 * Math.pow(2, attempt - 1)); // cap at 30s
-          const nextRetry = new Date(Date.now() + backoff).toISOString();
-          // persist attempt count and nextRetry
-          await setInvoiceRetryMetadata(inv.id, attempt, nextRetry);
-          await new Promise((r) => setTimeout(r, backoff));
+        if (!retryable) {
+          await updateInvoiceStatus(inv.id, 'failed');
+          await setInvoiceRetryMetadata(inv.id, nextAttempt, null);
+          failed += 1;
+          continue;
         }
+
+        if (nextAttempt >= maxAttempts) {
+          await updateInvoiceStatus(inv.id, 'failed');
+          await setInvoiceRetryMetadata(inv.id, nextAttempt, null);
+          failed += 1;
+          continue;
+        }
+
+        const backoffMs = computeBackoffMs(nextAttempt, err instanceof ApiError ? err.retryAfterMs : undefined);
+        const nextRetry = new Date(Date.now() + backoffMs).toISOString();
+        await updateInvoiceStatus(inv.id, 'queued');
+        await setInvoiceRetryMetadata(inv.id, nextAttempt, nextRetry);
+        deferred += 1;
       }
-
-      if (!successResult) throw lastError || new Error('Failed to create invoice after retries');
-
-      await markInvoiceSynced({ id: inv.id, serverId: successResult.invoiceId, status: (successResult.status as any) || 'queued' });
-      synced += 1;
     } catch {
-      // mark as failed and leave retry metadata (nextRetry persisted earlier)
+      // Unexpected failure (DB/JSON/etc). Mark failed so user can see it.
       await updateInvoiceStatus(inv.id, 'failed');
       failed += 1;
     }
   }
 
-  return { synced, failed };
+  return { synced, failed, deferred };
 }

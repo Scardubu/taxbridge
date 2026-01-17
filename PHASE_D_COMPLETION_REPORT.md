@@ -155,7 +155,7 @@ Phase D is complete and gated. Proceed to Phase E:
 
 1. **Quality Gate Execution**
    - Run full test suite: `yarn test` (mobile, backend, admin)
-   - Validate ≥212 tests passing
+  - Validate ≥215 tests passing
    - Zero TypeScript errors
 
 2. **EAS Build Verification**

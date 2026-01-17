@@ -9,6 +9,7 @@ import { useSyncContext } from '../contexts/SyncContext';
 import SyncStatusBar from '../components/SyncStatusBar';
 import QuickActionRail from '../components/QuickActionRail';
 import InsightsCarousel from '../components/InsightsCarousel';
+import { colors, radii, spacing, typography, shadows } from '../theme/tokens';
 
 const { width } = Dimensions.get('window');
 
@@ -100,7 +101,7 @@ function HomeScreen(props: any) {
         style={styles.scroll}
         contentContainerStyle={styles.container}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#0B5FFF']} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />
         }
         showsVerticalScrollIndicator={false}
       >
@@ -202,33 +203,33 @@ function HomeScreen(props: any) {
 export default memo(HomeScreen);
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F8FAFC' },
+  safe: { flex: 1, backgroundColor: colors.surfaceSlate },
   scroll: { flex: 1 },
-  container: { paddingBottom: 32 },
+  container: { paddingBottom: spacing.xxl + spacing.sm },
   header: { 
     flexDirection: 'row', 
     justifyContent: 'space-between',
     alignItems: 'center', 
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 8,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.sm,
   },
   greeting: { 
-    fontSize: 14, 
-    color: '#667085',
-    fontWeight: '600',
-    marginBottom: 4,
+    fontSize: typography.size.sm, 
+    color: colors.textMuted,
+    fontWeight: typography.weight.semibold,
+    marginBottom: spacing.xs,
   },
-  h1: { fontSize: 26, fontWeight: '900', color: '#101828' },
+  h1: { fontSize: typography.size.xxl, fontWeight: typography.weight.black, color: colors.textPrimary },
   headerBadge: {
     width: 48,
     height: 48,
-    borderRadius: 24,
-    backgroundColor: '#EBF4FF',
+    borderRadius: radii.xl,
+    backgroundColor: colors.primaryLight,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#93C5FD',
+    borderColor: colors.primaryBorder,
   },
   headerBadgeIcon: {
     fontSize: 24,
@@ -237,84 +238,82 @@ const styles = StyleSheet.create({
   // Stats
   statsRow: { 
     flexDirection: 'row', 
-    gap: 12, 
-    marginBottom: 20,
-    paddingHorizontal: 16,
+    gap: spacing.md, 
+    marginBottom: spacing.xl,
+    paddingHorizontal: spacing.lg,
   },
   statCard: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 16,
+    backgroundColor: colors.surface,
+    borderRadius: radii.xl,
+    padding: spacing.lg,
     borderWidth: 1,
-    borderColor: '#E4E7EC',
-    // @ts-ignore - boxShadow for web compatibility
-    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.06)',
-    elevation: 2,
+    borderColor: colors.borderSubtle,
+    ...shadows.md,
   },
   statCardPrimary: {
     flex: 1.5,
-    backgroundColor: '#052B52',
-    borderColor: '#0B5FFF20',
+    backgroundColor: colors.primaryDeep,
+    borderColor: 'rgba(11, 95, 255, 0.12)',
   },
   statHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 8,
+    gap: spacing.sm,
+    marginBottom: spacing.sm,
   },
   statEmoji: {
     fontSize: 18,
   },
   statLabel: { 
-    color: 'rgba(255, 255, 255, 0.8)', 
-    fontWeight: '600', 
-    fontSize: 12,
+    color: colors.textOnPrimarySubtle, 
+    fontWeight: typography.weight.semibold, 
+    fontSize: typography.size.xs,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    letterSpacing: typography.letterSpacing.wide,
   },
   statValue: { 
-    fontSize: 26, 
-    fontWeight: '900', 
-    color: '#FFFFFF', 
+    fontSize: typography.size.xxl, 
+    fontWeight: typography.weight.black, 
+    color: colors.textOnPrimary, 
   },
   statValueSmall: { 
-    fontSize: 32, 
-    fontWeight: '900', 
-    color: '#101828', 
+    fontSize: typography.size.xxxl, 
+    fontWeight: typography.weight.black, 
+    color: colors.textPrimary, 
   },
   statMeta: { 
-    marginTop: 4, 
-    color: '#667085',
-    fontSize: 12,
-    fontWeight: '500',
+    marginTop: spacing.xs, 
+    color: colors.textMuted,
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.medium,
   },
   statBadge: {
-    marginTop: 10,
-    backgroundColor: 'rgba(16, 185, 129, 0.2)',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 12,
+    marginTop: spacing.sm + 2,
+    backgroundColor: colors.overlaySuccess,
+    paddingHorizontal: spacing.sm + 2,
+    paddingVertical: spacing.xs + 1,
+    borderRadius: radii.md,
     alignSelf: 'flex-start',
   },
   statBadgeText: {
     fontSize: 11,
-    color: '#10B981',
-    fontWeight: '600',
+    color: colors.success,
+    fontWeight: typography.weight.semibold,
   },
   
   // Tip Card
   tipCard: {
-    backgroundColor: '#FFFBEB',
-    borderRadius: 16,
-    padding: 16,
+    backgroundColor: colors.tipBg,
+    borderRadius: radii.lg,
+    padding: spacing.lg,
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginHorizontal: 16,
-    marginTop: 8,
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.sm,
     borderWidth: 1,
-    borderColor: '#FDE68A',
-    gap: 12,
+    borderColor: colors.tipBorder,
+    gap: spacing.md,
   },
   tipEmoji: {
     fontSize: 24,
@@ -323,14 +322,14 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   tipTitle: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: '#92400E',
-    marginBottom: 4,
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.extrabold,
+    color: colors.tipText,
+    marginBottom: spacing.xs,
   },
   tipText: {
     flex: 1,
-    color: '#92400E',
+    color: colors.tipText,
     fontSize: 13,
     lineHeight: 20,
   },
@@ -339,27 +338,27 @@ const styles = StyleSheet.create({
   trustBadges: {
     flexDirection: 'row',
     justifyContent: 'center',
-    gap: 12,
-    marginTop: 20,
-    paddingHorizontal: 16,
+    gap: spacing.md,
+    marginTop: spacing.xl,
+    paddingHorizontal: spacing.lg,
   },
   trustBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
+    backgroundColor: colors.surface,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radii.full,
     borderWidth: 1,
-    borderColor: '#E4E7EC',
-    gap: 6,
+    borderColor: colors.borderSubtle,
+    gap: spacing.sm - 2,
   },
   trustIcon: {
     fontSize: 14,
   },
   trustLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#344054',
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.semibold,
+    color: colors.textSecondary,
   },
 });

@@ -1,9 +1,8 @@
 import { createLogger } from '../lib/logger';
 import { getRedisConnection } from '../queue/client';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../lib/prisma';
 
 const log = createLogger('monitoring');
-const prisma = new PrismaClient();
 const redis = getRedisConnection();
 
 // Metrics interfaces

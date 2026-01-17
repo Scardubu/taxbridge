@@ -83,7 +83,7 @@
 
 **Files Created:**
 - [backend/src/tools/ubl-validate.ts](backend/src/tools/ubl-validate.ts) - UBL 3.0 validation script (55 mandatory fields)
-- [backend/src/routes/health.ts](backend/src/routes/health.ts) - Health check helpers
+- Health endpoints implemented directly in [backend/src/server.ts](backend/src/server.ts)
 
 **New Endpoints:**
 ```

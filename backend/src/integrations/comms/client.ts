@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../../lib/prisma';
 import { getRedisConnection } from '../../queue/client';
 import { createLogger } from '../../lib/logger';
 import { sendSMSInfobip, verifyInfobipSignature, parseInfobipDelivery } from './providers/infobip.js';
@@ -199,7 +199,7 @@ async function sendSMSViaAfricaTalking(to: string, message: string, from?: strin
   const opts = { 
     to: [to], 
     message, 
-    from: from || process.env.AT_SHORTCODE || 'TaxBridge' 
+    from: from || process.env.AT_SHORTCODE || process.env.AT_SHORT_CODE || 'TaxBridge' 
   };
   
   const res = await smsClient.send(opts);
@@ -328,7 +328,6 @@ async function logSMSDelivery(
   metadata?: any
 ): Promise<void> {
   try {
-    const prisma = new PrismaClient();
     await prisma.sMSDelivery.create({
       data: {
         to,

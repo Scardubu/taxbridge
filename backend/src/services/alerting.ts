@@ -3,10 +3,9 @@ import { collectMetrics, getHealthSummary } from './monitoring';
 import { errorRecovery, circuitBreakers } from './errorRecovery';
 import { getProviderHealth } from '../integrations/comms/client';
 import { getRedisConnection } from '../queue/client';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../lib/prisma';
 
 const log = createLogger('alerting');
-const prisma = new PrismaClient();
 const redis = getRedisConnection();
 
 // Alert types and severities

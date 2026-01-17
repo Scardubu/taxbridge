@@ -1,7 +1,10 @@
 import axios from 'axios';
 import { CacheManager } from '../lib/cache';
+import { createLogger } from '../lib/logger';
 import { analyzeMandatoryFields } from '../lib/ubl/mandatoryFields';
 import { metrics } from '../services/metrics';
+
+const log = createLogger('duplo');
 
 export interface DuploTokenResponse {
   access_token: string;
@@ -66,7 +69,7 @@ export class DuploClient {
       }
     } catch (cacheError) {
       // Redis unavailable, continue with fresh token fetch
-      console.warn('Redis cache unavailable, fetching fresh token');
+      log.warn('Redis cache unavailable, fetching fresh token', { err: cacheError });
     }
 
     let oauthStart = Date.now();
@@ -99,14 +102,14 @@ export class DuploClient {
         );
       } catch (cacheError) {
         // Redis unavailable, token still works via in-memory
-        console.warn('Failed to cache token in Redis');
+        log.warn('Failed to cache token in Redis', { err: cacheError });
       }
 
       metrics.recordDuploOAuth(true, Date.now() - oauthStart);
       return this.accessToken;
     } catch (error) {
       metrics.recordDuploOAuth(false, Date.now() - oauthStart);
-      console.error('Failed to get Duplo access token:', error);
+      log.error('Failed to get Duplo access token', { err: error });
       throw new Error('Authentication failed');
     }
   }
@@ -160,7 +163,7 @@ export class DuploClient {
       return response.data;
     } catch (error) {
       metrics.recordDuploSubmission(false, Date.now() - submissionStart, mandatoryAnalysis.missingFields.length);
-      console.error('Failed to submit e-invoice:', error);
+      log.error('Failed to submit e-invoice', { err: error });
       throw new Error('E-invoice submission failed');
     }
   }
@@ -211,7 +214,7 @@ export class DuploClient {
       return response.data;
     } catch (error) {
       metrics.recordDuploStatus(false, Date.now() - statusStart);
-      console.error('Failed to get e-invoice status:', error);
+      log.error('Failed to get e-invoice status', { err: error });
       throw new Error('Status check failed');
     }
   }

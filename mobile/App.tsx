@@ -20,6 +20,7 @@ import InvoicesScreen from './src/screens/InvoicesScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import PaymentScreen from './src/screens/PaymentScreen';
 import OnboardingScreen from './src/screens/OnboardingScreen';
+import { colors, spacing, typography } from './src/theme/tokens';
 
 // Initialize Sentry early
 initSentry();
@@ -56,16 +57,16 @@ function TabNavigator() {
       screenOptions={{
         headerShown: false,
         tabBarStyle: {
-          borderTopColor: '#E4E7EC',
-          paddingBottom: 8,
-          paddingTop: 8,
+          borderTopColor: colors.borderSubtle,
+          paddingBottom: spacing.sm,
+          paddingTop: spacing.sm,
           height: 80,
         },
-        tabBarActiveTintColor: '#0B5FFF',
-        tabBarInactiveTintColor: '#667085',
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.textMuted,
         tabBarLabelStyle: {
-          fontSize: 12,
-          fontWeight: '600',
+          fontSize: typography.size.xs,
+          fontWeight: typography.weight.semibold,
         },
       }}
     >

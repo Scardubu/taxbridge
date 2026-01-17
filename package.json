@@ -3,6 +3,9 @@
   "version": "5.0.2",
   "private": true,
   "packageManager": "yarn@1.22.22",
+  "engines": {
+    "node": "20.x"
+  },
   "workspaces": [
     "mobile",
     "backend",

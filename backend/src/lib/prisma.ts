@@ -19,20 +19,23 @@ function coerceNumber(value: string | undefined, fallback: number): number {
 }
 
 function buildDatasourceUrl(): string {
-  const databaseUrl = process.env.DATABASE_URL;
+  const databaseUrl = process.env.DATABASE_POOL_URL ?? process.env.DATABASE_URL;
   if (!databaseUrl) {
-    throw new Error('DATABASE_URL is required but was not provided.');
+    throw new Error('DATABASE_URL is required but was not provided. (Optionally set DATABASE_POOL_URL for runtime pooling.)');
   }
 
   let parsedUrl: URL;
   try {
     parsedUrl = new URL(databaseUrl);
   } catch (error) {
-    throw new Error(`Invalid DATABASE_URL provided: ${(error as Error).message}`);
+    throw new Error(`Invalid database URL provided: ${(error as Error).message}`);
   }
 
-  const poolMax = coerceNumber(process.env.DATABASE_POOL_MAX, DEFAULT_POOL_MAX);
-  const poolTimeout = coerceNumber(process.env.DATABASE_POOL_TIMEOUT_MS, DEFAULT_POOL_TIMEOUT_MS);
+  const poolMax = coerceNumber(process.env.DATABASE_POOL_MAX ?? process.env.DB_POOL_MAX, DEFAULT_POOL_MAX);
+  const poolTimeout = coerceNumber(
+    process.env.DATABASE_POOL_TIMEOUT_MS ?? process.env.DB_CONNECTION_TIMEOUT,
+    DEFAULT_POOL_TIMEOUT_MS
+  );
 
   // Prisma forwards connection_limit/pool_timeout to the underlying driver (pg)
   parsedUrl.searchParams.set('connection_limit', String(poolMax));

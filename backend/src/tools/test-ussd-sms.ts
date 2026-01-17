@@ -1,11 +1,10 @@
 import dotenv from 'dotenv';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../lib/prisma';
 import { sendSMS } from '../integrations/comms/client';
 import { notifyInvoiceStamped, notifyPaymentConfirmed, notifyFilingDeadline } from '../services/notifications';
 
 dotenv.config();
 
-const prisma = new PrismaClient();
 
 async function testSMSIntegration() {
   console.log('🧪 Testing SMS Integration...\n');

@@ -18,7 +18,21 @@ type RequestOptions = {
   idempotencyKey?: string;
   skipAuth?: boolean;
   retryOnUnauthorized?: boolean;
+  retries?: number;
+  retryBaseDelayMs?: number;
 };
+
+export class ApiError extends Error {
+  status: number;
+  retryAfterMs?: number;
+
+  constructor(status: number, message: string, retryAfterMs?: number) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.retryAfterMs = retryAfterMs;
+  }
+}
 
 let refreshInFlight: Promise<string | null> | null = null;
 
@@ -34,6 +48,25 @@ async function parseErrorBody(res: Response): Promise<string> {
     // fall back to plain text
   }
   return text;
+}
+
+function parseRetryAfterMs(retryAfter: string | null): number | undefined {
+  if (!retryAfter) return undefined;
+
+  // If it's an integer, it's seconds.
+  const seconds = Number(retryAfter);
+  if (Number.isFinite(seconds) && seconds >= 0) {
+    return Math.round(seconds * 1000);
+  }
+
+  // Otherwise, it may be an HTTP date.
+  const dateMs = Date.parse(retryAfter);
+  if (Number.isFinite(dateMs)) {
+    const diff = dateMs - Date.now();
+    return diff > 0 ? diff : 0;
+  }
+
+  return undefined;
 }
 
 async function refreshAccessToken(baseUrl: string): Promise<string | null> {
@@ -72,6 +105,15 @@ async function refreshAccessToken(baseUrl: string): Promise<string | null> {
   return refreshInFlight;
 }
 
+const RETRYABLE_STATUS = new Set([408, 425, 429, 500, 502, 503, 504]);
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+function getRetryDelayMs(attempt: number, baseDelayMs: number): number {
+  const jitter = Math.round(Math.random() * 100);
+  return Math.min(8000, baseDelayMs * 2 ** attempt + jitter);
+}
+
 async function requestJson(method: string, path: string, body?: any, options: RequestOptions = {}) {
   const baseUrl = await getApiBaseUrl();
   const url = `${baseUrl}/api/v1${path.startsWith('/') ? path : `/${path}`}`;
@@ -94,22 +136,47 @@ async function requestJson(method: string, path: string, body?: any, options: Re
       body: body ? JSON.stringify(body) : undefined
     });
 
-  let res = await doFetch();
+  const maxRetries =
+    options.retries ?? (method === 'GET' || options.idempotencyKey ? 2 : 0);
+  const baseDelayMs = options.retryBaseDelayMs ?? 400;
 
-  if (res.status === 401 && !options.skipAuth && options.retryOnUnauthorized !== false) {
-    const nextToken = await refreshAccessToken(baseUrl);
-    if (nextToken) {
-      headers.Authorization = `Bearer ${nextToken}`;
+  let attempt = 0;
+
+  while (true) {
+    let res: Response;
+    try {
       res = await doFetch();
+    } catch (err) {
+      if (attempt < maxRetries) {
+        await sleep(getRetryDelayMs(attempt, baseDelayMs));
+        attempt += 1;
+        continue;
+      }
+      throw err;
     }
-  }
 
-  if (!res.ok) {
+    if (res.status === 401 && !options.skipAuth && options.retryOnUnauthorized !== false) {
+      const nextToken = await refreshAccessToken(baseUrl);
+      if (nextToken) {
+        headers.Authorization = `Bearer ${nextToken}`;
+        res = await doFetch();
+      }
+    }
+
+    if (res.ok) {
+      return res.json();
+    }
+
+    const retryAfterMs = parseRetryAfterMs(res.headers.get('Retry-After'));
+    if (RETRYABLE_STATUS.has(res.status) && attempt < maxRetries) {
+      await sleep(retryAfterMs ?? getRetryDelayMs(attempt, baseDelayMs));
+      attempt += 1;
+      continue;
+    }
+
     const detail = await parseErrorBody(res);
-    throw new Error(`API error ${res.status}: ${detail}`);
+    throw new ApiError(res.status, `API error ${res.status}: ${detail}`, retryAfterMs);
   }
-
-  return res.json();
 }
 
 export async function createInvoice(

@@ -1,16 +1,19 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import useSWR from 'swr';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { UBLViewer } from '@/components/UBLViewer';
 import { MoreHorizontal, Eye, RefreshCw } from 'lucide-react';
+import { logError } from '@/lib/logger';
+import { FetchError, fetchJson } from '@/lib/fetcher';
 
 interface Invoice {
   id: string;
@@ -37,11 +40,16 @@ interface Invoice {
   };
 }
 
-const fetcher = (url: string) => fetch(url).then(res => res.json());
+const fetcher = <T,>(url: string): Promise<T> => fetchJson<T>(url);
 
 export default function InvoicesPage() {
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [notice, setNotice] = useState<
+    | { variant: 'success' | 'destructive' | 'warning'; title: string; description?: string }
+    | null
+  >(null);
+  const [resubmittingInvoiceId, setResubmittingInvoiceId] = useState<string | null>(null);
 
   const { data: invoices, error, mutate } = useSWR<Invoice[]>('/api/admin/invoices', fetcher, {
     refreshInterval: 30000,
@@ -49,21 +57,41 @@ export default function InvoicesPage() {
 
   const handleDuploResubmit = async (invoiceId: string) => {
     try {
-      const response = await fetch(`/api/admin/invoices/${invoiceId}/resubmit-duplo`, {
-        method: 'POST',
+      setNotice(null);
+      setResubmittingInvoiceId(invoiceId);
+
+      await fetchJson(`/api/admin/invoices/${invoiceId}/resubmit-duplo`, { method: 'POST' });
+      mutate();
+      setNotice({
+        variant: 'success',
+        title: 'Resubmitted',
+        description: 'Invoice was queued for re-submission to Duplo.',
       });
-      
-      if (response.ok) {
-        mutate(); // Refresh the data
-        alert('Invoice resubmitted to Duplo successfully');
-      } else {
-        alert('Failed to resubmit invoice');
-      }
     } catch (error) {
-      console.error(error);
-      alert('Error resubmitting invoice');
+      logError('admin/dashboard/invoices: Error resubmitting invoice', error, { invoiceId }, { suppressInProd: true });
+      const description =
+        error instanceof FetchError
+          ? error.message
+          : error instanceof Error
+            ? error.message
+            : 'An unexpected error occurred.';
+
+      setNotice({
+        variant: 'destructive',
+        title: 'Resubmit failed',
+        description,
+      });
+    } finally {
+      setResubmittingInvoiceId((current) => (current === invoiceId ? null : current));
     }
   };
+
+  const errorMessage = useMemo(() => {
+    if (!error) return undefined;
+    if (error instanceof FetchError) return error.message;
+    if (error instanceof Error) return error.message;
+    return 'Failed to load invoices.';
+  }, [error]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -97,23 +125,36 @@ export default function InvoicesPage() {
 
   if (error) {
     return (
-      <div className="p-6">
-        <div className="text-red-600">Failed to load invoices</div>
-      </div>
+      <DashboardLayout>
+        <Alert variant="destructive">
+          <AlertTitle>Failed to load invoices</AlertTitle>
+          <AlertDescription>{errorMessage}</AlertDescription>
+        </Alert>
+      </DashboardLayout>
     );
   }
 
   if (!invoices) {
     return (
-      <div className="p-6">
-        <div className="text-gray-600">Loading invoices...</div>
-      </div>
+      <DashboardLayout>
+        <div className="space-y-4 animate-pulse">
+          <div className="h-8 bg-slate-200 rounded w-64" />
+          <div className="h-96 bg-slate-200 rounded-lg" />
+        </div>
+      </DashboardLayout>
     );
   }
 
   return (
     <DashboardLayout>
       <div className="space-y-6">
+        {notice && (
+          <Alert variant={notice.variant}>
+            <AlertTitle>{notice.title}</AlertTitle>
+            {notice.description && <AlertDescription>{notice.description}</AlertDescription>}
+          </Alert>
+        )}
+
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-3xl font-bold">Invoice Management</h1>
@@ -237,9 +278,10 @@ export default function InvoicesPage() {
                         {invoice.status === 'failed' && (
                           <DropdownMenuItem
                             onClick={() => handleDuploResubmit(invoice.id)}
+                            disabled={resubmittingInvoiceId === invoice.id}
                           >
                             <RefreshCw className="mr-2 h-4 w-4" />
-                            Resubmit to Duplo
+                            {resubmittingInvoiceId === invoice.id ? 'Resubmitting…' : 'Resubmit to Duplo'}
                           </DropdownMenuItem>
                         )}
                       </DropdownMenuContent>
@@ -305,9 +347,10 @@ export default function InvoicesPage() {
                   <Button 
                     onClick={() => handleDuploResubmit(selectedInvoice.id)}
                     className="flex items-center gap-2"
+                    disabled={resubmittingInvoiceId === selectedInvoice.id}
                   >
                     <RefreshCw className="h-4 w-4" />
-                    Resubmit to Duplo
+                    {resubmittingInvoiceId === selectedInvoice.id ? 'Resubmitting…' : 'Resubmit to Duplo'}
                   </Button>
                 )}
               </div>

@@ -25,8 +25,7 @@ module.exports = {
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
   transform: { 
     '^.+\\.tsx?$': ['ts-jest', {
-      tsconfig: 'tsconfig.json',
-      isolatedModules: true
+      tsconfig: 'tsconfig.json'
     }]
   },
   transformIgnorePatterns: [
@@ -46,8 +45,7 @@ module.exports = {
       setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
       transform: {
         '^.+\\.tsx?$': ['ts-jest', {
-          tsconfig: 'tsconfig.json',
-          isolatedModules: true
+          tsconfig: 'tsconfig.json'
         }]
       }
     },
@@ -60,8 +58,7 @@ module.exports = {
       setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
       transform: {
         '^.+\\.tsx?$': ['ts-jest', {
-          tsconfig: 'tsconfig.json',
-          isolatedModules: true
+          tsconfig: 'tsconfig.json'
         }]
       }
     }

@@ -2,7 +2,7 @@ import path from 'path';
 
 import dotenv from 'dotenv';
 import { Worker } from 'bullmq';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../lib/prisma';
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
@@ -14,9 +14,13 @@ import { validateUblXml } from '../lib/ubl/validate';
 import { createLogger } from '../lib/logger';
 import { notifyInvoiceStamped } from '../services/notifications';
 
-const prisma = new PrismaClient();
 
 const log = createLogger('worker');
+
+const invoiceSyncConcurrency = Number.parseInt(process.env.INVOICE_SYNC_CONCURRENCY || '5', 10);
+const invoiceSyncRateLimit = Number.parseInt(process.env.INVOICE_SYNC_RATE_LIMIT || '8', 10);
+const invoiceSyncRateDurationMs = Number.parseInt(process.env.INVOICE_SYNC_RATE_DURATION_MS || '1000', 10);
+const invoiceSyncLockDurationMs = Number.parseInt(process.env.INVOICE_SYNC_LOCK_DURATION_MS || '120000', 10);
 
 export const invoiceSyncWorker = new Worker(
   'invoice-sync',
@@ -183,7 +187,15 @@ export const invoiceSyncWorker = new Worker(
       throw err;
     }
   },
-  { connection: getRedisConnection() }
+  {
+    connection: getRedisConnection(),
+    concurrency: Number.isFinite(invoiceSyncConcurrency) && invoiceSyncConcurrency > 0 ? invoiceSyncConcurrency : 5,
+    limiter: {
+      max: Number.isFinite(invoiceSyncRateLimit) && invoiceSyncRateLimit > 0 ? invoiceSyncRateLimit : 8,
+      duration: Number.isFinite(invoiceSyncRateDurationMs) && invoiceSyncRateDurationMs > 0 ? invoiceSyncRateDurationMs : 1000
+    },
+    lockDuration: Number.isFinite(invoiceSyncLockDurationMs) && invoiceSyncLockDurationMs > 0 ? invoiceSyncLockDurationMs : 120000
+  }
 );
 
 invoiceSyncWorker.on('completed', (job, result) => {

@@ -11,6 +11,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useNetwork } from '../contexts/NetworkContext';
 import { useSyncContext } from '../contexts/SyncContext';
+import { colors, radii, spacing, typography } from '../theme/tokens';
 
 interface SyncStatusBarProps {
   pendingCount?: number;
@@ -75,35 +76,35 @@ function SyncStatusBar({ pendingCount = 0, onSyncPress }: SyncStatusBarProps) {
       return {
         icon: '🔄',
         text: 'Syncing...',
-        bgColor: '#DBEAFE',
-        textColor: '#1E40AF',
-        borderColor: '#93C5FD',
+        bgColor: colors.infoBg,
+        textColor: colors.infoDark,
+        borderColor: colors.infoBorder,
       };
     }
     if (!isOnline) {
       return {
         icon: '📵',
         text: 'Offline Mode',
-        bgColor: '#FEF3C7',
-        textColor: '#92400E',
-        borderColor: '#FDE68A',
+        bgColor: colors.warningBg,
+        textColor: colors.warningDark,
+        borderColor: colors.warningBorder,
       };
     }
     if (pendingCount > 0) {
       return {
         icon: '⏳',
         text: `${pendingCount} pending`,
-        bgColor: '#FEF3C7',
-        textColor: '#92400E',
-        borderColor: '#FDE68A',
+        bgColor: colors.warningBg,
+        textColor: colors.warningDark,
+        borderColor: colors.warningBorder,
       };
     }
     return {
       icon: '✅',
       text: 'All synced',
-      bgColor: '#D1FAE5',
-      textColor: '#065F46',
-      borderColor: '#6EE7B7',
+      bgColor: colors.successBg,
+      textColor: colors.successDark,
+      borderColor: colors.successBorder,
     };
   };
 
@@ -143,44 +144,44 @@ export default memo(SyncStatusBar);
 
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: 16,
-    marginBottom: 12,
+    paddingHorizontal: spacing.lg,
+    marginBottom: spacing.md,
   },
   statusBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 14,
+    paddingVertical: spacing.sm + 2,
+    paddingHorizontal: spacing.md + 2,
+    borderRadius: radii.md + 2,
     borderWidth: 1,
   },
   leftSection: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: spacing.sm + 2,
   },
   icon: {
     fontSize: 18,
   },
   statusText: {
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.bold,
   },
   lastSync: {
     fontSize: 11,
-    color: '#667085',
+    color: colors.textMuted,
     marginTop: 2,
   },
   syncButton: {
-    backgroundColor: '#0B5FFF',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    borderRadius: radii.sm,
   },
   syncButtonText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
+    color: colors.textOnPrimary,
+    fontWeight: typography.weight.bold,
     fontSize: 13,
   },
 });

@@ -1,15 +1,70 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useMemo, useState, useEffect } from 'react';
+import useSWR from 'swr';
 import { Navigation } from './Navigation';
+import { cn } from '@/lib/utils';
+import { FetchError, fetchJson } from '@/lib/fetcher';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
 }
 
+type SystemStatus = 'healthy' | 'degraded' | 'error' | 'unknown';
+
+type IntegrationCheck = {
+  status?: string;
+  latency?: number;
+  error?: string;
+  mode?: string;
+  timestamp?: string;
+};
+
+type IntegrationsHealthResponse = {
+  status?: string;
+  integrations?: Record<string, IntegrationCheck>;
+  timestamp?: string;
+  error?: string;
+};
+
+const integrationsFetcher = (url: string) => fetchJson<IntegrationsHealthResponse>(url);
+
+function asStatus(value: unknown): SystemStatus {
+  if (value === 'healthy' || value === 'degraded' || value === 'error' || value === 'unknown') return value;
+  return 'unknown';
+}
+
+function worstStatus(a: SystemStatus, b: SystemStatus): SystemStatus {
+  const rank: Record<SystemStatus, number> = {
+    healthy: 0,
+    degraded: 1,
+    error: 2,
+    unknown: 1,
+  };
+  return rank[a] >= rank[b] ? a : b;
+}
+
+function statusFromLatency(latency: number | undefined): SystemStatus {
+  if (typeof latency !== 'number' || Number.isNaN(latency)) return 'healthy';
+
+  // Heuristics for operator visibility (tune as needed)
+  if (latency >= 5000) return 'error';
+  if (latency >= 1500) return 'degraded';
+  return 'healthy';
+}
+
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [currentTime, setCurrentTime] = useState<string>('');
-  const [systemStatus] = useState<'healthy' | 'degraded' | 'error'>('healthy');
+
+  const {
+    data: integrationsHealth,
+    error: integrationsError,
+    isLoading: isIntegrationsLoading,
+  } = useSWR<IntegrationsHealthResponse>('/api/admin/health/integrations', integrationsFetcher, {
+    refreshInterval: 30000,
+    revalidateOnFocus: false,
+    keepPreviousData: true,
+  });
 
   useEffect(() => {
     const updateTime = () => {
@@ -24,7 +79,80 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     return () => clearInterval(interval);
   }, []);
 
-  const getStatusConfig = (status: 'healthy' | 'degraded' | 'error') => {
+  const derived = useMemo(() => {
+    if (isIntegrationsLoading && !integrationsHealth) {
+      return {
+        systemStatus: 'unknown' as SystemStatus,
+        statusText: 'Checking System Health…',
+        bannerDetails: undefined as string | undefined,
+        lastCheckedLabel: undefined as string | undefined,
+      };
+    }
+
+    if (integrationsError) {
+      const message =
+        integrationsError instanceof FetchError
+          ? integrationsError.message
+          : integrationsError instanceof Error
+            ? integrationsError.message
+            : 'Health check unavailable';
+
+      return {
+        systemStatus: 'error' as SystemStatus,
+        statusText: 'Health Check Unavailable',
+        bannerDetails: message,
+        lastCheckedLabel: undefined as string | undefined,
+      };
+    }
+
+    const overall = asStatus(integrationsHealth?.status);
+    const integrations = integrationsHealth?.integrations || {};
+    const digitax = integrations.digitax ?? integrations.duplo;
+    const remita = integrations.remita;
+
+    const digitaxBase = asStatus(digitax?.status);
+    const remitaBase = asStatus(remita?.status);
+
+    const digitaxLatencyStatus = statusFromLatency(digitax?.latency);
+    const remitaLatencyStatus = statusFromLatency(remita?.latency);
+
+    const digitaxFinal = worstStatus(digitaxBase, digitaxLatencyStatus);
+    const remitaFinal = worstStatus(remitaBase, remitaLatencyStatus);
+    const computedOverall = worstStatus(overall, worstStatus(digitaxFinal, remitaFinal));
+
+    const details: string[] = [];
+    if (digitax) {
+      const suffix = typeof digitax.latency === 'number' ? ` (${digitax.latency}ms)` : '';
+      const mode = digitax.mode === 'mock' ? ' [mock]' : '';
+      const errorText = digitax.error ? `: ${digitax.error}` : '';
+      details.push(`DigiTax: ${digitaxFinal}${suffix}${mode}${errorText}`);
+    }
+    if (remita) {
+      const suffix = typeof remita.latency === 'number' ? ` (${remita.latency}ms)` : '';
+      const mode = remita.mode === 'mock' ? ' [mock]' : '';
+      const errorText = remita.error ? `: ${remita.error}` : '';
+      details.push(`Remita: ${remitaFinal}${suffix}${mode}${errorText}`);
+    }
+
+    const ts = integrationsHealth?.timestamp;
+    const lastCheckedLabel = ts ? new Date(ts).toLocaleTimeString('en-NG', { hour: '2-digit', minute: '2-digit' }) : undefined;
+
+    return {
+      systemStatus: computedOverall,
+      statusText:
+        computedOverall === 'healthy'
+          ? 'All Systems Operational'
+          : computedOverall === 'degraded'
+            ? 'Performance Degraded'
+            : computedOverall === 'error'
+              ? 'Service Disruption'
+              : 'System Status Unknown',
+      bannerDetails: details.length ? details.join(' • ') : integrationsHealth?.error,
+      lastCheckedLabel,
+    };
+  }, [integrationsError, integrationsHealth, isIntegrationsLoading]);
+
+  const getStatusConfig = (status: SystemStatus) => {
     switch (status) {
       case 'healthy':
         return { color: 'bg-green-500', text: 'All Systems Operational', bgClass: '' };
@@ -32,21 +160,40 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         return { color: 'bg-yellow-500', text: 'Performance Degraded', bgClass: 'bg-yellow-50' };
       case 'error':
         return { color: 'bg-red-500', text: 'Service Disruption', bgClass: 'bg-red-50' };
+      case 'unknown':
+        return { color: 'bg-slate-400', text: 'Checking System Health…', bgClass: 'bg-slate-50' };
     }
   };
 
+  const systemStatus = derived.systemStatus;
   const statusConfig = getStatusConfig(systemStatus);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
       {/* System Status Banner (shown when not healthy) */}
-      {systemStatus !== 'healthy' && (
-        <div className={`${statusConfig.bgClass} border-b border-${systemStatus === 'error' ? 'red' : 'yellow'}-200 px-4 py-2`}>
-          <div className="max-w-7xl mx-auto flex items-center justify-center gap-2 text-sm">
+      {systemStatus !== 'healthy' && systemStatus !== 'unknown' && (
+        <div
+          className={cn(
+            statusConfig.bgClass,
+            'border-b px-4 py-2',
+            systemStatus === 'error' ? 'border-red-200' : 'border-yellow-200'
+          )}
+        >
+          <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center sm:justify-center gap-1 sm:gap-2 text-sm">
             <div className={`w-2 h-2 rounded-full ${statusConfig.color} animate-pulse`} />
             <span className={`font-medium ${systemStatus === 'error' ? 'text-red-700' : 'text-yellow-700'}`}>
-              {statusConfig.text}
+              {derived.statusText}
             </span>
+            {derived.bannerDetails && (
+              <span className={systemStatus === 'error' ? 'text-red-700/80' : 'text-yellow-700/80'}>
+                {derived.bannerDetails}
+              </span>
+            )}
+            {derived.lastCheckedLabel && (
+              <span className={systemStatus === 'error' ? 'text-red-700/70' : 'text-yellow-700/70'}>
+                • Last checked {derived.lastCheckedLabel}
+              </span>
+            )}
           </div>
         </div>
       )}
@@ -84,7 +231,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               {/* Status Indicator */}
               <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 rounded-full">
                 <div className={`h-2 w-2 ${statusConfig.color} rounded-full ${systemStatus === 'healthy' ? '' : 'animate-pulse'}`} />
-                <span className="text-sm font-medium text-slate-700">{statusConfig.text}</span>
+                <span className="text-sm font-medium text-slate-700">{derived.statusText}</span>
               </div>
 
               {/* User Avatar */}

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { BackendAPIError, requestBackend } from '@/lib/backend';
+import { logError } from '@/lib/logger';
 
 export async function GET(request: NextRequest) {
   try {
@@ -8,7 +9,7 @@ export async function GET(request: NextRequest) {
     const data = await requestBackend(`/analytics?${new URLSearchParams({ range }).toString()}`);
     return NextResponse.json(data);
   } catch (error) {
-    console.error('Error fetching analytics:', error);
+    logError('admin/api/analytics: Error fetching analytics', error);
     const status = error instanceof BackendAPIError ? error.status : 500;
     const message = error instanceof BackendAPIError ? error.details || error.message : 'Unknown error';
     return NextResponse.json(

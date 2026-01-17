@@ -1,12 +1,11 @@
 import { createLogger } from '../lib/logger';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../lib/prisma';
 import { getRedisConnection } from '../queue/client';
 import { collectMetrics, getHealthSummary } from './monitoring';
 import { healthCheckAllProviders } from '../integrations/comms/client';
 import { logSecurityEvent } from '../lib/security';
 
 const log = createLogger('error-recovery');
-const prisma = new PrismaClient();
 const redis = getRedisConnection();
 
 // Error classification

@@ -288,7 +288,7 @@ Content-Type: application/json
   - [ ] Sync retries respect exponential backoff
 - [ ] Backend handles idempotent invoice creation:
   - [ ] Duplicate invoice IDs return existing record
-  - [ ] Idempotency cache expires after 24 hours
+  - [x] Idempotency cache expires after 24 hours
 
 ### Phase B: Hardening & Performance
 

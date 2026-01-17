@@ -116,12 +116,17 @@ export default function PaymentScreen({ route: propRoute }: PaymentScreenProps =
       setAppLoading?.(true);
     }
     try {
-      const response = await api.post('/payments/generate', {
-        invoiceId: invoice.id,
-        payerName: payerName.trim(),
-        payerEmail: payerEmail.trim(),
-        payerPhone: payerPhone.trim()
-      });
+      const idempotencyKey = invoice.id ? `payment:${invoice.id}` : undefined;
+      const response = await api.post(
+        '/payments/generate',
+        {
+          invoiceId: invoice.id,
+          payerName: payerName.trim(),
+          payerEmail: payerEmail.trim(),
+          payerPhone: payerPhone.trim()
+        },
+        { idempotencyKey, retries: 2 }
+      );
 
       if (!isMountedRef.current) return;
 

@@ -1,5 +1,6 @@
 import axios from 'axios';
 import crypto from 'crypto';
+import { logError } from './logger';
 
 export interface RemitaPaymentRequest {
   merchantId: string;
@@ -114,7 +115,7 @@ class RemitaClient {
 
       return response.data;
     } catch (error) {
-      console.error('Failed to initialize Remita payment:', error);
+      logError('admin/remita: Failed to initialize payment', error, { orderId: paymentData.orderId });
       throw new Error('Payment initialization failed');
     }
   }
@@ -137,7 +138,7 @@ class RemitaClient {
 
       return response.data;
     } catch (error) {
-      console.error('Failed to get Remita payment status:', error);
+      logError('admin/remita: Failed to get payment status', error, { rrr });
       throw new Error('Payment status check failed');
     }
   }
@@ -158,7 +159,7 @@ class RemitaClient {
 
       return response.data;
     } catch (error) {
-      console.error('Failed to get Remita transaction history:', error);
+      logError('admin/remita: Failed to get transaction history', error, { startDate, endDate });
       throw new Error('Transaction history fetch failed');
     }
   }

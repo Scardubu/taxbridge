@@ -145,11 +145,18 @@ DUPLO_CLIENT_ID=your_production_client_id
 DUPLO_CLIENT_SECRET=your_production_secret
 DUPLO_API_URL=https://api.duplo.ng
 
+# DigiTax direct settings (if used by your APP contract)
+DIGITAX_API_URL=https://api.digitax.ng
+DIGITAX_API_KEY=<set-in-secrets-manager>
+DIGITAX_HMAC_SECRET=<set-in-secrets-manager>
+DIGITAX_MOCK_MODE=false
+
 # Remita (Production)
 REMITA_MERCHANT_ID=your_merchant_id
 REMITA_API_KEY=your_production_api_key
 REMITA_SERVICE_TYPE_ID=your_service_type_id
 REMITA_API_URL=https://login.remita.net
+REMITA_MOCK_MODE=false
 
 # Security
 SESSION_SECRET=generate_32_char_random_string
@@ -298,16 +305,9 @@ export async function getApiBaseUrl(): Promise<string> {
 ```bash
 cd mobile
 
-# Configure app.json
-# Update version, bundleIdentifier, etc.
-
-# Build for production
-expo build:ios \
-  --release-channel production \
-  --type archive
-
-# Wait for build to complete (10-15 minutes)
-# Download IPA file when ready
+# EAS is the supported build path for Expo SDK 54+
+npx eas login
+npx eas build --platform ios --profile production
 ```
 
 **Upload to App Store Connect**:
@@ -324,12 +324,7 @@ expo build:ios \
 cd mobile
 
 # Build AAB (Android App Bundle)
-expo build:android \
-  --release-channel production \
-  --type app-bundle
-
-# Wait for build to complete (10-15 minutes)
-# Download AAB file when ready
+npx eas build --platform android --profile production
 ```
 
 **Upload to Google Play Console**:

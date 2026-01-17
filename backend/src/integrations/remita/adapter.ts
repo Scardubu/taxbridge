@@ -27,6 +27,10 @@ interface PaymentStatus {
 export class RemitaAdapter {
   constructor(private config: RemitaConfig) {}
 
+  private isMockMode(): boolean {
+    return String(process.env.REMITA_MOCK_MODE || 'false').toLowerCase() === 'true';
+  }
+
   private generateHash(data: string): string {
     return crypto
       .createHash('sha512')
@@ -43,6 +47,22 @@ export class RemitaAdapter {
     orderId: string;
   }): Promise<RRRResponse> {
     const { amount, payerName, payerEmail, payerPhone, description, orderId } = params;
+
+    // Mock mode: generate an RRR without calling Remita.
+    // IMPORTANT: This does NOT mark a payment as successful; it only simulates RRR creation.
+    if (this.isMockMode()) {
+      const startTime = Date.now();
+      await new Promise((r) => setTimeout(r, 150));
+      const duration = Date.now() - startTime;
+
+      const rrr = `MOCK-${Date.now()}-${orderId}`;
+      metrics.recordRemitaPayment(true, amount, duration);
+      return {
+        success: true,
+        rrr,
+        paymentUrl: `https://remita.net/mock/pay/${encodeURIComponent(rrr)}`
+      };
+    }
 
     // Remita requires amount in kobo (multiply by 100)
     const amountInKobo = Math.round(amount * 100);
@@ -104,6 +124,12 @@ export class RemitaAdapter {
   async verifyPayment(rrr: string, orderId: string): Promise<PaymentStatus> {
     const redis = getRedisConnection();
     const cacheKey = `remita:payment:${rrr}`;
+
+    // Mock mode: never returns "paid" without a verified webhook-driven state transition.
+    // This keeps the system compliant with "no paid status without confirmation".
+    if (this.isMockMode()) {
+      return { status: 'pending' };
+    }
 
     try {
       const cached = await redis.get(cacheKey);

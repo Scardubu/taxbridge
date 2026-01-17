@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
 import { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
+import { colors, radii, spacing, typography } from '../theme/tokens';
 
 interface StatusBadgeProps {
   status: 'queued' | 'processing' | 'completed' | 'failed' | 'stamped';
@@ -27,38 +28,38 @@ export default function StatusBadge({ status, size = 'medium' }: StatusBadgeProp
     switch (status) {
       case 'queued':
         return {
-          backgroundColor: '#FEF3C7',
-          color: '#92400E',
+          backgroundColor: colors.warningBg,
+          color: colors.warningDark,
           text: 'Queued',
         };
       case 'processing':
         return {
-          backgroundColor: '#DBEAFE',
-          color: '#1E40AF',
+          backgroundColor: colors.infoBg,
+          color: colors.infoDark,
           text: 'Processing',
         };
       case 'completed':
         return {
-          backgroundColor: '#D1FAE5',
-          color: '#065F46',
+          backgroundColor: colors.successBg,
+          color: colors.successDark,
           text: 'Completed',
         };
       case 'failed':
         return {
-          backgroundColor: '#FEE2E2',
-          color: '#991B1B',
+          backgroundColor: colors.errorBg,
+          color: colors.errorDark,
           text: 'Failed',
         };
       case 'stamped':
         return {
-          backgroundColor: '#D1FAE5',
-          color: '#065F46',
+          backgroundColor: colors.successBg,
+          color: colors.successDark,
           text: 'Stamped',
         };
       default:
         return {
-          backgroundColor: '#F3F4F6',
-          color: '#6B7280',
+          backgroundColor: colors.neutralBg,
+          color: colors.neutralDark,
           text: 'Unknown',
         };
     }
@@ -99,13 +100,13 @@ export default function StatusBadge({ status, size = 'medium' }: StatusBadgeProp
 
 const styles = StyleSheet.create({
   badge: {
-    borderRadius: 20,
+    borderRadius: radii.full,
     alignItems: 'center',
     justifyContent: 'center',
     alignSelf: 'flex-start',
   },
   text: {
-    fontWeight: '600',
-    letterSpacing: -0.3,
+    fontWeight: typography.weight.semibold,
+    letterSpacing: typography.letterSpacing.tight,
   },
 });

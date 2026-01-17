@@ -3,7 +3,7 @@ import { z } from 'zod';
 import type { FastifyInstance } from 'fastify';
 
 import { remitaAdapter } from '../integrations/remita/adapter';
-import { computeRequestHash } from '../lib/idempotency';
+import { computeRequestHash, isIdempotencyExpired } from '../lib/idempotency';
 import { getPaymentQueue } from '../queue/client';
 import {
   ValidationError,
@@ -23,7 +23,38 @@ export default async function paymentRoutes(app: FastifyInstance, opts: { prisma
     payerPhone: z.string()
   });
 
+  const PaymentResponseSchema = z.object({
+    rrr: z.string(),
+    paymentUrl: z.string().nullable().optional(),
+    amount: z.number()
+  });
+
   app.post('/api/v1/payments/generate', async (req, reply) => {
+    const idempotencyKeyHeader = req.headers['idempotency-key'];
+    const idempotencyKey = Array.isArray(idempotencyKeyHeader) ? idempotencyKeyHeader[0] : idempotencyKeyHeader;
+    const requestHash = computeRequestHash({ method: req.method, path: req.url, body: req.body });
+
+    if (idempotencyKey) {
+      const existing = await prisma.idempotencyCache.findUnique({ where: { key: idempotencyKey } });
+      if (existing) {
+        if (isIdempotencyExpired(existing.createdAt)) {
+          await prisma.idempotencyCache.delete({ where: { key: idempotencyKey } });
+        } else {
+        if (existing.requestHash !== requestHash) {
+          return reply.status(409).send({ error: 'Idempotency-Key reuse with different request body' });
+        }
+
+        const parsed = PaymentResponseSchema.safeParse(existing.responseBody);
+        if (!parsed.success) {
+          app.log.error({ err: parsed.error, idempotencyKey }, 'Invalid cached idempotency responseBody');
+          return reply.status(500).send({ error: 'Internal Server Error' });
+        }
+
+        return reply.status(200).send(parsed.data);
+        }
+      }
+    }
+
     const parsed = PaymentSchema.safeParse(req.body);
     if (!parsed.success) {
       const error = new ValidationError('Invalid payment request', parsed.error.flatten());
@@ -75,7 +106,26 @@ export default async function paymentRoutes(app: FastifyInstance, opts: { prisma
       }
     });
 
-    return reply.send({ rrr: result.rrr, paymentUrl: result.paymentUrl, amount: parseFloat(invoice.total.toString()) });
+    const responseBody = {
+      rrr: result.rrr,
+      paymentUrl: result.paymentUrl,
+      amount: parseFloat(invoice.total.toString())
+    };
+
+    if (idempotencyKey) {
+      await prisma.idempotencyCache.create({
+        data: {
+          key: idempotencyKey,
+          requestHash,
+          method: req.method,
+          path: req.url,
+          statusCode: 200,
+          responseBody
+        }
+      });
+    }
+
+    return reply.send(responseBody);
   });
 
   const REMITA_WEBHOOK_CANONICAL_PATH = '/api/v1/payments/webhook/remita';
@@ -98,8 +148,12 @@ export default async function paymentRoutes(app: FastifyInstance, opts: { prisma
 
       const existing = await prisma.idempotencyCache.findUnique({ where: { key: cacheKey } });
       if (existing) {
+        if (isIdempotencyExpired(existing.createdAt)) {
+          await prisma.idempotencyCache.delete({ where: { key: cacheKey } });
+        } else {
         app.log.info({ key: cacheKey }, 'Duplicate webhook received — skipping');
         return reply.status(existing.statusCode === 200 ? 200 : 202).send({ received: true });
+        }
       }
 
       // Create placeholder idempotency record to prevent concurrent reprocessing
@@ -134,7 +188,17 @@ export default async function paymentRoutes(app: FastifyInstance, opts: { prisma
 
       // Enqueue background processing and return quickly
       const queue = getPaymentQueue();
-      await queue.add('process-remita-webhook', { rrr, body }, { attempts: 3, backoff: { type: 'exponential', delay: 1000 } });
+      const maxAttempts = Number.parseInt(process.env.PAYMENT_WEBHOOK_MAX_ATTEMPTS || '4', 10);
+      const backoffMs = Number.parseInt(process.env.PAYMENT_WEBHOOK_BACKOFF_MS || '3000', 10);
+
+      await queue.add(
+        'process-remita-webhook',
+        { rrr, body },
+        {
+          attempts: Number.isFinite(maxAttempts) && maxAttempts > 0 ? maxAttempts : 4,
+          backoff: { type: 'exponential', delay: Number.isFinite(backoffMs) && backoffMs > 0 ? backoffMs : 3000 }
+        }
+      );
       metrics.recordRemitaWebhook(true);
 
       return reply.status(200).send({ received: true });

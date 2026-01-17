@@ -47,6 +47,17 @@ function SettingsScreen() {
     { apiUrl: validationRules.apiUrl }
   );
 
+  const loadStorageStats = useCallback(async () => {
+    try {
+      const invoices = await getInvoices();
+      const synced = invoices.filter((inv: any) => inv.synced === 1).length;
+      const pending = invoices.filter((inv: any) => inv.synced === 0).length;
+      setStorageStats({ total: invoices.length, synced, pending });
+    } catch {
+      setStorageStats({ total: 0, synced: 0, pending: 0 });
+    }
+  }, []);
+
   const refreshAuthStatus = useCallback(async () => {
     try {
       const token = await getAccessToken();
@@ -228,17 +239,6 @@ function SettingsScreen() {
       setIsAuthSubmitting(false);
     }
   }, [isAuthSubmitting, refreshAuthStatus, resetAuthForms]);
-
-  const loadStorageStats = useCallback(async () => {
-    try {
-      const invoices = await getInvoices();
-      const synced = invoices.filter((inv: any) => inv.synced === 1).length;
-      const pending = invoices.filter((inv: any) => inv.synced === 0).length;
-      setStorageStats({ total: invoices.length, synced, pending });
-    } catch {
-      setStorageStats({ total: 0, synced: 0, pending: 0 });
-    }
-  }, []);
 
   const choose = async (next: SupportedLanguage) => {
     setLang(next);

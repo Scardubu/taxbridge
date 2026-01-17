@@ -1,7 +1,10 @@
 import axios from 'axios';
 import crypto from 'crypto';
 import { CacheManager } from '../lib/cache';
+import { createLogger } from '../lib/logger';
 import { metrics } from '../services/metrics';
+
+const log = createLogger('remita');
 
 // Cache instance for Remita payment status (short TTL to ensure freshness)
 const remitaCache = new CacheManager('remita');
@@ -129,7 +132,7 @@ export class RemitaClient {
       return response.data;
     } catch (error) {
       metrics.recordRemitaPayment(false, paymentData.amount, Date.now() - initStart);
-      console.error('Failed to initialize Remita payment:', error);
+      log.error('Failed to initialize Remita payment', { err: error });
       throw new Error('Payment initialization failed');
     }
   }
@@ -177,7 +180,7 @@ export class RemitaClient {
       return response.data;
     } catch (error) {
       metrics.recordRemitaStatus(false, Date.now() - statusStart);
-      console.error('Failed to get Remita payment status:', error);
+      log.error('Failed to get Remita payment status', { err: error });
       throw new Error('Payment status check failed');
     }
   }
@@ -198,7 +201,7 @@ export class RemitaClient {
 
       return response.data;
     } catch (error) {
-      console.error('Failed to get Remita transaction history:', error);
+      log.error('Failed to get Remita transaction history', { err: error });
       throw new Error('Transaction history fetch failed');
     }
   }

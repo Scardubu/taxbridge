@@ -9,6 +9,7 @@ import Animated, {
   withTiming,
   Easing,
 } from 'react-native-reanimated';
+import { colors, radii, spacing, typography } from '../theme/tokens';
 
 const defaultLogo = require('../../assets/icon.png');
 
@@ -132,69 +133,69 @@ export default memo(BrandedHero);
 const styles = StyleSheet.create({
   container: {
     width: '100%',
-    borderRadius: 24,
+    borderRadius: radii.xl,
     overflow: 'hidden',
-    marginBottom: 20,
+    marginBottom: spacing.xl,
     minHeight: 220,
   },
   containerCompact: {
     minHeight: 120,
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   gradientLayer1: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#052B52',
+    backgroundColor: colors.primaryDeep,
   },
   gradientLayer2: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#0B5FFF',
+    backgroundColor: colors.primary,
     opacity: 0.7,
     transform: [{ translateY: 40 }],
   },
   content: {
-    padding: 20,
+    padding: spacing.xl,
     alignItems: 'center',
     zIndex: 1,
   },
   networkBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm - 2,
     borderRadius: 20,
-    marginBottom: 12,
+    marginBottom: spacing.md,
     gap: 6,
   },
   onlineBadge: {
-    backgroundColor: 'rgba(16, 185, 129, 0.2)',
+    backgroundColor: colors.overlaySuccess,
   },
   offlineBadge: {
-    backgroundColor: 'rgba(251, 191, 36, 0.2)',
+    backgroundColor: colors.overlayWarning,
   },
   networkDot: {
     fontSize: 10,
-    color: '#10B981',
+    color: colors.success,
   },
   networkText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#10B981',
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.semibold,
+    color: colors.success,
   },
   offlineText: {
-    color: '#FBBF24',
+    color: colors.warning,
   },
   logoContainer: {
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
   logoCircle: {
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    backgroundColor: colors.overlayLight,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
+    borderColor: colors.overlayLightBorder,
   },
   logoImage: {
     width: 40,
@@ -204,7 +205,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: '900',
-    color: '#FFFFFF',
+    color: colors.textOnPrimary,
     textAlign: 'center',
     letterSpacing: 1,
   },
@@ -212,50 +213,50 @@ const styles = StyleSheet.create({
     fontSize: 22,
   },
   subtitle: {
-    fontSize: 14,
-    color: 'rgba(255, 255, 255, 0.85)',
+    fontSize: typography.size.sm,
+    color: colors.textOnPrimaryMuted,
     textAlign: 'center',
-    marginTop: 6,
-    fontWeight: '500',
+    marginTop: spacing.sm - 2,
+    fontWeight: typography.weight.medium,
     fontStyle: 'italic',
   },
   progressContainer: {
     width: '100%',
-    marginTop: 16,
+    marginTop: spacing.lg,
     alignItems: 'center',
   },
   progressTrack: {
     width: '80%',
     height: 6,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: colors.overlayLightStrong,
     borderRadius: 3,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#10B981',
+    backgroundColor: colors.success,
     borderRadius: 3,
   },
   progressText: {
-    fontSize: 12,
-    color: 'rgba(255, 255, 255, 0.8)',
-    marginTop: 8,
-    fontWeight: '600',
+    fontSize: typography.size.xs,
+    color: colors.textOnPrimarySubtle,
+    marginTop: spacing.sm,
+    fontWeight: typography.weight.semibold,
   },
   trustBadges: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',
     gap: 8,
-    marginTop: 16,
+    marginTop: spacing.lg,
   },
   badge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 12,
+    backgroundColor: colors.overlayLightSubtle,
+    paddingHorizontal: spacing.sm + 2,
+    paddingVertical: spacing.xs + 1,
+    borderRadius: radii.md,
     gap: 4,
   },
   badgeIcon: {
@@ -263,7 +264,7 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     fontSize: 11,
-    color: 'rgba(255, 255, 255, 0.9)',
-    fontWeight: '600',
+    color: colors.textOnPrimary,
+    fontWeight: typography.weight.semibold,
   },
 });

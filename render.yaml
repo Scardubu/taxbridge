@@ -18,22 +18,28 @@ services:
     branch: master
     autoDeploy: true
     buildCommand: >-
-      cd backend && 
-      yarn install --frozen-lockfile && 
-      yarn build && 
-      yarn prisma:generate && 
-      mkdir -p lib && 
-      wget -q https://docs.peppol.eu/poacc/billing/3.0/files/UBL-Invoice-2.1.xsd -O lib/ubl-invoice-2.1.xsd || true
-    startCommand: cd backend && yarn start
+      yarn install --frozen-lockfile --production=false &&
+      yarn workspace @taxbridge/backend build &&
+      yarn workspace @taxbridge/backend prisma:generate &&
+      yarn workspace @taxbridge/backend ubl:download-xsd
+    startCommand: yarn workspace @taxbridge/backend start
     healthCheckPath: /health
     envVars:
       # Node Environment
+      - key: NODE_VERSION
+        value: 20.19.4
       - key: NODE_ENV
         value: production
       - key: PORT
         value: 3000
       - key: LOG_LEVEL
         value: info
+
+      # Prisma
+      # Prevent @prisma/client postinstall from running `prisma generate` during `yarn install`.
+      # Generation is handled explicitly in buildCommand and also guarded at runtime via backend lifecycle scripts.
+      - key: PRISMA_SKIP_POSTINSTALL_GENERATE
+        value: "true"
       
       # Database - SET IN RENDER DASHBOARD
       # Value: postgresql://postgres:newleaF12!%40%24@db.hojzknpqniugotvtzszn.supabase.co:5432/postgres
@@ -110,14 +116,24 @@ services:
     region: oregon
     branch: master
     autoDeploy: true
-    buildCommand: cd backend && yarn install --frozen-lockfile && yarn build && yarn prisma:generate
-    startCommand: cd backend && yarn worker
+    buildCommand: >-
+      yarn install --frozen-lockfile --production=false &&
+      yarn workspace @taxbridge/backend build &&
+      yarn workspace @taxbridge/backend prisma:generate &&
+      yarn workspace @taxbridge/backend ubl:download-xsd
+    startCommand: yarn workspace @taxbridge/backend worker
     envVars:
       # Node Environment
+      - key: NODE_VERSION
+        value: 20.19.4
       - key: NODE_ENV
         value: production
       - key: LOG_LEVEL
         value: info
+
+      # Prisma
+      - key: PRISMA_SKIP_POSTINSTALL_GENERATE
+        value: "true"
       
       # Database - SET IN RENDER DASHBOARD (same as API service)
       - key: DATABASE_URL

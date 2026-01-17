@@ -9,10 +9,10 @@
 
 | Component | Tests | Status | Framework |
 |-----------|-------|--------|-----------|
-| **Backend** | 68 | ✅ Passing | Jest 29.7 + Supertest |
+| **Backend** | 22 | ✅ Passing | Jest 29.7 + Supertest |
 | **Admin Dashboard** | 8 | ✅ Passing | Jest 29.7 + @testing-library/react |
-| **Mobile** | 136 | ✅ Passing | Jest 29.7 + jest-expo 54 |
-| **Total** | **212+** | ✅ All Passing | - |
+| **Mobile** | 139 | ✅ Passing | Jest 29.7 + jest-expo 54 |
+| **Total** | **169** | ✅ All Passing | - |
 
 ---
 
@@ -23,7 +23,7 @@
 - ✅ Peppol BIS Billing 3.0 compliance documentation
 - ✅ Duplo integration tests (OAuth, DB persistence, audit trails)
 - ✅ Remita integration tests (webhook idempotency, signature verification)
-- ✅ Mobile E2E tests (136 tests across 7 suites)
+- ✅ Mobile E2E tests (139 tests across 7 suites)
   - ✅ OnboardingSystem integration (29 tests)
   - ✅ Tax calculators (50+ tests)
   - ✅ Mock FIRS simulation (40+ tests)
@@ -162,7 +162,7 @@
 
 | File | Changes |
 |------|---------|
-| `admin-dashboard/components/DashboardLayout.tsx` | Enhanced header, footer, system status banner |
+| `admin-dashboard/components/DashboardLayout.tsx` | Enhanced header/footer + live system status banner (polls `/api/admin/health/integrations`) |
 | `admin-dashboard/components/HealthCard.tsx` | Improved styling, latency color coding, status messages |
 | `admin-dashboard/components/Navigation.tsx` | Badge support, active state improvements |
 | `admin-dashboard/components/LoadingSpinner.tsx` | Multiple variants, PageLoader, ButtonLoader |

@@ -1,25 +1,26 @@
 import { StyleSheet, Text, View } from 'react-native';
 
 import type { InvoiceStatus } from '../types/invoice';
+import { colors, radii, spacing, typography } from '../theme/tokens';
 
 export default function StatusBadge(props: { status: InvoiceStatus }) {
   const color =
     props.status === 'stamped'
-      ? '#0E7A3E'
+      ? colors.successDark
       : props.status === 'processing'
-        ? '#9A6700'
+        ? colors.warningDark
         : props.status === 'failed'
-          ? '#B42318'
-          : '#344054';
+          ? colors.errorDark
+          : colors.textSecondary;
 
   const bg =
     props.status === 'stamped'
-      ? '#E6F4EA'
+      ? colors.successBg
       : props.status === 'processing'
-        ? '#FFF7DB'
+        ? colors.warningBg
         : props.status === 'failed'
-          ? '#FEE4E2'
-          : '#EEF2F6';
+          ? colors.errorBg
+          : colors.neutralBg;
 
   return (
     <View style={[styles.badge, { backgroundColor: bg, borderColor: color }]}>
@@ -30,13 +31,13 @@ export default function StatusBadge(props: { status: InvoiceStatus }) {
 
 const styles = StyleSheet.create({
   badge: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
+    paddingHorizontal: spacing.sm + 2,
+    paddingVertical: spacing.sm - 2,
+    borderRadius: radii.full,
     borderWidth: 1
   },
   text: {
-    fontSize: 12,
-    fontWeight: '700'
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.bold
   }
 });

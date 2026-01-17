@@ -8,7 +8,8 @@ import InvoiceCard from '../components/InvoiceCard';
 import SwipeableInvoiceCard from '../components/SwipeableInvoiceCard';
 import SyncStatusBar from '../components/SyncStatusBar';
 import type { LocalInvoiceRow } from '../types/invoice';
-import { getInvoices } from '../services/database';
+import { colors, spacing, radii, typography, shadows } from '../theme/tokens';
+import { getInvoices, setInvoiceRetryMetadata, updateInvoiceStatus } from '../services/database';
 import { useNetwork } from '../contexts/NetworkContext';
 import { useSyncContext } from '../contexts/SyncContext';
 
@@ -59,13 +60,18 @@ function InvoicesScreen() {
     // refresh list regardless
     await load();
 
-    if (res.synced === 0 && res.failed === 0) {
+    if (res.synced === 0 && res.failed === 0 && res.deferred === 0) {
       Alert.alert('Sync', 'No pending invoices to sync');
     }
   }, [manualSync, load]);
 
   const handleRetry = useCallback(async (id: string) => {
     Alert.alert('Retry Sync', `Retrying sync for invoice ${id.slice(-6).toUpperCase()}...`);
+
+    // Clear backoff metadata so it retries immediately.
+    await updateInvoiceStatus(id, 'queued');
+    await setInvoiceRetryMetadata(id, 0, null);
+
     await manualSync();
     await load();
   }, [manualSync, load]);
@@ -238,82 +244,74 @@ function InvoicesScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F2F4F7' },
-  container: { flex: 1, padding: 16 },
+  safe: { flex: 1, backgroundColor: colors.surfaceSlate },
+  container: { flex: 1, padding: spacing.lg },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 16,
-    marginTop: 8,
+    marginBottom: spacing.lg,
+    marginTop: spacing.sm,
   },
-  h1: { fontSize: 26, fontWeight: '800', color: '#101828' },
-  subtitle: { fontSize: 14, color: '#667085', marginTop: 2 },
+  h1: { fontSize: typography.size.xxl, fontWeight: typography.weight.extrabold, color: colors.textPrimary },
+  subtitle: { fontSize: typography.size.sm, color: colors.textMuted, marginTop: 2 },
   syncButton: {
-    backgroundColor: '#0B5FFF',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 12,
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm + 2,
+    borderRadius: radii.md,
     alignItems: 'center',
-    shadowColor: '#0B5FFF',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
+    ...shadows.primary,
   },
   syncButtonDisabled: {
-    backgroundColor: '#98A2B7',
+    backgroundColor: colors.disabled,
     shadowOpacity: 0,
   },
   syncButtonText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 14,
+    color: colors.textOnPrimary,
+    fontWeight: typography.weight.bold,
+    fontSize: typography.size.sm,
   },
 
   // Filter tabs
   filterContainer: {
     flexDirection: 'row',
-    marginBottom: 16,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    marginBottom: spacing.lg,
+    backgroundColor: colors.surface,
+    borderRadius: radii.md,
+    padding: spacing.xs,
+    ...shadows.sm,
   },
   filterTab: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 8,
-    borderRadius: 8,
-    gap: 4,
+    paddingVertical: spacing.sm + 2,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radii.sm,
+    gap: spacing.xs,
   },
   filterTabActive: {
-    backgroundColor: '#0B5FFF',
+    backgroundColor: colors.primary,
   },
   filterTabError: {
-    borderColor: '#DC2626',
+    borderColor: colors.error,
     borderWidth: 1,
   },
   filterTabText: {
     fontSize: 13,
-    fontWeight: '600',
-    color: '#667085',
+    fontWeight: typography.weight.semibold,
+    color: colors.textMuted,
   },
   filterTabTextActive: {
-    color: '#FFFFFF',
+    color: colors.textOnPrimary,
   },
   filterTabTextError: {
-    color: '#DC2626',
+    color: colors.error,
   },
   filterBadge: {
-    backgroundColor: '#E4E7EC',
+    backgroundColor: colors.borderSubtle,
     borderRadius: 10,
     paddingHorizontal: 6,
     paddingVertical: 2,
@@ -324,15 +322,15 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.3)',
   },
   filterBadgeError: {
-    backgroundColor: '#FEE2E2',
+    backgroundColor: colors.errorBg,
   },
   filterBadgeText: {
     fontSize: 11,
-    fontWeight: '700',
-    color: '#344054',
+    fontWeight: typography.weight.bold,
+    color: colors.textSecondary,
   },
   filterBadgeTextActive: {
-    color: '#FFFFFF',
+    color: colors.textOnPrimary,
   },
 
   // List
@@ -340,28 +338,28 @@ const styles = StyleSheet.create({
     paddingBottom: 100,
   },
   separator: {
-    height: 12,
+    height: spacing.md,
   },
 
   // Empty state
   emptyContainer: { flexGrow: 1, justifyContent: 'center', alignItems: 'center' },
   emptyState: {
     alignItems: 'center',
-    paddingVertical: 40,
+    paddingVertical: spacing.xl * 2,
   },
   emptyIcon: {
     fontSize: 48,
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   emptyTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#101828',
-    marginBottom: 8,
+    fontSize: typography.size.lg,
+    fontWeight: typography.weight.bold,
+    color: colors.textPrimary,
+    marginBottom: spacing.sm,
   },
   emptySubtitle: {
-    fontSize: 14,
-    color: '#667085',
+    fontSize: typography.size.sm,
+    color: colors.textMuted,
     textAlign: 'center',
   },
 });

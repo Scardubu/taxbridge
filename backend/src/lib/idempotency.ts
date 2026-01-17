@@ -1,5 +1,7 @@
 import crypto from 'crypto';
 
+const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000;
+
 function stableStringify(value: unknown): string {
   if (value === null || typeof value !== 'object') return JSON.stringify(value);
 
@@ -21,3 +23,9 @@ export function computeRequestHash(input: {
   const payload = `${input.method.toUpperCase()} ${input.path} ${stableStringify(input.body)}`;
   return crypto.createHash('sha256').update(payload).digest('hex');
 }
+
+export function isIdempotencyExpired(createdAt: Date, now: number = Date.now()): boolean {
+  return now - createdAt.getTime() > IDEMPOTENCY_TTL_MS;
+}
+
+export { IDEMPOTENCY_TTL_MS };

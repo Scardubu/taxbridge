@@ -24,32 +24,43 @@ export const options = {
 
 const BASE_URL = __ENV.BASE_URL || 'http://localhost:3000';
 
+function authHeaders() {
+  const headers = {
+    Accept: 'application/json',
+    'Content-Type': 'application/json',
+  };
+
+  if (__ENV.AUTH_TOKEN) {
+    headers.Authorization = `Bearer ${__ENV.AUTH_TOKEN}`;
+  }
+
+  if (!headers.Authorization && __ENV.ALLOW_DEV_USER_HEADER === 'true' && __ENV.USER_ID) {
+    headers['X-TaxBridge-User-Id'] = __ENV.USER_ID;
+  }
+
+  return headers;
+}
+
 export default function () {
   const scenarios = [
     () => {
       // Invoice creation
-      const res = http.post(`${BASE_URL}/invoices`, JSON.stringify({
+      const res = http.post(`${BASE_URL}/api/v1/invoices`, JSON.stringify({
         customerName: `Customer-${Date.now()}`,
         items: [{
           description: 'Soak Test Service',
           quantity: 1,
           unitPrice: 500
-        }],
-        subtotal: 500,
-        vat: 37.5,
-        total: 537.5
+        }]
       }), {
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer test-token'
-        },
+        headers: authHeaders(),
       });
       check(res, { 'invoice created': (r) => r.status < 400 });
     },
     () => {
       // Invoice list
-      const res = http.get(`${BASE_URL}/invoices`, {
-        headers: { 'Authorization': 'Bearer test-token' },
+      const res = http.get(`${BASE_URL}/api/v1/invoices`, {
+        headers: authHeaders(),
       });
       check(res, { 'invoice list retrieved': (r) => r.status === 200 });
     },

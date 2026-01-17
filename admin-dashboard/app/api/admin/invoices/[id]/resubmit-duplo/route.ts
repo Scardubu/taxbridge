@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { BackendAPIError, requestBackend } from '@/lib/backend';
+import { logError } from '@/lib/logger';
 
 export async function POST(
   _request: Request,
@@ -14,7 +15,7 @@ export async function POST(
     });
     return NextResponse.json(data);
   } catch (error) {
-    console.error('Error resubmitting invoice:', error);
+    logError('admin/api/invoices/[id]/resubmit-duplo: Error resubmitting invoice', error, { invoiceId });
     const status = error instanceof BackendAPIError ? error.status : 500;
     const message = error instanceof BackendAPIError ? error.details || error.message : 'Unknown error';
     return NextResponse.json(

@@ -23,6 +23,23 @@ export const options = {
 
 const BASE_URL = __ENV.BASE_URL || 'http://localhost:3000';
 
+function authHeaders() {
+  const headers = {
+    Accept: 'application/json',
+    'Content-Type': 'application/json',
+  };
+
+  if (__ENV.AUTH_TOKEN) {
+    headers.Authorization = `Bearer ${__ENV.AUTH_TOKEN}`;
+  }
+
+  if (!headers.Authorization && __ENV.ALLOW_DEV_USER_HEADER === 'true' && __ENV.USER_ID) {
+    headers['X-TaxBridge-User-Id'] = __ENV.USER_ID;
+  }
+
+  return headers;
+}
+
 export default function () {
   // Health check
   const healthRes = http.get(`${BASE_URL}/health`);
@@ -37,17 +54,11 @@ export default function () {
       description: 'Test Service',
       quantity: 1,
       unitPrice: 1000
-    }],
-    subtotal: 1000,
-    vat: 75,
-    total: 1075
+    }]
   });
 
-  const invoiceRes = http.post(`${BASE_URL}/invoices`, invoicePayload, {
-    headers: { 
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer test-token'
-    },
+  const invoiceRes = http.post(`${BASE_URL}/api/v1/invoices`, invoicePayload, {
+    headers: authHeaders(),
   });
   
   check(invoiceRes, {

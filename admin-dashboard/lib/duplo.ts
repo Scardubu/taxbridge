@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { logError } from './logger';
 
 export interface DuploTokenResponse {
   access_token: string;
@@ -65,7 +66,7 @@ class DuploClient {
 
       return this.accessToken;
     } catch (error) {
-      console.error('Failed to get Duplo access token:', error);
+      logError('admin/duplo: Failed to get access token', error);
       throw new Error('Authentication failed');
     }
   }
@@ -115,7 +116,7 @@ class DuploClient {
 
       return response.data;
     } catch (error) {
-      console.error('Failed to submit e-invoice:', error);
+      logError('admin/duplo: Failed to submit e-invoice', error);
       throw new Error('E-invoice submission failed');
     }
   }
@@ -135,7 +136,7 @@ class DuploClient {
 
       return response.data;
     } catch (error) {
-      console.error('Failed to get e-invoice status:', error);
+      logError('admin/duplo: Failed to get e-invoice status', error, { irn });
       throw new Error('Status check failed');
     }
   }

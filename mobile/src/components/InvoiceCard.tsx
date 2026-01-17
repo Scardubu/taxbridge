@@ -8,6 +8,7 @@ import Animated, {
 
 import type { LocalInvoiceRow } from '../types/invoice';
 import AnimatedStatusBadge from './AnimatedStatusBadge';
+import { colors, radii, spacing, typography, shadows } from '../theme/tokens';
 
 export default function InvoiceCard(props: { invoice: LocalInvoiceRow; onPress?: () => void }) {
   const inv = props.invoice;
@@ -66,50 +67,48 @@ export default function InvoiceCard(props: { invoice: LocalInvoiceRow; onPress?:
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 14,
-    padding: 14,
+    backgroundColor: colors.surface,
+    borderRadius: radii.md + 2,
+    padding: spacing.md + 2,
     borderWidth: 1,
-    borderColor: '#E4E7EC',
-    marginBottom: 12,
-    elevation: 2,
-    // @ts-ignore - boxShadow for web compatibility
-    boxShadow: '0px 1px 2px rgba(0, 0, 0, 0.05)',
+    borderColor: colors.borderSubtle,
+    marginBottom: spacing.md,
+    ...shadows.md,
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 12,
+    gap: spacing.md,
   },
   titleContainer: {
     flex: 1,
-    gap: 4,
+    gap: spacing.xs,
   },
   title: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#101828',
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.bold,
+    color: colors.textPrimary,
   },
   offlineIndicator: {
-    backgroundColor: '#FEF3C7',
-    paddingHorizontal: 8,
+    backgroundColor: colors.warningBg,
+    paddingHorizontal: spacing.sm,
     paddingVertical: 2,
-    borderRadius: 12,
+    borderRadius: radii.md,
     alignSelf: 'flex-start',
   },
   offlineText: {
     fontSize: 10,
-    fontWeight: '600',
-    color: '#92400E',
+    fontWeight: typography.weight.semibold,
+    color: colors.warningDark,
   },
   meta: {
-    color: '#667085',
-    fontSize: 14,
+    color: colors.textMuted,
+    fontSize: typography.size.sm,
   },
   amount: {
-    color: '#101828',
-    fontSize: 16,
-    fontWeight: '800',
+    color: colors.textPrimary,
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.extrabold,
   },
 });

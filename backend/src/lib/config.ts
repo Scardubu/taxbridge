@@ -136,9 +136,9 @@ function loadConfig(): Config {
     },
     database: {
       url: process.env.DATABASE_URL,
-      poolMin: process.env.DB_POOL_MIN,
-      poolMax: process.env.DB_POOL_MAX,
-      connectionTimeout: process.env.DB_CONNECTION_TIMEOUT
+      poolMin: process.env.DATABASE_POOL_MIN || process.env.DB_POOL_MIN,
+      poolMax: process.env.DATABASE_POOL_MAX || process.env.DB_POOL_MAX,
+      connectionTimeout: process.env.DATABASE_POOL_TIMEOUT_MS || process.env.DB_CONNECTION_TIMEOUT
     },
     redis: {
       url: process.env.REDIS_URL,
@@ -165,11 +165,11 @@ function loadConfig(): Config {
       timeout: process.env.REMITA_TIMEOUT
     },
     sms: {
-      provider: process.env.SMS_PROVIDER,
+      provider: process.env.SMS_PROVIDER || process.env.COMMS_PROVIDER,
       africasTalking: {
         apiKey: process.env.AT_API_KEY,
         username: process.env.AT_USERNAME,
-        shortCode: process.env.AT_SHORT_CODE
+        shortCode: process.env.AT_SHORTCODE || process.env.AT_SHORT_CODE
       },
       termii: {
         apiKey: process.env.TERMII_API_KEY,

@@ -77,12 +77,16 @@ describe('PaymentScreen E2E Tests', () => {
 
       // Step 3: Verify API call
       await waitFor(() => {
-        expect(api.post).toHaveBeenCalledWith('/payments/generate', {
-          invoiceId: mockInvoice.id,
-          payerName: 'John Doe',
-          payerEmail: 'john@example.com',
-          payerPhone: '08012345678',
-        });
+        expect(api.post).toHaveBeenCalledWith(
+          '/payments/generate',
+          {
+            invoiceId: mockInvoice.id,
+            payerName: 'John Doe',
+            payerEmail: 'john@example.com',
+            payerPhone: '08012345678'
+          },
+          { idempotencyKey: `payment:${mockInvoice.id}`, retries: 2 }
+        );
       });
 
       // Step 4: Verify success alert shown

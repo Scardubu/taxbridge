@@ -26,31 +26,42 @@ export const options = {
 
 const BASE_URL = __ENV.BASE_URL || 'http://localhost:3000';
 
+function authHeaders() {
+  const headers = {
+    Accept: 'application/json',
+    'Content-Type': 'application/json',
+  };
+
+  if (__ENV.AUTH_TOKEN) {
+    headers.Authorization = `Bearer ${__ENV.AUTH_TOKEN}`;
+  }
+
+  if (!headers.Authorization && __ENV.ALLOW_DEV_USER_HEADER === 'true' && __ENV.USER_ID) {
+    headers['X-TaxBridge-User-Id'] = __ENV.USER_ID;
+  }
+
+  return headers;
+}
+
 export default function () {
   // Simulate user syncing 3-10 invoices in rapid succession
   const invoiceCount = Math.floor(Math.random() * 8) + 3;
   
   for (let i = 0; i < invoiceCount; i++) {
-    const res = http.post(`${BASE_URL}/invoices/sync`, JSON.stringify({
-      invoiceId: `offline-${Date.now()}-${i}`,
+    const res = http.post(`${BASE_URL}/api/v1/invoices`, JSON.stringify({
       customerName: `Offline Customer ${i}`,
       items: [{
-        description: `Service ${i}`,
+        description: `Offline Service ${i}`,
         quantity: 1,
         unitPrice: 500
-      }],
-      subtotal: 500,
-      vat: 37.5,
-      total: 537.5
+      }]
     }), {
-      headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer test-token'
-      },
+      headers: authHeaders(),
+      tags: { name: 'offline-sync' },
     });
 
     check(res, {
-      'sync accepted': (r) => r.status === 202 || r.status === 200,
+      'invoice created/queued': (r) => r.status === 201 || r.status === 200,
     });
 
     if (res.status === 503) {

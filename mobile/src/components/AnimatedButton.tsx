@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { Pressable, Text, StyleSheet, ViewStyle, TextStyle, StyleProp } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -6,6 +6,7 @@ import Animated, {
   withSpring,
   interpolateColor,
 } from 'react-native-reanimated';
+import { colors, radii, spacing, typography } from '../theme/tokens';
 
 interface AnimatedButtonProps {
   title: string;
@@ -17,7 +18,7 @@ interface AnimatedButtonProps {
   testID?: string;
 }
 
-export default function AnimatedButton({
+function AnimatedButton({
   title,
   onPress,
   variant = 'primary',
@@ -42,8 +43,8 @@ export default function AnimatedButton({
         pressed.value,
         [0, 1],
         [
-          variant === 'primary' ? '#0B5FFF' : '#FFFFFF',
-          variant === 'primary' ? '#0952CC' : '#F8F9FA',
+          variant === 'primary' ? colors.primary : colors.surface,
+          variant === 'primary' ? colors.primaryDark : colors.surfaceMuted,
         ]
       ),
     };
@@ -55,8 +56,8 @@ export default function AnimatedButton({
         pressed.value,
         [0, 1],
         [
-          variant === 'primary' ? '#FFFFFF' : '#344054',
-          variant === 'primary' ? '#FFFFFF' : '#101828',
+          variant === 'primary' ? colors.surface : colors.textSecondary,
+          variant === 'primary' ? colors.surface : colors.textPrimary,
         ]
       ),
     };
@@ -84,23 +85,25 @@ export default function AnimatedButton({
   );
 }
 
+export default memo(AnimatedButton);
+
 const styles = StyleSheet.create({
   button: {
-    paddingVertical: 14,
-    paddingHorizontal: 24,
-    borderRadius: 12,
+    paddingVertical: spacing.md + 2,
+    paddingHorizontal: spacing.xl + 4,
+    borderRadius: radii.md,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#D0D5DD',
+    borderColor: colors.border,
     minHeight: 48,
     elevation: 2,
     // @ts-ignore - boxShadow for web compatibility
     boxShadow: '0px 1px 3px rgba(0, 0, 0, 0.08)',
   },
   text: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.bold,
     letterSpacing: -0.5,
   },
 });

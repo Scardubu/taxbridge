@@ -305,6 +305,8 @@ git push origin staging
 # - New → Blueprint
 # - Select taxbridge repo → render.staging.yaml
 # - Set environment variables (DATABASE_URL, secrets)
+#   - If the DB password includes special characters, URL-encode it
+#   - Optional helper: node backend/scripts/generate-secrets.js --db-password "<raw-password>"
 
 # 3. Monitor deployment
 # - Watch build logs in Render dashboard
@@ -482,7 +484,7 @@ node backend/scripts/validate-health.js https://api.taxbridge.ng
 
 ### Code Quality ✅
 - TypeScript: 0 errors (all layers)
-- Tests: 205/205 passing (137 mobile + 68 backend)
+- Tests: 215/215 passing (139 mobile + 68 backend + 8 admin)
 - Linting: No warnings
 - Build: Successful compilation
 
@@ -638,7 +640,7 @@ Phase F implementation has successfully prepared TaxBridge for production launch
 
 **Key Achievements:**
 - Zero TypeScript errors across all layers
-- 205/205 tests passing
+- 215/215 tests passing
 - Comprehensive deployment automation
 - Production-grade security and monitoring
 - Clear rollback procedures

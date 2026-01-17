@@ -7,6 +7,7 @@ import Animated, {
   withTiming,
   interpolateColor,
 } from 'react-native-reanimated';
+import { colors as themeColors, spacing, radii, typography, shadows } from '../theme/tokens';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = width * 0.75;
@@ -125,28 +126,26 @@ export default memo(InsightCard);
 const styles = StyleSheet.create({
   container: {
     width: CARD_WIDTH,
-    marginRight: 12,
+    marginRight: spacing.md,
   },
   card: {
-    borderRadius: 20,
-    padding: 16,
+    borderRadius: radii.xl,
+    padding: spacing.lg,
     borderWidth: 1,
     minHeight: 160,
     justifyContent: 'space-between',
-    // @ts-ignore - boxShadow for web compatibility
-    boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.08)',
-    elevation: 3,
+    ...shadows.md,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
   iconContainer: {
     width: 44,
     height: 44,
-    borderRadius: 12,
+    borderRadius: radii.md,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -157,45 +156,45 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   metric: {
-    fontSize: 24,
-    fontWeight: '900',
+    fontSize: typography.size.xl,
+    fontWeight: typography.weight.black,
   },
   metricLabel: {
     fontSize: 11,
-    color: '#667085',
-    fontWeight: '500',
+    color: themeColors.textMuted,
+    fontWeight: typography.weight.medium,
   },
   content: {
     flex: 1,
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
   title: {
-    fontSize: 16,
-    fontWeight: '800',
-    marginBottom: 4,
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.extrabold,
+    marginBottom: spacing.xs,
   },
   description: {
     fontSize: 13,
-    color: '#475467',
+    color: themeColors.textSecondary,
     lineHeight: 18,
   },
   actionContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 12,
+    paddingVertical: spacing.sm + 2,
+    paddingHorizontal: spacing.lg,
+    borderRadius: radii.md,
     gap: 6,
   },
   actionText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
+    color: themeColors.textOnPrimary,
+    fontWeight: typography.weight.bold,
     fontSize: 13,
   },
   actionArrow: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 14,
+    color: themeColors.textOnPrimary,
+    fontWeight: typography.weight.bold,
+    fontSize: typography.size.sm,
   },
 });

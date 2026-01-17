@@ -41,7 +41,10 @@ const optionalVars = [
   'PORT',
   'ENABLE_METRICS',
   'ENABLE_HEALTH_CHECKS',
+  'DATABASE_POOL_MAX',
+  'DATABASE_POOL_TIMEOUT_MS',
   'DB_POOL_MAX',
+  'DB_CONNECTION_TIMEOUT',
   'RATE_LIMIT_MAX'
 ];
 
@@ -104,6 +107,14 @@ function validateEnvironment(env = 'staging') {
     }
   }
 
+  if (process.env.DB_POOL_MAX && !process.env.DATABASE_POOL_MAX) {
+    warnings.push('⚠️  Using legacy DB_POOL_MAX; prefer DATABASE_POOL_MAX');
+  }
+
+  if (process.env.DB_CONNECTION_TIMEOUT && !process.env.DATABASE_POOL_TIMEOUT_MS) {
+    warnings.push('⚠️  Using legacy DB_CONNECTION_TIMEOUT; prefer DATABASE_POOL_TIMEOUT_MS');
+  }
+
   // Validate mock mode settings
   const digitaxMockMode = String(process.env.DIGITAX_MOCK_MODE || 'false').toLowerCase();
   const remitaMockMode = String(process.env.REMITA_MOCK_MODE || 'false').toLowerCase();
@@ -139,6 +150,18 @@ function validateEnvironment(env = 'staging') {
     }
     if (dbUrl.includes('localhost') && env === 'production') {
       errors.push(`❌ DATABASE_URL points to localhost in production`);
+    }
+
+    const rawUrl = dbUrl.replace(/^postgresql:\/\//, '').replace(/^postgres:\/\//, '');
+    const atCount = (rawUrl.match(/@/g) || []).length;
+    if (atCount > 1) {
+      warnings.push('⚠️  DATABASE_URL contains multiple "@" characters. URL-encode the password if it includes "@".');
+    }
+
+    const authSegment = rawUrl.split('@')[0] || '';
+    const password = authSegment.includes(':') ? authSegment.split(':').slice(1).join(':') : '';
+    if (password && /[\s@/?#]/.test(password)) {
+      warnings.push('⚠️  DATABASE_URL password contains special characters. URL-encode it to avoid connection errors.');
     }
   }
 

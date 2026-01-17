@@ -1,7 +1,7 @@
 import path from 'path';
 import dotenv from 'dotenv';
 import { Worker } from 'bullmq';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../lib/prisma';
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
@@ -10,7 +10,6 @@ import { remitaAdapter } from '../integrations/remita/adapter';
 import { createLogger } from '../lib/logger';
 import { notifyPaymentConfirmed } from '../services/notifications';
 
-const prisma = new PrismaClient();
 const log = createLogger('payment-worker');
 
 export const paymentWebhookWorker = new Worker(

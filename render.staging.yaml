@@ -7,16 +7,24 @@ services:
     runtime: node
     plan: starter
     region: oregon
-    branch: staging
+    branch: master
     autoDeploy: true
     buildCommand: >-
-      cd backend && yarn install --frozen-lockfile && yarn build && yarn prisma:generate &&
-      wget https://docs.peppol.eu/poacc/billing/3.0/files/UBL-Invoice-2.1.xsd -O lib/ubl-invoice-2.1.xsd || true
-    startCommand: cd backend && yarn start
+      yarn install --frozen-lockfile --production=false &&
+      yarn workspace @taxbridge/backend build &&
+      yarn workspace @taxbridge/backend prisma:generate &&
+      yarn workspace @taxbridge/backend ubl:download-xsd
+    startCommand: yarn workspace @taxbridge/backend start
     healthCheckPath: /health
     envVars:
+      - key: NODE_VERSION
+        value: 20.19.4
       - key: NODE_ENV
         value: staging
+      - key: PORT
+        value: "3000"
+      - key: PRISMA_SKIP_POSTINSTALL_GENERATE
+        value: "true"
       - key: DIGITAX_MOCK_MODE
         value: true
       - key: REMITA_MOCK_MODE
@@ -72,13 +80,20 @@ services:
     runtime: node
     plan: starter
     region: oregon
-    branch: staging
+    branch: master
     autoDeploy: true
-    buildCommand: cd backend && yarn install --frozen-lockfile && yarn build && yarn prisma:generate
-    startCommand: cd backend && yarn worker
+    buildCommand: >-
+      yarn install --frozen-lockfile --production=false &&
+      yarn workspace @taxbridge/backend build &&
+      yarn workspace @taxbridge/backend prisma:generate
+    startCommand: yarn workspace @taxbridge/backend worker
     envVars:
+      - key: NODE_VERSION
+        value: 20.19.4
       - key: NODE_ENV
         value: staging
+      - key: PRISMA_SKIP_POSTINSTALL_GENERATE
+        value: "true"
       - key: DIGITAX_MOCK_MODE
         value: true
       - key: REMITA_MOCK_MODE
@@ -125,10 +140,3 @@ services:
     region: oregon
     maxmemoryPolicy: allkeys-lru
     ipAllowList: []  # Empty list allows connections from Render services
-
-databases:
-  - name: taxbridge-db-staging
-    databaseName: taxbridge_staging
-    user: taxbridge_staging
-    plan: starter
-    region: oregon

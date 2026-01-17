@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { BackendAPIError, requestBackend } from '@/lib/backend';
+import { logError } from '@/lib/logger';
 
 export async function GET(request: NextRequest) {
   try {
@@ -17,7 +18,7 @@ export async function GET(request: NextRequest) {
     const data = await requestBackend(`/invoices?${queryParams.toString()}`);
     return NextResponse.json(data.invoices || data);
   } catch (error) {
-    console.error('Error fetching invoices:', error);
+    logError('admin/api/invoices: Error fetching invoices', error);
     const statusCode = error instanceof BackendAPIError ? error.status : 500;
     const message = error instanceof BackendAPIError ? error.details || error.message : 'Unknown error';
     return NextResponse.json(

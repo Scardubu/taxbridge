@@ -9,6 +9,8 @@ import { DuploHealthChart } from '@/components/charts/DuploHealthChart';
 import { RemitaTransactionChart } from '@/components/charts/RemitaTransactionChart';
 import { LaunchMetricsWidget, LaunchMetricsData } from '@/components/LaunchMetricsWidget';
 import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { FetchError, fetchJson } from '@/lib/fetcher';
 
 interface DashboardStats {
   totalUsers: number;
@@ -33,7 +35,7 @@ interface DashboardStats {
   }>;
 }
 
-const fetcher = (url: string) => fetch(url).then(res => res.json());
+const fetcher = <T,>(url: string): Promise<T> => fetchJson<T>(url);
 
 // Metric Card Icons
 const UsersIcon = () => (
@@ -118,28 +120,19 @@ export default function DashboardPage() {
   const anomalyItems = launchMetrics?.anomalies ?? [];
 
   if (error) {
+    const message =
+      error instanceof FetchError
+        ? error.message
+        : error instanceof Error
+          ? error.message
+          : 'Failed to load dashboard data.';
+
     return (
       <DashboardLayout>
-        <div className="p-6">
-          <Card className="border-red-200 bg-red-50">
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
-                  <svg className="w-5 h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-red-800">Failed to load dashboard data</h3>
-                  <p className="text-sm text-red-600">{error.message || 'Unknown error'}</p>
-                  <p className="text-xs text-red-500 mt-1">
-                    Please check if the backend server is running on port 3001
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        <Alert variant="destructive">
+          <AlertTitle>Failed to load dashboard</AlertTitle>
+          <AlertDescription>{message}</AlertDescription>
+        </Alert>
       </DashboardLayout>
     );
   }
@@ -147,16 +140,16 @@ export default function DashboardPage() {
   if (isLoading || !stats) {
     return (
       <DashboardLayout>
-        <div className="space-y-6 animate-pulse">
-          <div className="h-8 bg-slate-200 rounded w-64"></div>
+        <div className="space-y-4 animate-pulse">
+          <div className="h-8 bg-slate-200 rounded w-64" />
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             {[1, 2, 3, 4].map(i => (
-              <div key={i} className="h-32 bg-slate-200 rounded-lg"></div>
+              <div key={i} className="h-32 bg-slate-200 rounded-lg" />
             ))}
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             {[1, 2].map(i => (
-              <div key={i} className="h-48 bg-slate-200 rounded-lg"></div>
+              <div key={i} className="h-48 bg-slate-200 rounded-lg" />
             ))}
           </div>
         </div>

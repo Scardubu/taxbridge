@@ -91,7 +91,7 @@ This document summarizes all production readiness implementations completed for 
 
 ### 4. Health Monitoring Endpoints
 
-**Backend Routes:** `backend/src/routes/health.ts`
+**Backend Routes:** `backend/src/server.ts`
 
 | Endpoint | Purpose |
 |----------|---------|
@@ -100,6 +100,8 @@ This document summarizes all production readiness implementations completed for 
 | `GET /health/duplo` | Legacy alias for DigiTax health |
 | `GET /health/remita` | Remita gateway availability |
 | `GET /health/integrations` | Combined integrations status |
+
+**Admin UI Note:** The Admin Console System Status banner polls `/api/admin/health/integrations` every 30 seconds and derives `healthy/degraded/error` from both integration status and latency.
 
 **Admin Dashboard Routes:** `admin-dashboard/app/api/admin/health/`
 
@@ -255,7 +257,7 @@ https://admin.taxbridge.ng/dashboard
 .gitignore                                          # Updated exclusions
 .github/workflows/deploy-production.yml             # NEW: Production deployment
 backend/package.json                                # Updated scripts
-backend/src/routes/health.ts                        # Rewritten: Health endpoints
+backend/src/server.ts                               # Health endpoints (+ monitoring)
 backend/src/tools/ubl-validate.ts                   # UBL 3.0 validation
 admin-dashboard/app/api/admin/health/route.ts       # NEW: Health API
 admin-dashboard/app/api/admin/health/duplo/route.ts # NEW: DigiTax health proxy (legacy route path)

@@ -63,7 +63,7 @@ yarn workspace mobile ios
 yarn workspace mobile test
 ```
 
-**Expected:** 136 tests passing, app loads on simulator/device.
+**Expected:** 139 tests passing, app loads on simulator/device.
 
 ---
 
@@ -77,7 +77,7 @@ taxbridge/
 │   │   ├── components/  # Reusable UI (AnimatedButton, etc.)
 │   │   ├── services/    # API, database, sync
 │   │   └── utils/       # taxCalculator, validation
-│   ├── __tests__/       # 136 tests (7 suites)
+│   ├── __tests__/       # 139 tests (7 suites)
 │   └── app.json         # Expo config
 │
 ├── backend/             # Node.js + Fastify API
@@ -437,7 +437,7 @@ yarn test --clearCache
 yarn test --runInBand
 ```
 
-**Expected:** All 136 tests should pass.
+**Expected:** All 139 tests should pass.
 
 ---
 
@@ -566,7 +566,7 @@ op read "op://TaxBridge/Production/DATABASE_URL"
 - [ ] Repository cloned
 - [ ] Dependencies installed (mobile, backend, admin)
 - [ ] .env files configured (from .env.example)
-- [ ] Mobile tests passing (136 tests)
+- [ ] Mobile tests passing (139 tests)
 - [ ] Backend running locally (http://localhost:3000)
 - [ ] Admin dashboard running (http://localhost:3001)
 - [ ] Read FINAL_PRODUCTION_READINESS_SUMMARY.md

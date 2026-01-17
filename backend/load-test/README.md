@@ -52,6 +52,14 @@ AUTH_TOKEN=... \
 k6 run k6-script.js
 ```
 
+### Run Phase F4 suite (smoke → load → soak)
+
+```bash
+BASE_URL=https://taxbridge-staging.onrender.com \
+AUTH_TOKEN=... \
+node run-f4-tests.js
+```
+
 ## Auth
 
 Invoice and payment endpoints are authenticated.

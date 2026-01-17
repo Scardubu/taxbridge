@@ -2,13 +2,13 @@
 
 <div align="center">
 
-![TaxBridge Logo](docs/assets/logo.png)
+![TaxBridge Logo](mobile/assets/logo 2000x500.png)
 
 **Mobile-first, NRS-compliant e-invoicing platform for Nigerian SMEs**
 
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](https://expo.dev/accounts/scardubu/projects/taxbridge)
 [![Version](https://img.shields.io/badge/version-5.0.2-blue)](/)
-[![Tests](https://img.shields.io/badge/tests-205%20passing-success)](/)
+[![Tests](https://img.shields.io/badge/tests-215%20passing-success)](/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Production](https://img.shields.io/badge/status-ready-success)]()
 
@@ -27,7 +27,7 @@
 - **Project Dashboard:** [View on Expo](https://expo.dev/accounts/scardubu/projects/taxbridge)
 
 ### What's New in v5.0.2
-- ✅ 205 tests passing (137 mobile + 68 backend, 100% success rate)
+- ✅ 215 tests passing (139 mobile + 68 backend + 8 admin, 100% success rate)
 - ✅ Production-ready Android App Bundle (.aab) for Play Store
 - ✅ Complete staging deployment automation
 - ✅ Integration contracts formalized
@@ -227,7 +227,7 @@ Dashboard runs on `http://localhost:3001`
 ### ✅ Core Functionality
 - **Offline-First**: Create invoices without internet connection with SQLite persistence
 - **Intelligent Auto-Sync**: Background sync with exponential backoff and retry logic
-- **SQLite Storage**: Local database with 136 tests covering all operations
+- **SQLite Storage**: Local database with 139 tests covering all operations
 - **Multi-language**: Full English and Nigerian Pidgin support (205+ translation keys)
 - **Enhanced Onboarding**: 6-step interactive tax education with skip functionality
 - **Tax Calculators**: PIT, VAT, CIT calculators aligned with Nigeria Tax Act 2025
@@ -244,7 +244,7 @@ Dashboard runs on `http://localhost:3001`
 - **Performance**: React.memo, useCallback, useMemo throughout
 
 ### 📊 Production Metrics
-- **Tests**: 136/136 passing (100% success rate)
+- **Tests**: 139/139 passing (100% success rate)
 - **TypeScript**: 0 errors, strict mode enabled
 - **Build Warnings**: 0 (production clean)
 - **Translation Coverage**: 205+ keys (complete)
@@ -386,7 +386,7 @@ Auth endpoints:
 
 ## 🧪 Testing
 
-TaxBridge has a comprehensive testing infrastructure with **212+ tests** across all components.
+TaxBridge has a comprehensive testing infrastructure with **215 tests** across all components.
 
 ### Test Summary
 
@@ -394,8 +394,8 @@ TaxBridge has a comprehensive testing infrastructure with **212+ tests** across 
 |-----------|-------|--------|----------|
 | **Backend** | 68 tests | ✅ Passing | 85%+ |
 | **Admin Dashboard** | 8 tests | ✅ Passing | 80%+ |
-| **Mobile** | 136 tests | ✅ Passing | 90%+ |
-| **Total** | **212+ tests** | ✅ All Passing | - |
+| **Mobile** | 139 tests | ✅ Passing | 90%+ |
+| **Total** | **215 tests** | ✅ All Passing | - |
 
 ### Backend Tests
 ```bash
@@ -410,7 +410,7 @@ npm run test:watch          # Watch mode
 ### Mobile Tests
 ```bash
 cd mobile
-npm test                    # Run all 136 tests (7 suites)
+npm test                    # Run all 139 tests (7 suites)
 npm test -- --coverage      # With coverage report
 npm test -- --watch         # Watch mode
 ```

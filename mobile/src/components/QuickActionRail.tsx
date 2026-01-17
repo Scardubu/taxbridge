@@ -5,6 +5,7 @@ import Animated, {
   useAnimatedStyle,
   withSpring,
 } from 'react-native-reanimated';
+import { colors, radii, spacing, typography } from '../theme/tokens';
 
 const { width } = Dimensions.get('window');
 
@@ -30,32 +31,32 @@ const ACTIONS: QuickAction[] = [
     icon: '📄',
     label: 'Create',
     sublabel: 'New Invoice',
-    color: '#0B5FFF',
-    bgColor: '#EBF4FF',
+    color: colors.primary,
+    bgColor: colors.primaryLight,
   },
   {
     id: 'scan',
     icon: '📷',
     label: 'Scan',
     sublabel: 'Receipt',
-    color: '#059669',
-    bgColor: '#ECFDF5',
+    color: colors.actionGreen,
+    bgColor: colors.actionGreenBg,
   },
   {
     id: 'invoices',
     icon: '📋',
     label: 'View',
     sublabel: 'Invoices',
-    color: '#7C3AED',
-    bgColor: '#F5F3FF',
+    color: colors.actionPurple,
+    bgColor: colors.actionPurpleBg,
   },
   {
     id: 'calculator',
     icon: '🧮',
     label: 'Tax',
     sublabel: 'Calculator',
-    color: '#EA580C',
-    bgColor: '#FFF7ED',
+    color: colors.actionOrange,
+    bgColor: colors.actionOrangeBg,
   },
 ];
 
@@ -137,47 +138,47 @@ export default memo(QuickActionRail);
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   sectionTitle: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#344054',
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.bold,
+    color: colors.textSecondary,
     textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 12,
-    paddingHorizontal: 16,
+    letterSpacing: typography.letterSpacing.wide,
+    marginBottom: spacing.md,
+    paddingHorizontal: spacing.lg,
   },
   rail: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingHorizontal: 12,
+    paddingHorizontal: spacing.md,
   },
   actionContainer: {
     flex: 1,
-    paddingHorizontal: 4,
+    paddingHorizontal: spacing.xs,
   },
   actionButton: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 8,
-    borderRadius: 16,
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radii.lg,
     minHeight: 100,
     borderWidth: 1,
-    borderColor: 'rgba(0, 0, 0, 0.05)',
+    borderColor: colors.borderTransparent,
   },
   actionIcon: {
     fontSize: 28,
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   actionLabel: {
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: typography.weight.extrabold,
   },
   actionSublabel: {
     fontSize: 11,
-    color: '#667085',
+    color: colors.textMuted,
     marginTop: 2,
   },
 });

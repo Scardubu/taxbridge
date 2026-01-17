@@ -185,7 +185,7 @@ bash infra/scripts/pre-launch-check.sh staging
 - [ ] App submitted to App Store (review pending)
 - [ ] Deep links configured (`taxbridge://`)
 - [ ] Offline mode tested (SQLite sync)
-- [ ] Unit tests passing (136 tests)
+- [ ] Unit tests passing (139 tests)
 
 #### Section 10: Documentation
 - [ ] `README.md` up to date

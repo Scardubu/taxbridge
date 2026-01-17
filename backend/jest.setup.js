@@ -98,6 +98,15 @@ function createQueueMock() {
 
 const redisMockInstance = createRedisMock();
 
+jest.mock('./src/lib/logger', () => ({
+  createLogger: () => ({
+    debug: () => {},
+    info: () => {},
+    warn: () => {},
+    error: () => {},
+  }),
+}));
+
 jest.mock('./src/queue/client', () => {
   const queueFactory = () => createQueueMock();
   return {

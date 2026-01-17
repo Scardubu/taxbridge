@@ -149,6 +149,7 @@ const envSchema = {
     DIGITAX_API_KEY: { type: 'string' },
     DIGITAX_HMAC_SECRET: { type: 'string' },
     DIGITAX_MOCK_MODE: { type: 'string', default: 'true' },
+    REMITA_MOCK_MODE: { type: 'string', default: 'false' },
     REMITA_MERCHANT_ID: { type: 'string' },
     REMITA_API_KEY: { type: 'string' },
     REMITA_SERVICE_TYPE_ID: { type: 'string' },
@@ -698,6 +699,57 @@ taxbridge_component_status{component="sms"} ${serverMetrics.componentStatus.sms 
     }
   });
 
+  // Combined integrations health check (DigiTax + Remita)
+  app.get('/health/integrations', async (_req, reply) => {
+    const now = new Date().toISOString();
+
+    try {
+      const [digitaxInjected, remitaInjected] = await Promise.all([
+        app.inject({ method: 'GET', url: '/health/digitax' }),
+        app.inject({ method: 'GET', url: '/health/remita' })
+      ]);
+
+      const digitax = digitaxInjected.json() as any;
+      const remita = remitaInjected.json() as any;
+
+      const digitaxStatus = (digitax?.status as string) || 'error';
+      const remitaStatus = (remita?.status as string) || 'error';
+
+      const statuses = [digitaxStatus, remitaStatus];
+      const overallStatus: 'healthy' | 'degraded' | 'error' = statuses.includes('error')
+        ? 'error'
+        : statuses.includes('degraded')
+          ? 'degraded'
+          : 'healthy';
+
+      return reply
+        .status(overallStatus === 'error' ? 503 : 200)
+        .send({
+          status: overallStatus,
+          integrations: {
+            // Canonical
+            digitax,
+            // Backward-compatible alias (older dashboards/monitors)
+            duplo: digitax,
+            remita,
+          },
+          timestamp: now,
+        });
+    } catch (error: any) {
+      app.log.error({ err: error }, 'Integrations health check failed');
+      return reply.status(503).send({
+        status: 'error',
+        integrations: {
+          digitax: { status: 'error', provider: 'digitax', error: 'Check failed', timestamp: now },
+          duplo: { status: 'error', provider: 'digitax', error: 'Check failed', timestamp: now },
+          remita: { status: 'error', provider: 'remita', error: 'Check failed', timestamp: now },
+        },
+        error: error?.message || 'Failed to check integrations health',
+        timestamp: now,
+      });
+    }
+  });
+
   // Database-only health check (used by F3/F4 validation scripts)
   app.get('/health/db', async (_req, reply) => {
     const startTime = Date.now();
@@ -711,7 +763,12 @@ taxbridge_component_status{component="sms"} ${serverMetrics.componentStatus.sms 
         status: latency < 100 ? 'healthy' : 'degraded',
         component: 'database',
         latency,
-        poolMax: Number(process.env.DB_POOL_MAX || 10),
+        poolMax: Number(
+          (app as any).config?.DATABASE_POOL_MAX ??
+            process.env.DATABASE_POOL_MAX ??
+            process.env.DB_POOL_MAX ??
+            10
+        ),
         timestamp: new Date().toISOString()
       });
     } catch (error: any) {
@@ -736,7 +793,7 @@ taxbridge_component_status{component="sms"} ${serverMetrics.componentStatus.sms 
       // Retrieve queue job counts via BullMQ Queue class
       const { Queue } = await import('bullmq');
       const invoiceSyncQueue = new Queue('invoice-sync', { connection: redis });
-      const paymentQueue = new Queue('payment-webhooks', { connection: redis });
+      const paymentQueue = new Queue('payment-webhook', { connection: redis });
 
       const [invoiceCounts, paymentCounts] = await Promise.all([
         invoiceSyncQueue.getJobCounts(),

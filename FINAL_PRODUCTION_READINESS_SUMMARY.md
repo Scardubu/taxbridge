@@ -11,7 +11,7 @@
 
 TaxBridge V5 is **production-ready** with all critical systems implemented, tested, and documented. The application has achieved:
 
-- ✅ **136/136 mobile tests passing** (100% pass rate)
+- ✅ **139/139 mobile tests passing** (100% pass rate)
 - ✅ **All backend services operational** (GrowthService, LaunchMetricsWidget, admin endpoints)
 - ✅ **Complete documentation suite** (9 comprehensive guides)
 - ✅ **Deployment automation** (PowerShell script + EAS config)
@@ -273,9 +273,13 @@ CREATE INDEX idx_alerts_resolved ON alerts(resolved);
 **Connection Pooling (Prisma):**
 ```env
 # Production
+DATABASE_POOL_MIN=5
+DATABASE_POOL_MAX=25
+DATABASE_POOL_TIMEOUT_MS=10000
+
+# Legacy aliases (still supported)
 DB_POOL_MIN=5
 DB_POOL_MAX=25
-DB_IDLE_TIMEOUT=30000
 DB_CONNECTION_TIMEOUT=10000
 ```
 
@@ -599,7 +603,7 @@ import { LaunchMetricsWidget } from '@/components/LaunchMetricsWidget';
 
 | Category | Score | Notes |
 |----------|-------|-------|
-| **Mobile App** | 100/100 | 136 tests passing, no blockers |
+| **Mobile App** | 100/100 | 139 tests passing, no blockers |
 | **Backend** | 95/100 | Integration tests pending (staging) |
 | **Admin Dashboard** | 100/100 | LaunchMetricsWidget complete |
 | **Infrastructure** | 85/100 | Staging deployment needed |
@@ -648,7 +652,7 @@ import { LaunchMetricsWidget } from '@/components/LaunchMetricsWidget';
 
 ## ✅ Final Checklist (Before Staging Deploy)
 
-- [x] All mobile tests passing (136/136)
+- [x] All mobile tests passing (139/139)
 - [x] Backend services verified (GrowthService, LaunchMetricsWidget)
 - [x] Admin dashboard components complete
 - [x] Environment configs created (.env.staging.example)

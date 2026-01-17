@@ -1,8 +1,7 @@
 import crypto from 'crypto';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../lib/prisma';
 import { createLogger } from '../lib/logger';
 
-const prisma = new PrismaClient();
 const log = createLogger('privacy');
 
 export class PrivacyService {
