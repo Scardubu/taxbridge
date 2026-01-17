@@ -162,6 +162,8 @@ Deploy backend to staging and validate health, queues, and migrations before loa
 - Resolution: ensure Prisma Client is generated during Render build and install.
    - Added `postinstall: prisma generate` in backend package.json.
    - Added `yarn prisma:generate` to Render build commands (API + worker, staging + production).
+ - Additional blocker: `DIGITAX_API_URL` and `JWT_REFRESH_SECRET` were required by env schema but not set in Render.
+    - Added `DIGITAX_API_URL` + `JWT_REFRESH_SECRET` to Render blueprints (staging + production).
 
 ### Latest Execution (2026-01-17)
 - Render build failed with TypeScript errors in `src/routes/invoices.ts` and `src/services/encryption.ts`.

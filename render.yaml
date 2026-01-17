@@ -52,6 +52,10 @@ services:
         value: "false"
       - key: REMITA_MOCK_MODE
         value: "false"
+
+      # DigiTax API base URL
+      - key: DIGITAX_API_URL
+        value: https://api.digitax.ng
       
       # DigiTax / NRS Credentials - SET IN RENDER DASHBOARD
       - key: DUPLO_CLIENT_ID
@@ -70,6 +74,8 @@ services:
       # Security Secrets - SET IN RENDER DASHBOARD (64-char hex)
       # Generate with: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
       - key: JWT_SECRET
+        sync: false
+      - key: JWT_REFRESH_SECRET
         sync: false
       - key: ENCRYPTION_KEY
         sync: false
@@ -129,6 +135,10 @@ services:
         value: "false"
       - key: REMITA_MOCK_MODE
         value: "false"
+
+      # DigiTax API base URL
+      - key: DIGITAX_API_URL
+        value: https://api.digitax.ng
       
       # DigiTax / NRS Credentials - SET IN RENDER DASHBOARD
       - key: DUPLO_CLIENT_ID
@@ -146,6 +156,8 @@ services:
       
       # Security Secrets - SET IN RENDER DASHBOARD (same as API service)
       - key: JWT_SECRET
+        sync: false
+      - key: JWT_REFRESH_SECRET
         sync: false
       - key: ENCRYPTION_KEY
         sync: false

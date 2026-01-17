@@ -21,6 +21,8 @@ services:
         value: true
       - key: REMITA_MOCK_MODE
         value: true
+      - key: DIGITAX_API_URL
+        value: https://sandbox.digitax.com/api
       - key: DATABASE_URL
         sync: false
       - key: REDIS_URL
@@ -41,6 +43,8 @@ services:
       - key: REMITA_WEBHOOK_SECRET
         sync: false
       - key: JWT_SECRET
+        sync: false
+      - key: JWT_REFRESH_SECRET
         sync: false
       - key: ENCRYPTION_KEY
         sync: false
@@ -79,6 +83,8 @@ services:
         value: true
       - key: REMITA_MOCK_MODE
         value: true
+      - key: DIGITAX_API_URL
+        value: https://sandbox.digitax.com/api
       - key: DATABASE_URL
         sync: false
       - key: REDIS_URL
@@ -97,6 +103,8 @@ services:
       - key: REMITA_SERVICE_TYPE_ID
         value: staging_dummy_service
       - key: JWT_SECRET
+        sync: false
+      - key: JWT_REFRESH_SECRET
         sync: false
       - key: ENCRYPTION_KEY
         sync: false
