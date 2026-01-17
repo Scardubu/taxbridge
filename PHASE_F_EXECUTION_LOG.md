@@ -163,6 +163,13 @@ Deploy backend to staging and validate health, queues, and migrations before loa
    - Added `postinstall: prisma generate` in backend package.json.
    - Added `yarn prisma:generate` to Render build commands (API + worker, staging + production).
 
+### Latest Execution (2026-01-17)
+- Render build failed with TypeScript errors in `src/routes/invoices.ts` and `src/services/encryption.ts`.
+- Fix applied: invoice decimals now use fixed-string values; encryption middleware typing uses `Prisma.MiddlewareParams`.
+- Backend build passes locally (`yarn build`).
+- Commit pushed to `master` and redeploy triggered.
+- Health validation against https://taxbridge-api.onrender.com still returns 502 (awaiting successful redeploy).
+
 ### Pre-Staging Check (January 17, 2026)
 
 **Result:** ✅ **31/31 checks passed**
