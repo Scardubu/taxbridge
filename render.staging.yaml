@@ -1,5 +1,6 @@
 # TaxBridge Staging Environment - Render Blueprint
 # Deploy: render blueprint create --repo taxbridge --file render.staging.yaml
+# Last Updated: 2026-01-17 16:15 UTC (F3 deployment fixes)
 
 services:
   - type: web
@@ -139,4 +140,3 @@ services:
     plan: starter
     region: oregon
     maxmemoryPolicy: allkeys-lru
-    ipAllowList: []  # Empty list allows connections from Render services
