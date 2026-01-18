@@ -10,7 +10,8 @@
 
 | Check | Status | Command |
 |-------|--------|---------|
-| Pre-staging validation | ✅ | `node backend/scripts/pre-staging-check.js` (31/31 passed) |
+| Pre-production check | ✅ | `yarn workspace @taxbridge/backend preproduction:check` (37/37 passed) |
+| Backend build | ✅ | `yarn workspace @taxbridge/backend build` (Prisma + TS) |
 | Backend tests | ✅ | 68/68 passing |
 | Mobile tests | ✅ | 139/139 passing |
 | Admin tests | ✅ | 8/8 passing |
@@ -84,8 +85,9 @@ If you already created a service manually, update these settings:
 1. **Go to:** Render Dashboard → Your Service → Settings
 2. **Build Command:**
    ```
-   yarn install --frozen-lockfile --production=false && yarn workspace @taxbridge/backend build && yarn workspace @taxbridge/backend prisma:generate && yarn workspace @taxbridge/backend ubl:download-xsd
+   yarn install --frozen-lockfile --production=false && yarn workspace @taxbridge/backend build && yarn workspace @taxbridge/backend ubl:download-xsd
    ```
+   > **Note:** `prisma generate` is already run by `yarn workspace @taxbridge/backend build`.
 3. **Start Command:**
    ```
    yarn workspace @taxbridge/backend start
@@ -139,8 +141,11 @@ node scripts/run-migrations.js --dry-run
 # Replace with your actual staging URL
 $STAGING_URL = "https://taxbridge-api-staging.onrender.com"
 
-# Run health validator
-node backend/scripts/validate-health.js $STAGING_URL
+# Quick health validation
+yarn workspace @taxbridge/backend validate:health $STAGING_URL
+
+# Comprehensive staging validation (health + mock mode + API smoke tests)
+yarn workspace @taxbridge/backend validate:staging $STAGING_URL
 ```
 
 **Expected Output:**
@@ -272,16 +277,21 @@ If the direct host (`db.<project-ref>.supabase.co`) resolves to IPv6 only and yo
 After F3 validation passes:
 
 ```powershell
-cd c:\Users\USR\Documents\taxbridge\backend\load-test
+cd c:\Users\USR\Documents\taxbridge
 
 # Install k6 (if not installed)
 winget install Grafana.k6
 
-# Run smoke test first
-k6 run k6-smoke.js -e BASE_URL=$STAGING_URL
+# Set the staging URL
+$env:BASE_URL = "https://taxbridge-api-staging.onrender.com"
 
-# Then full load test
-k6 run k6-script.js -e BASE_URL=$STAGING_URL
+# Run all F4 tests (smoke → load → soak)
+yarn workspace @taxbridge/backend test:load:f4
+
+# Or run individually:
+yarn workspace @taxbridge/backend test:load:smoke   # 5 min, 5 VUs
+k6 run backend/load-test/k6-script.js              # 27 min, up to 150 VUs
+k6 run backend/load-test/k6-soak.js                # 60 min, 50 VUs sustained
 ```
 
 ---

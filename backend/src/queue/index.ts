@@ -108,12 +108,13 @@ export const invoiceSyncWorker = new Worker(
       }
 
       const mockMode = String(process.env.DIGITAX_MOCK_MODE || 'true').toLowerCase() !== 'false';
+      const digitaxApiUrl = (process.env.DIGITAX_API_URL || '').trim();
 
       const submitResult = await submitToDigiTax(
         { invoiceId, ublXml },
         {
-          apiUrl: String(process.env.DIGITAX_API_URL),
-          apiKey: process.env.DIGITAX_API_KEY,
+          apiUrl: digitaxApiUrl,
+          apiKey: process.env.DIGITAX_API_KEY || '',
           hmacSecret: process.env.DIGITAX_HMAC_SECRET,
           mockMode
         }

@@ -50,14 +50,20 @@ Use this stack as the canonical baseline before following the legacy quick-start
 # Install required CLI tools
 npm install -g expo-cli
 npm install -g pm2         # Process manager
-npm install -g @prisma/cli # Database migrations
+
+# Prisma migrations are run via the repo dependency (`prisma`), not a global CLI.
+
+# Yarn Classic is required for monorepo workspaces
+npm install -g yarn
 
 # Verify installations
-node --version  # Should be 18+
+node --version  # Should be 20.x
 npm --version
+yarn --version
 expo --version
 pm2 --version
-prisma --version
+# Prisma CLI is available via the backend workspace dependency:
+# yarn workspace @taxbridge/backend prisma --version
 ```
 
 ---
@@ -69,14 +75,16 @@ prisma --version
 **Option A: Render (Recommended for MVP)**
 ```bash
 # 1. Create account at render.com
-# 2. Create New Web Service
-# 3. Connect GitHub repository
-# 4. Configure:
-#    - Name: taxbridge-api
-#    - Environment: Node
-#    - Build Command: cd backend && npm install && npm run build
-#    - Start Command: cd backend && npm run start:prod
-#    - Plan: Starter ($7/month)
+# 2. Go to Blueprints → New Blueprint Instance
+# 3. Connect GitHub repository: Scardubu/taxbridge
+# 4. Select blueprint file: render.yaml
+# 5. Set required secrets in Render Dashboard (keys marked sync:false)
+# 6. Apply and wait for deploy
+
+# Expected:
+# - Node is pinned via NODE_VERSION (see render.yaml)
+# - Build uses Yarn workspaces and runs Prisma generation + TS build
+# - Start command uses the workspace start scripts
 ```
 
 **Option B: AWS EC2**
@@ -84,18 +92,25 @@ prisma --version
 # Launch Ubuntu 22.04 instance (t3.small)
 ssh ubuntu@your-server-ip
 
-# Install Node.js 18
-curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+# Install Node.js 20
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
 sudo apt-get install -y nodejs
+
+# Install Yarn Classic (required for this monorepo)
+sudo npm install -g yarn
 
 # Install PM2
 sudo npm install -g pm2
 
 # Clone repository
 git clone https://github.com/your-org/taxbridge.git
-cd taxbridge/backend
-npm install
-npm run build
+cd taxbridge
+
+# Install monorepo dependencies
+yarn install --frozen-lockfile
+
+# Build backend (generates Prisma client before TypeScript compile)
+yarn workspace @taxbridge/backend build
 ```
 
 ### 1.2 Configure Database
@@ -172,16 +187,16 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ### 1.5 Run Database Migrations
 
 ```bash
-cd backend
+cd taxbridge
 
-# Generate Prisma client
-npm run prisma:generate
+# Generate Prisma client (only needed locally; Render build handles this automatically)
+yarn workspace @taxbridge/backend prisma:generate
 
 # Run migrations
-npm run prisma:migrate:deploy
+yarn workspace @taxbridge/backend prisma:migrate:deploy
 
-# Verify connection
-npm run prisma:studio  # Open in browser
+# Verify connection (optional)
+# yarn workspace @taxbridge/backend prisma studio
 ```
 
 ### 1.6 Start Backend Server

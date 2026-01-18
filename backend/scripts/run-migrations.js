@@ -13,7 +13,7 @@
  *   --dry-run: Show what would be migrated without applying changes
  */
 
-const { execSync } = require('child_process');
+const { spawnSync } = require('child_process');
 const path = require('path');
 
 const isDryRun = process.argv.includes('--dry-run');
@@ -35,38 +35,41 @@ const prismaEnv = {
   DATABASE_URL: migrationDatabaseUrl
 };
 
-const isWindows = process.platform === 'win32';
-const prismaBin = isWindows ? 'node_modules\\.bin\\prisma.cmd' : 'node_modules/.bin/prisma';
+const yarnCmd = process.platform === 'win32' ? 'yarn.cmd' : 'yarn';
+
+function runYarn(args, label) {
+  if (label) console.log(label);
+  const result = spawnSync(yarnCmd, args, {
+    cwd: backendDir,
+    stdio: 'inherit',
+    env: prismaEnv
+  });
+
+  if (result.error) {
+    throw result.error;
+  }
+  if (typeof result.status === 'number' && result.status !== 0) {
+    throw new Error(`Command failed: ${yarnCmd} ${args.join(' ')} (exit ${result.status})`);
+  }
+}
 
 try {
   if (isDryRun) {
     console.log('🔍 Dry run mode - checking migration status...\n');
     
     // Show migration status
-    execSync(`${prismaBin} migrate status`, {
-      cwd: backendDir,
-      stdio: 'inherit',
-      env: prismaEnv
-    });
+    runYarn(['prisma', 'migrate', 'status'], undefined);
   } else {
     console.log('📦 Applying migrations...\n');
     
     // Apply migrations
-    execSync(`${prismaBin} migrate deploy`, {
-      cwd: backendDir,
-      stdio: 'inherit',
-      env: prismaEnv
-    });
+    runYarn(['prisma:migrate:deploy'], undefined);
 
     console.log('\n✅ Migrations applied successfully');
     
     // Generate Prisma client
     console.log('\n🔧 Regenerating Prisma Client...\n');
-    execSync(`${prismaBin} generate`, {
-      cwd: backendDir,
-      stdio: 'inherit',
-      env: prismaEnv
-    });
+    runYarn(['prisma:generate'], undefined);
 
     console.log('\n✅ Database migration complete\n');
   }

@@ -145,7 +145,7 @@ const envSchema = {
     DATABASE_POOL_TIMEOUT_MS: { type: 'string', default: '5000' },
     PORT: { type: 'string', default: '3000' },
     REDIS_URL: { type: 'string' },
-    DIGITAX_API_URL: { type: 'string' },
+    DIGITAX_API_URL: { type: 'string', default: 'https://sandbox.digitax.ng' },
     DIGITAX_API_KEY: { type: 'string' },
     DIGITAX_HMAC_SECRET: { type: 'string' },
     DIGITAX_MOCK_MODE: { type: 'string', default: 'true' },
@@ -639,6 +639,18 @@ taxbridge_component_status{component="sms"} ${serverMetrics.componentStatus.sms 
   app.get('/health/remita', async (_req, reply) => {
     const startTime = Date.now();
     try {
+      const mockMode = String(process.env.REMITA_MOCK_MODE || 'false').toLowerCase() === 'true';
+
+      if (mockMode) {
+        return reply.send({
+          status: 'healthy',
+          provider: 'remita',
+          mode: 'mock',
+          latency: 2,
+          timestamp: new Date().toISOString()
+        });
+      }
+
       const remitaUrl = process.env.REMITA_API_URL || 'https://login.remita.net';
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 5000);

@@ -92,7 +92,7 @@ Create production-ready `.env.production` with:
    - Set staging secrets in Render dashboard
 
 2. **Apply migrations**
-   - Run `npx prisma migrate deploy` in Render shell
+   - Run `yarn workspace @taxbridge/backend prisma:migrate:deploy` in Render shell
 
 3. **Validate health**
    - Run `node backend/scripts/validate-health.js <staging-url>`
@@ -168,9 +168,8 @@ Deploy backend to staging and validate health, queues, and migrations before loa
 
 ### Deployment Blocker (F3)
 - Render service failing to start with `@prisma/client did not initialize yet` (missing Prisma Client in build output).
-- Resolution: Prisma generation is now enforced at service start via backend lifecycle scripts (`prestart`/`preworker`), and Prisma CLI is included in backend production dependencies to avoid `prisma: not found` when Render installs in production mode.
-   - Added `postinstall: prisma generate` in backend package.json.
-   - Added `yarn prisma:generate` to Render build commands (API + worker, staging + production).
+- Resolution: Prisma Client generation is enforced before TypeScript compilation (backend `build` now runs `prisma generate` before `tsc`), and is additionally guarded at runtime via backend lifecycle scripts (`prestart`/`preworker`).
+   - Render blueprints run `yarn workspace @taxbridge/backend build`, which already executes `prisma generate`. No separate `prisma:generate` step is needed.
  - Additional blocker: `DIGITAX_API_URL` and `JWT_REFRESH_SECRET` were required by env schema but not set in Render.
     - Added `DIGITAX_API_URL` + `JWT_REFRESH_SECRET` to Render blueprints (staging + production).
 
@@ -197,8 +196,7 @@ Delete existing Render staging service and redeploy via **Blueprints → New Blu
 **Expected Build Logs (success):**
 ```
 yarn install --frozen-lockfile --production=false
-yarn workspace @taxbridge/backend build
-yarn workspace @taxbridge/backend prisma:generate
+yarn workspace @taxbridge/backend build          # includes prisma generate + tsc
 yarn workspace @taxbridge/backend ubl:download-xsd
 ```
 

@@ -2,7 +2,7 @@
 
 **Target:** Production Launch  
 **Status:** Ready to Deploy  
-**Updated:** January 2025
+**Updated:** January 2026
 
 ---
 
@@ -13,8 +13,8 @@ Run these commands to verify readiness:
 ```powershell
 # 1. Backend validation
 cd backend
-npm run build          # Should: 0 errors
-npm test              # Should: 68 tests passing
+yarn build             # Should: 0 errors
+yarn test              # Should: 68 tests passing
 
 # 2. Mobile validation
 cd ../mobile
@@ -49,13 +49,13 @@ ENCRYPTION_KEY=[64_char_hex_string]
 
 # DigiTax (NRS Access Point Provider)
 DIGITAX_API_KEY=[production_key]
-DIGITAX_BASE_URL=https://api.digitax.ng
+DIGITAX_API_URL=https://api.digitax.ng
 
 # Remita Payment Gateway
 REMITA_MERCHANT_ID=[merchant_id]
 REMITA_API_KEY=[production_key]
 REMITA_SERVICE_TYPE_ID=[service_type_id]
-REMITA_BASE_URL=https://remitademo.net/remita/exapp/api/v1/send/api
+REMITA_API_URL=https://remitademo.net
 
 # Monitoring
 SENTRY_DSN=[backend_sentry_dsn]
@@ -103,7 +103,7 @@ Optional observability tokens can still be provided via EAS secrets (example):
 git push origin main
 
 # Run migrations via Render shell:
-npm run migrate:prod
+yarn workspace @taxbridge/backend prisma:migrate:deploy
 ```
 
 **Option B: Railway**
@@ -194,7 +194,7 @@ eas submit --platform ios --latest
 ```powershell
 # 1. Backend API
 curl https://api.taxbridge.ng/health
-# Expected: {"status":"ok","timestamp":"2025-01-XX..."}
+# Expected: {"status":"ok","timestamp":"2026-.."}
 
 # 2. Admin Dashboard
 curl -I https://admin.taxbridge.ng
@@ -287,7 +287,7 @@ turbopack: { root: path.resolve(__dirname, "..") }
 
 ### Issue: Database Migration Fails
 
-**Symptom:** `npm run migrate:prod` errors
+**Symptom:** `yarn workspace @taxbridge/backend prisma:migrate:deploy` errors
 
 **Solution:**
 1. Check `DATABASE_URL` env var is set
@@ -298,7 +298,7 @@ turbopack: { root: path.resolve(__dirname, "..") }
 3. Run migrations manually:
    ```bash
    cd backend
-   npx prisma migrate deploy
+   yarn prisma:migrate:deploy
    ```
 
 ---
@@ -376,6 +376,6 @@ Track these KPIs:
 
 ---
 
-**Last Updated:** January 2025  
+**Last Updated:** January 2026  
 **Document Owner:** Engineering Team  
 **Review Frequency:** Weekly (first month), then monthly

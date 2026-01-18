@@ -19,7 +19,6 @@ services:
     buildCommand: >-
       yarn install --frozen-lockfile --production=false &&
       yarn workspace @taxbridge/backend build &&
-      yarn workspace @taxbridge/backend prisma:generate &&
       yarn workspace @taxbridge/backend ubl:download-xsd
     startCommand: yarn workspace @taxbridge/backend start
     healthCheckPath: /health
@@ -115,7 +114,6 @@ services:
     buildCommand: >-
       yarn install --frozen-lockfile --production=false &&
       yarn workspace @taxbridge/backend build &&
-      yarn workspace @taxbridge/backend prisma:generate &&
       yarn workspace @taxbridge/backend ubl:download-xsd
     startCommand: yarn workspace @taxbridge/backend worker
     envVars:

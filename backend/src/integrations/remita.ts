@@ -52,10 +52,20 @@ export class RemitaClient {
   private serviceTypeId: string;
 
   constructor() {
-    this.baseURL = process.env.REMITA_API_URL || 'https://remitademo.net/remita';
+    this.baseURL = (process.env.REMITA_API_URL || 'https://remitademo.net').replace(/\/$/, '');
     this.merchantId = process.env.REMITA_MERCHANT_ID || '';
     this.apiKey = process.env.REMITA_API_KEY || '';
     this.serviceTypeId = process.env.REMITA_SERVICE_TYPE_ID || '';
+  }
+
+  private isMockMode(): boolean {
+    return String(process.env.REMITA_MOCK_MODE || 'false').toLowerCase() === 'true';
+  }
+
+  // Accept either https://host or https://host/remita and normalize to https://host/remita
+  private remitaBase(): string {
+    const base = this.baseURL.replace(/\/$/, '');
+    return base.endsWith('/remita') ? base : `${base}/remita`;
   }
 
   private generateInitHash(orderId: string, amount: number): string {
@@ -70,12 +80,16 @@ export class RemitaClient {
 
   async checkHealth(): Promise<{ status: 'healthy' | 'degraded' | 'error'; latency: number | null }> {
     const startTime = Date.now();
+
+    if (this.isMockMode()) {
+      return { status: 'healthy', latency: 2 };
+    }
     
     try {
       // Use a test RRR check as health check
       const testRRR = 'TEST123456789';
       const response = await axios.get(
-        `${this.baseURL}/ecomm/status.reg`,
+        `${this.remitaBase()}/ecomm/status.reg`,
         {
           params: {
             merchantId: this.merchantId,
@@ -118,7 +132,7 @@ export class RemitaClient {
 
       initStart = Date.now();
       const response = await axios.post<RemitaInitResponse>(
-        `${this.baseURL}/ecomm/init.reg`,
+        `${this.remitaBase()}/ecomm/init.reg`,
         requestData,
         {
           headers: {
@@ -157,7 +171,7 @@ export class RemitaClient {
       
       statusStart = Date.now();
       const response = await axios.get<RemitaStatusResponse>(
-        `${this.baseURL}/ecomm/status.reg`,
+        `${this.remitaBase()}/ecomm/status.reg`,
         {
           params: {
             merchantId: this.merchantId,
@@ -188,7 +202,7 @@ export class RemitaClient {
   async getTransactionHistory(startDate: string, endDate: string): Promise<RemitaStatusResponse[]> {
     try {
       const response = await axios.get<RemitaStatusResponse[]>(
-        `${this.baseURL}/ecomm/transactions`,
+        `${this.remitaBase()}/ecomm/transactions`,
         {
           params: {
             merchantId: this.merchantId,

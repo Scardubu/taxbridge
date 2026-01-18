@@ -27,6 +27,10 @@ interface PaymentStatus {
 export class RemitaAdapter {
   constructor(private config: RemitaConfig) {}
 
+  private getBaseUrl(): string {
+    return String(this.config.apiUrl || '').replace(/\/$/, '');
+  }
+
   private isMockMode(): boolean {
     return String(process.env.REMITA_MOCK_MODE || 'false').toLowerCase() === 'true';
   }
@@ -75,7 +79,7 @@ export class RemitaAdapter {
 
     try {
       const response = await axios.post(
-        `${this.config.apiUrl}/exapp/api/v1/send/api/echannelsvc/merchant/api/paymentinit`,
+        `${this.getBaseUrl()}/remita/exapp/api/v1/send/api/echannelsvc/merchant/api/paymentinit`,
         {
           serviceTypeId: this.config.serviceTypeId,
           amount: amountInKobo,
@@ -148,7 +152,7 @@ export class RemitaAdapter {
     try {
       verifyStart = Date.now();
       const response = await axios.get(
-        `${this.config.apiUrl}/remita/exapp/api/v1/send/api/echannelsvc/${this.config.merchantId}/${rrr}/${hash}/status.reg`,
+        `${this.getBaseUrl()}/remita/exapp/api/v1/send/api/echannelsvc/${this.config.merchantId}/${rrr}/${hash}/status.reg`,
         {
           headers: {
             'Content-Type': 'application/json'

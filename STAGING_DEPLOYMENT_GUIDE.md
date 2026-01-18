@@ -21,45 +21,31 @@
 
 ### 1. Backend Deployment (Render.com)
 
+TaxBridge staging is deployed via a **Render Blueprint** to avoid config drift.
+
+**CRITICAL:** Create the services via **Blueprints → New Blueprint Instance** using `render.staging.yaml`.
+Creating a Render service manually ("New Web Service") can ignore the blueprint and cause build failures.
+
+**Blueprint:** `render.staging.yaml` (repo root)
+**Expected runtime:** Node.js 20.19.4 (via `NODE_VERSION`)
+
+**Secrets (set in Render Dashboard for keys marked `sync: false`):**
+- `DATABASE_URL`
+- `JWT_SECRET`, `JWT_REFRESH_SECRET`
+- `ENCRYPTION_KEY`, `SESSION_SECRET`
+- `WEBHOOK_SECRET`, `REMITA_WEBHOOK_SECRET`
+
+**After the deploy shows “Live”:**
+
+1) Run migrations (Render Shell recommended)
 ```bash
-# Navigate to backend directory
-cd backend
-
-# Install dependencies (if not already done)
-npm install
-
-# Build TypeScript
-npm run build
-
-# Run database migrations
-npm run migrate:deploy
-
-# Deploy to Render
-git push render staging:main
-
-# Verify deployment
-curl https://api-staging.taxbridge.ng/health
-
-# Expected response:
-# {
-#   "status": "ok",
-#   "timestamp": "2026-01-14T...",
-#   "uptime": 123,
-#   "database": "connected",
-#   "redis": "connected"
-# }
+yarn workspace @taxbridge/backend prisma:migrate:deploy
 ```
 
-**Render.com Configuration:**
-- Service Name: `taxbridge-api-staging`
-- Environment: Node.js 18.x
-- Build Command: `npm install && npm run build`
-- Start Command: `npm start`
-- Health Check Path: `/health`
-- Auto-Deploy: Enabled (on push to staging branch)
-
-**Environment Variables (Render Dashboard):**
-Copy all values from `.env.staging.example` to Render environment variables.
+2) Validate health (from your local machine)
+```powershell
+node backend/scripts/validate-health.js https://taxbridge-api-staging.onrender.com
+```
 
 ---
 
@@ -97,11 +83,11 @@ open https://admin-staging.taxbridge.ng/dashboard
 ### 3. Mobile App Deployment (Expo EAS)
 
 ```bash
+# Ensure monorepo deps are installed (run from repo root)
+yarn install --frozen-lockfile
+
 # Navigate to mobile directory
 cd mobile
-
-# Install dependencies
-npm install
 
 # Update app.json for staging
 # Change appIdentifier to: ng.taxbridge.staging

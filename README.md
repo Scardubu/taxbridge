@@ -12,7 +12,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Production](https://img.shields.io/badge/status-ready-success)]()
 
-[Documentation](docs/PRD.md) • [Quick Start](#-quick-start) • [API Reference](#-api-endpoints) • [Production Guide](PRODUCTION_FINALIZATION_SUMMARY.md)
+[Documentation](docs/PRD.md) • [Quick Start](#-quick-start) • [API Reference](#-api-endpoints) • [Integration Checklist](docs/INTEGRATION_CHECKLIST.md) • [Execution Reports](docs/execution/README.md) • [Production Guide](PRODUCTION_FINALIZATION_SUMMARY.md)
 
 </div>
 
@@ -100,7 +100,7 @@ TaxBridge is a **mobile-first, offline-capable tax compliance platform** designe
 | **Mobile App** | React Native (Expo) + TypeScript | 0.81.5 / 54.0 / 5.9 |
 | **Admin Dashboard** | Next.js + React + TypeScript | 16.1.1 / 19.2 / 5.x |
 | **Backend API** | Node.js + Fastify + TypeScript | 5.6.2 / 5.9 |
-| **Database** | PostgreSQL + Prisma ORM | 15.x / 7.2 |
+| **Database** | PostgreSQL + Prisma ORM | 15.x / 5.22 |
 | **Queue System** | Redis + BullMQ | 7.x / 5.66 |
 | **OCR Engine** | Tesseract.js | 4.1.1 |
 | **Validation** | Zod | 4.3.5 |
@@ -154,7 +154,8 @@ taxbridge/
 
 ### Prerequisites
 
-- **Node.js** 18+ (LTS recommended)
+- **Node.js** 20.x (LTS recommended; matches Render blueprints)
+- **Yarn Classic** 1.22.x (workspace package manager)
 - **Docker Desktop** (for PostgreSQL & Redis)
 - **Expo CLI** (`npm install -g expo-cli`)
 - **Git**
@@ -164,6 +165,9 @@ taxbridge/
 ```bash
 git clone https://github.com/Scardubu/taxbridge.git
 cd taxbridge
+
+# Install monorepo dependencies
+yarn install --frozen-lockfile
 ```
 
 ### 2. Start Infrastructure
@@ -181,7 +185,8 @@ This starts:
 
 ```bash
 cd backend
-npm install
+
+# (Optional) If you already ran yarn install at repo root, you can skip installing here.
 
 # Create environment file
 cp .env.example .env
@@ -190,12 +195,12 @@ cp .env.example .env
 # DATABASE_URL="postgresql://taxbridge:dev_password@localhost:5432/taxbridge_dev"
 # REDIS_URL="redis://localhost:6380"
 
-# Initialize database
-npx prisma generate
-npx prisma db push
+# Initialize database (Prisma generation is also executed by the backend build used in CI/Render)
+yarn prisma:generate
+yarn prisma:push
 
 # Start development server
-npm run dev
+yarn dev
 ```
 
 Backend runs on `http://localhost:3000`
@@ -204,8 +209,7 @@ Backend runs on `http://localhost:3000`
 
 ```bash
 cd mobile
-npm install
-npm start
+yarn start
 ```
 
 Press `a` for Android emulator or `i` for iOS simulator.
@@ -222,7 +226,7 @@ Dashboard runs on `http://localhost:3001`
 
 ---
 
-## 📱 Mobile App Features (Production Ready - v5.0.0)
+## 📱 Mobile App Features (Production Ready - v5.0.2)
 
 ### ✅ Core Functionality
 - **Offline-First**: Create invoices without internet connection with SQLite persistence

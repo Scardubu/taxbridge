@@ -21,7 +21,8 @@ const ServerConfigSchema = z.object({
 
 // Database configuration schema
 const DatabaseConfigSchema = z.object({
-  url: z.string().url().optional(),
+  // Accept Postgres connection URLs (e.g. postgresql://...), not only http(s).
+  url: z.string().min(1).optional(),
   poolMin: z.coerce.number().nonnegative().default(2),
   poolMax: z.coerce.number().positive().default(10),
   connectionTimeout: z.coerce.number().positive().default(30000)
@@ -29,7 +30,7 @@ const DatabaseConfigSchema = z.object({
 
 // Redis configuration schema
 const RedisConfigSchema = z.object({
-  url: z.string().url().optional(),
+  url: z.string().min(1).optional(),
   host: z.string().default('localhost'),
   port: z.coerce.number().positive().default(6379),
   password: z.string().optional(),
@@ -41,7 +42,7 @@ const RedisConfigSchema = z.object({
 const DuploConfigSchema = z.object({
   clientId: z.string().min(1).optional(),
   clientSecret: z.string().min(1).optional(),
-  apiUrl: z.string().url().default('https://api.duplo.africa'),
+  apiUrl: z.string().min(1).default('https://api.duplo.co'),
   tokenEndpoint: z.string().default('/v1/oauth/token'),
   invoiceEndpoint: z.string().default('/v1/einvoice/submit'),
   timeout: z.coerce.number().positive().default(30000)
@@ -52,14 +53,24 @@ const RemitaConfigSchema = z.object({
   merchantId: z.string().min(1).optional(),
   apiKey: z.string().min(1).optional(),
   serviceTypeId: z.string().min(1).optional(),
-  apiUrl: z.string().url().default('https://remitademo.net/remita/exapp/api/v1/send/api'),
+  // Base host (e.g. https://remitademo.net or https://login.remita.net). Path is handled by the integration.
+  apiUrl: z.string().min(1).default('https://remitademo.net'),
   webhookSecret: z.string().optional(),
   timeout: z.coerce.number().positive().default(30000)
 });
 
 // SMS configuration schema
 const SMSConfigSchema = z.object({
-  provider: z.enum(['africas_talking', 'termii', 'mock']).default('mock'),
+  // Accept both `africastalking` and `africas_talking` (historical drift).
+  provider: z.preprocess(
+    (value) => {
+      if (typeof value !== 'string') return value;
+      const normalized = value.trim().toLowerCase();
+      if (normalized === 'africas_talking') return 'africastalking';
+      return normalized;
+    },
+    z.enum(['africastalking', 'termii', 'infobip', 'mock']).default('mock')
+  ),
   africasTalking: z.object({
     apiKey: z.string().optional(),
     username: z.string().optional().default('sandbox'),
@@ -82,7 +93,15 @@ const QueueConfigSchema = z.object({
 
 // Security configuration schema
 const SecurityConfigSchema = z.object({
-  corsOrigins: z.string().default('*').transform(s => s.split(',')),
+  corsOrigins: z
+    .string()
+    .default('*')
+    .transform((s) =>
+      s
+        .split(',')
+        .map((o) => o.trim())
+        .filter(Boolean)
+    ),
   rateLimitMax: z.coerce.number().positive().default(100),
   rateLimitWindow: z.coerce.number().positive().default(60000), // 1 minute in ms
   jwtSecret: z.string().min(32).optional(),
