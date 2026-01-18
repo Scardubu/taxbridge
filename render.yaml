@@ -5,7 +5,6 @@
 # IMPORTANT: All secrets must be set in Render Dashboard
 # See: backend/.env.production for required values
 # Do NOT commit secrets to this file
-
 services:
   # ============================================
   # API SERVICE (Main Web Backend)
@@ -34,7 +33,6 @@ services:
         value: 3000
       - key: LOG_LEVEL
         value: info
-
       # Prisma
       # Prevent @prisma/client postinstall from running `prisma generate` during `yarn install`.
       # Generation is handled explicitly in buildCommand and also guarded at runtime via backend lifecycle scripts.
@@ -58,7 +56,6 @@ services:
         value: "false"
       - key: REMITA_MOCK_MODE
         value: "false"
-
       # DigiTax API base URL
       - key: DIGITAX_API_URL
         value: https://api.digitax.ng
@@ -105,7 +102,6 @@ services:
         value: "true"
       - key: SENTRY_DSN
         sync: false
-
   # ============================================
   # WORKER SERVICE (BullMQ Job Processor)
   # ============================================
@@ -130,7 +126,6 @@ services:
         value: production
       - key: LOG_LEVEL
         value: info
-
       # Prisma
       - key: PRISMA_SKIP_POSTINSTALL_GENERATE
         value: "true"
@@ -151,7 +146,6 @@ services:
         value: "false"
       - key: REMITA_MOCK_MODE
         value: "false"
-
       # DigiTax API base URL
       - key: DIGITAX_API_URL
         value: https://api.digitax.ng
@@ -189,7 +183,6 @@ services:
       # Monitoring
       - key: SENTRY_DSN
         sync: false
-
   # ============================================
   # REDIS CACHE SERVICE
   # ============================================
@@ -198,5 +191,4 @@ services:
     plan: starter
     region: oregon
     maxmemoryPolicy: allkeys-lru
-    ipAllowList:
-      - 0.0.0.0/0
+    ipAllowList: []

@@ -140,5 +140,4 @@ services:
     plan: starter
     region: oregon
     maxmemoryPolicy: allkeys-lru
-    ipAllowList:
-      - 0.0.0.0/0
+    ipAllowList: []
