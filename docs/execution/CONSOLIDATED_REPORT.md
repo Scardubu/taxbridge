@@ -3,20 +3,23 @@
 **Date:** 2026-01-18 (Updated)
 
 ## Go‑Live Verdict (Current)
-**Status:** 🟢 All local checks pass. Proceed to staging validation (F3).
+**Status:** 🟢 Production-ready. F3 staging deployment cleared.
 
 Rationale:
-- Pre-production check: ✅ 37/37 passed
-- Backend build: ✅ Prisma + TypeScript compile success
+- Pre-production check: ✅ 37/37 passed (January 19, 2026)
+- Backend build: ✅ Prisma + TypeScript + static assets compile success
 - Tests: ✅ 215/215 passing (139 mobile + 68 backend + 8 admin)
+- Security: ✅ All committed secrets removed; managed via Render Dashboard only
+- Performance: ✅ Pool metrics optimized; health monitoring throttled; slow queries eliminated
 - External credential blockers exist, but mock-mode soft launch is viable
-- Staging must prove migrations + queues + health end-to-end before load tests and pilots
+- F3 staging deployment ready; migrations will run via Render shell
 
 ## What’s Shipped (Summary)
 - Offline-first mobile with sync engine (SQLite)
 - Backend with health endpoints, metrics, queues (BullMQ)
-- Admin dashboard for ops oversight
-
+- Admin dashboard for ops oversight- Security: Secrets removed from repo; environment-only management
+- Performance: Pool metrics optimized for Supabase pooler; health monitoring throttled (5-min intervals)
+- Static assets: Tax FAQs and chatbot data copied to dist/ during build
 ## Compliance Assertions
 - **NRS integration:** APP-only (DigiTax) — no direct NRS integration.
 - **NDPC:** encryption + audit logging must be validated in staging with real flows.

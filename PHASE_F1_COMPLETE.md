@@ -255,11 +255,11 @@ eas build:list --limit 2
 - Store in plaintext on local disk
 
 ```bash
-ENCRYPTION_KEY=5f0d9a8e6071ebe0139c18d75fddb1eb7a46dd551a2f55008bf51165c61a7583
-JWT_SECRET=5419cca7ef8f857fb7b19c0c188bf0df98c0fa0125360110e43999dc9c2bd372
-JWT_REFRESH_SECRET=7f4c0f45affc800d79f91ecff81260471cb4ae2b1aaa8faf27686988108a6de0
-SESSION_SECRET=ce666569a204aa716645e59142cca57b43bc1cb52fc75fb870db5504e82b272f
-WEBHOOK_SECRET=d010c0d84bb550fd868c85a0c106664ad56cf040b10afc7041a2bdbfb292973f
+ENCRYPTION_KEY=<generated-64-char-hex>
+JWT_SECRET=<generated-64-char-hex>
+JWT_REFRESH_SECRET=<generated-64-char-hex>
+SESSION_SECRET=<generated-64-char-hex>
+WEBHOOK_SECRET=<generated-64-char-hex>
 ```
 
 **Rotation Reminder:** Regenerate before production launch (F6) using dual-secret pattern.

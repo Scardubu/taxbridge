@@ -39,7 +39,7 @@ services:
         value: "true"
       
       # Database - SET IN RENDER DASHBOARD
-      # Value: postgresql://postgres:newleaF12!%40%24@db.hojzknpqniugotvtzszn.supabase.co:5432/postgres
+      # Value: postgresql://postgres:[URL-ENCODED-PASSWORD]@db.[PROJECT-REF].supabase.co:5432/postgres?sslmode=require
       - key: DATABASE_URL
         sync: false
       

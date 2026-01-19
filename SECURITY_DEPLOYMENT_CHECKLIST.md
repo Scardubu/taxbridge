@@ -26,10 +26,10 @@ You've already generated your encryption key. Now add all security variables to 
 # === SECURITY CONFIGURATION ===
 
 # Encryption (ALREADY GENERATED)
-ENCRYPTION_KEY=4e99302220051bab82754aad23bbb2d0a2bce837462711b5ed6297aeb6125a57
+ENCRYPTION_KEY=<generated-64-char-hex>
 
 # JWT Secrets (GENERATE NEW 64-char hex strings)
-JWT_SECRET=<run: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))">
+JWT_SECRET=<generated-64-char-hex>
 JWT_REFRESH_SECRET=<run: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))">
 
 # JWT Expiry

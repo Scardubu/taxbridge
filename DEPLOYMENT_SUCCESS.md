@@ -63,9 +63,9 @@ All enterprise-grade security components have been successfully implemented, tes
 ### ✅ Completed Steps
 
 1. ✅ **Environment Configuration**
-   - ENCRYPTION_KEY: 4e99302220051bab82754aad23bbb2d0a2bce837462711b5ed6297aeb6125a57
-   - JWT_SECRET: 5daea3e7198d7961ad3a168fb3c216d39b7b536c9b2474155c78163804aafdb4
-   - JWT_REFRESH_SECRET: ee86eb1ca3a1356f3a7e79301361ee5d2a395de96d7f9bee0ea952d420b8a6ff
+   - ENCRYPTION_KEY: <generated-64-char-hex>
+   - JWT_SECRET: <generated-64-char-hex>
+   - JWT_REFRESH_SECRET: <generated-64-char-hex>
 
 2. ✅ **Database Schema Migration**
    - 18 ALTER TABLE statements executed

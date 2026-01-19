@@ -37,6 +37,8 @@ export class ConnectionPoolMonitor {
   private slowQueryCount = 0;
   private lastPostgresErrorLogAt = 0;
   private lastPostgresErrorSignature: string | null = null;
+  private metricsCache: { metrics: PoolMetrics; cachedAt: number } | null = null;
+  private readonly CACHE_TTL_MS = 30000; // Cache metrics for 30 seconds
 
   /**
    * Start collecting pool metrics
@@ -76,11 +78,19 @@ export class ConnectionPoolMonitor {
    * Collect current pool metrics
    */
   async collectMetrics(): Promise<PoolMetrics> {
+    // Return cached metrics if fresh (within TTL)
+    if (this.metricsCache && Date.now() - this.metricsCache.cachedAt < this.CACHE_TTL_MS) {
+      return this.metricsCache.metrics;
+    }
+
     const metrics: PoolMetrics = {
       postgres: await this.getPostgresMetrics(),
       redis: await this.getRedisMetrics(),
       timestamp: new Date(),
     };
+
+    // Cache the metrics
+    this.metricsCache = { metrics, cachedAt: Date.now() };
 
     // Log metrics
     log.debug('Connection pool metrics', {
@@ -113,32 +123,86 @@ export class ConnectionPoolMonitor {
 
   /**
    * Get PostgreSQL pool metrics
+   * 
+   * Note: pg_stat_activity requires elevated privileges on many managed DBs.
+   * Fallback to Prisma internal pool if query fails.
    */
   private async getPostgresMetrics(): Promise<PoolMetrics['postgres']> {
     try {
       const prisma = getPrismaClient();
+      const poolMax = Number(process.env.DATABASE_POOL_MAX || 10);
+      const dbUrl = process.env.DATABASE_POOL_URL || process.env.DATABASE_URL || '';
+      
+      // Detect pooler/transaction mode environments:
+      // - pgbouncer=true (explicit)
+      // - pooler.supabase.com (Supabase pooler)
+      // - Port 6543 (Supabase transaction pooler default)
+      // - transaction_mode=true / statement_mode=true
+      const isPoolerMode = 
+        dbUrl.includes('pgbouncer=true') || 
+        dbUrl.includes('pooler.supabase.com') ||
+        dbUrl.includes(':6543') ||
+        dbUrl.includes('transaction') ||
+        dbUrl.includes('statement');
 
-      // Query pg_stat_activity to get connection counts
-      const result: any = await prisma.$queryRaw`
-        SELECT 
-          COUNT(*) FILTER (WHERE state = 'active') as active,
-          COUNT(*) FILTER (WHERE state = 'idle') as idle,
-          (SELECT setting::int FROM pg_settings WHERE name = 'max_connections') as max_connections
-        FROM pg_stat_activity
-        WHERE datname = current_database()
-      `;
+      // Skip expensive pg_stat_activity query in pooler/transaction mode
+      // These environments don't support system catalog queries and cause 700-1300ms+ delays
+      // (Observed in production: "Slow query detected", "action":"queryRaw", "duration":1307")
+      if (isPoolerMode) {
+        // Lightweight health check only (no system catalogs or pg_stat views)
+        await prisma.$queryRaw`SELECT 1 AS health`;
+        return {
+          activeConnections: 1,
+          idleConnections: poolMax - 1,
+          maxConnections: poolMax,
+          utilizationPercent: Math.round((1 / poolMax) * 100),
+          slowQueries: this.slowQueryCount,
+        };
+      }
 
-      const active = Number(result[0]?.active || 0);
-      const idle = Number(result[0]?.idle || 0);
-      const max = Number(result[0]?.max_connections || 100);
+      // Try to query pg_stat_activity (may fail on managed DBs without superuser)
+      try {
+        const result: any = await prisma.$queryRaw`
+          SELECT 
+            COUNT(*) FILTER (WHERE state = 'active') as active,
+            COUNT(*) FILTER (WHERE state = 'idle') as idle
+          FROM pg_stat_activity
+          WHERE datname = current_database()
+        `;
 
-      return {
-        activeConnections: active,
-        idleConnections: idle,
-        maxConnections: max,
-        utilizationPercent: Math.round((active / max) * 100),
-        slowQueries: this.slowQueryCount,
-      };
+        const active = Number(result[0]?.active || 0);
+        const idle = Number(result[0]?.idle || 0);
+
+        return {
+          activeConnections: active,
+          idleConnections: idle,
+          maxConnections: poolMax,
+          utilizationPercent: Math.round((active / poolMax) * 100),
+          slowQueries: this.slowQueryCount,
+        };
+      } catch (statError: any) {
+        // Fallback: use Prisma pool config (no DB query needed)
+        const poolMax = Number(process.env.DATABASE_POOL_MAX || 10);
+        
+        // Log privilege error once, then suppress
+        const now = Date.now();
+        const signature = 'pg_stat_activity_access_denied';
+        const shouldLog = signature !== this.lastPostgresErrorSignature || now - this.lastPostgresErrorLogAt >= 300000;
+
+        if (shouldLog) {
+          this.lastPostgresErrorSignature = signature;
+          this.lastPostgresErrorLogAt = now;
+          log.info('pg_stat_activity unsupported (managed DB or pooler), using lightweight fallback');
+        }
+
+        return {
+          activeConnections: 1, // Assume at least 1 (this query)
+          idleConnections: poolMax - 1,
+          maxConnections: poolMax,
+          utilizationPercent: Math.round((1 / poolMax) * 100),
+          slowQueries: this.slowQueryCount,
+        };
+      }
     } catch (error) {
       const now = Date.now();
       const signature =

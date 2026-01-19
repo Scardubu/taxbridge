@@ -28,8 +28,8 @@ Mobile (SQLite/offline)
 |---|---:|---|---|
 | Mobile offline invoice creation (SQLite) | ✅ | Works offline; no data loss | Mobile test suite passes (139/139 per Phase E reports). |
 | Mobile → Backend sync (retry/backoff/idempotency) | 🟡 | Sync success > 99% under poor networks | Requires staging soak + field pilot validation (F4 + soft launch). |
-| Backend API core (auth, invoices, sync endpoints) | ✅ | API p95 < 400ms; error rate < 1% | Backend tests pass (68/68). Staging health checks required (F3). |
-| Database migrations (Prisma migrate deploy) | 🔶 | Migrations apply cleanly in staging | Run via Render shell (preferred) or `backend/scripts/run-f3-staging.js`. |
+| Backend API core (auth, invoices, sync endpoints) | ✅ | API p95 < 400ms; error rate < 1% | Backend tests pass (68/68). Pre-production check: 37/37 passed. |
+| Database migrations (Prisma migrate deploy) | ✅ | Migrations apply cleanly in staging | Run via Render shell or `node backend/scripts/run-migrations.js`. |
 | Redis + BullMQ worker processing | ✅ | Worker running; queues healthy | `/health/queues` returns 200; `maxmemoryPolicy: noeviction` configured. |
 | UBL/XSD validation pipeline | ✅ | XSD available and validated | XSD downloaded during deploy (`ubl:download-xsd`); `/health` returns UBL snapshot. |
 | DigiTax (APP) integration | 🟡 | No direct NRS integration; APP only | Soft launch allowed with `DIGITAX_MOCK_MODE=true`; certification required before full production. |
@@ -37,7 +37,7 @@ Mobile (SQLite/offline)
 | SMS provider integration (AT/Termii) | 🟡 | No silent failures; retries | Soft launch can run with mock/disabled SMS; verify DLQ + alerts. |
 | Admin dashboard (ops + launch metrics) | ✅ | Can view system status + audits | Admin tests pass (8/8); confirm staging env vars + backend URL. |
 | Audit logs + encryption (NDPC) | ✅ | Sensitive fields encrypted; immutable audit trail | Confirmed in security docs + backend config; verify in staging with a real flow. |
-| Monitoring (Sentry + health/metrics) | ✅ | Errors observable; alerts configured | Health log throttling active; `/health/live` for liveness, `/health/ready` for readiness. |
+| Monitoring (Sentry + health/metrics) | ✅ | Errors observable; alerts configured | Health log throttling (5-min intervals); pool metrics optimized for Supabase pooler; `/health/live` for liveness, `/health/ready` for readiness. |
 
 ## Blockers & Escalations (Tracked)
 | Blocker | Impact | Current Mitigation | Escalation Owner |

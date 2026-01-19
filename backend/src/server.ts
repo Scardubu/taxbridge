@@ -273,7 +273,8 @@ async function bootstrap() {
 
   if (process.env.ENABLE_POOL_MONITORING !== 'false') {
     initializePoolMonitoring();
-    log.info('Connection pool monitoring enabled');
+    const isPooler = (process.env.DATABASE_URL || '').includes('pgbouncer=true');
+    log.info('Connection pool monitoring enabled', { poolerMode: isPooler });
   }
 
   // Health check endpoints
@@ -288,17 +289,23 @@ async function bootstrap() {
     });
   });
 
-  // Readiness: proves the service can talk to its critical dependencies.
+  // Readiness: proves the service can talk to its critical dependencies (DB + Redis).
+  // External integrations (DigiTax/Remita) are not required for readiness (mock mode is acceptable).
   // Keep this separate from liveness so deploy platforms don't restart-loop on DB outages.
   app.get('/health/ready', async (_req, reply) => {
     try {
+      // Critical dependencies: database and queue/cache
       await prisma.$queryRaw`SELECT 1`;
       const redis = getRedisConnection();
       await redis.ping();
 
       return reply.send({
         status: 'ready',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        dependencies: {
+          database: 'healthy',
+          redis: 'healthy'
+        }
       });
     } catch (error) {
       app.log.error({ err: error }, 'Readiness check failed');
