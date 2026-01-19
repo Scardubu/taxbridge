@@ -35,6 +35,8 @@ const UTILIZATION_WARNING_THRESHOLD = Number(process.env.POOL_UTILIZATION_WARNIN
 export class ConnectionPoolMonitor {
   private intervalId: NodeJS.Timeout | null = null;
   private slowQueryCount = 0;
+  private lastPostgresErrorLogAt = 0;
+  private lastPostgresErrorSignature: string | null = null;
 
   /**
    * Start collecting pool metrics
@@ -138,7 +140,26 @@ export class ConnectionPoolMonitor {
         slowQueries: this.slowQueryCount,
       };
     } catch (error) {
-      log.error('Failed to get Postgres metrics', { error });
+      const now = Date.now();
+      const signature =
+        error instanceof Error
+          ? `${error.name}:${error.message}`
+          : error
+            ? String(error)
+            : 'unknown';
+
+      // Avoid noisy logs during cold start / DB misconfig; log at most every 5 minutes unless error changes.
+      const shouldLog =
+        signature !== this.lastPostgresErrorSignature || now - this.lastPostgresErrorLogAt >= 300000;
+
+      if (shouldLog) {
+        this.lastPostgresErrorSignature = signature;
+        this.lastPostgresErrorLogAt = now;
+        log.warn('Failed to get Postgres metrics', { error });
+      } else {
+        log.debug('Failed to get Postgres metrics (suppressed)', { signature });
+      }
+
       return {
         activeConnections: -1,
         idleConnections: -1,

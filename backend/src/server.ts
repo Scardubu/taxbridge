@@ -953,45 +953,76 @@ taxbridge_component_status{component="sms"} ${serverMetrics.componentStatus.sms 
 // Health monitoring function
 function startHealthMonitoring() {
   const interval = parseInt(process.env.METRICS_INTERVAL || '60000'); // Default 1 minute
+  const logThrottleMs = Number(process.env.HEALTH_LOG_THROTTLE_MS || '300000'); // 5 minutes
+  let lastLogKey: string | null = null;
+  let lastLogAt = 0;
   
   healthCheckInterval = setInterval(async () => {
     if (isShuttingDown) return;
     
+    const now = Date.now();
+    let dbLatency = -1;
+    let redisLatency = -1;
+    let dbError: unknown;
+    let redisError: unknown;
+
+    // Check database (non-fatal)
     try {
-      // Check database
       const dbStart = Date.now();
       await prisma.$queryRaw`SELECT 1`;
-      const dbLatency = Date.now() - dbStart;
+      dbLatency = Date.now() - dbStart;
       serverMetrics.componentStatus.database = dbLatency < 100 ? 'healthy' : dbLatency < 500 ? 'degraded' : 'error';
-      
-      // Check Redis
+    } catch (error) {
+      dbError = error;
+      serverMetrics.componentStatus.database = 'error';
+    }
+
+    // Check Redis (non-fatal)
+    try {
       const redisStart = Date.now();
       const redis = getRedisConnection();
       await redis.ping();
-      const redisLatency = Date.now() - redisStart;
+      redisLatency = Date.now() - redisStart;
       serverMetrics.componentStatus.redis = redisLatency < 50 ? 'healthy' : redisLatency < 200 ? 'degraded' : 'error';
-      
-      // Check SMS providers health status
-      try {
-        const providerHealthStatus = getProviderHealth();
-        const healthyCount = Object.values(providerHealthStatus).filter(p => p.isHealthy).length;
-        serverMetrics.componentStatus.sms = healthyCount > 0 ? 'healthy' : 'degraded';
-      } catch {
-        serverMetrics.componentStatus.sms = 'unknown';
-      }
-      
-      serverMetrics.lastHealthCheck = Date.now();
-      
-      // Log health status if degraded
-      const hasIssues = Object.values(serverMetrics.componentStatus).some(s => s !== 'healthy' && s !== 'unknown');
-      if (hasIssues) {
-        log.warn('System health check', {
-          components: serverMetrics.componentStatus,
-          latency: { database: dbLatency, redis: redisLatency }
-        });
-      }
     } catch (error) {
-      log.error('Health monitoring failed', { err: error });
+      redisError = error;
+      serverMetrics.componentStatus.redis = 'error';
+    }
+
+    // Check SMS providers health status
+    try {
+      const providerHealthStatus = getProviderHealth();
+      const healthyCount = Object.values(providerHealthStatus).filter((p) => p.isHealthy).length;
+      serverMetrics.componentStatus.sms = healthyCount > 0 ? 'healthy' : 'degraded';
+    } catch {
+      serverMetrics.componentStatus.sms = 'unknown';
+    }
+
+    serverMetrics.lastHealthCheck = now;
+
+    const components = serverMetrics.componentStatus;
+    const hasIssues = Object.values(components).some((s) => s !== 'healthy' && s !== 'unknown');
+    const logKey = `${components.database}:${components.redis}:${components.sms}:${components.queues}`;
+    const shouldLog = logKey !== lastLogKey || now - lastLogAt >= logThrottleMs;
+
+    if (shouldLog) {
+      lastLogKey = logKey;
+      lastLogAt = now;
+
+      const payload = {
+        components,
+        latency: { database: dbLatency, redis: redisLatency },
+        errors: {
+          database: dbError instanceof Error ? dbError.message : dbError ? String(dbError) : undefined,
+          redis: redisError instanceof Error ? redisError.message : redisError ? String(redisError) : undefined,
+        },
+      };
+
+      if (hasIssues) {
+        log.warn('System health check', payload);
+      } else {
+        log.info('System health check', payload);
+      }
     }
   }, interval);
   

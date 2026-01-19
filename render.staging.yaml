@@ -39,7 +39,7 @@ services:
           name: taxbridge-redis-staging
           property: connectionString
       - key: DUPLO_CLIENT_ID
-        value: staging_dummy_client_id
+            maxmemoryPolicy: noeviction
       - key: DUPLO_CLIENT_SECRET
         value: staging_dummy_client_secret
       - key: REMITA_MERCHANT_ID
@@ -138,5 +138,5 @@ services:
     name: taxbridge-redis-staging
     plan: starter
     region: oregon
-    maxmemoryPolicy: allkeys-lru
+    maxmemoryPolicy: noeviction
     ipAllowList: []

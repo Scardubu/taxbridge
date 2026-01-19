@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import { readFileSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { submitToDigiTax } from '../integrations/digitax/adapter';
 import { remitaAdapter } from '../integrations/remita/adapter';
@@ -38,6 +38,14 @@ export class TaxChatbot {
   private loadFAQs(): void {
     try {
       const faqPath = join(__dirname, '../data/tax_faqs.json');
+
+      // In production/staging, this file must exist in dist (copied by build step).
+      if (!existsSync(faqPath)) {
+        logger.warn('FAQ file missing; chatbot will run with empty FAQ set', { faqPath });
+        this.faqs = [];
+        return;
+      }
+
       const faqData = readFileSync(faqPath, 'utf-8');
       this.faqs = JSON.parse(faqData);
       logger.info(`Loaded ${this.faqs.length} FAQs for chatbot`);

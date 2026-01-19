@@ -50,7 +50,7 @@ services:
           name: taxbridge-redis
           property: connectionString
       
-      # Integration Mode (Production = real APIs)
+            maxmemoryPolicy: noeviction
       - key: DIGITAX_MOCK_MODE
         value: "false"
       - key: REMITA_MOCK_MODE
@@ -188,5 +188,5 @@ services:
     name: taxbridge-redis
     plan: starter
     region: oregon
-    maxmemoryPolicy: allkeys-lru
+    maxmemoryPolicy: noeviction
     ipAllowList: []

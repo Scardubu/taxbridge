@@ -77,6 +77,8 @@ This causes `prisma: not found` and `MODULE_NOT_FOUND` errors.
 - `PRISMA_SKIP_POSTINSTALL_GENERATE=true` prevents `prisma: not found` during install
 - `PORT=3000` ensures health checks work
 - Prisma CLI is in backend production dependencies as fallback
+- **Redis eviction policy:** `noeviction` (required for BullMQ reliability; removes startup warnings)
+- **Static assets:** `src/data/` (tax FAQs, chatbot) are copied to `dist/` during build
 
 ### Option B: Manual Service Update (if service already exists)
 
@@ -272,6 +274,22 @@ If the direct host (`db.<project-ref>.supabase.co`) resolves to IPv6 only and yo
 # Verify PORT env var (Render sets automatically)
 # Check ALLOWED_ORIGINS includes health check origin
 ```
+
+### Chatbot FAQ Error (ENOENT tax_faqs.json)
+If logs show `Failed to load FAQs: ENOENT ...tax_faqs.json`:
+- Build step now copies `src/data/` → `dist/src/data/` via `scripts/copy-static-assets.js`
+- Redeploy after latest commit to get the fix
+
+### Redis Eviction Policy Warning
+If logs show `IMPORTANT! Eviction policy is allkeys-lru. It should be "noeviction"`:
+- Render blueprints now specify `maxmemoryPolicy: noeviction`
+- Delete and recreate Redis instance via Blueprint Instance to apply new policy
+
+### Database Connection Errors During Startup
+If pool-metrics or health monitoring logs DB errors:
+- Server now runs with `/health/live` (no DB dependency) as the health check path
+- DB errors are throttled (logged once per state change or every 5 minutes)
+- Service remains available; readiness (`/health/ready`) will fail until DB recovers
 
 ---
 
