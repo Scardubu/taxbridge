@@ -152,25 +152,32 @@ Deploy backend to staging and validate health, queues, and migrations before loa
 - Health validation output (all endpoints 200)
 - Worker logs confirming queue processing
 
-### F3 Blockers Resolved ✅ (January 19, 2026)
+### F3 Blockers Resolved ✅ (January 19, 2026 — COMPLETE)
 
-**Security & Secrets:**
-- ✅ Removed committed secrets from repository (`.env`, `.env.production`, `RENDER_SECRETS.txt`)
-- ✅ Redacted leaked credentials from documentation and blueprint comments
-- ✅ All secrets now managed via Render Dashboard environment variables only
+**Security & Secrets Hardening:**
+- ✅ Removed all committed secrets from repository:
+  - Deleted credentials from RENDER_SECRETS.txt (now placeholder only)
+  - Redacted database passwords, API keys, service IDs from docs
+  - Removed leaked credentials from F3_STAGING_DEPLOYMENT.md
+  - Removed service ID from render.yaml comments
+- ✅ Enforced environment-only secret management
+- ✅ Validated .gitignore coverage for all secret patterns
+- ✅ Updated documentation to reference `generate-secrets.js` script
 
 **Performance Optimizations:**
 - ✅ Pool metrics query optimized for Supabase pooler (detects pooler mode via URL/port)
 - ✅ Expensive `pg_stat_activity` query skipped in pooler mode
 - ✅ Health monitoring made non-fatal with 5-minute throttled logging
 - ✅ Slow query warnings reduced from every 60s to state-change only
+- ✅ Static assets (tax FAQs, chatbot data) copied to dist/ during build
 
 **Production Readiness:**
-- ✅ Pre-production check: 37/37 passed
+- ✅ Pre-production check: 37/37 passed (January 19, 2026)
 - ✅ Backend build: TypeScript + Prisma + static assets
-- ✅ All health endpoints registered and validated
+- ✅ All health endpoints registered and validated (5 endpoints)
 - ✅ Integration routes confirmed (`/api/v1/invoices`, `/api/v1/payments`)
 - ✅ Render blueprints validated (production + staging)
+- ✅ Phase A-E execution reports updated with current evidence
 
 **Migration Path (when ready for F3 deployment):**
 - Run migrations from Render shell (preferred): `yarn workspace @taxbridge/backend prisma:migrate:deploy`

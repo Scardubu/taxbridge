@@ -64,13 +64,13 @@ This causes `prisma: not found` and `MODULE_NOT_FOUND` errors.
 
    | Variable | Value | Source |
    |----------|-------|--------|
-   | `DATABASE_URL` | `postgresql://postgres.zdgbbbcjptygvwqufvoc:...@aws-1-eu-west-1.pooler.supabase.com:5432/postgres` | Supabase pooler |
-   | `JWT_SECRET` | 64-char hex | RENDER_SECRETS.txt |
-   | `JWT_REFRESH_SECRET` | 64-char hex | RENDER_SECRETS.txt |
-   | `ENCRYPTION_KEY` | 64-char hex | RENDER_SECRETS.txt |
-   | `SESSION_SECRET` | 64-char hex | RENDER_SECRETS.txt |
-   | `WEBHOOK_SECRET` | 64-char hex | RENDER_SECRETS.txt |
-   | `REMITA_WEBHOOK_SECRET` | 64-char hex | RENDER_SECRETS.txt |
+   | `DATABASE_URL` | `postgresql://postgres.[PROJECT]:password@[HOST]:5432/postgres` | Supabase dashboard → Settings → Database |
+   | `JWT_SECRET` | 64-char hex | `node backend/scripts/generate-secrets.js` |
+   | `JWT_REFRESH_SECRET` | 64-char hex | `node backend/scripts/generate-secrets.js` |
+   | `ENCRYPTION_KEY` | 64-char hex | `node backend/scripts/generate-secrets.js` |
+   | `SESSION_SECRET` | 64-char hex | `node backend/scripts/generate-secrets.js` |
+   | `WEBHOOK_SECRET` | 64-char hex | `node backend/scripts/generate-secrets.js` |
+   | `REMITA_WEBHOOK_SECRET` | 64-char hex | `node backend/scripts/generate-secrets.js` |
    | `SENTRY_DSN` | (leave empty) | Optional |
 
 7. **Click "Apply"** → Wait for build (~5-8 min)

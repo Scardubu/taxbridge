@@ -1,6 +1,5 @@
 # TaxBridge Production Render Blueprint
-# Service ID: srv-d5ks7of5r7bs73cl7om0
-# Last Updated: January 16, 2026
+# Last Updated: January 19, 2026
 #
 # IMPORTANT: All secrets must be set in Render Dashboard
 # See: backend/.env.production for required values

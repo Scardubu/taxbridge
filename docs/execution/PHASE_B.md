@@ -7,14 +7,24 @@
 - Structured error handling (mobile + backend) with observability
 - API p95 < 400ms on staging under load; error rate < 1%
 
-## Current Status (2026-01-18)
-- ✅ TypeScript: 0 errors reported in Phase E artifacts
-- ✅ Backend has structured health + metrics endpoints
-- 🔶 Load testing suite pending execution (F4)
+## Current Status (2026-01-19)
+- ✅ TypeScript: 0 errors across all layers
+- ✅ Backend structured health + metrics endpoints (5 endpoints registered)
+- ✅ Performance optimizations applied:
+  - Pool metrics optimized for Supabase pooler (auto-detection)
+  - Health monitoring throttled (5-min intervals, non-fatal)
+  - Slow query logging reduced to state-change only
+- ✅ Pre-production check: 37/37 passed
+- ⏳ Load testing suite ready for F4 execution
 
-## Risks
-- Hoisted dependency behavior in monorepo can break runtime scripts if they assume per-package binaries.
+## Evidence
+- Backend tests: 68/68 passing
+- Mobile tests: 139/139 passing
+- Admin tests: 8/8 passing
+- Health endpoints: `/health`, `/health/db`, `/health/queues`, `/health/digitax`, `/health/remita`
+- Performance commit: "perf: optimize production deployment" (January 19, 2026)
 
 ## Next Actions
-1. Run F4 load tests against staging (smoke → load → soak)
-2. Capture p95 and error rate; set explicit rollback thresholds
+1. Execute F4 load tests against staging (smoke → load → soak)
+2. Validate p95 < 400ms and error rate < 1% under load
+3. Document rollback thresholds based on load test results
