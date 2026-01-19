@@ -94,7 +94,7 @@ resource "digitalocean_loadbalancer" "backend_lb" {
   healthcheck {
     protocol               = "http"
     port                   = 3000
-    path                   = "/health"
+    path                   = "/health/live"
     check_interval_seconds = 30
     response_timeout_seconds = 5
     unhealthy_threshold    = 3

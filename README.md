@@ -313,8 +313,10 @@ GET /api/v1/invoices/:id
 ### Health & Monitoring
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `GET` | `/health` | Basic health check |
-| `GET` | `/ready` | Readiness probe |
+| `GET` | `/health/live` | Liveness check (no DB) |
+| `GET` | `/health/ready` | Readiness check (DB+Redis) |
+| `GET` | `/health` | Deep health (all deps) |
+| `GET` | `/ready` | Alias for `/health/ready` |
 | `GET` | `/metrics` | Prometheus metrics |
 
 ### Admin APIs

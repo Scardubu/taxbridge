@@ -42,7 +42,7 @@
     "ubl:download-xsd": "mkdir -p lib && curl -fsSL https://docs.oasis-open.org/ubl/os-UBL-2.1/xsd/maindoc/UBL-Invoice-2.1.xsd -o lib/ubl-invoice-2.1.xsd || echo 'XSD download skipped' && touch lib/ubl-invoice-2.1.xsd",
     "staging:validate": "node scripts/run-f3-staging.js",
     "preproduction:check": "node scripts/pre-production-check.js",
-    "health:check": "curl -f http://localhost:3000/health && curl -f http://localhost:3000/health/digitax && curl -f http://localhost:3000/health/remita",
+    "health:check": "curl -f http://localhost:3000/health/live && curl -f http://localhost:3000/health/ready && curl -f http://localhost:3000/health",
     "lint": "eslint src/ --ext .ts --max-warnings 0",
     "lint:fix": "eslint src/ --ext .ts --fix"
   },

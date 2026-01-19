@@ -15,7 +15,7 @@ services:
       yarn workspace @taxbridge/backend build &&
       yarn workspace @taxbridge/backend ubl:download-xsd
     startCommand: yarn workspace @taxbridge/backend start
-    healthCheckPath: /health
+    healthCheckPath: /health/live
     envVars:
       - key: NODE_VERSION
         value: 20.19.4

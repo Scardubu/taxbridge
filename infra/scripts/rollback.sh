@@ -15,6 +15,6 @@ VERSION=$target docker compose -f infra/docker-compose.prod.yml pull || true
 VERSION=$target docker compose -f infra/docker-compose.prod.yml up -d --remove-orphans
 
 sleep 10
-curl -fsS https://api.taxbridge.ng/health
+curl -fsS https://api.taxbridge.ng/health/live
 
 printf "Rollback finished. Verify background workers and Redis queues before closing the incident.\n"

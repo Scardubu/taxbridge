@@ -74,11 +74,11 @@ echo "API URL: $API_URL"
 echo "Admin URL: $ADMIN_URL"
 echo ""
 
-# Test 1: Basic Health Check
-test_endpoint "$API_URL/health" 200 "Basic health check"
+# Test 1: Liveness Check (no external deps)
+test_endpoint "$API_URL/health/live" 200 "Liveness probe"
 
-# Test 2: Readiness Check
-test_endpoint "$API_URL/ready" 200 "Readiness probe"
+# Test 2: Readiness Check (DB + Redis)
+test_endpoint "$API_URL/health/ready" 200 "Readiness probe"
 
 # Test 3: Metrics Endpoint
 test_endpoint "$API_URL/metrics" 200 "Prometheus metrics"
@@ -112,7 +112,7 @@ fi
 
 # Test 6: CORS Headers
 log_test "CORS headers configuration"
-cors_header=$(curl -s -I -X OPTIONS "$API_URL/health" | grep -i "access-control-allow-origin" || echo "")
+cors_header=$(curl -s -I -X OPTIONS "$API_URL/health/live" | grep -i "access-control-allow-origin" || echo "")
 if [ -n "$cors_header" ]; then
   log_pass "CORS headers present"
 else

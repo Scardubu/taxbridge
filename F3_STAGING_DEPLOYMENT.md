@@ -165,7 +165,10 @@ Checking Queue Health Check... ✅ 200 (50ms)
 
 ```powershell
 # Basic auth test
-Invoke-RestMethod -Uri "$STAGING_URL/health" -Method GET | ConvertTo-Json
+Invoke-RestMethod -Uri "$STAGING_URL/health/live" -Method GET | ConvertTo-Json
+
+# Dependency readiness check
+Invoke-RestMethod -Uri "$STAGING_URL/health/ready" -Method GET | ConvertTo-Json
 
 # API version check
 Invoke-RestMethod -Uri "$STAGING_URL/api/v1/version" -Method GET | ConvertTo-Json

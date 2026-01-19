@@ -277,6 +277,39 @@ async function bootstrap() {
   }
 
   // Health check endpoints
+  // Liveness: proves the process is up (no external dependencies)
+  app.get('/health/live', async (_req, reply) => {
+    return reply.send({
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      version: process.env.npm_package_version || '1.0.0',
+      env: process.env.NODE_ENV || 'unknown'
+    });
+  });
+
+  // Readiness: proves the service can talk to its critical dependencies.
+  // Keep this separate from liveness so deploy platforms don't restart-loop on DB outages.
+  app.get('/health/ready', async (_req, reply) => {
+    try {
+      await prisma.$queryRaw`SELECT 1`;
+      const redis = getRedisConnection();
+      await redis.ping();
+
+      return reply.send({
+        status: 'ready',
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      app.log.error({ err: error }, 'Readiness check failed');
+      return reply.status(503).send({
+        status: 'not-ready',
+        error: 'Critical dependencies unavailable',
+        timestamp: new Date().toISOString()
+      });
+    }
+  });
+
   app.get('/health', async (_req, reply) => {
     try {
       // Basic health check - database and redis
@@ -364,23 +397,14 @@ async function bootstrap() {
 
   // Readiness check (for Kubernetes)
   app.get('/ready', async (_req, reply) => {
+    const injected = await app.inject({ method: 'GET', url: '/health/ready' });
     try {
-      await prisma.$queryRaw`SELECT 1`;
-      const redis = getRedisConnection();
-      await redis.ping();
-      
-      // Check if all critical services are ready
-      const isReady = true; // Could add more checks
-      
-      return reply.send({ 
-        status: isReady ? 'ready' : 'not-ready',
+      const payload = JSON.parse(injected.payload);
+      return reply.status(injected.statusCode).send(payload);
+    } catch {
+      return reply.status(injected.statusCode).send({
+        status: injected.statusCode === 200 ? 'ready' : 'not-ready',
         timestamp: new Date().toISOString()
-      });
-    } catch (error) {
-      app.log.error({ err: error }, 'Readiness check failed');
-      return reply.status(503).send({ 
-        status: 'not-ready', 
-        error: 'Services not ready' 
       });
     }
   });

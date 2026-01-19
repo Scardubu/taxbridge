@@ -25,7 +25,10 @@ if (!baseUrl) {
 }
 
 const endpoints = [
-  { path: '/health', name: 'Base Health Check', required: true },
+  { path: '/health/live', name: 'Liveness Check', required: true },
+  { path: '/health/ready', name: 'Readiness Check', required: true },
+  // Deep health (includes DB + Redis + integrations). Useful for dashboards/ops, but not the primary deploy gate.
+  { path: '/health', name: 'Deep Health Check', required: false },
   { path: '/health/digitax', name: 'DigiTax Health Check', required: false },
   { path: '/health/duplo', name: 'Legacy Duplo Alias (DigiTax)', required: false },
   { path: '/health/remita', name: 'Remita Health Check', required: false },

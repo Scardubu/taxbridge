@@ -118,7 +118,7 @@ fi
 
 # Backend API
 if [ -n "${BACKEND_URL:-}" ]; then
-    if timeout 10 curl -f -s "${BACKEND_URL}/health" > /dev/null 2>&1; then
+    if timeout 10 curl -f -s "${BACKEND_URL}/health/live" > /dev/null 2>&1; then
         check_pass "Backend API responding"
         
         # Get detailed health
@@ -128,7 +128,7 @@ if [ -n "${BACKEND_URL:-}" ]; then
             echo "   Status: $STATUS"
         fi
     else
-        check_fail "Backend API not responding at ${BACKEND_URL}/health"
+        check_fail "Backend API not responding at ${BACKEND_URL}/health/live"
     fi
 else
     check_warn "BACKEND_URL not set - using localhost:3000"
