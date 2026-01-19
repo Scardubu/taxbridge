@@ -97,10 +97,10 @@ Optional observability tokens can still be provided via EAS secrets (example):
 ```bash
 # Connect repo to Render dashboard
 # Set environment variables in Render UI
-# Render auto-deploys on git push to main
+# Render auto-deploys on git push to master
 
 # Manual trigger:
-git push origin main
+git push origin master
 
 # Run migrations via Render shell:
 yarn workspace @taxbridge/backend prisma:migrate:deploy

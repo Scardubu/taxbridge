@@ -26,9 +26,9 @@ services:
       - key: PRISMA_SKIP_POSTINSTALL_GENERATE
         value: "true"
       - key: DIGITAX_MOCK_MODE
-        value: true
+        value: "true"
       - key: REMITA_MOCK_MODE
-        value: true
+        value: "true"
       - key: DIGITAX_API_URL
         value: https://sandbox.digitax.com/api
       - key: DATABASE_URL
@@ -39,7 +39,7 @@ services:
           name: taxbridge-redis-staging
           property: connectionString
       - key: DUPLO_CLIENT_ID
-            maxmemoryPolicy: noeviction
+        value: staging_dummy_client_id
       - key: DUPLO_CLIENT_SECRET
         value: staging_dummy_client_secret
       - key: REMITA_MERCHANT_ID
@@ -67,13 +67,13 @@ services:
       - key: UBL_XSD_PATH
         value: lib/ubl-invoice-2.1.xsd
       - key: ENABLE_METRICS
-        value: true
+        value: "true"
       - key: LOG_LEVEL
         value: debug
       - key: RATE_LIMIT_MAX
-        value: 200
+        value: "200"
       - key: DATABASE_POOL_MAX
-        value: 10
+        value: "10"
 
   - type: worker
     name: taxbridge-worker-staging
@@ -95,9 +95,9 @@ services:
       - key: PRISMA_SKIP_POSTINSTALL_GENERATE
         value: "true"
       - key: DIGITAX_MOCK_MODE
-        value: true
+        value: "true"
       - key: REMITA_MOCK_MODE
-        value: true
+        value: "true"
       - key: DIGITAX_API_URL
         value: https://sandbox.digitax.com/api
       - key: DATABASE_URL

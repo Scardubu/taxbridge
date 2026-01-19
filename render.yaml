@@ -49,8 +49,6 @@ services:
           type: redis
           name: taxbridge-redis
           property: connectionString
-      
-            maxmemoryPolicy: noeviction
       - key: DIGITAX_MOCK_MODE
         value: "false"
       - key: REMITA_MOCK_MODE

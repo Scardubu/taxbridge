@@ -12,7 +12,7 @@ This guide walks you through deploying TaxBridge to production after obtaining n
 |-------|----------|--------------------|-------|
 | Backend API & Queue Worker | Render Starter (2×) | 14 | Auto-scale triggers at 70% CPU; blueprint in [render.yaml](render.yaml#L1)
 | Database | Supabase Pro | 25 | Includes 14-day backups; enable PITR (+100) once invoice volume >50K |
-| Redis Cache | Render Redis Starter | 10 | `allkeys-lru` eviction; provisioned in [render.yaml](render.yaml#L58-L65) |
+| Redis Cache | Render Redis Starter | 10 | `noeviction` policy (recommended for BullMQ reliability); provisioned in [render.yaml](render.yaml#L1) |
 | OCR Microservice | DigitalOcean Droplet s-1vcpu-1gb | 6 | Terraform-managed in [infra/terraform/main.tf](infra/terraform/main.tf#L1) downloads Peppol BIS 3.0 XSD; swap to AWS Lightsail nano ($3.50) by uncommenting provider block |
 | Admin Dashboard | Vercel Free | 0 | 1M edge requests/mo |
 | Mobile Delivery | Expo EAS Free | 0 | 15 builds/mo, 1K OTA MAUs |
