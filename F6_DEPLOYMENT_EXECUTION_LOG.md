@@ -65,10 +65,13 @@ DIGITAX_HMAC_SECRET=2a612c0f508fa8e9ab4f807ba9a78dfbff7c064e7c9009f3e739f8f3cae8
    - Navigate to: **Settings → Database**
    - Find: **Connection string (Pooler)** — Port 6543
    - Format: `postgresql://postgres.[PROJECT]:[PASSWORD]@aws-0-us-west-1.pooler.supabase.com:6543/postgres?sslmode=require`
+   - Find: **Connection string (Direct)** — Port 5432 (non-pooler, required for Prisma migrations)
+   - Format: `postgresql://postgres.[PROJECT]:[PASSWORD]@aws-0-us-west-1.supabase.co:5432/postgres?sslmode=require`
 
-5. **Copy connection string and save as:**
+5. **Copy connection strings and save as:**
    ```bash
    DATABASE_URL=postgresql://postgres.[PROJECT]:[PASSWORD]@aws-0-us-west-1.pooler.supabase.com:6543/postgres?sslmode=require
+   DIRECT_URL=postgresql://postgres.[PROJECT]:[PASSWORD]@aws-0-us-west-1.supabase.co:5432/postgres?sslmode=require
    ```
 
 **Status:** ⏳ **PENDING USER ACTION**
@@ -104,6 +107,7 @@ Copy and paste these into Render dashboard (replace `[DATABASE_URL]` with actual
 ```bash
 # Database
 DATABASE_URL=[PASTE_YOUR_SUPABASE_CONNECTION_STRING_HERE]
+DIRECT_URL=[PASTE_YOUR_SUPABASE_DIRECT_CONNECTION_STRING_HERE]
 
 # Authentication & Security
 JWT_SECRET=b603e0e5e457f24447115812fc93836f20ba6b00371b530523bb6c8f65e1ccd2

@@ -41,6 +41,9 @@ services:
       # Value: postgresql://postgres:[URL-ENCODED-PASSWORD]@db.[PROJECT-REF].supabase.co:5432/postgres?sslmode=require
       - key: DATABASE_URL
         sync: false
+      # Direct URL is required for Prisma migrations (non-pooling, port 5432)
+      - key: DIRECT_URL
+        sync: false
       
       # Redis (Render Managed)
       - key: REDIS_URL
@@ -127,6 +130,8 @@ services:
       
       # Database - SET IN RENDER DASHBOARD (same as API service)
       - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_URL
         sync: false
       
       # Redis (Render Managed)
