@@ -219,7 +219,7 @@ export default function PITTutorialStep({ onNext }: Props) {
               <TextInput
                 style={styles.input}
                 keyboardType="numeric"
-                placeholder="e.g. 2,400,000"
+                placeholder={t('placeholders.incomeExample')}
                 value={grossIncome}
                 onChangeText={setGrossIncome}
                 placeholderTextColor="#9CA3AF"
@@ -241,7 +241,7 @@ export default function PITTutorialStep({ onNext }: Props) {
                 <TextInput
                   style={styles.input}
                   keyboardType="numeric"
-                  placeholder="0"
+                  placeholder={t('placeholders.zero')}
                   value={rent}
                   onChangeText={setRent}
                   placeholderTextColor="#9CA3AF"
@@ -256,7 +256,7 @@ export default function PITTutorialStep({ onNext }: Props) {
                 <TextInput
                   style={styles.input}
                   keyboardType="numeric"
-                  placeholder="0"
+                  placeholder={t('placeholders.zero')}
                   value={pension}
                   onChangeText={setPension}
                   placeholderTextColor="#9CA3AF"

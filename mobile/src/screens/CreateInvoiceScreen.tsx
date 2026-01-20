@@ -246,14 +246,14 @@ export default function CreateInvoiceScreen(props: any) {
         }
         message += `Detected: ${ocrResult.amount ? `₦${ocrResult.amount.toFixed(2)}` : 'No amount'}\nConfidence: ${(ocrResult.confidence * 100).toFixed(0)}%\n\nApply detected values?`;
 
-        Alert.alert('OCR Result', message, [
-          { text: 'Use Detected', onPress: () => applyOcrResult(ocrResult) },
-          { text: 'Ignore', style: 'cancel' },
+        Alert.alert(t('alerts.ocrResult'), message, [
+          { text: t('alerts.useDetected'), onPress: () => applyOcrResult(ocrResult) },
+          { text: t('alerts.ignore'), style: 'cancel' },
         ]);
       } else {
         applyOcrResult(ocrResult);
         if (isMountedRef.current) {
-          Alert.alert('Receipt Analysis Complete', `Detected: ${ocrResult.amount ? `₦${ocrResult.amount.toFixed(2)}` : 'No amount'}\nConfidence: ${(ocrResult.confidence * 100).toFixed(0)}%\n\nReview and adjust as needed.`);
+          Alert.alert(t('alerts.receiptAnalysisComplete'), `Detected: ${ocrResult.amount ? `₦${ocrResult.amount.toFixed(2)}` : 'No amount'}\nConfidence: ${(ocrResult.confidence * 100).toFixed(0)}%\n\nReview and adjust as needed.`);
         }
       }
     } catch (error) {
@@ -293,31 +293,31 @@ export default function CreateInvoiceScreen(props: any) {
     
     if (!hasPermission) {
       Alert.alert(
-        'Camera Permission Required',
-        'Please enable camera access in settings to scan receipts.',
-        [{ text: 'OK', style: 'default' }]
+        t('alerts.cameraPermissionRequired'),
+        t('alerts.cameraPermissionDesc'),
+        [{ text: t('common.ok'), style: 'default' }]
       );
       return;
     }
 
     Alert.alert(
-      'Scan Receipt',
-      'Choose how to capture your receipt:',
+      t('alerts.scanReceipt'),
+      t('alerts.scanReceiptDesc'),
       [
         {
-          text: 'Take Photo',
+          text: t('alerts.takePhoto'),
           onPress: () => {
             if (isMountedRef.current) setShowCamera(true);
           },
           style: 'default',
         },
         {
-          text: 'Choose from Gallery',
+          text: t('alerts.chooseFromGallery'),
           onPress: () => void handlePickFromGallery(),
           style: 'default',
         },
         {
-          text: 'Cancel',
+          text: t('settings.cancel'),
           style: 'cancel',
         },
       ]
@@ -359,14 +359,14 @@ export default function CreateInvoiceScreen(props: any) {
       
       const message = err instanceof Error ? err.message : 'Failed to save invoice. Please try again.';
       if (String(message).toLowerCase().includes('storage quota') || String(message).toLowerCase().includes('storage')) {
-        Alert.alert('Storage Full', 'App storage appears full. Would you like to clear old synced invoices to free space?', [
-          { text: 'Clear Old Synced', onPress: async () => {
+        Alert.alert(t('alerts.storageFull'), t('alerts.storageFullDesc'), [
+          { text: t('alerts.clearOldSynced'), onPress: async () => {
             try {
               // eslint-disable-next-line @typescript-eslint/no-var-requires
               const db = require('../services/database');
               const removed = await db.clearSyncedLocalInvoices(7);
               if (isMountedRef.current) {
-                Alert.alert('Cleanup Complete', `Removed ${removed} old synced invoices. Please try saving again.`);
+                Alert.alert(t('alerts.cleanupComplete'), `${t('alerts.removed')} ${removed} ${t('alerts.oldSyncedInvoices')}. ${t('alerts.pleaseRetry')}`);
               }
             } catch (e) {
               if (isMountedRef.current) {

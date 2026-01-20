@@ -1,5 +1,6 @@
 import React, { memo } from 'react';
 import { View, Text, StyleSheet, Image, ImageSourcePropType } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -34,6 +35,7 @@ function BrandedHero({
   variant = 'onboarding',
   logoSource = defaultLogo,
 }: BrandedHeroProps) {
+  const { t } = useTranslation();
   const pulseScale = useSharedValue(1);
 
   React.useEffect(() => {

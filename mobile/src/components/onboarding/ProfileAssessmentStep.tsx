@@ -126,7 +126,7 @@ function ProfileAssessmentStep({ onNext }: Props) {
           <TextInput
             style={styles.input}
             keyboardType="numeric"
-            placeholder="1,000,000"
+            placeholder={t('placeholders.income')}
             placeholderTextColor="#9CA3AF"
             value={annualIncome}
             onChangeText={handleIncomeChange}
@@ -145,7 +145,7 @@ function ProfileAssessmentStep({ onNext }: Props) {
             <TextInput
               style={styles.input}
               keyboardType="numeric"
-              placeholder="50,000,000"
+              placeholder={t('placeholders.turnover')}
               placeholderTextColor="#9CA3AF"
               value={annualTurnover}
               onChangeText={handleTurnoverChange}

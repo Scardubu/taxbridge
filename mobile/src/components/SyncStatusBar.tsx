@@ -1,5 +1,6 @@
 import React, { memo, useEffect } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -19,6 +20,7 @@ interface SyncStatusBarProps {
 }
 
 function SyncStatusBar({ pendingCount = 0, onSyncPress }: SyncStatusBarProps) {
+  const { t } = useTranslation();
   const { isOnline } = useNetwork();
   const { isSyncing, lastSyncAt } = useSyncContext();
   const pulseOpacity = useSharedValue(1);

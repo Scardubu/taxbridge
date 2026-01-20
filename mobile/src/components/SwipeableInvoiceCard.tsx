@@ -1,5 +1,6 @@
 import React, { memo, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet, Pressable, Alert, Dimensions } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -31,6 +32,7 @@ function SwipeableInvoiceCard({
   onDelete,
   showSyncProgress = true,
 }: SwipeableInvoiceCardProps) {
+  const { t } = useTranslation();
   const inv = invoice;
   const translateX = useSharedValue(0);
   const scale = useSharedValue(1);
