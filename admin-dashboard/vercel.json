@@ -1,21 +1,10 @@
 {
-  "buildCommand": "npm run build",
-  "outputDirectory": ".next",
-  "installCommand": "npm install",
   "framework": "nextjs",
   "regions": ["iad1"],
   "env": {
     "NEXT_PUBLIC_APP_URL": "https://admin.taxbridge.ng",
     "BACKEND_URL": "https://taxbridge-api.onrender.com",
-    "NEXT_PUBLIC_BACKEND_URL": "https://taxbridge-api.onrender.com",
-    "ADMIN_API_KEY": "@admin_api_key",
-    "DUPLO_API_URL": "https://api.duplo.co",
-    "DUPLO_CLIENT_ID": "@duplo_client_id",
-    "DUPLO_CLIENT_SECRET": "@duplo_client_secret",
-    "REMITA_API_URL": "https://remita.net",
-    "REMITA_MERCHANT_ID": "@remita_merchant_id",
-    "REMITA_API_KEY": "@remita_api_key",
-    "REMITA_SERVICE_TYPE_ID": "@remita_service_type_id"
+    "NEXT_PUBLIC_BACKEND_URL": "https://taxbridge-api.onrender.com"
   },
   "functions": {
     "app/api/**": {
