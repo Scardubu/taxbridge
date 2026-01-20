@@ -18,7 +18,7 @@
     "staging": {
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://api-staging.taxbridge.ng",
+        "EXPO_PUBLIC_API_URL": "https://taxbridge-api-35w0.onrender.com",
         "EXPO_PUBLIC_ENV": "staging",
         "EXPO_PUBLIC_SENTRY_DSN": "https://staging@sentry.io/project",
         "EXPO_PUBLIC_MIXPANEL_TOKEN": "staging_mixpanel_token"
@@ -36,7 +36,7 @@
     "preview": {
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://api-staging.taxbridge.ng",
+        "EXPO_PUBLIC_API_URL": "https://taxbridge-api-35w0.onrender.com",
         "EXPO_PUBLIC_ENV": "preview"
       },
       "android": {
@@ -45,7 +45,7 @@
     },
     "production": {
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://api.taxbridge.ng",
+        "EXPO_PUBLIC_API_URL": "https://taxbridge-api.onrender.com",
         "EXPO_PUBLIC_ENV": "production",
         "EXPO_PUBLIC_SENTRY_DSN": "https://prod@sentry.io/project",
         "EXPO_PUBLIC_MIXPANEL_TOKEN": "prod_mixpanel_token"
