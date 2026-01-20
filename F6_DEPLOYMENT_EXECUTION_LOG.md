@@ -156,8 +156,31 @@ REMITA_MOCK_MODE=true
 
 ### Prerequisites
 
-- [ ] Render deployment completed (all services "Live")
-- [ ] DATABASE_URL environment variable set
+- [x] Render deployment completed (all services "Live") — ✅ COMPLETE
+- [x] DATABASE_URL environment variable set — ✅ COMPLETE
+- [ ] DIRECT_URL environment variable set — ⏳ **REQUIRED FOR MIGRATIONS**
+
+### ⚠️ IMPORTANT: Migration Blocker Identified
+
+**Issue:** Prisma migrations require `DIRECT_URL` (non-pooled connection)
+- **Root Cause:** Supabase pooler (port 6543) uses PgBouncer, which conflicts with Prisma's prepared statements
+- **Error:** `P1012: Environment variable not found: DIRECT_URL`
+- **Fix Applied:** Updated `backend/.env.example`, `render.yaml`, and this guide
+- **Status:** Awaiting Render dashboard configuration
+
+### Required Configuration Update
+
+**Before running migrations, add to Render Dashboard:**
+
+1. **Go to:** https://dashboard.render.com/web/srv-d5np9lre5dus7398efig
+2. **Navigate to:** Environment tab
+3. **Add Environment Variable:**
+   ```
+   Key: DIRECT_URL
+   Value: postgresql://postgres.[PROJECT]:[PASSWORD]@aws-0-us-west-1.supabase.co:5432/postgres?sslmode=require
+   ```
+   ⚠️ **Critical:** Use port **5432** (direct connection), NOT 6543 (pooler)
+4. **Save and wait for auto-redeploy** (~2 minutes)
 
 ### Migration Instructions
 
@@ -177,15 +200,16 @@ REMITA_MOCK_MODE=true
    └─ 20240117000000_add_payments
    ```
 
-**Option B: Local with Production DATABASE_URL**
+**Option B: Local with Production DIRECT_URL**
 
 ```powershell
 cd c:\Users\USR\Documents\taxbridge\backend
 $env:DATABASE_URL = "[YOUR_PRODUCTION_DATABASE_URL]"
-node scripts/run-migrations.js
+$env:DIRECT_URL = "[YOUR_PRODUCTION_DIRECT_URL]"
+npx prisma migrate deploy
 ```
 
-**Status:** ⏳ **PENDING AFTER RENDER DEPLOYMENT**
+**Status:** ⏳ **BLOCKED — Waiting for DIRECT_URL configuration**
 
 ---
 
