@@ -2,7 +2,7 @@
   "expo": {
     "name": "TaxBridge",
     "slug": "taxbridge",
-    "version": "5.0.2",
+    "version": "5.0.3",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -16,7 +16,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "ng.taxbridge.app",
-      "buildNumber": "1",
+      "buildNumber": "2",
       "infoPlist": {
         "NSCameraUsageDescription": "TaxBridge needs camera access to scan receipts and invoices for OCR processing.",
         "NSPhotoLibraryUsageDescription": "TaxBridge needs photo library access to import receipt images for tax documentation."
@@ -28,7 +28,7 @@
         "backgroundColor": "#0B5FFF"
       },
       "package": "ng.taxbridge.app",
-      "versionCode": 50000,
+      "versionCode": 50003,
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.READ_EXTERNAL_STORAGE",

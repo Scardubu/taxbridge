@@ -3,7 +3,14 @@
     "welcome": "Welcome back",
     "createInvoice": "Create Invoice",
     "monthlySales": "Monthly Sales",
-    "offlineNotice": "You can create invoices offline. We will sync when you have internet."
+    "offlineNotice": "You can create invoices offline. We will sync when you have internet.",
+    "goodMorning": "Good Morning",
+    "goodAfternoon": "Good Afternoon",
+    "goodEvening": "Good Evening",
+    "thisMonth": "This Month",
+    "invoicesLabel": "Invoices",
+    "pending": "pending",
+    "allSynced": "All synced"
   },
   "network": {
     "offline": "Offline",
@@ -29,7 +36,23 @@
     "pull": "Pull to refresh",
     "sync": "Sync",
     "syncing": "Syncing",
-    "syncPending": "Sync ({{count}})"
+    "syncPending": "Sync ({{count}})",
+    "filterAll": "All",
+    "filterPending": "Pending",
+    "filterSynced": "Synced",
+    "filterFailed": "Failed",
+    "total": "{{count}} invoice",
+    "total_plural": "{{count}} invoices",
+    "totalLabel": "total",
+    "noInvoicesAll": "No invoices yet. Create your first one!",
+    "noInvoicesPending": "No pending invoices. All synced!",
+    "noInvoicesFilter": "No {{filter}} invoices found",
+    "retrySync": "Retry Sync",
+    "shareInvoice": "Share Invoice",
+    "copyDetails": "Copy Details",
+    "deleted": "Deleted",
+    "removedFromLocal": "Invoice {{id}} removed from local storage",
+    "noSyncPending": "No pending invoices to sync"
   },
   "settings": {
     "title": "Settings",

@@ -90,9 +90,9 @@ function HomeScreen(props: any) {
 
   const getGreeting = () => {
     const hour = new Date().getHours();
-    if (hour < 12) return '🌅 Good Morning';
-    if (hour < 17) return '☀️ Good Afternoon';
-    return '🌙 Good Evening';
+    if (hour < 12) return `🌅 ${t('home.goodMorning')}`;
+    if (hour < 17) return `☀️ ${t('home.goodAfternoon')}`;
+    return `🌙 ${t('home.goodEvening')}`;
   };
 
   return (
@@ -133,18 +133,18 @@ function HomeScreen(props: any) {
             </View>
             <Text style={styles.statValue}>{formatCurrency(totalSales)}</Text>
             <View style={styles.statBadge}>
-              <Text style={styles.statBadgeText}>📈 This Month</Text>
+              <Text style={styles.statBadgeText}>📈 {t('home.thisMonth')}</Text>
             </View>
           </View>
           
           <View style={styles.statCard}>
             <View style={styles.statHeader}>
               <Text style={styles.statEmoji}>📄</Text>
-              <Text style={styles.statLabel}>Invoices</Text>
+              <Text style={styles.statLabel}>{t('home.invoicesLabel')}</Text>
             </View>
             <Text style={styles.statValueSmall}>{count}</Text>
             <Text style={styles.statMeta}>
-              {pendingCount > 0 ? `${pendingCount} pending` : 'All synced'}
+              {pendingCount > 0 ? `${pendingCount} ${t('home.pending')}` : t('home.allSynced')}
             </Text>
           </View>
         </Animated.View>

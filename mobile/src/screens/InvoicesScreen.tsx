@@ -61,12 +61,12 @@ function InvoicesScreen() {
     await load();
 
     if (res.synced === 0 && res.failed === 0 && res.deferred === 0) {
-      Alert.alert('Sync', 'No pending invoices to sync');
+      Alert.alert(t('invoices.sync'), t('invoices.noSyncPending'));
     }
-  }, [manualSync, load]);
+  }, [manualSync, load, t]);
 
   const handleRetry = useCallback(async (id: string) => {
-    Alert.alert('Retry Sync', `Retrying sync for invoice ${id.slice(-6).toUpperCase()}...`);
+    Alert.alert(t('invoices.retrySync'), `${t('invoices.retrySync')} #${id.slice(-6).toUpperCase()}...`);
 
     // Clear backoff metadata so it retries immediately.
     await updateInvoiceStatus(id, 'queued');
@@ -74,24 +74,24 @@ function InvoicesScreen() {
 
     await manualSync();
     await load();
-  }, [manualSync, load]);
+  }, [manualSync, load, t]);
 
   const handleShare = useCallback((invoice: LocalInvoiceRow) => {
     Alert.alert(
-      'Share Invoice',
-      `Share invoice #${invoice.id.slice(-6).toUpperCase()} for ${invoice.customerName || 'Walk-in'}\nTotal: ₦${Number(invoice.total).toFixed(2)}`,
+      t('invoices.shareInvoice'),
+      `${t('invoices.shareInvoice')} #${invoice.id.slice(-6).toUpperCase()} - ${invoice.customerName || 'Walk-in'}\n${t('invoices.totalLabel')}: ₦${Number(invoice.total).toFixed(2)}`,
       [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Copy Details', onPress: () => {/* Could use Clipboard */} },
+        { text: t('settings.cancel'), style: 'cancel' },
+        { text: t('invoices.copyDetails'), onPress: () => {/* Could use Clipboard */} },
       ]
     );
-  }, []);
+  }, [t]);
 
   const handleDelete = useCallback((id: string) => {
     // Implementation would call a delete function from database service
-    Alert.alert('Deleted', `Invoice ${id.slice(-6).toUpperCase()} removed from local storage`);
+    Alert.alert(t('invoices.deleted'), t('invoices.removedFromLocal', { id: id.slice(-6).toUpperCase() }));
     load();
-  }, [load]);
+  }, [load, t]);
 
   // Filter logic
   const filteredRows = useMemo(() => {
@@ -120,10 +120,10 @@ function InvoicesScreen() {
   const online = isOnline;
 
   const filterOptions: { key: FilterType; label: string; count: number }[] = [
-    { key: 'all', label: 'All', count: stats.total },
-    { key: 'pending', label: 'Pending', count: stats.pending },
-    { key: 'synced', label: 'Synced', count: stats.synced },
-    { key: 'failed', label: 'Failed', count: stats.failed },
+    { key: 'all', label: t('invoices.filterAll'), count: stats.total },
+    { key: 'pending', label: t('invoices.filterPending'), count: stats.pending },
+    { key: 'synced', label: t('invoices.filterSynced'), count: stats.synced },
+    { key: 'failed', label: t('invoices.filterFailed'), count: stats.failed },
   ];
 
   return (
@@ -137,7 +137,7 @@ function InvoicesScreen() {
           <View>
             <Text style={styles.h1}>{t('invoices.title')}</Text>
             <Text style={styles.subtitle}>
-              {stats.total} {stats.total === 1 ? 'invoice' : 'invoices'} total
+              {t(stats.total === 1 ? 'invoices.total' : 'invoices.total_plural', { count: stats.total })} {t('invoices.totalLabel')}
             </Text>
           </View>
           {pendingCount > 0 && (
@@ -220,16 +220,12 @@ function InvoicesScreen() {
                 {activeFilter === 'all' 
                   ? t('invoices.empty')
                   : activeFilter === 'pending'
-                  ? 'No pending invoices'
-                  : activeFilter === 'synced'
-                  ? 'No synced invoices yet'
-                  : 'No failed invoices - great!'}
+                  ? t('invoices.noInvoicesPending')
+                  : t('invoices.noInvoicesFilter', { filter: filterOptions.find(f => f.key === activeFilter)?.label || activeFilter })}
               </Text>
               <Text style={styles.emptySubtitle}>
                 {activeFilter === 'all'
-                  ? 'Create your first invoice to get started'
-                  : activeFilter === 'pending'
-                  ? 'All invoices have been synced'
+                  ? t('invoices.noInvoicesAll').split('.')[1]?.trim() || ''
                   : ''}
               </Text>
             </View>

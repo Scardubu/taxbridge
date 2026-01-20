@@ -57,6 +57,19 @@
         "resourceClass": "m-medium",
         "buildConfiguration": "Release"
       }
+    },
+    "production-apk": {
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://taxbridge-api.onrender.com",
+        "EXPO_PUBLIC_ENV": "production",
+        "EXPO_PUBLIC_SENTRY_DSN": "https://prod@sentry.io/project",
+        "EXPO_PUBLIC_MIXPANEL_TOKEN": "prod_mixpanel_token"
+      },
+      "android": {
+        "buildType": "apk",
+        "gradleCommand": ":app:assembleRelease"
+      }
     }
   },
   "submit": {

@@ -1,6 +1,6 @@
 {
   "name": "mobile",
-  "version": "5.0.2",
+  "version": "5.0.3",
   "main": "index.ts",
   "scripts": {
     "start": "cross-env EXPO_NO_DOCTOR=1 EXPO_OFFLINE=1 expo start --offline",

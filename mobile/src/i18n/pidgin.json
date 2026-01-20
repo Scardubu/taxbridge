@@ -3,7 +3,14 @@
     "welcome": "Welcome back",
     "createInvoice": "Make Invoice",
     "monthlySales": "Money Wey You Sell This Month",
-    "offlineNotice": "You fit make invoice offline. We go sync am when internet show."
+    "offlineNotice": "You fit make invoice offline. We go sync am when internet show.",
+    "goodMorning": "Good Morning",
+    "goodAfternoon": "Good Afternoon",
+    "goodEvening": "Good Evening",
+    "thisMonth": "This Month",
+    "invoicesLabel": "Invoices",
+    "pending": "dey wait",
+    "allSynced": "All don sync"
   },
   "network": {
     "offline": "No Network",
@@ -29,7 +36,23 @@
     "pull": "Pull down make e refresh",
     "sync": "Sync",
     "syncing": "Dey Sync",
-    "syncPending": "Sync ({{count}})"
+    "syncPending": "Sync ({{count}})",
+    "filterAll": "All",
+    "filterPending": "Dey Wait",
+    "filterSynced": "Done Sync",
+    "filterFailed": "Fail",
+    "total": "{{count}} invoice",
+    "total_plural": "{{count}} invoices",
+    "totalLabel": "total",
+    "noInvoicesAll": "No invoice yet. Make your first one!",
+    "noInvoicesPending": "No invoice dey wait. All don sync!",
+    "noInvoicesFilter": "No {{filter}} invoice dey",
+    "retrySync": "Try Again",
+    "shareInvoice": "Share Invoice",
+    "copyDetails": "Copy Details",
+    "deleted": "Don Delete",
+    "removedFromLocal": "Invoice {{id}} don comot from phone",
+    "noSyncPending": "No invoice dey wait make e sync"
   },
   "settings": {
     "title": "Settings",
