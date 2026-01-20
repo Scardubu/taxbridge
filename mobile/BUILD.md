@@ -198,7 +198,7 @@ export EXPO_TOKEN=your_token_here
 ```bash
 # Solution: Make sure you're in the mobile/ directory
 cd mobile/
-eas build --platform android --type apk --profile production
+eas build --platform android --profile production
 ```
 
 #### Build Failed on EAS
@@ -210,7 +210,7 @@ eas build --platform android --type apk --profile production
    - Dependency resolution failures
 3. Re-run with `--clear-cache` flag:
    ```bash
-   eas build --platform android --type apk --profile production --clear-cache
+   eas build --platform android --profile production --clear-cache
    ```
 
 #### Keystore/Credentials Issues
@@ -252,7 +252,7 @@ To run the Android APK build specifically in CI:
   env:
     EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
   run: |
-    eas build --platform android --type apk --profile production --non-interactive
+    eas build --platform android --profile production --non-interactive
 ```
 
 ### Best Practices
