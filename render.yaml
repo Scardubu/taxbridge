@@ -51,10 +51,11 @@ services:
           type: redis
           name: taxbridge-redis
           property: connectionString
+      # Stage 1 Soft Launch: Enable mock mode until real DigiTax/Remita credentials are configured
       - key: DIGITAX_MOCK_MODE
-        value: "false"
+        value: "true"
       - key: REMITA_MOCK_MODE
-        value: "false"
+        value: "true"
       # DigiTax API base URL
       - key: DIGITAX_API_URL
         value: https://api.digitax.ng
@@ -141,11 +142,11 @@ services:
           name: taxbridge-redis
           property: connectionString
       
-      # Integration Mode
+      # Integration Mode - Stage 1 Soft Launch: Enable mock mode
       - key: DIGITAX_MOCK_MODE
-        value: "false"
+        value: "true"
       - key: REMITA_MOCK_MODE
-        value: "false"
+        value: "true"
       # DigiTax API base URL
       - key: DIGITAX_API_URL
         value: https://api.digitax.ng
