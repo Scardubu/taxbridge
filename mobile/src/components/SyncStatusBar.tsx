@@ -130,7 +130,7 @@ function SyncStatusBar({ pendingCount = 0, onSyncPress }: SyncStatusBarProps) {
             style={styles.syncButton} 
             onPress={onSyncPress}
             accessibilityRole="button"
-            accessibilityLabel="Sync pending invoices"
+            accessibilityLabel={t('common.syncPending')}
           >
             <Text style={styles.syncButtonText}>Sync</Text>
           </Pressable>

@@ -252,7 +252,7 @@ function OnboardingScreen(props: OnboardingScreenProps = {}) {
       <View style={styles.heroSection}>
         <BrandedHero
           title="TaxBridge"
-          subtitle="Simplify Your Taxes, Bridge Your Future"
+          subtitle={t('common.taxbridgeSlogan')}
           showProgress={true}
           progress={(currentStepIndex + 1) / activeSteps.length}
           showOfflineIndicator={true}
@@ -268,12 +268,12 @@ function OnboardingScreen(props: OnboardingScreenProps = {}) {
               style={styles.heroMetaImage}
               resizeMode="contain"
               accessible
-              accessibilityLabel="TaxBridge icon"
+              accessibilityLabel={t('common.taxbridgeLogo')}
             />
             <View style={styles.heroMetaCopy}>
-              <Text style={styles.heroMetaTitle}>Built for Nigerian SMEs</Text>
+              <Text style={styles.heroMetaTitle}>{t('common.builtForSMEs')}</Text>
               <Text style={styles.heroMetaSubtitle}>
-                Finish onboarding offline in under 2 minutes and stay NRS compliant.
+                {t('common.onboardingDesc')}
               </Text>
             </View>
           </View>

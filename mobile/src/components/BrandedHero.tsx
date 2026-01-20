@@ -85,7 +85,7 @@ function BrandedHero({
               resizeMode="contain"
               accessible
               accessibilityRole="image"
-              accessibilityLabel="TaxBridge logo"
+              accessibilityLabel={t('common.taxbridgeLogo')}
             />
           </View>
         </Animated.View>

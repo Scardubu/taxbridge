@@ -468,7 +468,7 @@ export default function CreateInvoiceScreen(props: any) {
               </View>
 
               <AnimatedButton
-                title="Continue to Items →"
+                title={t('common.continueItems')}
                 onPress={goToNextStep}
                 style={styles.primaryButton}
               />
@@ -484,12 +484,12 @@ export default function CreateInvoiceScreen(props: any) {
                 </Pressable>
                 <Text style={styles.h1}>{t('create.addItem')}</Text>
               </View>
-              <Text style={styles.stepDescription}>Add products or services</Text>
+              <Text style={styles.stepDescription}>{t('common.addProducts')}</Text>
 
               <View style={styles.card}>
                 <View style={styles.cardHeader}>
                   <Text style={styles.cardIcon}>📦</Text>
-                  <Text style={styles.cardTitle}>New Item</Text>
+                  <Text style={styles.cardTitle}>{t('common.newItem')}</Text>
                 </View>
 
                 <Text style={styles.label}>{t('create.description')}</Text>
@@ -497,7 +497,7 @@ export default function CreateInvoiceScreen(props: any) {
                   value={values.description} 
                   onChangeText={(text) => setValue('description', text)}
                   onBlur={() => setTouchedField('description')}
-                  placeholder="e.g. Rice bag (50kg)" 
+                  placeholder={t('common.itemPlaceholder')} 
                   placeholderTextColor="#98A2B3"
                   style={[styles.input, errors.description && touched.description && styles.inputError]}
                 />
@@ -536,13 +536,13 @@ export default function CreateInvoiceScreen(props: any) {
 
                 <View style={styles.buttonRow}>
                   <AnimatedButton 
-                    title="+ Add Item"
+                    title={t('common.addItem')}
                     onPress={addItem}
                     variant="secondary"
                     style={styles.addItemButton}
                   />
                   <AnimatedButton 
-                    title="📷 Scan"
+                    title={t('common.scan')}
                     onPress={openScanMenu}
                     variant="secondary"
                     style={styles.scanButton}

@@ -328,13 +328,13 @@ export default function PITTutorialStep({ onNext }: Props) {
           </View>
 
           <View style={styles.deductionsList}>
-            <BreakdownRow label="Gross Income" value={pitResult.grossIncome} />
-            <BreakdownRow label="Rent Relief" value={-pitResult.deductions.rentRelief} isDeduction />
-            <BreakdownRow label="NHF (2.5%)" value={-pitResult.deductions.nhf} isDeduction />
-            <BreakdownRow label="Pension" value={-pitResult.deductions.pension} isDeduction />
-            <BreakdownRow label="NHIS (5%)" value={-pitResult.deductions.nhis} isDeduction />
+            <BreakdownRow label={t('tutorial.grossIncome')} value={pitResult.grossIncome} />
+            <BreakdownRow label={t('tutorial.rentRelief')} value={-pitResult.deductions.rentRelief} isDeduction />
+            <BreakdownRow label={t('tutorial.nhf')} value={-pitResult.deductions.nhf} isDeduction />
+            <BreakdownRow label={t('tutorial.pension')} value={-pitResult.deductions.pension} isDeduction />
+            <BreakdownRow label={t('tutorial.nhis')} value={-pitResult.deductions.nhis} isDeduction />
             <View style={styles.totalRow}>
-              <Text style={styles.totalLabel}>Taxable Income</Text>
+              <Text style={styles.totalLabel}>{t('tutorial.taxableIncome')}</Text>
               <Text style={styles.totalValue}>{formatCurrency(pitResult.chargeableIncome)}</Text>
             </View>
           </View>

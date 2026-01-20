@@ -37,7 +37,16 @@
     "english": "English",
     "pidgin": "Pidgin",
     "apiUrl": "API Server URL",
-    "save": "Save"
+    "save": "Save",
+    "syncNow": "Sync now",
+    "logout": "Log out",
+    "whatsappGroup": "WhatsApp Group",
+    "discord": "Discord",
+    "cancel": "Cancel",
+    "exportComingSoon": "Data export will be available in the next update",
+    "exportTitle": "Export Your Data",
+    "exportDesc": "Download a copy of all your invoices and tax calculations.",
+    "exportBtn": "Export CSV"
   },
   "onboarding": {
     "skip": "Skip",
@@ -212,5 +221,33 @@
       "ok": "OK",
       "timeEstimate": "⏱️ About 45 seconds"
     }
+  },
+  "auth": {
+    "verifyMfa": "Verify MFA",
+    "signIn": "Sign in",
+    "createAccount": "Create account",
+    "verifyPhone": "Verify phone"
+  },
+  "common": {
+    "taxbridgeLogo": "TaxBridge logo",
+    "taxbridgeSlogan": "Simplify Your Taxes, Bridge Your Future",
+    "continueItems": "Continue to Items →",
+    "addItem": "+ Add Item",
+    "scan": "📷 Scan",
+    "syncPending": "Sync pending invoices",
+    "comingSoon": "Coming Soon",
+    "builtForSMEs": "Built for Nigerian SMEs",
+    "onboardingDesc": "Finish onboarding offline in under 2 minutes and stay NRS compliant.",
+    "addProducts": "Add products or services",
+    "newItem": "New Item",
+    "itemPlaceholder": "e.g. Rice bag (50kg)",
+    "taxableIncome": "Taxable Income"
+  },
+  "tutorial": {
+    "grossIncome": "Gross Income",
+    "rentRelief": "Rent Relief",
+    "nhf": "NHF (2.5%)",
+    "pension": "Pension",
+    "nhis": "NHIS (5%)"
   }
 }

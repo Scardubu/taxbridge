@@ -288,23 +288,23 @@ function SettingsScreen() {
       'Join TaxBridge Community',
       'Connect with 2,000+ Nigerian SMEs sharing tax tips and best practices.',
       [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'WhatsApp Group', onPress: () => Linking.openURL('https://chat.whatsapp.com/taxbridge') },
-        { text: 'Discord', onPress: () => Linking.openURL('https://discord.gg/taxbridge') },
+        { text: t('settings.cancel'), style: 'cancel' },
+        { text: t('settings.whatsappGroup'), onPress: () => Linking.openURL('https://chat.whatsapp.com/taxbridge') },
+        { text: t('settings.discord'), onPress: () => Linking.openURL('https://discord.gg/taxbridge') },
       ]
     );
   }, []);
 
   const handleExportData = useCallback(() => {
     Alert.alert(
-      'Export Your Data',
-      'Download a copy of all your invoices and tax calculations.',
+      t('settings.exportTitle'),
+      t('settings.exportDesc'),
       [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Export CSV', onPress: () => Alert.alert('Coming Soon', 'Data export will be available in the next update.') },
+        { text: t('settings.cancel'), style: 'cancel' },
+        // { text: t('settings.exportBtn'), onPress: () => Alert.alert(t('common.comingSoon'), t('settings.exportComingSoon')) },
       ]
     );
-  }, []);
+  }, [t]);
 
   const toggleSection = useCallback((sectionId: string) => {
     setExpandedSection(prev => prev === sectionId ? null : sectionId);
@@ -519,13 +519,13 @@ function SettingsScreen() {
                   </View>
                   <View style={styles.row}>
                     <AnimatedButton
-                      title="Sync now"
+                      title={t('settings.syncNow')}
                       onPress={() => void manualSync()}
                       loading={isAuthSubmitting}
                       style={{ flex: 1 }}
                     />
                     <AnimatedButton
-                      title="Log out"
+                      title={t('settings.logout')}
                       onPress={() => void handleLogout()}
                       variant="secondary"
                       loading={isAuthSubmitting}
@@ -610,7 +610,7 @@ function SettingsScreen() {
                         autoCorrect={false}
                       />
                       <AnimatedButton
-                        title="Verify MFA"
+                        title={t('auth.verifyMfa')}
                         onPress={() => void handleMfaVerify()}
                         loading={isAuthSubmitting}
                       />
@@ -619,7 +619,7 @@ function SettingsScreen() {
 
                   {authMode === 'login' && !mfaToken && (
                     <AnimatedButton
-                      title="Sign in"
+                      title={t('auth.signIn')}
                       onPress={() => void handleLogin()}
                       loading={isAuthSubmitting}
                     />
@@ -627,7 +627,7 @@ function SettingsScreen() {
 
                   {authMode === 'register' && !registerUserId && (
                     <AnimatedButton
-                      title="Create account"
+                      title={t('auth.createAccount')}
                       onPress={() => void handleRegister()}
                       loading={isAuthSubmitting}
                     />
@@ -647,7 +647,7 @@ function SettingsScreen() {
                         autoCorrect={false}
                       />
                       <AnimatedButton
-                        title="Verify phone"
+                        title={t('auth.verifyPhone')}
                         onPress={() => void handleVerifyOtp()}
                         loading={isAuthSubmitting}
                       />

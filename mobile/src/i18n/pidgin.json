@@ -37,7 +37,16 @@
     "english": "English",
     "pidgin": "Pidgin",
     "apiUrl": "Server URL",
-    "save": "Save"
+    "save": "Save",
+    "syncNow": "Sync am now",
+    "logout": "Log out",
+    "whatsappGroup": "WhatsApp Group",
+    "discord": "Discord",
+    "cancel": "Cancel",
+    "exportComingSoon": "Data export go dey ready for next update",
+    "exportTitle": "Export You Data",
+    "exportDesc": "Download all your invoices and tax matters.",
+    "exportBtn": "Export CSV"
   },
   "onboarding": {
     "skip": "Skip am",
@@ -212,5 +221,33 @@
       "ok": "OK",
       "timeEstimate": "⏱️ About 45 seconds"
     }
+  },
+  "auth": {
+    "verifyMfa": "Verify MFA",
+    "signIn": "Sign in",
+    "createAccount": "Create account",
+    "verifyPhone": "Verify phone"
+  },
+  "common": {
+    "taxbridgeLogo": "TaxBridge logo",
+    "taxbridgeSlogan": "Make Tax Simple, Secure Your Future",
+    "continueItems": "Continue to Items →",
+    "addItem": "+ Add Item",
+    "scan": "📷 Scan",
+    "syncPending": "Sync pending invoices",
+    "comingSoon": "Coming Soon",
+    "builtForSMEs": "We Build Am for Naija Business",
+    "onboardingDesc": "Finish onboarding offline sharp-sharp inside 2 mins remain verify.",
+    "addProducts": "Put market or service",
+    "newItem": "New Item",
+    "itemPlaceholder": "e.g. Rice bag (50kg)",
+    "taxableIncome": "Money Wey Dem Go Tax"
+  },
+  "tutorial": {
+    "grossIncome": "Total Money",
+    "rentRelief": "Rent Relief",
+    "nhf": "NHF (2.5%)",
+    "pension": "Pension",
+    "nhis": "NHIS (5%)"
   }
 }
