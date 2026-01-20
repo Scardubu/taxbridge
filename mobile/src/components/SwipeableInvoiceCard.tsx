@@ -58,11 +58,11 @@ function SwipeableInvoiceCard({
 
   const handleDelete = useCallback(() => {
     Alert.alert(
-      'Delete Invoice',
-      'This invoice has been synced. Are you sure you want to delete the local copy?',
+      t('alerts.deleteInvoice'),
+      t('alerts.deleteInvoiceDesc'),
       [
-        { text: 'Cancel', style: 'cancel', onPress: resetPosition },
-        { text: 'Delete', style: 'destructive', onPress: () => {
+        { text: t('settings.cancel'), style: 'cancel', onPress: resetPosition },
+        { text: t('alerts.delete'), style: 'destructive', onPress: () => {
           resetPosition();
           onDelete?.(inv.id);
         }},

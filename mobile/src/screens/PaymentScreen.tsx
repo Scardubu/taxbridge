@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Alert, ActivityIndicator, StyleSheet } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { useTranslation } from 'react-i18next';
 import { api } from '../services/api';
 import { LoadingContext } from '../contexts/LoadingContext';
 import { useNetwork } from '../contexts/NetworkContext';
@@ -29,6 +30,7 @@ interface PaymentScreenProps {
 }
 
 export default function PaymentScreen({ route: propRoute }: PaymentScreenProps = {}) {
+  const { t } = useTranslation();
   // Get invoice from props or navigation route
   const getInvoice = () => {
     if (propRoute?.params?.invoice) {
@@ -66,15 +68,15 @@ export default function PaymentScreen({ route: propRoute }: PaymentScreenProps =
 
   const validateInputs = (): boolean => {
     if (!payerName.trim()) {
-      Alert.alert('Validation Error', 'Please enter payer name');
+      Alert.alert(t('payment.validationError'), t('payment.enterPayerName'));
       return false;
     }
     if (!payerEmail.trim() || !payerEmail.includes('@')) {
-      Alert.alert('Validation Error', 'Please enter valid email');
+      Alert.alert(t('payment.validationError'), t('payment.enterValidEmail'));
       return false;
     }
     if (!payerPhone.trim() || payerPhone.length < 10) {
-      Alert.alert('Validation Error', 'Please enter valid phone number');
+      Alert.alert(t('payment.validationError'), t('payment.enterValidPhone'));
       return false;
     }
     return true;
@@ -84,7 +86,7 @@ export default function PaymentScreen({ route: propRoute }: PaymentScreenProps =
     if (!validateInputs()) return;
 
     if (!isOnline) {
-      Alert.alert('Offline', 'Connect to the internet to generate an RRR.');
+      Alert.alert(t('alerts.offline'), t('payment.offlineRRR'));
       return;
     }
 
@@ -157,11 +159,11 @@ export default function PaymentScreen({ route: propRoute }: PaymentScreenProps =
                   if (canOpen) {
                     await Linking.openURL(url);
                   } else {
-                    Alert.alert('Error', 'Cannot open payment URL');
+                    Alert.alert(t('payment.error'), t('payment.cannotOpenURL'));
                   }
                 }
               } catch (err) {
-                Alert.alert('Error', 'Failed to open payment link');
+                Alert.alert(t('payment.error'), t('payment.failedOpenLink'));
               }
             }
           }
@@ -171,7 +173,7 @@ export default function PaymentScreen({ route: propRoute }: PaymentScreenProps =
       if (!isMountedRef.current) return;
       const rawMessage = error?.message || 'Failed to generate RRR';
       const cleanMessage = typeof rawMessage === 'string' ? rawMessage.replace(/^API error\s+\d{3}:\s*/i, '') : String(rawMessage);
-      Alert.alert('Error', cleanMessage);
+      Alert.alert(t('payment.error'), cleanMessage);
     } finally {
       if (isMountedRef.current) {
         setLocalLoading(false);
@@ -184,7 +186,7 @@ export default function PaymentScreen({ route: propRoute }: PaymentScreenProps =
     if (!invoice.id) return;
 
     if (!isOnline) {
-      Alert.alert('Offline', 'Connect to the internet to check payment status.');
+      Alert.alert(t('alerts.offline'), t('payment.offlineStatus'));
       return;
     }
 
@@ -272,10 +274,10 @@ export default function PaymentScreen({ route: propRoute }: PaymentScreenProps =
           <Text style={styles.formTitle}>Payer Information</Text>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Full Name *</Text>
+            <Text style={styles.inputLabel}>{t('payment.payerName')} *</Text>
             <TextInput
               style={styles.input}
-              placeholder="e.g., John Doe"
+              placeholder={t('payment.payerNamePlaceholder')}
               value={payerName}
               onChangeText={setPayerName}
               editable={!loading}
@@ -284,10 +286,10 @@ export default function PaymentScreen({ route: propRoute }: PaymentScreenProps =
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Email Address *</Text>
+            <Text style={styles.inputLabel}>{t('payment.payerEmail')} *</Text>
             <TextInput
               style={styles.input}
-              placeholder="e.g., john@example.com"
+              placeholder={t('payment.payerEmailPlaceholder')}
               value={payerEmail}
               onChangeText={setPayerEmail}
               keyboardType="email-address"
@@ -298,10 +300,10 @@ export default function PaymentScreen({ route: propRoute }: PaymentScreenProps =
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.inputLabel}>Phone Number *</Text>
+            <Text style={styles.inputLabel}>{t('payment.payerPhone')} *</Text>
             <TextInput
               style={styles.input}
-              placeholder="e.g., 08012345678"
+              placeholder={t('payment.payerPhonePlaceholder')}
               value={payerPhone}
               onChangeText={setPayerPhone}
               keyboardType="phone-pad"
