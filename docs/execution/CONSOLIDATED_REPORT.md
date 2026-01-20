@@ -1,9 +1,12 @@
 # TaxBridge V5.0.2 — Consolidated Go‑Live & Scalable Growth Report
 
-**Date:** 2026-01-18 (Updated)
+**Date:** 2026-01-20 (Updated)
 
 ## Go‑Live Verdict (Current)
-**Status:** 🟢 Production-ready. F3 staging deployment cleared.
+**Status:** 🟢 Production-ready. F3 staging deployment complete — 6/6 health checks passing.
+
+**Staging URL:** https://taxbridge-api-35w0.onrender.com  
+**Service ID:** srv-d5nbui6r433s739ltga0
 
 Rationale:
 - Pre-production check: ✅ 37/37 passed (January 19, 2026)
@@ -11,8 +14,8 @@ Rationale:
 - Tests: ✅ 215/215 passing (139 mobile + 68 backend + 8 admin)
 - Security: ✅ All committed secrets removed; managed via Render Dashboard only
 - Performance: ✅ Pool metrics optimized; health monitoring throttled; slow queries eliminated
+- Staging deployed: ✅ **6/6 health checks passing** (mock mode enabled)
 - External credential blockers exist, but mock-mode soft launch is viable
-- F3 staging deployment ready; migrations will run via Render shell
 
 ## What’s Shipped (Summary)
 - Offline-first mobile with sync engine (SQLite)

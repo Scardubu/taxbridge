@@ -1,7 +1,8 @@
 # TaxBridge V5.0.2 — Integration Checklist (Live)
 
 **Owner:** Product + Engineering (Compliance-first)  
-**Updated:** 2026-01-19 (Post F3 health verification)  
+**Updated:** 2026-01-20 (Post F3 deployment validation)  
+**Staging URL:** https://taxbridge-api-35w0.onrender.com  
 **Pre-Production Check:** ✅ 37/37 passed  
 **Rule:** No critical-path gaps before go-live.
 

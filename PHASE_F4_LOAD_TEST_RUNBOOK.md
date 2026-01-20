@@ -1,8 +1,10 @@
 # Phase F4: Load Test Runbook
 
 **Created:** January 16, 2026  
-**Status:** 🟢 READY TO EXECUTE (after F3 staging deployment)  
-**Prerequisite:** F3 staging deployment complete and health checks passing
+**Updated:** January 20, 2026  
+**Status:** 🟢 READY TO EXECUTE  
+**Staging URL:** https://taxbridge-api-35w0.onrender.com  
+**Prerequisite:** ✅ F3 complete — 6/6 health checks passing
 
 ---
 
@@ -21,11 +23,12 @@ Phase F4 validates TaxBridge's performance under load using k6 against the stagi
 
 Before running load tests, confirm:
 
-- [ ] F3 staging deployment is live (`/health` returns 200)
-- [ ] Staging URL is available: `https://taxbridge-api-staging-XXXXX.onrender.com`
-- [ ] Redis connection healthy (`/health/queues` returns 200)
-- [ ] Database migrations applied (`/health/db` returns 200)
+- [x] F3 staging deployment is live (`/health` returns 200)
+- [x] Staging URL is available: `https://taxbridge-api-35w0.onrender.com`
+- [x] Redis connection healthy (`/health/queues` returns 200)
+- [x] Database migrations applied (`/health/db` returns 200)
 - [ ] Auth token generated for authenticated endpoints
+- [ ] k6 installed locally
 
 ### Generate Auth Token
 
@@ -45,7 +48,7 @@ Or for staging, use an existing test user credential.
 
 | Variable | Local | Staging |
 |----------|-------|---------|
-| `BASE_URL` | `http://localhost:3000` | `https://taxbridge-api-staging-XXXXX.onrender.com` |
+| `BASE_URL` | `http://localhost:3000` | `https://taxbridge-api-35w0.onrender.com` |
 | `AUTH_TOKEN` | (optional for dev) | (required) |
 | `INVOICE_STAMP_WAIT_SECONDS` | `10` | `30` (queue may be slower) |
 | `EXPECT_STAMPED` | `false` | `false` (mock mode) |
