@@ -56,22 +56,22 @@ The database schema is now up-to-date.
 3. **Edit DATABASE_URL**
    - Find `DATABASE_URL` in the list
    - Click **Edit** (pencil icon)
-   - Change the value from:
-     ```
-     postgresql://postgres.etjzktvjnuolxtddlmfr:newleaF12666@aws-0-us-west-2.pooler.supabase.com:6543/postgres&pgbouncer=true
-     ```
-   - To:
-     ```
-     postgresql://postgres.etjzktvjnuolxtddlmfr:newleaF12666@aws-0-us-west-2.pooler.supabase.com:6543/postgres?pgbouncer=true
-     ```
+    - Change the value from:
+       ```
+       postgresql://postgres.[PROJECT_REF]:[URL_ENCODED_PASSWORD]@aws-0-us-west-2.pooler.supabase.com:6543/postgres&pgbouncer=true
+       ```
+    - To:
+       ```
+       postgresql://postgres.[PROJECT_REF]:[URL_ENCODED_PASSWORD]@aws-0-us-west-2.pooler.supabase.com:6543/postgres?pgbouncer=true
+       ```
    - **Key change:** Replace `&pgbouncer` with `?pgbouncer`
 
 4. **Update DIRECT_URL**
    - Find `DIRECT_URL` in the list
-   - Ensure it uses **port 5432** and **same region** (`us-west-2`):
-     ```
-     postgresql://postgres.etjzktvjnuolxtddlmfr:newleaF12666@aws-0-us-west-2.pooler.supabase.com:5432/postgres?sslmode=require
-     ```
+    - Ensure it uses **port 5432** and **same region** (`us-west-2`):
+       ```
+       postgresql://postgres.[PROJECT_REF]:[URL_ENCODED_PASSWORD]@aws-0-us-west-2.pooler.supabase.com:5432/postgres?sslmode=require
+       ```
 
 5. **Save Changes**
    - Click **Save Changes**

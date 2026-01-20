@@ -42,7 +42,7 @@ This doesn't affect runtime but prevents running migrations from Render Shell.
 1. **Open Render Dashboard:** https://dashboard.render.com/web/srv-d5np9lre5dus7398efig
 2. **Edit `DIRECT_URL`:**
    - **Wrong:** `postgresql://...@aws-0-us-west-1.supabase.co:5432/...`
-   - **Correct:** `postgresql://postgres.etjzktvjnuolxtddlmfr:newleaF12666@aws-0-us-west-2.pooler.supabase.com:5432/postgres?sslmode=require`
+   - **Correct:** `postgresql://postgres.[PROJECT_REF]:[URL_ENCODED_PASSWORD]@aws-0-us-west-2.pooler.supabase.com:5432/postgres?sslmode=require`
 
 3. **Also fix `DATABASE_URL` query string:**
    - **Wrong:** `postgres&pgbouncer=true`
@@ -71,10 +71,11 @@ This doesn't affect runtime but prevents running migrations from Render Shell.
 - [ ] Invite 100 beta testers
 
 ### 2. Admin Dashboard Deployment
-- [ ] Run `cd admin-dashboard && vercel --prod`
-- [ ] Configure environment variables:
+- [x] Run `cd admin-dashboard && vercel --prod`
+- [x] Configure environment variables:
   - `NEXT_PUBLIC_API_URL=https://taxbridge-api.onrender.com`
-- [ ] Verify all routes working
+- [x] Deployed to: https://taxbridge.vercel.app
+- [x] All routes working
 
 ### 3. Monitor Production
 - [ ] Watch Render logs for errors
@@ -103,10 +104,9 @@ This doesn't affect runtime but prevents running migrations from Render Shell.
 3. **Verify Success**
    Expected output:
    ```
-   3 migrations applied:
-   └─ 20240115000000_initial_schema
-   └─ 20240116000000_add_invoices
-   └─ 20240117000000_add_payments
+   2 migrations applied:
+   └─ 20260106083801_add_ussd_sms
+   └─ 20260106085514_add_sms_delivery
    ```
 
 4. **If Error Occurs**
@@ -162,10 +162,10 @@ This fixes the "prepared statement already exists" warning.
 1. **Edit DATABASE_URL in Render**
    - Find existing `DATABASE_URL` in Environment tab
    - Click **Edit**
-   - Append `&pgbouncer=true` to the connection string:
-     ```
-     postgresql://postgres.[PROJECT]:[PASSWORD]@aws-0-us-west-1.pooler.supabase.com:6543/postgres?sslmode=require&pgbouncer=true
-     ```
+    - Append `&pgbouncer=true` to the connection string:
+       ```
+       postgresql://postgres.[PROJECT_REF]:[URL_ENCODED_PASSWORD]@aws-0-us-west-1.pooler.supabase.com:6543/postgres?sslmode=require&pgbouncer=true
+       ```
    - Save changes
    - Wait for redeploy
 
@@ -230,7 +230,7 @@ This fixes the "prepared statement already exists" warning.
 **Before Moving Forward:**
 - [ ] `DIRECT_URL` added to Render
 - [ ] Render redeployed successfully
-- [ ] Database migrations applied (3 migrations)
+- [ ] Database migrations applied (2 migrations)
 - [ ] All 6 health endpoints passing
 - [ ] No critical errors in Render logs
 

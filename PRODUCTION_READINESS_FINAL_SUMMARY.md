@@ -92,13 +92,14 @@
 |----------|--------|-------|
 | `/health/live` | ✅ 200 | env=production |
 | `/health/ready` | ✅ 200 | DB + Redis healthy |
-| `/health/db` | ✅ 200 | Latency: 12ms |
+| `/health/db` | ✅ 200 | Latency: 22ms |
 | `/health/queues` | ✅ 200 | BullMQ operational |
-| `/health/digitax` | ⏳ 503→200 | Will fix after redeploy |
+| `/health/digitax` | ✅ 200 | Mock mode (Stage 1) |
 | `/health/remita` | ✅ 200 | Latency: 226ms |
 
 **Backend API:** https://taxbridge-api.onrender.com — 🟢 LIVE
-**Commit:** `aebffa0` (mock mode fix)
+**Admin Dashboard:** https://taxbridge.vercel.app — 🟢 LIVE
+**Commit:** `fd7ced1` (admin deployed + SWC fix)
 **Deploy Time:** January 20, 2026
 
 ### Pre-Deployment Checklist
@@ -120,11 +121,11 @@
 
 | Service | URL | Status |
 |---------|-----|--------|
-| **Backend API** | https://taxbridge-api.onrender.com | ⏳ Pending F6 |
-| **Admin Dashboard** | https://admin.taxbridge.ng | ⏳ Pending Vercel |
-| **Mobile App** | Play Store (Internal Testing) | ⏳ Pending Upload |
-| **Worker** | Background (no URL) | ⏳ Pending F6 |
-| **Redis** | Internal (Render) | ⏳ Pending F6 |
+| **Backend API** | https://taxbridge-api.onrender.com | 🟢 Live (mock mode Stage 1) |
+| **Admin Dashboard** | https://taxbridge.vercel.app | 🟢 Deployed |
+| **Mobile App** | Play Store (Internal Testing) | ⏳ Pending upload (AAB ready) |
+| **Worker** | Background (no URL) | 🟢 Running |
+| **Redis** | Internal (Render) | 🟢 Connected |
 
 ---
 
@@ -144,7 +145,7 @@
 ### Step 3: Database Migrations (2-3 min)
 1. Open Render Shell for `taxbridge-api`
 2. Run: `yarn workspace @taxbridge/backend prisma:migrate:deploy`
-3. Verify: 3 migrations applied
+3. Verify: 2 migrations applied
 
 ### Step 4: Health Validation (5 min)
 1. Test all 6 health endpoints
@@ -222,11 +223,11 @@
 ## Success Criteria
 
 ### Deployment Success (Day 0)
-- [ ] Render deployment live (all services "Live")
-- [ ] Health endpoints passing (6/6)
-- [ ] Migrations applied (3 migrations)
-- [ ] Mock mode confirmed
-- [ ] No critical errors (first 30 min)
+- [x] Render deployment live (all services "Live")
+- [x] Health endpoints passing (6/6)
+- [x] Migrations applied (2 migrations)
+- [x] Mock mode confirmed
+- [x] No critical errors (first 30 min)
 
 ### Stage 1 Success (Day 1-7)
 - [ ] Crash-free ≥99%
