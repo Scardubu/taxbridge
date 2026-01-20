@@ -10,8 +10,8 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "build:android:apk": "eas build --platform android --type apk --profile production",
-    "build:android:bundle": "eas build --platform android --profile production",
+    "build:android:apk": "eas build --platform android --profile production",
+    "build:android:bundle": "eas build --platform android --profile production-aab",
     "build:ios": "eas build --platform ios --profile production",
     "build:all": "eas build --platform all --profile production"
   },

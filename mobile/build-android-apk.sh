@@ -31,12 +31,12 @@ echo "✅ Prerequisites checked"
 echo ""
 echo "📦 Building Android APK with production profile..."
 echo "   Platform: Android"
-echo "   Build Type: APK"
+echo "   Build Type: APK (configured in eas.json)"
 echo "   Profile: production"
 echo ""
 
 # Run the build command
-eas build --platform android --type apk --profile production
+eas build --platform android --profile production
 
 echo ""
 echo "✅ Build complete! Check EAS dashboard for download link:"

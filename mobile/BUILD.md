@@ -25,6 +25,13 @@ This guide explains how to build the TaxBridge mobile app as an Android APK usin
 
 ### Quick Start
 
+The command requested in the problem statement was:
+```bash
+eas build --platform android --type apk --profile production
+```
+
+However, EAS CLI doesn't support the `--type` flag. Build types are configured in `eas.json`. The production profile has been configured to build APK format.
+
 #### Option 1: Using npm script (Recommended)
 
 ```bash
@@ -43,7 +50,7 @@ cd mobile/
 
 ```bash
 cd mobile/
-eas build --platform android --type apk --profile production
+eas build --platform android --profile production
 ```
 
 ### Build Configuration
@@ -61,6 +68,17 @@ The build configuration is defined in `eas.json`:
         "EXPO_PUBLIC_MIXPANEL_TOKEN": "prod_mixpanel_token"
       },
       "android": {
+        "buildType": "apk"
+      }
+    },
+    "production-aab": {
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://api.taxbridge.ng",
+        "EXPO_PUBLIC_ENV": "production",
+        "EXPO_PUBLIC_SENTRY_DSN": "https://prod@sentry.io/project",
+        "EXPO_PUBLIC_MIXPANEL_TOKEN": "prod_mixpanel_token"
+      },
+      "android": {
         "buildType": "app-bundle"
       }
     }
@@ -68,14 +86,14 @@ The build configuration is defined in `eas.json`:
 }
 ```
 
-**Note:** The command `eas build --platform android --type apk --profile production` overrides the default `buildType: "app-bundle"` setting with `--type apk`, producing an APK file instead of an Android App Bundle (AAB).
+**Note:** The `production` profile builds APK format, while `production-aab` builds Android App Bundle (AAB) format for Google Play Store submission.
 
 ### Build Types Explained
 
-| Build Type | Command Flag | Use Case | File Extension |
-|------------|--------------|----------|----------------|
-| **APK** | `--type apk` | Direct installation, testing, side-loading | `.apk` |
-| **App Bundle** | Default or `--type app-bundle` | Google Play Store submission | `.aab` |
+| Build Type | Profile | Use Case | File Extension |
+|------------|---------|----------|----------------|
+| **APK** | `production` | Direct installation, testing, side-loading | `.apk` |
+| **App Bundle** | `production-aab` | Google Play Store submission | `.aab` |
 
 ### Available Build Scripts
 
@@ -85,7 +103,7 @@ All scripts are defined in `package.json`:
 # Build Android APK (production profile)
 npm run build:android:apk
 
-# Build Android App Bundle (production profile)
+# Build Android App Bundle (production-aab profile)
 npm run build:android:bundle
 
 # Build iOS (production profile)
@@ -114,9 +132,14 @@ The project supports multiple build profiles:
    eas build --platform android --profile preview
    ```
 
-4. **Production** - Production release
+4. **Production** - Production release (APK format)
    ```bash
-   eas build --platform android --type apk --profile production
+   eas build --platform android --profile production
+   ```
+
+5. **Production AAB** - Production release for Play Store (App Bundle format)
+   ```bash
+   eas build --platform android --profile production-aab
    ```
 
 ### Environment Variables
