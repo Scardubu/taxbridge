@@ -88,6 +88,11 @@ services:
         sync: false
       - key: REMITA_WEBHOOK_SECRET
         sync: false
+
+      # Admin Dashboard API Key(s) - SET IN RENDER DASHBOARD
+      # Comma-separated for rotation. Used to authenticate admin dashboard routes.
+      - key: ADMIN_API_KEYS
+        sync: false
       
       # CORS Configuration
       - key: ALLOWED_ORIGINS
@@ -155,6 +160,10 @@ services:
       - key: DUPLO_CLIENT_ID
         sync: false
       - key: DUPLO_CLIENT_SECRET
+        sync: false
+
+      # Admin Dashboard API Key(s) - optional for worker
+      - key: ADMIN_API_KEYS
         sync: false
       
       # Remita Payment Gateway - SET IN RENDER DASHBOARD

@@ -63,8 +63,27 @@ const ComplianceIcon = () => (
 );
 
 export default function DashboardPage() {
+  const extractErrorCode = (body: unknown): string | undefined => {
+    if (!body || typeof body !== 'object') return undefined;
+    const record = body as Record<string, unknown>;
+    return typeof record.code === 'string' ? record.code : undefined;
+  };
+
+  const shouldRetryOnError = (err: unknown) => {
+    if (err instanceof FetchError) {
+      const code = extractErrorCode(err.body);
+
+      if (code === 'ADMIN_API_DISABLED') return false;
+      if (err.status === 401 || err.status === 403) return false;
+      return err.status >= 500;
+    }
+    return true;
+  };
+
   const { data: stats, error, isLoading } = useSWR<DashboardStats>('/api/admin/stats', fetcher, {
     refreshInterval: 30000, // Refresh every 30 seconds
+    shouldRetryOnError,
+    errorRetryCount: 3,
   });
 
   const {
@@ -72,7 +91,9 @@ export default function DashboardPage() {
     error: launchMetricsError,
     isLoading: isLaunchMetricsLoading
   } = useSWR<LaunchMetricsData>('/api/admin/launch-metrics', fetcher, {
-    refreshInterval: 60000
+    refreshInterval: 60000,
+    shouldRetryOnError,
+    errorRetryCount: 3,
   });
 
   const lastChecked = useMemo(() => {
@@ -120,17 +141,29 @@ export default function DashboardPage() {
   const anomalyItems = launchMetrics?.anomalies ?? [];
 
   if (error) {
-    const message =
-      error instanceof FetchError
-        ? error.message
-        : error instanceof Error
-          ? error.message
-          : 'Failed to load dashboard data.';
+    const message = (() => {
+      if (error instanceof FetchError) {
+        const code = extractErrorCode(error.body);
+
+        if (code === 'ADMIN_API_DISABLED') {
+          return 'Admin analytics is disabled for this environment. Please contact the system administrator.';
+        }
+
+        if (error.status === 403) {
+          return 'You do not have access to admin analytics in this environment.';
+        }
+        if (error.status === 401) {
+          return 'Admin authentication is required to view this dashboard.';
+        }
+        return error.message;
+      }
+      return error instanceof Error ? error.message : 'Failed to load dashboard data.';
+    })();
 
     return (
       <DashboardLayout>
         <Alert variant="destructive">
-          <AlertTitle>Failed to load dashboard</AlertTitle>
+          <AlertTitle>Dashboard unavailable</AlertTitle>
           <AlertDescription>{message}</AlertDescription>
         </Alert>
       </DashboardLayout>
@@ -190,7 +223,7 @@ export default function DashboardPage() {
           <CardContent>
             <div className="text-3xl font-bold text-slate-900">{stats.totalUsers.toLocaleString()}</div>
             <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
-              <span className="text-green-500">↑ 12%</span> from last month
+              Updated {lastChecked || 'just now'}
             </p>
           </CardContent>
         </Card>
@@ -205,7 +238,7 @@ export default function DashboardPage() {
           <CardContent>
             <div className="text-3xl font-bold text-slate-900">{stats.totalInvoices.toLocaleString()}</div>
             <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
-              <span className="text-green-500">↑ 8%</span> from last month
+              Updated {lastChecked || 'just now'}
             </p>
           </CardContent>
         </Card>
@@ -296,7 +329,7 @@ export default function DashboardPage() {
             <CardContent>
               {launchMetricsError ? (
                 <div className="rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
-                  Failed to refresh launch metrics. {launchMetricsError.message || 'Please retry shortly.'}
+                  Launch metrics are temporarily unavailable. {launchMetricsError.message || 'Please retry shortly.'}
                 </div>
               ) : anomalyItems.length === 0 ? (
                 <div className="rounded-lg border border-dashed border-emerald-200 bg-emerald-50/60 p-4 text-sm text-emerald-700">

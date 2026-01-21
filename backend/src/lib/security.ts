@@ -293,7 +293,8 @@ export async function requireAdminApiKey(request: FastifyRequest, reply: Fastify
 
   if (!allowedKeys.length) {
     await logSecurityEvent('ADMIN_AUTH_DISABLED', { ip: request.ip }, 'warning');
-    return reply.code(503).send({ error: 'Admin API disabled' });
+    // This is a configuration/auth state (not a transient outage).
+    return reply.code(403).send({ error: 'Admin API disabled', code: 'ADMIN_API_DISABLED' });
   }
 
   const headerKey = request.headers['x-admin-api-key'];
