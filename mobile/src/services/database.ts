@@ -73,25 +73,25 @@ async function writeStoredInvoices(rows: LocalInvoiceRow[]): Promise<void> {
     await AsyncStorage.setItem(STORAGE_INVOICES_KEY, JSON.stringify(rows));
     return;
   } catch (err) {
-    console.warn('writeStoredInvoices: failed to write storage, attempting cleanup...', err);
+    if (__DEV__) console.warn('writeStoredInvoices: failed to write storage, attempting cleanup...', err);
     // Try aggressive pruning to free space
     try {
       const pruned = await pruneOldSyncedInvoices(rows);
-      console.log(`Pruned from ${rows.length} to ${pruned.length} invoices`);
+      if (__DEV__) console.log(`Pruned from ${rows.length} to ${pruned.length} invoices`);
       await AsyncStorage.setItem(STORAGE_INVOICES_KEY, JSON.stringify(pruned));
       return;
     } catch (err2) {
-      console.error('writeStoredInvoices: pruning failed, attempting emergency cleanup...', err2);
+      if (__DEV__) console.error('writeStoredInvoices: pruning failed, attempting emergency cleanup...', err2);
       // Emergency: keep only pending invoices and the 50 most recent synced
       try {
         const pending = rows.filter((r) => r.synced === 0);
         const synced = rows.filter((r) => r.synced === 1).slice(0, 50);
         const emergency = [...pending, ...synced];
-        console.log(`Emergency cleanup: keeping ${emergency.length} invoices`);
+        if (__DEV__) console.log(`Emergency cleanup: keeping ${emergency.length} invoices`);
         await AsyncStorage.setItem(STORAGE_INVOICES_KEY, JSON.stringify(emergency));
         return;
       } catch (err3) {
-        console.error('writeStoredInvoices: emergency cleanup failed', err3);
+        if (__DEV__) console.error('writeStoredInvoices: emergency cleanup failed', err3);
         throw new Error('Storage quota exceeded. Please clear app cache and retry.');
       }
     }
@@ -148,7 +148,7 @@ export async function initDB(): Promise<void> {
         await writeStoredInvoices(cleaned);
       }
     } catch (e) {
-      console.warn('initDB: cleanup failed', e);
+      if (__DEV__) console.warn('initDB: cleanup failed', e);
     }
   }
 }

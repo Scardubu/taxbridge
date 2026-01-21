@@ -224,8 +224,6 @@ export function initSentry(): void {
     captureException(error, { unhandledRejection: true });
     originalRejectionHandler?.(event);
   };
-
-  console.log('[Sentry] Initialized for production');
 }
 
 /**
