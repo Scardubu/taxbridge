@@ -350,11 +350,11 @@ function SettingsScreen() {
               <Text style={styles.statLabel}>Total</Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={[styles.statValue, { color: '#10B981' }]}>{storageStats.synced}</Text>
+              <Text style={[styles.statValue, styles.statValueSuccess]}>{storageStats.synced}</Text>
               <Text style={styles.statLabel}>Synced</Text>
             </View>
             <View style={styles.statItem}>
-              <Text style={[styles.statValue, { color: '#F59E0B' }]}>{storageStats.pending}</Text>
+              <Text style={[styles.statValue, styles.statValueWarning]}>{storageStats.pending}</Text>
               <Text style={styles.statLabel}>Pending</Text>
             </View>
           </View>
@@ -427,11 +427,11 @@ function SettingsScreen() {
                 </View>
                 <View style={styles.storageLegend}>
                   <View style={styles.legendItem}>
-                    <View style={[styles.legendDot, { backgroundColor: '#10B981' }]} />
+                    <View style={[styles.legendDot, styles.legendDotSuccess]} />
                     <Text style={styles.legendText}>Synced ({storageStats.synced})</Text>
                   </View>
                   <View style={styles.legendItem}>
-                    <View style={[styles.legendDot, { backgroundColor: '#F59E0B' }]} />
+                    <View style={[styles.legendDot, styles.legendDotWarning]} />
                     <Text style={styles.legendText}>Pending ({storageStats.pending})</Text>
                   </View>
                 </View>
@@ -819,11 +819,17 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 20,
     fontWeight: '900',
-    color: '#101828',
+    color: colors.textPrimary,
+  },
+  statValueSuccess: {
+    color: colors.success,
+  },
+  statValueWarning: {
+    color: colors.warning,
   },
   statLabel: {
     fontSize: 11,
-    color: '#667085',
+    color: colors.textMuted,
     fontWeight: '500',
     marginTop: 2,
   },
@@ -949,33 +955,39 @@ const styles = StyleSheet.create({
   },
   storageBar: {
     height: 8,
-    backgroundColor: '#E4E7EC',
-    borderRadius: 4,
+    backgroundColor: colors.borderSubtle,
+    borderRadius: radii.sm,
     overflow: 'hidden',
   },
   storageBarFill: {
     height: '100%',
-    backgroundColor: '#10B981',
-    borderRadius: 4,
+    backgroundColor: colors.success,
+    borderRadius: radii.sm,
   },
   storageLegend: {
     flexDirection: 'row',
-    gap: 16,
-    marginTop: 8,
+    gap: spacing.lg,
+    marginTop: spacing.sm,
   },
   legendItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: spacing.sm,
   },
   legendDot: {
     width: 8,
     height: 8,
-    borderRadius: 4,
+    borderRadius: radii.full,
+  },
+  legendDotSuccess: {
+    backgroundColor: colors.success,
+  },
+  legendDotWarning: {
+    backgroundColor: colors.warning,
   },
   legendText: {
-    fontSize: 12,
-    color: '#667085',
+    fontSize: typography.size.xs,
+    color: colors.textMuted,
   },
   
   // Action Buttons

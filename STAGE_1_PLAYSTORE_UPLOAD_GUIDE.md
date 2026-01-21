@@ -44,39 +44,34 @@ https://expo.dev/accounts/scardubu/projects/taxbridge/builds/5e3d0427-3ca9-48b8-
 
 Or scan the QR code from the EAS build page.
 
-### Option B: PowerShell Download (AAB for Play Store)
+### Option B: Build & Download AAB (Required for Play Store)
+
+Play Console requires an **Android App Bundle (.aab)**. For v5.0.3, generate a fresh AAB using the `production` EAS profile.
 
 ```powershell
-# Navigate to downloads folder
-cd $env:USERPROFILE\Downloads
+# Run from repo root
+cd c:\Users\USR\Documents\taxbridge\mobile
 
-# Download AAB file (for Play Store upload)
-$url = "https://expo.dev/artifacts/eas/dHCysRdLUbq4PzoKYvMsfq.aab"
-$output = "taxbridge-v5.0.2-build50001.aab"
+# Build AAB for Play Store (production profile = app-bundle)
+# If you have eas installed globally, use: eas build --platform android --profile production
+npx eas-cli build --platform android --profile production
 
-Write-Host "Downloading TaxBridge Android App Bundle..." -ForegroundColor Cyan
-Invoke-WebRequest -Uri $url -OutFile $output -UseBasicParsing
-
-# Verify download
-if (Test-Path $output) {
-    $size = (Get-Item $output).Length / 1MB
-    Write-Host "✅ Download complete: $output ($([math]::Round($size, 2)) MB)" -ForegroundColor Green
-} else {
-    Write-Host "❌ Download failed" -ForegroundColor Red
-}
+# After the build completes, download the .aab from the EAS build page:
+# https://expo.dev/accounts/scardubu/projects/taxbridge/builds
 ```
 
 ### Option C: Browser Download
 
-1. Click: https://expo.dev/artifacts/eas/dHCysRdLUbq4PzoKYvMsfq.aab
-2. Save as: `taxbridge-v5.0.2-build50001.aab`
-3. Location: `Downloads` folder
+1. Open: https://expo.dev/accounts/scardubu/projects/taxbridge/builds
+2. Download the latest **Android App Bundle (.aab)** generated via the `production` profile
+3. Save as: `taxbridge-v5.0.3-build50003.aab`
+4. Location: `Downloads` folder
 
 ### Verification
 
 ```powershell
 # Check file exists and is valid
-$file = "$env:USERPROFILE\Downloads\taxbridge-v5.0.2-build50001.aab"
+$file = "$env:USERPROFILE\Downloads\taxbridge-v5.0.3-build50003.aab"
 if (Test-Path $file) {
     Write-Host "✅ File ready for upload" -ForegroundColor Green
     Get-Item $file | Select-Object Name, Length, LastWriteTime
@@ -163,14 +158,14 @@ if (Test-Path $file) {
 
 1. **App bundles section:**
    - **Click:** "Upload"
-   - **Select file:** `taxbridge-v5.0.2-build50001.aab`
+   - **Select file:** `taxbridge-v5.0.3-build50003.aab`
    - **Wait:** Upload progress (~1-3 minutes depending on connection)
    - **Verify:** Green checkmark appears
 
 2. **App bundle details (auto-populated):**
    ```
-   Version code: 50001
-   Version name: 5.0.2
+   Version code: 50003
+   Version name: 5.0.3
    Minimum SDK: 21 (Android 5.0)
    Target SDK: 34 (Android 14)
    Supported devices: ~15,000 devices
@@ -215,8 +210,8 @@ How to Test:
 
 Support:
 📧 support@taxbridge.ng
-📱 WhatsApp: +234 XXX XXX XXXX
-📖 Docs: https://docs.taxbridge.ng
+📱 WhatsApp: Use the internal beta group chat (invite shared by the TaxBridge team)
+📖 Docs: See the tester briefing attachment
 
 We appreciate your feedback! 🚀
 ```
@@ -226,7 +221,7 @@ We appreciate your feedback! 🚀
 1. **Review release details:**
    - Bundle uploaded: ✅
    - Release notes added: ✅
-   - Version correct (5.0.2): ✅
+   - Version correct (5.0.3): ✅
 
 2. **Click:** "Save"
 
@@ -323,7 +318,7 @@ See attached STAGE_1_TESTER_BRIEFING.md
 🐛 Report Bugs:
 • In-app feedback button
 • Email: beta@taxbridge.ng
-• WhatsApp: +234 XXX XXX XXXX
+• WhatsApp: Reply in the internal beta group chat
 
 Thank you for helping us build TaxBridge!
 
@@ -417,8 +412,9 @@ foreach ($check in $checks) {
 - Manual triage
 - Categorize: Bug / Feature / Question / Praise
 
-**3. WhatsApp Support**
+**3. WhatsApp Group Support (Internal Testers)**
 - Real-time support for urgent issues
+- Use the internal beta group chat invite shared by the TaxBridge team
 - Log all issues in tracking sheet
 
 **4. Play Console Reviews**
@@ -508,7 +504,7 @@ foreach ($check in $checks) {
 **Cause:** Version code `50001` already exists in Play Console
 
 **Fix:**
-1. Increment version code in `eas.json`
+1. Increment version code in `mobile/app.json` (`expo.android.versionCode`)
 2. Rebuild: `eas build --platform android --profile production`
 3. Upload new AAB
 

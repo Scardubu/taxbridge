@@ -13,6 +13,8 @@
       "resizeMode": "contain",
       "backgroundColor": "#0B5FFF"
     },
+    "primaryColor": "#0B5FFF",
+    "description": "Nigeria's first offline-first, NRS-compliant e-invoicing platform. Create tax-compliant invoices anywhere, sync later. Built for Nigerian SMEs.",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "ng.taxbridge.app",

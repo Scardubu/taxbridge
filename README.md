@@ -7,10 +7,10 @@
 **Mobile-first, NRS-compliant e-invoicing platform for Nigerian SMEs**
 
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](https://expo.dev/accounts/scardubu/projects/taxbridge)
-[![Version](https://img.shields.io/badge/version-5.0.2-blue)](/)
+[![Version](https://img.shields.io/badge/version-5.0.3-blue)](/)
 [![Tests](https://img.shields.io/badge/tests-215%20passing-success)](/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Production](https://img.shields.io/badge/status-ready-success)]()
+[![Production](https://img.shields.io/badge/status-ready-success)](https://taxbridge-api.onrender.com/health/live)
 
 [Documentation](docs/PRD.md) • [Quick Start](#-quick-start) • [API Reference](#-api-endpoints) • [Integration Checklist](docs/INTEGRATION_CHECKLIST.md) • [Execution Reports](docs/execution/README.md) • [Production Guide](PRODUCTION_FINALIZATION_SUMMARY.md)
 
@@ -18,18 +18,19 @@
 
 ---
 
-## 🚀 Latest Release: v5.0.2 (January 20, 2026)
+## 🚀 Latest Release: v5.0.3 (January 21, 2026)
 
 ### Production Status
-- **Status:** ✅ **PRODUCTION READY — F6 DEPLOYMENT CLEARED**
+- **Status:** ✅ **POST-DEPLOYMENT (Stage 1 Beta)**
 - **Phase C UI Lockdown:** ✅ 100% Complete (267 i18n keys, 0 hardcoded strings)
 - **UI Sign-Off:** ✅ Approved (all gates passed)
 - **F4 Load Testing:** ✅ Passed (99.2% success rate)
-- **Android Build:** [Download .aab v5.0.2](https://expo.dev/artifacts/eas/dHCysRdLUbq4PzoKYvMsfq.aab)
-- **Build ID:** 66fdb06f-fca6-4943-9043-9a55e6f6ae84
+- **Android Build:** [Download v5.0.3 builds](https://expo.dev/accounts/scardubu/projects/taxbridge/builds)
 - **Admin Dashboard:** ✅ Next.js 16.1.1 build successful (50s, 15 routes)
 
-### What's New in v5.0.2
+### What's New in v5.0.3
+- ✅ **Mobile i18n hardening:** Removed remaining hardcoded strings (v5.0.3)
+- ✅ **Added production APK profile:** `production-apk` for direct distribution when needed
 - ✅ **Phase C Complete:** 100% i18n coverage (English + Nigerian Pidgin)
 - ✅ **UI Sign-Off:** Comprehensive approval with [600+ line checklist](UI_SIGN_OFF_CHECKLIST.md)
 - ✅ **Admin Dashboard Audit:** [Zero placeholders](ADMIN_DASHBOARD_UI_AUDIT.md), production-ready

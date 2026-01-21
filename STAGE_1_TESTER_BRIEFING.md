@@ -318,7 +318,8 @@ Screenshot attached.
 
 ### WhatsApp Support (Urgent Issues)
 
-**Number:** +234 XXX XXX XXXX  
+WhatsApp support is available via the **internal beta group chat** (invite shared by the TaxBridge team).
+
 **Hours:** 9 AM - 6 PM WAT (Mon-Fri)
 
 **Use for:**
@@ -370,7 +371,7 @@ A: No. Your data will be preserved if you continue using TaxBridge after Stage 1
 A: Not yet. Stage 1 is mock mode only. Real NRS integration comes in Stage 2/3.
 
 **Q: What if I find a critical bug?**  
-A: Report immediately via WhatsApp (+234 XXX XXX XXXX) or in-app feedback. We'll deploy a hotfix within 24 hours.
+A: Report immediately via in-app feedback or email with subject "[URGENT]". If you're in the internal beta group chat, you can also post there. We'll deploy a hotfix within 24 hours.
 
 ---
 
@@ -412,7 +413,7 @@ A: Very accurate. We follow NRS guidelines (VAT 7.5%, WHT 5%/10%, CIT 30%). But 
 ### Billing & Access
 
 **Q: Is TaxBridge free during beta?**  
-A: Yes! All beta testers get **lifetime access** (or 1 year free premium, TBD).
+A: Yes. Stage 1 beta access is free for the 7-day testing window.
 
 **Q: What happens after beta?**  
 A: We'll announce pricing for general availability. Beta testers get priority pricing.
@@ -429,9 +430,8 @@ A: Not yet. We're limiting Stage 1 to 100 testers. You can refer them for Stage 
 ✅ **Early access** to all new features  
 ✅ **Priority support** (faster responses)  
 ✅ **Influence roadmap** (your feedback shapes the product)  
-✅ **Lifetime discount** (or free tier, TBD)  
-✅ **Beta tester badge** in the app (coming soon!)  
-✅ **Exclusive beta tester community** (Slack/WhatsApp group)
+✅ **Founding tester recognition** (announced after Stage 1)  
+✅ **Exclusive beta tester community** (internal group chat)
 
 ---
 
@@ -441,7 +441,7 @@ A: Not yet. We're limiting Stage 1 to 100 testers. You can refer them for Stage 
 |---------|----------|---------------|
 | **In-App Feedback** | Bug reports, feature requests | <24 hours |
 | **Email (beta@taxbridge.ng)** | Detailed questions, suggestions | <24 hours |
-| **WhatsApp (+234 XXX)** | Urgent issues, quick questions | <4 hours (9 AM-6 PM WAT) |
+| **Internal Group Chat** | Urgent issues, quick questions | <4 hours (9 AM-6 PM WAT) |
 | **Play Store Reviews** | Public feedback (internal testers only) | <48 hours |
 
 ---
@@ -534,7 +534,7 @@ Together, we're making tax compliance **simple, accessible, and stress-free** fo
 
 ---
 
-**Questions?** Email beta@taxbridge.ng or WhatsApp +234 XXX XXX XXXX
+**Questions?** Email beta@taxbridge.ng or post in the internal beta group chat
 
 **Follow our progress:**
 - Twitter: @TaxBridgeNG
