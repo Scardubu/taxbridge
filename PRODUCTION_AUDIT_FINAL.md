@@ -1,6 +1,6 @@
 # Production Readiness - Final Audit Summary
 
-**Date:** 2026-01-27  
+**Date:** 2026-01-21  
 **Status:** ✅ PRODUCTION READY  
 **Stage:** F6 - Final Production Deployment
 
@@ -18,6 +18,8 @@ All critical production blockers have been resolved. The codebase has been syste
 - ✅ Offline-first architecture validated
 - ✅ Compliance (NDPC, NRS/DigiTax) maintained
 - ✅ Deployment configurations complete
+
+**Governance Authority Prompt (Canonical):** `docs/governance/POST_DEPLOYMENT_AUTHORITY_PROMPT.md`
 
 ---
 
