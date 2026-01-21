@@ -1,14 +1,27 @@
 # Stage 1: Google Play Store Upload Guide
 
-**Date:** January 20, 2026  
+**Date:** January 21, 2026  
 **Status:** 📱 **READY FOR UPLOAD**  
 **Target:** Internal Testing Track (100 Beta Testers)
 
 ---
 
-## 📦 Build Artifact Ready
+## 📦 Build Artifacts Ready
 
-### Android App Bundle Details
+### Latest Build: Android APK (v5.0.3) ⭐ NEW
+
+| Property | Value |
+|----------|-------|
+| **Version** | 5.0.3 |
+| **Build Number** | 50003 |
+| **Build Type** | Android APK (.apk) |
+| **Build ID** | 5e3d0427-3ca9-48b8-adaa-7124715c0469 |
+| **Download URL** | https://expo.dev/accounts/scardubu/projects/taxbridge/builds/5e3d0427-3ca9-48b8-adaa-7124715c0469 |
+| **Backend API** | https://taxbridge-api.onrender.com |
+| **Build Platform** | Expo EAS |
+| **Changes** | i18n fixes, hardcoded strings removed |
+
+### Previous Build: Android App Bundle (v5.0.2)
 
 | Property | Value |
 |----------|-------|
@@ -17,21 +30,27 @@
 | **Build Type** | Android App Bundle (.aab) |
 | **Build ID** | 66fdb06f-fca6-4943-9043-9a55e6f6ae84 |
 | **Download URL** | https://expo.dev/artifacts/eas/dHCysRdLUbq4PzoKYvMsfq.aab |
-| **File Size** | ~25-30 MB (estimated) |
-| **Backend API** | https://taxbridge-api.onrender.com |
-| **Build Platform** | Expo EAS |
 
 ---
 
-## Step 1: Download Android App Bundle (2 minutes)
+## Step 1: Download Android Build (2 minutes)
 
-### Option A: PowerShell Download
+### Option A: Download APK (Recommended for Direct Install)
+
+**Open on Android device or download:**
+```
+https://expo.dev/accounts/scardubu/projects/taxbridge/builds/5e3d0427-3ca9-48b8-adaa-7124715c0469
+```
+
+Or scan the QR code from the EAS build page.
+
+### Option B: PowerShell Download (AAB for Play Store)
 
 ```powershell
 # Navigate to downloads folder
 cd $env:USERPROFILE\Downloads
 
-# Download AAB file
+# Download AAB file (for Play Store upload)
 $url = "https://expo.dev/artifacts/eas/dHCysRdLUbq4PzoKYvMsfq.aab"
 $output = "taxbridge-v5.0.2-build50001.aab"
 
@@ -47,7 +66,7 @@ if (Test-Path $output) {
 }
 ```
 
-### Option B: Browser Download
+### Option C: Browser Download
 
 1. Click: https://expo.dev/artifacts/eas/dHCysRdLUbq4PzoKYvMsfq.aab
 2. Save as: `taxbridge-v5.0.2-build50001.aab`
