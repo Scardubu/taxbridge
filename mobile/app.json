@@ -5,20 +5,22 @@
     "version": "5.0.3",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "jsEngine": "hermes",
     "scheme": "taxbridge",
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#0B5FFF"
     },
+    "assetBundlePatterns": ["**/*"],
     "primaryColor": "#0B5FFF",
     "description": "Nigeria's first offline-first, NRS-compliant e-invoicing platform. Create tax-compliant invoices anywhere, sync later. Built for Nigerian SMEs.",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "ng.taxbridge.app",
-      "buildNumber": "2",
+      "buildNumber": "5.0.3",
       "infoPlist": {
         "NSCameraUsageDescription": "TaxBridge needs camera access to scan receipts and invoices for OCR processing.",
         "NSPhotoLibraryUsageDescription": "TaxBridge needs photo library access to import receipt images for tax documentation."
@@ -33,8 +35,8 @@
       "versionCode": 50003,
       "permissions": [
         "android.permission.CAMERA",
-        "android.permission.READ_EXTERNAL_STORAGE",
-        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.READ_EXTERNAL_STORAGE", // Legacy; migrate to Scoped Storage for Android 11+
+        "android.permission.WRITE_EXTERNAL_STORAGE", // Legacy; migrate to Scoped Storage for Android 11+
         "android.permission.INTERNET",
         "android.permission.ACCESS_NETWORK_STATE"
       ],
@@ -43,7 +45,11 @@
     },
     "web": {
       "favicon": "./assets/favicon.png",
-      "bundler": "metro"
+      "bundler": "metro",
+      "config": {
+        "webShortName": "TaxBridge",
+        "backgroundColor": "#0B5FFF"
+      }
     },
     "plugins": [
       [
@@ -63,7 +69,7 @@
       "policy": "appVersion"
     },
     "updates": {
-      "url": "https://u.expo.dev/fb2a2641-40b4-4741-bf52-b544d90ef1ba"
+      "url": "<https://u.expo.dev/fb2a2641-40b4-4741-bf52-b544d90ef1ba>"
     }
   }
 }
