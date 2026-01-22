@@ -69,6 +69,11 @@ export default function DashboardPage() {
     return typeof record.code === 'string' ? record.code : undefined;
   };
 
+  const isAuthBlocked = (err: FetchError): boolean => {
+    const code = extractErrorCode(err.body);
+    return code === 'ADMIN_API_DISABLED' || err.status === 401 || err.status === 403;
+  };
+
   const shouldRetryOnError = (err: unknown) => {
     if (err instanceof FetchError) {
       const code = extractErrorCode(err.body);
@@ -80,21 +85,48 @@ export default function DashboardPage() {
     return true;
   };
 
-  const { data: stats, error, isLoading } = useSWR<DashboardStats>('/api/admin/stats', fetcher, {
-    refreshInterval: 30000, // Refresh every 30 seconds
+  const {
+    data: stats,
+    error: statsError,
+    isLoading,
+  } = useSWR<DashboardStats, FetchError>('/api/admin/stats', fetcher, {
+    refreshInterval: 30000,
     shouldRetryOnError,
     errorRetryCount: 3,
+    revalidateOnFocus: false,
   });
+
+  const isStatsBlocked = statsError instanceof FetchError && isAuthBlocked(statsError);
 
   const {
     data: launchMetrics,
-    error: launchMetricsError,
+    error: launchMetricsErrorRaw,
     isLoading: isLaunchMetricsLoading
-  } = useSWR<LaunchMetricsData>('/api/admin/launch-metrics', fetcher, {
+  } = useSWR<LaunchMetricsData, FetchError>(isStatsBlocked ? null : '/api/admin/launch-metrics', fetcher, {
     refreshInterval: 60000,
     shouldRetryOnError,
     errorRetryCount: 3,
+    revalidateOnFocus: false,
   });
+
+  const effectiveStatsError = statsError;
+  const launchMetricsError = launchMetricsErrorRaw;
+
+  const fallbackStats = useMemo<DashboardStats>(() => {
+    return {
+      totalUsers: 0,
+      totalInvoices: 0,
+      totalPayments: 0,
+      duploStatus: 'degraded',
+      duploLatency: null,
+      remitaStatus: 'degraded',
+      remitaLatency: null,
+      duploSuccessTrend: [],
+      remitaTransactions: [],
+    };
+  }, []);
+
+  const displayStats = stats ?? fallbackStats;
 
   const lastChecked = useMemo(() => {
     return stats ? new Date().toLocaleTimeString() : '';
@@ -140,24 +172,24 @@ export default function DashboardPage() {
 
   const anomalyItems = launchMetrics?.anomalies ?? [];
 
-  if (error) {
+  if (effectiveStatsError && !isStatsBlocked) {
     const message = (() => {
-      if (error instanceof FetchError) {
-        const code = extractErrorCode(error.body);
+      if (effectiveStatsError instanceof FetchError) {
+        const code = extractErrorCode(effectiveStatsError.body);
 
         if (code === 'ADMIN_API_DISABLED') {
           return 'Admin analytics is disabled for this environment. Please contact the system administrator.';
         }
 
-        if (error.status === 403) {
+        if (effectiveStatsError.status === 403) {
           return 'You do not have access to admin analytics in this environment.';
         }
-        if (error.status === 401) {
+        if (effectiveStatsError.status === 401) {
           return 'Admin authentication is required to view this dashboard.';
         }
-        return error.message;
+        return effectiveStatsError.message;
       }
-      return error instanceof Error ? error.message : 'Failed to load dashboard data.';
+      return 'Failed to load dashboard data.';
     })();
 
     return (
@@ -170,7 +202,7 @@ export default function DashboardPage() {
     );
   }
 
-  if (isLoading || !stats) {
+  if (!isStatsBlocked && (isLoading || !stats)) {
     return (
       <DashboardLayout>
         <div className="space-y-4 animate-pulse">
@@ -203,13 +235,22 @@ export default function DashboardPage() {
           </div>
           <div className="flex items-center gap-2">
             <Badge variant="outline" className="text-xs">
-              Auto-refreshing every 30s
+              {isStatsBlocked ? 'Auto-refresh paused' : 'Auto-refreshing every 30s'}
             </Badge>
             <Badge variant="secondary" className="text-xs">
               NRS 2026 Compliant
             </Badge>
           </div>
         </div>
+
+      {isStatsBlocked ? (
+        <Alert>
+          <AlertTitle>Limited functionality</AlertTitle>
+          <AlertDescription>
+            Admin analytics is currently unavailable for this environment. Showing limited dashboard placeholders.
+          </AlertDescription>
+        </Alert>
+      ) : null}
 
       {/* Key Metrics */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -221,7 +262,7 @@ export default function DashboardPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-slate-900">{stats.totalUsers.toLocaleString()}</div>
+            <div className="text-3xl font-bold text-slate-900">{displayStats.totalUsers.toLocaleString()}</div>
             <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
               Updated {lastChecked || 'just now'}
             </p>
@@ -236,7 +277,7 @@ export default function DashboardPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-slate-900">{stats.totalInvoices.toLocaleString()}</div>
+            <div className="text-3xl font-bold text-slate-900">{displayStats.totalInvoices.toLocaleString()}</div>
             <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
               Updated {lastChecked || 'just now'}
             </p>
@@ -251,7 +292,7 @@ export default function DashboardPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-slate-900">{stats.totalPayments.toLocaleString()}</div>
+            <div className="text-3xl font-bold text-slate-900">{displayStats.totalPayments.toLocaleString()}</div>
             <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
               <span className="text-green-500">↑ 15%</span> via Remita
             </p>
@@ -280,15 +321,15 @@ export default function DashboardPage() {
         <div className="grid gap-4 md:grid-cols-2">
           <HealthCard
             title="Duplo/DigiTax API"
-            status={stats.duploStatus}
-            latency={stats.duploLatency}
+            status={displayStats.duploStatus}
+            latency={displayStats.duploLatency}
             lastChecked={lastChecked}
             description="E-invoicing & NRS submission"
           />
           <HealthCard
             title="Remita Payment Gateway"
-            status={stats.remitaStatus}
-            latency={stats.remitaLatency}
+            status={displayStats.remitaStatus}
+            latency={displayStats.remitaLatency}
             lastChecked={lastChecked}
             description="Payment processing & RRR generation"
           />
@@ -311,7 +352,21 @@ export default function DashboardPage() {
         </div>
         <div className="grid gap-4 lg:grid-cols-3">
           <div className="lg:col-span-2">
-            <LaunchMetricsWidget metrics={launchMetrics} isLoading={isLaunchMetricsLoading} />
+            {isStatsBlocked || launchMetricsError ? (
+              <Card className="h-full">
+                <CardHeader>
+                  <CardTitle className="text-base font-semibold text-slate-900">Launch Readiness</CardTitle>
+                  <p className="text-sm text-slate-500">Launch metrics are currently unavailable.</p>
+                </CardHeader>
+                <CardContent>
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+                    {launchMetricsError?.message || 'Admin analytics is disabled or requires authentication.'}
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <LaunchMetricsWidget metrics={launchMetrics} isLoading={isLaunchMetricsLoading} />
+            )}
           </div>
           <Card className="h-full">
             <CardHeader className="pb-2">
@@ -388,7 +443,7 @@ export default function DashboardPage() {
               <p className="text-xs text-slate-500">Success rate and latency over time</p>
             </CardHeader>
             <CardContent>
-              <DuploHealthChart data={stats.duploSuccessTrend} />
+              <DuploHealthChart data={displayStats.duploSuccessTrend} />
             </CardContent>
           </Card>
 
@@ -398,7 +453,7 @@ export default function DashboardPage() {
               <p className="text-xs text-slate-500">Daily transaction breakdown</p>
             </CardHeader>
             <CardContent>
-              <RemitaTransactionChart data={stats.remitaTransactions} />
+              <RemitaTransactionChart data={displayStats.remitaTransactions} />
             </CardContent>
           </Card>
         </div>

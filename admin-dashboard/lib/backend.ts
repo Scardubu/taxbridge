@@ -45,6 +45,14 @@ async function requestBackend(path: string, options: RequestOptions = {}) {
     headers.set('X-Admin-API-Key', defaultAdminKey);
   }
 
+  if (!headers.has('X-Admin-API-Key')) {
+    throw new BackendAPIError(
+      503,
+      url,
+      JSON.stringify({ error: 'Admin API disabled', code: 'ADMIN_API_DISABLED' })
+    );
+  }
+
   headers.set('Accept', 'application/json');
 
   const response = await fetch(url, {

@@ -7,14 +7,6 @@ function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Unknown error';
 }
 
-async function safeJson(response: Response): Promise<unknown> {
-  try {
-    return await response.json();
-  } catch {
-    return undefined;
-  }
-}
-
 interface HealthCheckResult {
   name: string;
   status: 'healthy' | 'degraded' | 'error';

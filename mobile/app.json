@@ -35,8 +35,8 @@
       "versionCode": 50003,
       "permissions": [
         "android.permission.CAMERA",
-        "android.permission.READ_EXTERNAL_STORAGE", // Legacy; migrate to Scoped Storage for Android 11+
-        "android.permission.WRITE_EXTERNAL_STORAGE", // Legacy; migrate to Scoped Storage for Android 11+
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
         "android.permission.INTERNET",
         "android.permission.ACCESS_NETWORK_STATE"
       ],
@@ -69,7 +69,7 @@
       "policy": "appVersion"
     },
     "updates": {
-      "url": "<https://u.expo.dev/fb2a2641-40b4-4741-bf52-b544d90ef1ba>"
+      "url": "https://u.expo.dev/fb2a2641-40b4-4741-bf52-b544d90ef1ba"
     }
   }
 }

@@ -9,7 +9,6 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { 
-  Settings, 
   RefreshCw, 
   AlertTriangle,
   CheckCircle2,
@@ -63,6 +62,37 @@ const extractErrorCode = (body: unknown): string | undefined => {
   return typeof record.code === 'string' ? record.code : undefined;
 };
 
+// Mock data for Stage 1 (static timestamps to keep renders pure)
+const STAGE1_MOCK_DATA: SystemHealth = {
+  overall: 'healthy',
+  services: [
+    { name: 'API Server', status: 'healthy', latency: 45, lastCheck: '2026-01-22T10:00:00.000Z' },
+    { name: 'Database', status: 'healthy', latency: 12, lastCheck: '2026-01-22T10:00:00.000Z' },
+    { name: 'Cache (Redis)', status: 'healthy', latency: 3, lastCheck: '2026-01-22T10:00:00.000Z' },
+    { name: 'Job Queue', status: 'healthy', latency: 8, lastCheck: '2026-01-22T10:00:00.000Z' },
+    { name: 'DigiTax (Mock)', status: 'healthy', message: 'Running in mock mode', latency: 150, lastCheck: '2026-01-22T10:00:00.000Z' },
+    { name: 'Remita (Sandbox)', status: 'healthy', message: 'Using sandbox environment', latency: 230, lastCheck: '2026-01-22T10:00:00.000Z' },
+  ],
+  metrics: {
+    uptime: 99.95,
+    cpuUsage: 23,
+    memoryUsage: 56,
+    diskUsage: 34,
+    activeConnections: 47,
+  },
+  integrations: {
+    digitax: { status: 'mock', latency: 150 },
+    remita: { status: 'mock', latency: 230 },
+    supabase: { status: 'connected', latency: 12 },
+    redis: { status: 'connected', latency: 3 },
+  },
+  recentEvents: [
+    { id: '1', type: 'info', message: 'System health check passed', timestamp: '2026-01-22T10:00:00.000Z' },
+    { id: '2', type: 'info', message: 'DigiTax mock mode active', timestamp: '2026-01-22T09:00:00.000Z' },
+    { id: '3', type: 'warning', message: 'High latency detected on external API (recovered)', timestamp: '2026-01-22T08:00:00.000Z' },
+  ],
+};
+
 export default function SystemPage() {
   const [autoRefresh, setAutoRefresh] = useState(true);
 
@@ -84,38 +114,7 @@ export default function SystemPage() {
     }
   );
 
-  // Mock data for Stage 1
-  const mockData: SystemHealth = {
-    overall: 'healthy',
-    services: [
-      { name: 'API Server', status: 'healthy', latency: 45, lastCheck: new Date().toISOString() },
-      { name: 'Database', status: 'healthy', latency: 12, lastCheck: new Date().toISOString() },
-      { name: 'Cache (Redis)', status: 'healthy', latency: 3, lastCheck: new Date().toISOString() },
-      { name: 'Job Queue', status: 'healthy', latency: 8, lastCheck: new Date().toISOString() },
-      { name: 'DigiTax (Mock)', status: 'healthy', message: 'Running in mock mode', latency: 150, lastCheck: new Date().toISOString() },
-      { name: 'Remita (Sandbox)', status: 'healthy', message: 'Using sandbox environment', latency: 230, lastCheck: new Date().toISOString() },
-    ],
-    metrics: {
-      uptime: 99.95,
-      cpuUsage: 23,
-      memoryUsage: 56,
-      diskUsage: 34,
-      activeConnections: 47,
-    },
-    integrations: {
-      digitax: { status: 'mock', latency: 150 },
-      remita: { status: 'mock', latency: 230 },
-      supabase: { status: 'connected', latency: 12 },
-      redis: { status: 'connected', latency: 3 },
-    },
-    recentEvents: [
-      { id: '1', type: 'info', message: 'System health check passed', timestamp: new Date().toISOString() },
-      { id: '2', type: 'info', message: 'DigiTax mock mode active', timestamp: new Date(Date.now() - 3600000).toISOString() },
-      { id: '3', type: 'warning', message: 'High latency detected on external API (recovered)', timestamp: new Date(Date.now() - 7200000).toISOString() },
-    ],
-  };
-
-  const displayData = data || mockData;
+  const displayData = data || STAGE1_MOCK_DATA;
 
   const getStatusIcon = (status: 'healthy' | 'degraded' | 'error' | 'connected' | 'mock') => {
     switch (status) {
@@ -157,12 +156,6 @@ export default function SystemPage() {
       case 'error':
         return <XCircle className="h-4 w-4 text-rose-600" />;
     }
-  };
-
-  const formatUptime = (hours: number) => {
-    const days = Math.floor(hours / 24);
-    const remainingHours = hours % 24;
-    return `${days}d ${remainingHours}h`;
   };
 
   const content = (
@@ -216,7 +209,7 @@ export default function SystemPage() {
           displayData.overall === 'healthy' ? 'text-emerald-700' :
           displayData.overall === 'degraded' ? 'text-amber-700' : 'text-rose-700'
         }>
-          Uptime: {displayData.metrics.uptime}% • Last checked: {new Date().toLocaleTimeString()}
+          Uptime: {displayData.metrics.uptime}% • Last checked: {displayData.services[0]?.lastCheck ? new Date(displayData.services[0].lastCheck).toLocaleTimeString() : '—'}
         </AlertDescription>
       </Alert>
 
