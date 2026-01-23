@@ -12,6 +12,7 @@ import { RemitaTransactionChart } from '@/components/charts/RemitaTransactionCha
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell, PieLabelRenderProps } from 'recharts';
 import { Download, TrendingUp, Users, FileText, CreditCard, AlertTriangle } from 'lucide-react';
 import { FetchError, fetchJson } from '@/lib/fetcher';
+import { useAdminI18n } from '@/lib/i18n';
 
 interface AnalyticsData {
   overview: {
@@ -81,6 +82,7 @@ const fetcher = (url: string): Promise<AnalyticsData> => fetchJson(url) as Promi
 
 export default function AnalyticsPage() {
   const [dateRange, setDateRange] = useState('30d'); // 7d, 30d, 90d
+  const { t } = useAdminI18n();
 
   const { data: analytics, error } = useSWR<AnalyticsData, FetchError>(
     `/api/admin/analytics?range=${dateRange}`,
@@ -120,9 +122,9 @@ export default function AnalyticsPage() {
     return (
       <DashboardLayout>
         <Alert variant="destructive">
-          <AlertTitle>Failed to load analytics</AlertTitle>
+          <AlertTitle>{t('analytics.error.title')}</AlertTitle>
           <AlertDescription>
-            {error instanceof FetchError ? error.message : 'An unexpected error occurred'}
+            {error instanceof FetchError ? error.message : t('common.unexpectedError')}
           </AlertDescription>
         </Alert>
       </DashboardLayout>
@@ -152,30 +154,30 @@ export default function AnalyticsPage() {
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold">Analytics Dashboard</h1>
+            <h1 className="text-3xl font-bold">{t('analytics.title')}</h1>
             <p className="text-muted-foreground">
-              Comprehensive insights into TaxBridge operations and compliance
+              {t('analytics.subtitle')}
           </p>
         </div>
         <div className="flex gap-2">
-          <label htmlFor="date-range-select" className="sr-only">Select date range</label>
+          <label htmlFor="date-range-select" className="sr-only">{t('analytics.dateRange.label')}</label>
           <select 
             id="date-range-select"
-            aria-label="Select date range"
+            aria-label={t('analytics.dateRange.label')}
             value={dateRange} 
             onChange={(e) => setDateRange(e.target.value)}
             className="px-3 py-2 border rounded-md"
           >
-            <option value="7d">Last 7 days</option>
-            <option value="30d">Last 30 days</option>
-            <option value="90d">Last 90 days</option>
+            <option value="7d">{t('analytics.dateRange.7d')}</option>
+            <option value="30d">{t('analytics.dateRange.30d')}</option>
+            <option value="90d">{t('analytics.dateRange.90d')}</option>
           </select>
           <Button 
             variant="outline"
             onClick={() => exportToCSV(analytics.duploMetrics.successTrend, 'duplo-metrics.csv')}
           >
             <Download className="mr-2 h-4 w-4" />
-            Export CSV
+            {t('analytics.exportCsv')}
           </Button>
         </div>
       </div>
@@ -184,66 +186,66 @@ export default function AnalyticsPage() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('analytics.overview.totalUsers')}</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{analytics.overview.totalUsers.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
               <TrendingUp className="inline h-3 w-3 mr-1" />
-              +{analytics.overview.monthlyGrowth}% from last month
+              {t('analytics.overview.fromLastMonth', { percent: analytics.overview.monthlyGrowth })}
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Invoices</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('analytics.overview.totalInvoices')}</CardTitle>
             <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{analytics.overview.totalInvoices.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
-              NRS compliant submissions
+              {t('analytics.overview.nrsCompliant')}
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Payments</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('analytics.overview.totalPayments')}</CardTitle>
             <CreditCard className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{analytics.overview.totalPayments.toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
-              Via Remita integration
+              {t('analytics.overview.viaRemita')}
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Compliance Rate</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('analytics.overview.complianceRate')}</CardTitle>
             <AlertTriangle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{analytics.overview.complianceRate}%</div>
             <p className="text-xs text-muted-foreground">
-              NRS 2026 compliance
+              {t('analytics.overview.nrs2026')}
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Monthly Growth</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('analytics.overview.monthlyGrowth')}</CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">+{analytics.overview.monthlyGrowth}%</div>
             <p className="text-xs text-muted-foreground">
-              User acquisition
+              {t('analytics.overview.userAcquisition')}
             </p>
           </CardContent>
         </Card>
@@ -251,9 +253,9 @@ export default function AnalyticsPage() {
 
       <Tabs defaultValue="integrations" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="integrations">Integrations</TabsTrigger>
-          <TabsTrigger value="compliance">Compliance</TabsTrigger>
-          <TabsTrigger value="trends">Trends</TabsTrigger>
+          <TabsTrigger value="integrations">{t('analytics.tabs.integrations')}</TabsTrigger>
+          <TabsTrigger value="compliance">{t('analytics.tabs.compliance')}</TabsTrigger>
+          <TabsTrigger value="trends">{t('analytics.tabs.trends')}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="integrations" className="space-y-4">
@@ -261,7 +263,7 @@ export default function AnalyticsPage() {
             {/* Duplo Metrics */}
             <Card>
               <CardHeader>
-                <CardTitle>Duplo E-Invoicing Metrics</CardTitle>
+                <CardTitle>{t('analytics.duplo.metrics')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <DuploHealthChart data={analytics.duploMetrics.successTrend} />
@@ -270,7 +272,7 @@ export default function AnalyticsPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Duplo Error Breakdown</CardTitle>
+                <CardTitle>{t('analytics.duplo.errorBreakdown')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
@@ -298,7 +300,7 @@ export default function AnalyticsPage() {
             {/* Remita Metrics */}
             <Card>
               <CardHeader>
-                <CardTitle>Remita Payment Transactions</CardTitle>
+                <CardTitle>{t('analytics.remita.transactions')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <RemitaTransactionChart data={analytics.remitaMetrics.transactionTrend} />
@@ -307,7 +309,7 @@ export default function AnalyticsPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Remita Payment Status Breakdown</CardTitle>
+                <CardTitle>{t('analytics.remita.breakdown')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
@@ -328,7 +330,7 @@ export default function AnalyticsPage() {
           <div className="grid gap-4 md:grid-cols-2">
             <Card>
               <CardHeader>
-                <CardTitle>Exemption Utilization</CardTitle>
+                <CardTitle>{t('analytics.compliance.exemptions')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
@@ -355,7 +357,7 @@ export default function AnalyticsPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Withholding Tax Tracking</CardTitle>
+                <CardTitle>{t('analytics.compliance.withholding')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
@@ -367,7 +369,7 @@ export default function AnalyticsPage() {
                     <Tooltip 
                       formatter={(value: number | undefined, name: string | undefined) => [
                         name === 'wthAmount' ? `₦${(value || 0).toLocaleString()}` : value,
-                        name === 'wthAmount' ? 'WHT Amount' : 'Invoice Count'
+                        name === 'wthAmount' ? t('analytics.chart.wthAmount') : t('analytics.chart.invoiceCount')
                       ]}
                     />
                     <Line yAxisId="left" type="monotone" dataKey="wthAmount" stroke="#10b981" strokeWidth={2} />
@@ -379,7 +381,7 @@ export default function AnalyticsPage() {
 
             <Card className="md:col-span-2">
               <CardHeader>
-                <CardTitle>NRS Compliance Trend</CardTitle>
+                <CardTitle>{t('analytics.compliance.nrsTrend')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
@@ -388,8 +390,8 @@ export default function AnalyticsPage() {
                     <XAxis dataKey="date" />
                     <YAxis />
                     <Tooltip />
-                    <Bar dataKey="compliant" stackId="a" fill="#10b981" name="Compliant" />
-                    <Bar dataKey="nonCompliant" stackId="a" fill="#ef4444" name="Non-Compliant" />
+                    <Bar dataKey="compliant" stackId="a" fill="#10b981" name={t('analytics.chart.compliant')} />
+                    <Bar dataKey="nonCompliant" stackId="a" fill="#ef4444" name={t('analytics.chart.nonCompliant')} />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -401,7 +403,7 @@ export default function AnalyticsPage() {
           <div className="grid gap-4 md:grid-cols-2">
             <Card>
               <CardHeader>
-                <CardTitle>Duplo Daily Submissions</CardTitle>
+                <CardTitle>{t('analytics.duplo.submissions')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
@@ -410,8 +412,8 @@ export default function AnalyticsPage() {
                     <XAxis dataKey="date" />
                     <YAxis />
                     <Tooltip />
-                    <Bar dataKey="successful" stackId="a" fill="#10b981" name="Successful" />
-                    <Bar dataKey="failed" stackId="a" fill="#ef4444" name="Failed" />
+                    <Bar dataKey="successful" stackId="a" fill="#10b981" name={t('analytics.chart.successful')} />
+                    <Bar dataKey="failed" stackId="a" fill="#ef4444" name={t('analytics.chart.failed')} />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -419,7 +421,7 @@ export default function AnalyticsPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Remita Daily Volume</CardTitle>
+                <CardTitle>{t('analytics.remita.volume')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>

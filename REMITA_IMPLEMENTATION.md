@@ -105,11 +105,13 @@ model Payment {
 
 **Backend .env**:
 ```env
-REMITA_MERCHANT_ID=2547916
-REMITA_API_KEY=1946
-REMITA_SERVICE_TYPE_ID=4430731
+REMITA_MERCHANT_ID=your_merchant_id
+REMITA_API_KEY=your_api_key
+REMITA_SERVICE_TYPE_ID=your_service_type_id
 REMITA_API_URL=https://demo.remita.net
 ```
+
+> Note: Values above are examples only. Do not commit real credentials.
 
 **Server Bootstrap**:
 - Updated `envSchema` to include Remita environment variables

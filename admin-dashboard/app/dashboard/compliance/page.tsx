@@ -22,6 +22,7 @@ import {
   Building2
 } from 'lucide-react';
 import { FetchError, fetchJson } from '@/lib/fetcher';
+import { useAdminI18n } from '@/lib/i18n';
 
 interface ComplianceData {
   overview: {
@@ -60,6 +61,7 @@ const extractErrorCode = (body: unknown): string | undefined => {
 };
 
 export default function CompliancePage() {
+  const { t } = useAdminI18n();
   const [selectedPeriod, setSelectedPeriod] = useState('30d');
 
   const { data, error, isLoading, mutate } = useSWR<ComplianceData>(
@@ -80,55 +82,23 @@ export default function CompliancePage() {
     }
   );
 
-  // Mock data for Stage 1 (DigiTax integration is in mock mode)
-  const mockData: ComplianceData = {
+  const emptyData: ComplianceData = {
     overview: {
-      complianceRate: 94.2,
-      totalInvoices: 156,
-      compliantInvoices: 147,
-      pendingReview: 6,
-      nonCompliant: 3,
+      complianceRate: 0,
+      totalInvoices: 0,
+      compliantInvoices: 0,
+      pendingReview: 0,
+      nonCompliant: 0,
     },
     nrsStatus: {
-      status: 'mock',
-      lastSync: '2026-01-21T08:00:00Z',
-      pendingSubmissions: 12,
+      status: 'error',
+      pendingSubmissions: 0,
     },
-    recentIssues: [
-      {
-        id: '1',
-        type: 'missing_tin',
-        description: 'Customer TIN not provided for B2B invoice',
-        invoiceId: 'INV-2026-0145',
-        createdAt: '2026-01-21T07:30:00Z',
-        resolved: false,
-      },
-      {
-        id: '2',
-        type: 'submission_failed',
-        description: 'NRS submission timeout (mock mode)',
-        invoiceId: 'INV-2026-0142',
-        createdAt: '2026-01-20T16:45:00Z',
-        resolved: true,
-      },
-      {
-        id: '3',
-        type: 'format_error',
-        description: 'UBL validation warning: optional field missing',
-        invoiceId: 'INV-2026-0138',
-        createdAt: '2026-01-20T14:20:00Z',
-        resolved: true,
-      },
-    ],
-    exemptionStats: [
-      { exemption: 'Zero-rated (Export)', count: 23, percentage: 14.7 },
-      { exemption: 'Exempt (Medical)', count: 8, percentage: 5.1 },
-      { exemption: 'Exempt (Educational)', count: 5, percentage: 3.2 },
-      { exemption: 'Standard VAT (7.5%)', count: 120, percentage: 76.9 },
-    ],
+    recentIssues: [],
+    exemptionStats: [],
   };
 
-  const displayData = data || mockData;
+  const displayData = data || emptyData;
 
   const getIssueIcon = (type: string) => {
     switch (type) {
@@ -209,7 +179,7 @@ export default function CompliancePage() {
           displayData.nrsStatus.status === 'mock' ? 'text-blue-800' :
           displayData.nrsStatus.status === 'connected' ? 'text-emerald-800' : 'text-rose-800'
         }>
-          NRS Integration: {displayData.nrsStatus.status === 'mock' ? 'Mock Mode (Stage 1)' : 
+          NRS Integration: {displayData.nrsStatus.status === 'mock' ? 'Mock mode' : 
             displayData.nrsStatus.status === 'connected' ? 'Connected' : 'Error'}
         </AlertTitle>
         <AlertDescription className={
@@ -217,7 +187,7 @@ export default function CompliancePage() {
           displayData.nrsStatus.status === 'connected' ? 'text-emerald-700' : 'text-rose-700'
         }>
           {displayData.nrsStatus.status === 'mock' 
-            ? 'DigiTax integration is running in mock mode for Stage 1 beta. Invoice submissions are simulated.' 
+            ? 'DigiTax integration is running in mock mode. Invoice submissions are simulated.' 
             : displayData.nrsStatus.status === 'connected'
               ? `Last sync: ${displayData.nrsStatus.lastSync ? new Date(displayData.nrsStatus.lastSync).toLocaleString() : 'Never'}`
               : 'Unable to connect to NRS. Please check configuration.'}
@@ -371,11 +341,11 @@ export default function CompliancePage() {
       if (error instanceof FetchError) {
         const code = extractErrorCode(error.body);
         if (code === 'ADMIN_API_DISABLED') {
-          return 'Compliance monitoring is disabled for this environment. Showing mock data for Stage 1 beta.';
+          return t('compliance.limited.disabled');
         }
-        return `Failed to fetch compliance data: ${error.message}`;
+        return t('compliance.error.fetch', { message: error.message });
       }
-      return 'An unexpected error occurred';
+      return t('common.unexpectedError');
     })();
 
     return (
@@ -383,7 +353,7 @@ export default function CompliancePage() {
         <div className="space-y-6">
           <Alert variant="default" className="border-amber-200 bg-amber-50">
             <AlertTriangle className="h-4 w-4 text-amber-600" />
-            <AlertTitle className="text-amber-800">Limited Functionality</AlertTitle>
+            <AlertTitle className="text-amber-800">{t('compliance.limited.title')}</AlertTitle>
             <AlertDescription className="text-amber-700">
               {message}
             </AlertDescription>

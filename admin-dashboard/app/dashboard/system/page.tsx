@@ -62,37 +62,6 @@ const extractErrorCode = (body: unknown): string | undefined => {
   return typeof record.code === 'string' ? record.code : undefined;
 };
 
-// Mock data for Stage 1 (static timestamps to keep renders pure)
-const STAGE1_MOCK_DATA: SystemHealth = {
-  overall: 'healthy',
-  services: [
-    { name: 'API Server', status: 'healthy', latency: 45, lastCheck: '2026-01-22T10:00:00.000Z' },
-    { name: 'Database', status: 'healthy', latency: 12, lastCheck: '2026-01-22T10:00:00.000Z' },
-    { name: 'Cache (Redis)', status: 'healthy', latency: 3, lastCheck: '2026-01-22T10:00:00.000Z' },
-    { name: 'Job Queue', status: 'healthy', latency: 8, lastCheck: '2026-01-22T10:00:00.000Z' },
-    { name: 'DigiTax (Mock)', status: 'healthy', message: 'Running in mock mode', latency: 150, lastCheck: '2026-01-22T10:00:00.000Z' },
-    { name: 'Remita (Sandbox)', status: 'healthy', message: 'Using sandbox environment', latency: 230, lastCheck: '2026-01-22T10:00:00.000Z' },
-  ],
-  metrics: {
-    uptime: 99.95,
-    cpuUsage: 23,
-    memoryUsage: 56,
-    diskUsage: 34,
-    activeConnections: 47,
-  },
-  integrations: {
-    digitax: { status: 'mock', latency: 150 },
-    remita: { status: 'mock', latency: 230 },
-    supabase: { status: 'connected', latency: 12 },
-    redis: { status: 'connected', latency: 3 },
-  },
-  recentEvents: [
-    { id: '1', type: 'info', message: 'System health check passed', timestamp: '2026-01-22T10:00:00.000Z' },
-    { id: '2', type: 'info', message: 'DigiTax mock mode active', timestamp: '2026-01-22T09:00:00.000Z' },
-    { id: '3', type: 'warning', message: 'High latency detected on external API (recovered)', timestamp: '2026-01-22T08:00:00.000Z' },
-  ],
-};
-
 export default function SystemPage() {
   const [autoRefresh, setAutoRefresh] = useState(true);
 
@@ -114,7 +83,26 @@ export default function SystemPage() {
     }
   );
 
-  const displayData = data || STAGE1_MOCK_DATA;
+  const emptyData: SystemHealth = {
+    overall: 'error',
+    services: [],
+    metrics: {
+      uptime: 0,
+      cpuUsage: 0,
+      memoryUsage: 0,
+      diskUsage: 0,
+      activeConnections: 0,
+    },
+    integrations: {
+      digitax: { status: 'error' },
+      remita: { status: 'error' },
+      supabase: { status: 'error' },
+      redis: { status: 'error' },
+    },
+    recentEvents: [],
+  };
+
+  const displayData = data || emptyData;
 
   const getStatusIcon = (status: 'healthy' | 'degraded' | 'error' | 'connected' | 'mock') => {
     switch (status) {

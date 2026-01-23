@@ -22,6 +22,7 @@ import {
   Clock
 } from 'lucide-react';
 import { FetchError, fetchJson } from '@/lib/fetcher';
+import { useAdminI18n } from '@/lib/i18n';
 
 interface User {
   id: string;
@@ -56,6 +57,7 @@ const extractErrorCode = (body: unknown): string | undefined => {
 };
 
 export default function UsersPage() {
+  const { t } = useAdminI18n();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
 
@@ -80,63 +82,23 @@ export default function UsersPage() {
   const getStatusBadge = (status: User['status']) => {
     switch (status) {
       case 'active':
-        return <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200"><CheckCircle2 className="w-3 h-3 mr-1" />Active</Badge>;
+        return <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200"><CheckCircle2 className="w-3 h-3 mr-1" />{t('users.filters.status.active')}</Badge>;
       case 'pending':
-        return <Badge className="bg-amber-100 text-amber-800 border-amber-200"><Clock className="w-3 h-3 mr-1" />Pending</Badge>;
+        return <Badge className="bg-amber-100 text-amber-800 border-amber-200"><Clock className="w-3 h-3 mr-1" />{t('users.filters.status.pending')}</Badge>;
       case 'suspended':
-        return <Badge className="bg-rose-100 text-rose-800 border-rose-200"><XCircle className="w-3 h-3 mr-1" />Suspended</Badge>;
+        return <Badge className="bg-rose-100 text-rose-800 border-rose-200"><XCircle className="w-3 h-3 mr-1" />{t('users.filters.status.suspended')}</Badge>;
       default:
         return null;
     }
   };
 
-  // Mock data for Stage 1 (backend not yet implemented)
-  const mockData: UsersData = {
-    users: [
-      {
-        id: '1',
-        businessName: 'Adebayo Enterprises Ltd',
-        email: 'adebayo@example.com',
-        phone: '+234 801 234 5678',
-        tin: '12345678-0001',
-        status: 'active',
-        onboardingComplete: true,
-        invoiceCount: 45,
-        createdAt: '2026-01-15T10:00:00Z',
-        lastActive: '2026-01-21T08:30:00Z',
-      },
-      {
-        id: '2',
-        businessName: 'Lagos Tech Solutions',
-        email: 'info@lagostech.ng',
-        phone: '+234 802 345 6789',
-        status: 'active',
-        onboardingComplete: true,
-        invoiceCount: 23,
-        createdAt: '2026-01-16T14:00:00Z',
-        lastActive: '2026-01-20T16:45:00Z',
-      },
-      {
-        id: '3',
-        businessName: 'Abuja Trading Co',
-        email: 'trading@abuja.com',
-        phone: '+234 803 456 7890',
-        status: 'pending',
-        onboardingComplete: false,
-        invoiceCount: 0,
-        createdAt: '2026-01-20T09:00:00Z',
-      },
-    ],
-    total: 3,
-    stats: {
-      total: 3,
-      active: 2,
-      pending: 1,
-      suspended: 0,
-    },
+  const emptyData: UsersData = {
+    users: [],
+    total: 0,
+    stats: { total: 0, active: 0, pending: 0, suspended: 0 },
   };
 
-  const displayData = data || mockData;
+  const displayData = data || emptyData;
 
   const filteredUsers = displayData.users.filter(user => {
     const matchesSearch = !searchQuery || 
@@ -154,11 +116,11 @@ export default function UsersPage() {
       if (error instanceof FetchError) {
         const code = extractErrorCode(error.body);
         if (code === 'ADMIN_API_DISABLED') {
-          return 'User management is disabled for this environment. Showing mock data for Stage 1 beta.';
+          return t('users.limited.disabled');
         }
-        return `Failed to fetch users: ${error.message}`;
+        return t('users.error.fetch', { message: error.message });
       }
-      return 'An unexpected error occurred';
+      return t('common.unexpectedError');
     })();
 
     return (
@@ -166,14 +128,14 @@ export default function UsersPage() {
         <div className="space-y-6">
           <Alert variant="default" className="border-amber-200 bg-amber-50">
             <AlertTriangle className="h-4 w-4 text-amber-600" />
-            <AlertTitle className="text-amber-800">Limited Functionality</AlertTitle>
+            <AlertTitle className="text-amber-800">{t('users.limited.title')}</AlertTitle>
             <AlertDescription className="text-amber-700">
               {message}
             </AlertDescription>
           </Alert>
           <UsersContent 
-            data={mockData} 
-            filteredUsers={mockData.users}
+            data={emptyData} 
+            filteredUsers={[]}
             searchQuery={searchQuery}
             setSearchQuery={setSearchQuery}
             statusFilter={statusFilter}
@@ -227,13 +189,30 @@ function UsersContent({
   onRefresh,
   isLoading
 }: UsersContentProps) {
+  const { t } = useAdminI18n();
+
+  const statusLabel = (status: string) => {
+    switch (status) {
+      case 'all':
+        return t('users.filters.status.all');
+      case 'active':
+        return t('users.filters.status.active');
+      case 'pending':
+        return t('users.filters.status.pending');
+      case 'suspended':
+        return t('users.filters.status.suspended');
+      default:
+        return status;
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">User Management</h1>
-          <p className="text-slate-600 mt-1">Monitor and manage TaxBridge users</p>
+          <h1 className="text-2xl font-bold text-slate-900">{t('users.title')}</h1>
+          <p className="text-slate-600 mt-1">{t('users.subtitle')}</p>
         </div>
         <Button 
           variant="outline" 
@@ -242,7 +221,7 @@ function UsersContent({
           disabled={isLoading}
         >
           <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-          Refresh
+          {t('common.refresh')}
         </Button>
       </div>
 
@@ -309,7 +288,7 @@ function UsersContent({
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
               <Input
-                placeholder="Search by name, email, or TIN..."
+                placeholder={t('users.filters.searchPlaceholder')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10"
@@ -324,7 +303,7 @@ function UsersContent({
                   onClick={() => setStatusFilter(status)}
                   className="capitalize"
                 >
-                  {status}
+                  {statusLabel(status)}
                 </Button>
               ))}
             </div>
@@ -337,14 +316,14 @@ function UsersContent({
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <UsersIcon className="h-5 w-5" />
-            Users ({filteredUsers.length})
+            {t('users.list.title', { count: filteredUsers.length })}
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
             {filteredUsers.length === 0 ? (
               <div className="text-center py-8 text-slate-500">
-                No users found matching your criteria
+                {t('users.empty')}
               </div>
             ) : (
               filteredUsers.map((user) => (

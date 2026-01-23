@@ -11,6 +11,7 @@ import { LaunchMetricsWidget, LaunchMetricsData } from '@/components/LaunchMetri
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { FetchError, fetchJson } from '@/lib/fetcher';
+import { useAdminI18n } from '@/lib/i18n';
 
 interface DashboardStats {
   totalUsers: number;
@@ -63,6 +64,8 @@ const ComplianceIcon = () => (
 );
 
 export default function DashboardPage() {
+  const { t } = useAdminI18n();
+
   const extractErrorCode = (body: unknown): string | undefined => {
     if (!body || typeof body !== 'object') return undefined;
     const record = body as Record<string, unknown>;
@@ -140,7 +143,7 @@ export default function DashboardPage() {
     const normalized = message.toLowerCase();
     if (normalized.startsWith('critical')) {
       return {
-        label: 'Critical',
+        labelKey: 'severity.critical',
         iconBg: 'bg-rose-100',
         iconColor: 'text-rose-700',
         badgeClass: 'border-rose-200 bg-rose-50 text-rose-700'
@@ -148,7 +151,7 @@ export default function DashboardPage() {
     }
     if (normalized.startsWith('high')) {
       return {
-        label: 'High',
+        labelKey: 'severity.high',
         iconBg: 'bg-orange-100',
         iconColor: 'text-orange-700',
         badgeClass: 'border-orange-200 bg-orange-50 text-orange-700'
@@ -156,14 +159,14 @@ export default function DashboardPage() {
     }
     if (normalized.includes('failed') || normalized.includes('warning') || normalized.includes('latency')) {
       return {
-        label: 'Warning',
+        labelKey: 'severity.warning',
         iconBg: 'bg-amber-100',
         iconColor: 'text-amber-700',
         badgeClass: 'border-amber-200 bg-amber-50 text-amber-700'
       };
     }
     return {
-      label: 'Info',
+      labelKey: 'severity.info',
       iconBg: 'bg-blue-100',
       iconColor: 'text-blue-700',
       badgeClass: 'border-blue-200 bg-blue-50 text-blue-700'
@@ -178,24 +181,24 @@ export default function DashboardPage() {
         const code = extractErrorCode(effectiveStatsError.body);
 
         if (code === 'ADMIN_API_DISABLED') {
-          return 'Admin analytics is disabled for this environment. Please contact the system administrator.';
+          return t('dashboard.unavailable.adminDisabled');
         }
 
         if (effectiveStatsError.status === 403) {
-          return 'You do not have access to admin analytics in this environment.';
+          return t('dashboard.unavailable.forbidden');
         }
         if (effectiveStatsError.status === 401) {
-          return 'Admin authentication is required to view this dashboard.';
+          return t('dashboard.unavailable.unauthorized');
         }
         return effectiveStatsError.message;
       }
-      return 'Failed to load dashboard data.';
+      return t('dashboard.unavailable.body');
     })();
 
     return (
       <DashboardLayout>
         <Alert variant="destructive">
-          <AlertTitle>Dashboard unavailable</AlertTitle>
+          <AlertTitle>{t('dashboard.unavailable.title')}</AlertTitle>
           <AlertDescription>{message}</AlertDescription>
         </Alert>
       </DashboardLayout>
@@ -228,26 +231,26 @@ export default function DashboardPage() {
         {/* Page Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-slate-900">Dashboard</h1>
+            <h1 className="text-3xl font-bold text-slate-900">{t('dashboard.title')}</h1>
             <p className="text-slate-600 mt-1">
-              TaxBridge System Overview & Real-time Analytics
+              {t('dashboard.subtitle')}
             </p>
           </div>
           <div className="flex items-center gap-2">
             <Badge variant="outline" className="text-xs">
-              {isStatsBlocked ? 'Auto-refresh paused' : 'Auto-refreshing every 30s'}
+              {isStatsBlocked ? t('dashboard.autoRefresh.paused') : t('dashboard.autoRefresh.active')}
             </Badge>
             <Badge variant="secondary" className="text-xs">
-              NRS 2026 Compliant
+              {t('dashboard.complianceBadge')}
             </Badge>
           </div>
         </div>
 
       {isStatsBlocked ? (
         <Alert>
-          <AlertTitle>Limited functionality</AlertTitle>
+          <AlertTitle>{t('dashboard.limited.title')}</AlertTitle>
           <AlertDescription>
-            Admin analytics is currently unavailable for this environment. Showing limited dashboard placeholders.
+            {t('dashboard.limited.body')}
           </AlertDescription>
         </Alert>
       ) : null}
@@ -256,7 +259,7 @@ export default function DashboardPage() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card className="hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-slate-600">Total Users</CardTitle>
+            <CardTitle className="text-sm font-medium text-slate-600">{t('dashboard.metric.totalUsers')}</CardTitle>
             <div className="p-2 bg-blue-50 rounded-lg">
               <UsersIcon />
             </div>
@@ -264,14 +267,14 @@ export default function DashboardPage() {
           <CardContent>
             <div className="text-3xl font-bold text-slate-900">{displayStats.totalUsers.toLocaleString()}</div>
             <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
-              Updated {lastChecked || 'just now'}
+              {t('dashboard.metric.updated', { time: lastChecked || t('dashboard.metric.justNow') })}
             </p>
           </CardContent>
         </Card>
 
         <Card className="hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-slate-600">Total Invoices</CardTitle>
+            <CardTitle className="text-sm font-medium text-slate-600">{t('dashboard.metric.totalInvoices')}</CardTitle>
             <div className="p-2 bg-green-50 rounded-lg">
               <InvoiceIcon />
             </div>
@@ -279,14 +282,14 @@ export default function DashboardPage() {
           <CardContent>
             <div className="text-3xl font-bold text-slate-900">{displayStats.totalInvoices.toLocaleString()}</div>
             <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
-              Updated {lastChecked || 'just now'}
+              {t('dashboard.metric.updated', { time: lastChecked || t('dashboard.metric.justNow') })}
             </p>
           </CardContent>
         </Card>
 
         <Card className="hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-slate-600">Total Payments</CardTitle>
+            <CardTitle className="text-sm font-medium text-slate-600">{t('dashboard.metric.totalPayments')}</CardTitle>
             <div className="p-2 bg-purple-50 rounded-lg">
               <PaymentIcon />
             </div>
@@ -294,22 +297,22 @@ export default function DashboardPage() {
           <CardContent>
             <div className="text-3xl font-bold text-slate-900">{displayStats.totalPayments.toLocaleString()}</div>
             <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
-              <span className="text-green-500">↑ 15%</span> via Remita
+              {t('dashboard.metric.trendUnavailable')}
             </p>
           </CardContent>
         </Card>
 
         <Card className="hover:shadow-md transition-shadow">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-slate-600">Compliance Rate</CardTitle>
+            <CardTitle className="text-sm font-medium text-slate-600">{t('dashboard.metric.complianceRate')}</CardTitle>
             <div className="p-2 bg-emerald-50 rounded-lg">
               <ComplianceIcon />
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-emerald-600">94.2%</div>
+            <div className="text-3xl font-bold text-emerald-600">{t('common.na')}</div>
             <p className="text-xs text-slate-500 mt-1">
-              NRS 2026 compliant invoices
+              {t('dashboard.metric.complianceUnavailable')}
             </p>
           </CardContent>
         </Card>
@@ -317,21 +320,21 @@ export default function DashboardPage() {
 
       {/* API Health Status */}
       <div>
-        <h2 className="text-lg font-semibold text-slate-800 mb-4">Integration Health</h2>
+        <h2 className="text-lg font-semibold text-slate-800 mb-4">{t('dashboard.section.integrationHealth')}</h2>
         <div className="grid gap-4 md:grid-cols-2">
           <HealthCard
-            title="Duplo/DigiTax API"
+            title={t('dashboard.integration.duplo.title')}
             status={displayStats.duploStatus}
             latency={displayStats.duploLatency}
             lastChecked={lastChecked}
-            description="E-invoicing & NRS submission"
+            description={t('dashboard.integration.duplo.desc')}
           />
           <HealthCard
-            title="Remita Payment Gateway"
+            title={t('dashboard.integration.remita.title')}
             status={displayStats.remitaStatus}
             latency={displayStats.remitaLatency}
             lastChecked={lastChecked}
-            description="Payment processing & RRR generation"
+            description={t('dashboard.integration.remita.desc')}
           />
         </div>
       </div>
@@ -340,14 +343,14 @@ export default function DashboardPage() {
       <div>
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
           <div>
-            <h2 className="text-lg font-semibold text-slate-800">Launch Readiness</h2>
+            <h2 className="text-lg font-semibold text-slate-800">{t('launch.title')}</h2>
             <p className="text-sm text-slate-500">
-              Financial guardrails tracked in real time (NRR, GRR, MRR, churn)
+              {t('dashboard.section.launch.subtitle')}
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Badge variant="outline" className="text-xs">Target NRR ≥ 110%</Badge>
-            <Badge variant="outline" className="text-xs">GRR ≥ 95%</Badge>
+            <Badge variant="outline" className="text-xs">{t('dashboard.launch.targetNrr')}</Badge>
+            <Badge variant="outline" className="text-xs">{t('dashboard.launch.targetGrr')}</Badge>
           </div>
         </div>
         <div className="grid gap-4 lg:grid-cols-3">
@@ -355,12 +358,12 @@ export default function DashboardPage() {
             {isStatsBlocked || launchMetricsError ? (
               <Card className="h-full">
                 <CardHeader>
-                  <CardTitle className="text-base font-semibold text-slate-900">Launch Readiness</CardTitle>
-                  <p className="text-sm text-slate-500">Launch metrics are currently unavailable.</p>
+                  <CardTitle className="text-base font-semibold text-slate-900">{t('dashboard.launch.unavailable.title')}</CardTitle>
+                  <p className="text-sm text-slate-500">{t('dashboard.launch.unavailable.body')}</p>
                 </CardHeader>
                 <CardContent>
                   <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-                    {launchMetricsError?.message || 'Admin analytics is disabled or requires authentication.'}
+                    {launchMetricsError?.message || t('dashboard.stats.blockedFallback')}
                   </div>
                 </CardContent>
               </Card>
@@ -371,24 +374,26 @@ export default function DashboardPage() {
           <Card className="h-full">
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-base font-medium">Risk & Alerts</CardTitle>
+                <CardTitle className="text-base font-medium">{t('dashboard.risk.title')}</CardTitle>
                 <Badge
                   variant={anomalyItems.length ? 'destructive' : 'secondary'}
                   className="text-xs"
                 >
-                  {anomalyItems.length ? `${anomalyItems.length} open` : 'Stable'}
+                  {anomalyItems.length
+                    ? t('dashboard.risk.badge.open', { count: anomalyItems.length })
+                    : t('dashboard.risk.badge.stable')}
                 </Badge>
               </div>
-              <p className="text-xs text-slate-500 mt-1">Backed by alerting + payment signals</p>
+              <p className="text-xs text-slate-500 mt-1">{t('dashboard.risk.subtitle')}</p>
             </CardHeader>
             <CardContent>
               {launchMetricsError ? (
                 <div className="rounded-lg border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
-                  Launch metrics are temporarily unavailable. {launchMetricsError.message || 'Please retry shortly.'}
+                  {t('dashboard.risk.unavailable', { message: launchMetricsError.message || t('dashboard.risk.retry') })}
                 </div>
               ) : anomalyItems.length === 0 ? (
                 <div className="rounded-lg border border-dashed border-emerald-200 bg-emerald-50/60 p-4 text-sm text-emerald-700">
-                  No anomalies detected. Guardrails holding steady as of {lastLaunchRefresh || 'now'}.
+                  {t('dashboard.risk.none', { time: lastLaunchRefresh || t('dashboard.risk.now') })}
                 </div>
               ) : (
                 <ul className="space-y-3">
@@ -417,11 +422,11 @@ export default function DashboardPage() {
                         <div className="flex-1">
                           <p className="text-sm font-medium text-slate-800">{item}</p>
                           <p className="text-xs text-slate-500 mt-1">
-                            Last check {lastLaunchRefresh || 'moments ago'}
+                            {t('dashboard.risk.lastCheck', { time: lastLaunchRefresh || t('dashboard.risk.moments') })}
                           </p>
                         </div>
                         <Badge variant="outline" className={`text-[11px] ${meta.badgeClass}`}>
-                          {meta.label}
+                          {t(meta.labelKey)}
                         </Badge>
                       </li>
                     );
@@ -435,12 +440,12 @@ export default function DashboardPage() {
 
       {/* Charts */}
       <div>
-        <h2 className="text-lg font-semibold text-slate-800 mb-4">Analytics & Trends</h2>
+        <h2 className="text-lg font-semibold text-slate-800 mb-4">{t('dashboard.section.charts.title')}</h2>
         <div className="grid gap-4 md:grid-cols-2">
           <Card className="hover:shadow-md transition-shadow">
             <CardHeader className="pb-2">
-              <CardTitle className="text-base font-medium">Duplo E-Invoicing Metrics</CardTitle>
-              <p className="text-xs text-slate-500">Success rate and latency over time</p>
+              <CardTitle className="text-base font-medium">{t('dashboard.section.metrics.duplo.title')}</CardTitle>
+              <p className="text-xs text-slate-500">{t('dashboard.section.metrics.duplo.desc')}</p>
             </CardHeader>
             <CardContent>
               <DuploHealthChart data={displayStats.duploSuccessTrend} />
@@ -449,8 +454,8 @@ export default function DashboardPage() {
 
           <Card className="hover:shadow-md transition-shadow">
             <CardHeader className="pb-2">
-              <CardTitle className="text-base font-medium">Remita Payment Transactions</CardTitle>
-              <p className="text-xs text-slate-500">Daily transaction breakdown</p>
+              <CardTitle className="text-base font-medium">{t('dashboard.section.metrics.remita.title')}</CardTitle>
+              <p className="text-xs text-slate-500">{t('dashboard.section.metrics.remita.desc')}</p>
             </CardHeader>
             <CardContent>
               <RemitaTransactionChart data={displayStats.remitaTransactions} />
@@ -462,61 +467,13 @@ export default function DashboardPage() {
       {/* Recent Activity */}
       <Card className="hover:shadow-md transition-shadow">
         <CardHeader className="pb-2">
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="text-base font-medium">Recent System Activity</CardTitle>
-              <p className="text-xs text-slate-500 mt-1">Real-time operational status</p>
-            </div>
-            <Badge variant="outline" className="text-xs">Live</Badge>
+          <div>
+            <CardTitle className="text-base font-medium">{t('dashboard.section.activity.title')}</CardTitle>
+            <p className="text-xs text-slate-500 mt-1">{t('dashboard.section.activity.subtitle')}</p>
           </div>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-yellow-100 rounded-lg">
-                  <svg className="w-4 h-4 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <div>
-                  <p className="font-medium text-slate-800">Invoice Processing Queue</p>
-                  <p className="text-sm text-slate-500">23 invoices pending NRS submission</p>
-                </div>
-              </div>
-              <Badge variant="secondary" className="bg-yellow-100 text-yellow-700">Processing</Badge>
-            </div>
-            
-            <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-green-100 rounded-lg">
-                  <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                </div>
-                <div>
-                  <p className="font-medium text-slate-800">Payment Reconciliation</p>
-                  <p className="text-sm text-slate-500">5 payments reconciled via Remita webhook</p>
-                </div>
-              </div>
-              <Badge variant="secondary" className="bg-green-100 text-green-700">Complete</Badge>
-            </div>
-            
-            <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                  </svg>
-                </div>
-                <div>
-                  <p className="font-medium text-slate-800">NRS Compliance Checks</p>
-                  <p className="text-sm text-slate-500">Last validation run 2 minutes ago</p>
-                </div>
-              </div>
-              <Badge variant="secondary" className="bg-blue-100 text-blue-700">Passing</Badge>
-            </div>
-          </div>
+          <p className="text-sm text-slate-600">{t('dashboard.section.activity.unavailable')}</p>
         </CardContent>
       </Card>
       </div>

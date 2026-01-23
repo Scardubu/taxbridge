@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
+import { useAdminI18n } from '@/lib/i18n';
 import { 
   LayoutDashboard, 
   FileText, 
@@ -14,41 +15,39 @@ import {
 } from 'lucide-react';
 
 interface NavItem {
-  name: string;
+  labelKey: string;
   href: string;
   icon: LucideIcon;
-  badge?: string | number;
 }
 
 const navigation: NavItem[] = [
   {
-    name: 'Dashboard',
+    labelKey: 'nav.dashboard',
     href: '/dashboard',
     icon: LayoutDashboard,
   },
   {
-    name: 'Invoices',
+    labelKey: 'nav.invoices',
     href: '/dashboard/invoices',
     icon: FileText,
-    badge: 23,  // Pending invoices
   },
   {
-    name: 'Analytics',
+    labelKey: 'nav.analytics',
     href: '/dashboard/analytics',
     icon: BarChart3,
   },
   {
-    name: 'Users',
+    labelKey: 'nav.users',
     href: '/dashboard/users',
     icon: Users,
   },
   {
-    name: 'Compliance',
+    labelKey: 'nav.compliance',
     href: '/dashboard/compliance',
     icon: Shield,
   },
   {
-    name: 'System',
+    labelKey: 'nav.system',
     href: '/dashboard/system',
     icon: Settings,
   },
@@ -56,6 +55,7 @@ const navigation: NavItem[] = [
 
 export function Navigation() {
   const pathname = usePathname();
+  const { t } = useAdminI18n();
 
   return (
     <nav className="hidden md:flex items-center space-x-1">
@@ -65,7 +65,7 @@ export function Navigation() {
         
         return (
           <Link
-            key={item.name}
+            key={item.href}
             href={item.href}
             className={cn(
               'flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200',
@@ -75,17 +75,7 @@ export function Navigation() {
             )}
           >
             <item.icon className="h-4 w-4" />
-            <span>{item.name}</span>
-            {item.badge && (
-              <span className={cn(
-                'ml-1 px-1.5 py-0.5 text-xs rounded-full font-semibold',
-                isActive 
-                  ? 'bg-white/20 text-white' 
-                  : 'bg-slate-200 text-slate-700'
-              )}>
-                {item.badge}
-              </span>
-            )}
+            <span>{t(item.labelKey)}</span>
           </Link>
         );
       })}

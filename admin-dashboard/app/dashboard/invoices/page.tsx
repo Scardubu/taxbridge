@@ -14,6 +14,7 @@ import { UBLViewer } from '@/components/UBLViewer';
 import { MoreHorizontal, Eye, RefreshCw } from 'lucide-react';
 import { logError } from '@/lib/logger';
 import { FetchError, fetchJson } from '@/lib/fetcher';
+import { useAdminI18n } from '@/lib/i18n';
 
 interface Invoice {
   id: string;
@@ -50,6 +51,7 @@ export default function InvoicesPage() {
     | null
   >(null);
   const [resubmittingInvoiceId, setResubmittingInvoiceId] = useState<string | null>(null);
+  const { t } = useAdminI18n();
 
   const { data: invoices, error, mutate } = useSWR<Invoice[]>('/api/admin/invoices', fetcher, {
     refreshInterval: 30000,
@@ -64,8 +66,8 @@ export default function InvoicesPage() {
       mutate();
       setNotice({
         variant: 'success',
-        title: 'Resubmitted',
-        description: 'Invoice was queued for re-submission to Duplo.',
+        title: t('invoices.notice.resubmitted.title'),
+        description: t('invoices.notice.resubmitted.body'),
       });
     } catch (error) {
       logError('admin/dashboard/invoices: Error resubmitting invoice', error, { invoiceId }, { suppressInProd: true });
@@ -74,11 +76,11 @@ export default function InvoicesPage() {
           ? error.message
           : error instanceof Error
             ? error.message
-            : 'An unexpected error occurred.';
+            : t('common.unexpectedError');
 
       setNotice({
         variant: 'destructive',
-        title: 'Resubmit failed',
+        title: t('invoices.notice.resubmitFailed.title'),
         description,
       });
     } finally {
@@ -127,7 +129,7 @@ export default function InvoicesPage() {
     return (
       <DashboardLayout>
         <Alert variant="destructive">
-          <AlertTitle>Failed to load invoices</AlertTitle>
+          <AlertTitle>{t('invoices.error.title')}</AlertTitle>
           <AlertDescription>{errorMessage}</AlertDescription>
         </Alert>
       </DashboardLayout>
@@ -157,14 +159,14 @@ export default function InvoicesPage() {
 
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold">Invoice Management</h1>
+            <h1 className="text-3xl font-bold">{t('invoices.title')}</h1>
             <p className="text-muted-foreground">
-              Manage and monitor NRS e-invoice submissions
+              {t('invoices.subtitle')}
             </p>
           </div>
           <Button onClick={() => mutate()}>
             <RefreshCw className="mr-2 h-4 w-4" />
-            Refresh
+            {t('common.refresh')}
           </Button>
         </div>
 
@@ -172,7 +174,7 @@ export default function InvoicesPage() {
       <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Invoices</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('invoices.stats.total')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{invoices.length}</div>
@@ -181,7 +183,7 @@ export default function InvoicesPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Stamped</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('invoices.stats.stamped')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">
@@ -192,7 +194,7 @@ export default function InvoicesPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Processing</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('invoices.stats.processing')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-blue-600">
@@ -203,7 +205,7 @@ export default function InvoicesPage() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Failed</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('invoices.stats.failed')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-red-600">
@@ -216,20 +218,20 @@ export default function InvoicesPage() {
       {/* Invoices Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Recent Invoices</CardTitle>
+          <CardTitle>{t('invoices.table.title')}</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>ID</TableHead>
-                <TableHead>Customer</TableHead>
-                <TableHead>User</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Total</TableHead>
-                <TableHead>NRS Reference</TableHead>
-                <TableHead>Created</TableHead>
-                <TableHead>Actions</TableHead>
+                <TableHead>{t('invoices.table.id')}</TableHead>
+                <TableHead>{t('invoices.table.customer')}</TableHead>
+                <TableHead>{t('invoices.table.user')}</TableHead>
+                <TableHead>{t('invoices.table.status')}</TableHead>
+                <TableHead>{t('invoices.table.total')}</TableHead>
+                <TableHead>{t('invoices.table.nrsReference')}</TableHead>
+                <TableHead>{t('invoices.table.created')}</TableHead>
+                <TableHead>{t('invoices.table.actions')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -238,7 +240,7 @@ export default function InvoicesPage() {
                   <TableCell className="font-mono text-xs">
                     {invoice.id.slice(0, 8)}...
                   </TableCell>
-                  <TableCell>{invoice.customerName || 'N/A'}</TableCell>
+                  <TableCell>{invoice.customerName || t('common.na')}</TableCell>
                   <TableCell>
                     <div>
                       <div className="font-medium">{invoice.user.name}</div>
@@ -253,7 +255,7 @@ export default function InvoicesPage() {
                   </TableCell>
                   <TableCell>₦{invoice.total.toLocaleString()}</TableCell>
                   <TableCell className="font-mono text-xs">
-                    {invoice.nrsReference || 'Pending'}
+                    {invoice.nrsReference || t('common.pending')}
                   </TableCell>
                   <TableCell>
                     {new Date(invoice.createdAt).toLocaleDateString()}
@@ -273,7 +275,7 @@ export default function InvoicesPage() {
                           }}
                         >
                           <Eye className="mr-2 h-4 w-4" />
-                          View Details
+                          {t('invoices.actions.viewDetails')}
                         </DropdownMenuItem>
                         {invoice.status === 'failed' && (
                           <DropdownMenuItem
@@ -281,7 +283,7 @@ export default function InvoicesPage() {
                             disabled={resubmittingInvoiceId === invoice.id}
                           >
                             <RefreshCw className="mr-2 h-4 w-4" />
-                            {resubmittingInvoiceId === invoice.id ? 'Resubmitting…' : 'Resubmit to Duplo'}
+                            {resubmittingInvoiceId === invoice.id ? t('invoices.actions.resubmitting') : t('invoices.actions.resubmit')}
                           </DropdownMenuItem>
                         )}
                       </DropdownMenuContent>
@@ -298,36 +300,36 @@ export default function InvoicesPage() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Invoice Details</DialogTitle>
+            <DialogTitle>{t('invoices.dialog.title')}</DialogTitle>
           </DialogHeader>
           {selectedInvoice && (
             <div className="space-y-6">
               {/* Basic Information */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <h3 className="font-semibold mb-2">Basic Information</h3>
+                  <h3 className="font-semibold mb-2">{t('invoices.dialog.basic')}</h3>
                   <div className="space-y-2 text-sm">
-                    <div><strong>ID:</strong> {selectedInvoice.id}</div>
-                    <div><strong>Customer:</strong> {selectedInvoice.customerName || 'N/A'}</div>
-                    <div><strong>Status:</strong> 
+                    <div><strong>{t('invoices.table.id')}:</strong> {selectedInvoice.id}</div>
+                    <div><strong>{t('invoices.dialog.customer')}:</strong> {selectedInvoice.customerName || t('common.na')}</div>
+                    <div><strong>{t('invoices.dialog.status')}:</strong> 
                       <Badge variant={getStatusVariant(selectedInvoice.status)} className="ml-2">
                         {selectedInvoice.status}
                       </Badge>
                     </div>
-                    <div><strong>Subtotal:</strong> ₦{selectedInvoice.subtotal.toLocaleString()}</div>
-                    <div><strong>VAT:</strong> ₦{selectedInvoice.vat.toLocaleString()}</div>
-                    <div><strong>Total:</strong> ₦{selectedInvoice.total.toLocaleString()}</div>
+                    <div><strong>{t('invoices.dialog.subtotal')}:</strong> ₦{selectedInvoice.subtotal.toLocaleString()}</div>
+                    <div><strong>{t('invoices.dialog.vat')}:</strong> ₦{selectedInvoice.vat.toLocaleString()}</div>
+                    <div><strong>{t('invoices.table.total')}:</strong> ₦{selectedInvoice.total.toLocaleString()}</div>
                   </div>
                 </div>
 
                 <div>
-                  <h3 className="font-semibold mb-2">User Information</h3>
+                  <h3 className="font-semibold mb-2">{t('invoices.table.user')}</h3>
                   <div className="space-y-2 text-sm">
                     <div><strong>Name:</strong> {selectedInvoice.user.name}</div>
                     <div><strong>Phone:</strong> {selectedInvoice.user.phone}</div>
-                    <div><strong>TIN:</strong> {selectedInvoice.user.tin || 'N/A'}</div>
-                    <div><strong>NRS Reference:</strong> {selectedInvoice.nrsReference || 'Pending'}</div>
-                    <div><strong>Created:</strong> {new Date(selectedInvoice.createdAt).toLocaleString()}</div>
+                    <div><strong>TIN:</strong> {selectedInvoice.user.tin || t('common.na')}</div>
+                    <div><strong>{t('invoices.table.nrsReference')}:</strong> {selectedInvoice.nrsReference || t('common.pending')}</div>
+                    <div><strong>{t('invoices.table.created')}:</strong> {new Date(selectedInvoice.createdAt).toLocaleString()}</div>
                     <div><strong>Updated:</strong> {new Date(selectedInvoice.updatedAt).toLocaleString()}</div>
                   </div>
                 </div>
@@ -350,7 +352,7 @@ export default function InvoicesPage() {
                     disabled={resubmittingInvoiceId === selectedInvoice.id}
                   >
                     <RefreshCw className="h-4 w-4" />
-                    {resubmittingInvoiceId === selectedInvoice.id ? 'Resubmitting…' : 'Resubmit to Duplo'}
+                    {resubmittingInvoiceId === selectedInvoice.id ? t('invoices.actions.resubmitting') : t('invoices.actions.resubmit')}
                   </Button>
                 )}
               </div>

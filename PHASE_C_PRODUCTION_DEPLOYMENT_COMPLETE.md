@@ -171,16 +171,19 @@ StatusCode URL
 
 ### Vercel Environment Variables (Production)
 ```
-ADMIN_API_KEYS=Rp7dyF0mfXgL7ve9B/m9YZRVl3QLWRlZdYQY/uBUJUU=-1,+nBjhJPxU+NW9JFXkFxND2v0hiYges/VOMdWgcS7Gvk=-2
+ADMIN_API_KEYS=<REDACTED>
 BACKEND_URL=https://taxbridge-api.onrender.com
 NEXT_PUBLIC_BACKEND_URL=https://taxbridge-api.onrender.com
 ```
 
 ### Render Environment Variables (Backend)
 ```
-# TODO: Add ADMIN_API_KEYS to match Vercel keys
-ADMIN_API_KEYS=Rp7dyF0mfXgL7ve9B/m9YZRVl3QLWRlZdYQY/uBUJUU=-1,+nBjhJPxU+NW9JFXkFxND2v0hiYges/VOMdWgcS7Gvk=-2
+# IMPORTANT: Never commit real keys to git.
+# Generate and set the same keys in BOTH Render + Vercel dashboards.
+ADMIN_API_KEYS=<SET_IN_DASHBOARD>
 ```
+
+> Security note: If any real key was ever committed, rotate it immediately (treat as compromised).
 
 ---
 

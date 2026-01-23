@@ -1,5 +1,8 @@
+'use client';
+
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useAdminI18n } from '@/lib/i18n';
 
 export interface LaunchMetricsData {
   timestamp: string;
@@ -88,18 +91,20 @@ const MetricTile = ({
   label,
   value,
   subtitle,
-  status
+  status,
+  badgeText,
 }: {
   label: string;
   value: string;
   subtitle: string;
   status: StatusState;
+  badgeText: string;
 }) => (
   <div className="p-4 border rounded-xl bg-white shadow-sm">
     <div className="flex items-center justify-between mb-2">
       <p className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</p>
       <Badge variant="outline" className={`text-[11px] border ${statusStyles[status]}`}>
-        {status === 'healthy' ? 'Healthy' : status === 'watch' ? 'Monitor' : 'Risk'}
+        {badgeText}
       </Badge>
     </div>
     <p className="text-3xl font-semibold text-slate-900">{value}</p>
@@ -108,12 +113,14 @@ const MetricTile = ({
 );
 
 export function LaunchMetricsWidget({ metrics, isLoading }: LaunchMetricsWidgetProps) {
+  const { t } = useAdminI18n();
+
   if (isLoading || !metrics) {
     return (
       <Card className="h-full">
         <CardHeader>
-          <CardTitle className="text-base font-semibold text-slate-900">Launch Readiness</CardTitle>
-          <p className="text-sm text-slate-500">Loading latest retention and MRR data…</p>
+          <CardTitle className="text-base font-semibold text-slate-900">{t('launch.title')}</CardTitle>
+          <p className="text-sm text-slate-500">{t('launch.loading')}</p>
         </CardHeader>
         <CardContent>
           <div className="grid gap-4 md:grid-cols-2 animate-pulse">
@@ -143,87 +150,98 @@ export function LaunchMetricsWidget({ metrics, isLoading }: LaunchMetricsWidgetP
 
   const windowLabel = formatWindowRange(metrics.window.current.start, metrics.window.current.end);
 
+  const statusBadgeText = (status: StatusState) =>
+    status === 'healthy'
+      ? t('launch.badge.healthy')
+      : status === 'watch'
+        ? t('launch.badge.watch')
+        : t('launch.badge.risk');
+
   return (
     <Card className="h-full">
       <CardHeader className="pb-4">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <CardTitle className="text-base font-semibold text-slate-900">Launch Readiness</CardTitle>
+            <CardTitle className="text-base font-semibold text-slate-900">{t('launch.title')}</CardTitle>
             <p className="text-xs text-slate-500 mt-1">
-              Monitoring guardrails for {windowLabel}
+              {t('launch.window', { window: windowLabel })}
             </p>
           </div>
-          <Badge variant="secondary" className="text-xs">Realtime</Badge>
+          <Badge variant="secondary" className="text-xs">{t('launch.realtime')}</Badge>
         </div>
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <MetricTile
-            label="Net Revenue Retention"
+            label={t('launch.tile.nrr')}
             value={formatPercent(metrics.nrr)}
-            subtitle={`${formatDelta(metrics.nrr - 106)} vs 106% goal`}
+            subtitle={t('launch.delta.vsGoal', { delta: formatDelta(metrics.nrr - 106) })}
             status={nrrStatus}
+            badgeText={statusBadgeText(nrrStatus)}
           />
           <MetricTile
-            label="Gross Revenue Retention"
+            label={t('launch.tile.grr')}
             value={formatPercent(metrics.grr)}
-            subtitle={`${formatDelta(metrics.grr - 90)} vs guardrail`}
+            subtitle={t('launch.delta.vsGuardrail', { delta: formatDelta(metrics.grr - 90) })}
             status={grrStatus}
+            badgeText={statusBadgeText(grrStatus)}
           />
           <MetricTile
-            label="Monthly Recurring Revenue"
+            label={t('launch.tile.mrr')}
             value={formatCurrency(metrics.mrr)}
-            subtitle={`${formatPercentChange(mrrGrowth)} vs last month`}
+            subtitle={t('launch.delta.vsLastMonth', { delta: formatPercentChange(mrrGrowth) })}
             status={mrrStatus}
+            badgeText={statusBadgeText(mrrStatus)}
           />
           <MetricTile
-            label="Paid Accounts"
+            label={t('launch.tile.paid')}
             value={metrics.paidUsers.toLocaleString()}
-            subtitle={`${formatPercentChange(paidUserGrowth)} vs last month`}
+            subtitle={t('launch.delta.vsLastMonth', { delta: formatPercentChange(paidUserGrowth) })}
             status={userStatus}
+            badgeText={statusBadgeText(userStatus)}
           />
         </div>
 
         <div className="grid gap-4 lg:grid-cols-2">
           <div className="p-4 rounded-xl border bg-slate-50">
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Revenue Drivers</p>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">{t('launch.drivers.title')}</p>
             <dl className="mt-4 space-y-3 text-sm text-slate-600">
               <div className="flex items-center justify-between">
-                <dt>Expansion</dt>
+                <dt>{t('launch.drivers.expansion')}</dt>
                 <dd className="font-medium text-emerald-600">{formatCurrency(metrics.expansionRevenue)}</dd>
               </div>
               <div className="flex items-center justify-between">
-                <dt>New MRR</dt>
+                <dt>{t('launch.drivers.new')}</dt>
                 <dd className="font-medium text-blue-600">{formatCurrency(metrics.newRevenue)}</dd>
               </div>
               <div className="flex items-center justify-between">
-                <dt>Contraction</dt>
+                <dt>{t('launch.drivers.contraction')}</dt>
                 <dd className="font-medium text-amber-600">{formatCurrency(metrics.contractionRevenue)}</dd>
               </div>
               <div className="flex items-center justify-between">
-                <dt>Churned Accounts</dt>
+                <dt>{t('launch.drivers.churn')}</dt>
                 <dd className="font-medium text-rose-600">{metrics.churnedUsers.toLocaleString()}</dd>
               </div>
             </dl>
           </div>
 
           <div className="p-4 rounded-xl border bg-white">
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Window Comparison</p>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">{t('launch.comparison.title')}</p>
             <div className="mt-4 grid gap-4 text-sm">
               <div className="flex items-center justify-between">
-                <span className="text-slate-500">Current window</span>
+                <span className="text-slate-500">{t('launch.comparison.currentWindow')}</span>
                 <span className="font-medium text-slate-900">{windowLabel}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-slate-500">Previous MRR</span>
+                <span className="text-slate-500">{t('launch.comparison.previousMrr')}</span>
                 <span className="font-medium">{formatCurrency(metrics.mrrPrev)}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-slate-500">Previous paid accounts</span>
+                <span className="text-slate-500">{t('launch.comparison.previousPaid')}</span>
                 <span className="font-medium">{metrics.paidUsersPrev.toLocaleString()}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-slate-500">Last refresh</span>
+                <span className="text-slate-500">{t('launch.comparison.lastRefresh')}</span>
                 <span className="font-medium">{new Date(metrics.timestamp).toLocaleTimeString()}</span>
               </div>
             </div>

@@ -5,6 +5,7 @@ import useSWR from 'swr';
 import { Navigation } from './Navigation';
 import { cn } from '@/lib/utils';
 import { FetchError, fetchJson } from '@/lib/fetcher';
+import { useAdminI18n, type AdminLanguage } from '@/lib/i18n';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -55,6 +56,7 @@ function statusFromLatency(latency: number | undefined): SystemStatus {
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [currentTime, setCurrentTime] = useState<string>('');
+  const { t, lang, setLang } = useAdminI18n();
 
   const {
     data: integrationsHealth,
@@ -83,7 +85,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     if (isIntegrationsLoading && !integrationsHealth) {
       return {
         systemStatus: 'unknown' as SystemStatus,
-        statusText: 'Checking System Health…',
+        statusTextKey: 'status.checking',
         bannerDetails: undefined as string | undefined,
         lastCheckedLabel: undefined as string | undefined,
       };
@@ -95,11 +97,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           ? integrationsError.message
           : integrationsError instanceof Error
             ? integrationsError.message
-            : 'Health check unavailable';
+            : t('status.unavailable');
 
       return {
         systemStatus: 'error' as SystemStatus,
-        statusText: 'Health Check Unavailable',
+        statusTextKey: 'status.unavailable',
         bannerDetails: message,
         lastCheckedLabel: undefined as string | undefined,
       };
@@ -123,15 +125,15 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     const details: string[] = [];
     if (digitax) {
       const suffix = typeof digitax.latency === 'number' ? ` (${digitax.latency}ms)` : '';
-      const mode = digitax.mode === 'mock' ? ' [mock]' : '';
+      const mode = digitax.mode === 'mock' ? t('integrations.mockSuffix') : '';
       const errorText = digitax.error ? `: ${digitax.error}` : '';
-      details.push(`DigiTax: ${digitaxFinal}${suffix}${mode}${errorText}`);
+      details.push(`${t('integrations.digitax')}: ${digitaxFinal}${suffix}${mode}${errorText}`);
     }
     if (remita) {
       const suffix = typeof remita.latency === 'number' ? ` (${remita.latency}ms)` : '';
-      const mode = remita.mode === 'mock' ? ' [mock]' : '';
+      const mode = remita.mode === 'mock' ? t('integrations.mockSuffix') : '';
       const errorText = remita.error ? `: ${remita.error}` : '';
-      details.push(`Remita: ${remitaFinal}${suffix}${mode}${errorText}`);
+      details.push(`${t('integrations.remita')}: ${remitaFinal}${suffix}${mode}${errorText}`);
     }
 
     const ts = integrationsHealth?.timestamp;
@@ -139,29 +141,29 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
 
     return {
       systemStatus: computedOverall,
-      statusText:
+      statusTextKey:
         computedOverall === 'healthy'
-          ? 'All Systems Operational'
+          ? 'status.healthy'
           : computedOverall === 'degraded'
-            ? 'Performance Degraded'
+            ? 'status.degraded'
             : computedOverall === 'error'
-              ? 'Service Disruption'
-              : 'System Status Unknown',
+              ? 'status.error'
+              : 'status.unknown',
       bannerDetails: details.length ? details.join(' • ') : integrationsHealth?.error,
       lastCheckedLabel,
     };
-  }, [integrationsError, integrationsHealth, isIntegrationsLoading]);
+  }, [integrationsError, integrationsHealth, isIntegrationsLoading, t]);
 
   const getStatusConfig = (status: SystemStatus) => {
     switch (status) {
       case 'healthy':
-        return { color: 'bg-green-500', text: 'All Systems Operational', bgClass: '' };
+        return { color: 'bg-green-500', bgClass: '' };
       case 'degraded':
-        return { color: 'bg-yellow-500', text: 'Performance Degraded', bgClass: 'bg-yellow-50' };
+        return { color: 'bg-yellow-500', bgClass: 'bg-yellow-50' };
       case 'error':
-        return { color: 'bg-red-500', text: 'Service Disruption', bgClass: 'bg-red-50' };
+        return { color: 'bg-red-500', bgClass: 'bg-red-50' };
       case 'unknown':
-        return { color: 'bg-slate-400', text: 'Checking System Health…', bgClass: 'bg-slate-50' };
+        return { color: 'bg-slate-400', bgClass: 'bg-slate-50' };
     }
   };
 
@@ -182,7 +184,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center sm:justify-center gap-1 sm:gap-2 text-sm">
             <div className={`w-2 h-2 rounded-full ${statusConfig.color} animate-pulse`} />
             <span className={`font-medium ${systemStatus === 'error' ? 'text-red-700' : 'text-yellow-700'}`}>
-              {derived.statusText}
+              {t(derived.statusTextKey)}
             </span>
             {derived.bannerDetails && (
               <span className={systemStatus === 'error' ? 'text-red-700/80' : 'text-yellow-700/80'}>
@@ -191,7 +193,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             )}
             {derived.lastCheckedLabel && (
               <span className={systemStatus === 'error' ? 'text-red-700/70' : 'text-yellow-700/70'}>
-                • Last checked {derived.lastCheckedLabel}
+                • {t('status.lastChecked', { time: derived.lastCheckedLabel })}
               </span>
             )}
           </div>
@@ -211,7 +213,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               </div>
               <div className="ml-4">
                 <h1 className="text-xl font-bold text-slate-900">TaxBridge</h1>
-                <p className="text-xs text-slate-500">Admin Console</p>
+                <p className="text-xs text-slate-500">{t('header.adminConsole')}</p>
               </div>
             </div>
 
@@ -225,13 +227,27 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                <span>{currentTime} WAT</span>
+                <span>{currentTime} {t('header.timeZone')}</span>
               </div>
+
+              {/* Language */}
+              <label className="hidden md:flex items-center gap-2 text-sm text-slate-600">
+                <span className="sr-only">{t('header.language')}</span>
+                <select
+                  aria-label={t('header.language')}
+                  value={lang}
+                  onChange={(e) => setLang(e.target.value as AdminLanguage)}
+                  className="h-9 rounded-lg border border-slate-200 bg-white px-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-300"
+                >
+                  <option value="en">{t('header.language.en')}</option>
+                  <option value="pidgin">{t('header.language.pidgin')}</option>
+                </select>
+              </label>
 
               {/* Status Indicator */}
               <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 rounded-full">
                 <div className={`h-2 w-2 ${statusConfig.color} rounded-full ${systemStatus === 'healthy' ? '' : 'animate-pulse'}`} />
-                <span className="text-sm font-medium text-slate-700">{derived.statusText}</span>
+                <span className="text-sm font-medium text-slate-700">{t(derived.statusTextKey)}</span>
               </div>
 
               {/* User Avatar */}
@@ -252,13 +268,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       <footer className="border-t border-slate-200 bg-white/50 mt-auto">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex flex-col md:flex-row justify-between items-center gap-2 text-sm text-slate-500">
-            <p>© 2026 TaxBridge Nigeria. NRS 2026 Compliant.</p>
+            <p>{t('footer.copyright')}</p>
             <div className="flex items-center gap-4">
               <span>v1.0.0</span>
-              <span>•</span>
-              <a href="#" className="hover:text-slate-700">Documentation</a>
-              <span>•</span>
-              <a href="#" className="hover:text-slate-700">Support</a>
             </div>
           </div>
         </div>
