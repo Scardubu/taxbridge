@@ -5,8 +5,10 @@ export type AuthTokens = {
   refreshToken?: string;
 };
 
-const ACCESS_TOKEN_KEY = 'auth:accessToken';
-const REFRESH_TOKEN_KEY = 'auth:refreshToken';
+const ACCESS_TOKEN_KEY = 'auth_accessToken';
+const REFRESH_TOKEN_KEY = 'auth_refreshToken';
+const LEGACY_ACCESS_TOKEN_KEY = 'auth:accessToken';
+const LEGACY_REFRESH_TOKEN_KEY = 'auth:refreshToken';
 
 let secureStorePromise: Promise<typeof import('expo-secure-store') | null> | null = null;
 
@@ -20,7 +22,7 @@ async function getSecureStore() {
 async function getItem(key: string): Promise<string | null> {
   const secureStore = await getSecureStore();
   if (secureStore) {
-    return secureStore.getItemAsync(key);
+    return secureStore.getItemAsync(key).catch(() => null);
   }
   return AsyncStorage.getItem(key);
 }
@@ -43,12 +45,29 @@ async function deleteItem(key: string): Promise<void> {
   await AsyncStorage.removeItem(key);
 }
 
+async function getItemWithLegacy(key: string, legacyKey: string): Promise<string | null> {
+  const secureStore = await getSecureStore();
+  if (secureStore) {
+    const secureValue = await secureStore.getItemAsync(key).catch(() => null);
+    if (secureValue) {
+      return secureValue;
+    }
+  }
+
+  const legacyValue = await AsyncStorage.getItem(legacyKey);
+  if (legacyValue && secureStore) {
+    await secureStore.setItemAsync(key, legacyValue).catch(() => undefined);
+    await AsyncStorage.removeItem(legacyKey).catch(() => undefined);
+  }
+  return legacyValue;
+}
+
 export async function getAccessToken(): Promise<string | null> {
-  return getItem(ACCESS_TOKEN_KEY);
+  return getItemWithLegacy(ACCESS_TOKEN_KEY, LEGACY_ACCESS_TOKEN_KEY);
 }
 
 export async function getRefreshToken(): Promise<string | null> {
-  return getItem(REFRESH_TOKEN_KEY);
+  return getItemWithLegacy(REFRESH_TOKEN_KEY, LEGACY_REFRESH_TOKEN_KEY);
 }
 
 export async function setAuthTokens(tokens: AuthTokens): Promise<void> {
@@ -59,5 +78,10 @@ export async function setAuthTokens(tokens: AuthTokens): Promise<void> {
 }
 
 export async function clearAuthTokens(): Promise<void> {
-  await Promise.all([deleteItem(ACCESS_TOKEN_KEY), deleteItem(REFRESH_TOKEN_KEY)]);
+  await Promise.all([
+    deleteItem(ACCESS_TOKEN_KEY),
+    deleteItem(REFRESH_TOKEN_KEY),
+    AsyncStorage.removeItem(LEGACY_ACCESS_TOKEN_KEY),
+    AsyncStorage.removeItem(LEGACY_REFRESH_TOKEN_KEY),
+  ]);
 }

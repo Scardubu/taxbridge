@@ -13,7 +13,6 @@
     "allSynced": "All don sync"
   },
   "network": {
-    "offline": "No Network",
     "noConnection": "Network No Dey",
     "noInternet": "Internet No Dey",
     "syncing": "Dey Sync",
@@ -74,6 +73,26 @@
   "onboarding": {
     "skip": "Skip am",
     "of": "of",
+    "finishLater": "Save",
+    "finishLaterTitle": "Save progress?",
+    "finishLaterMessage": "Your progress go save. You fit continue for Settings anytime.",
+    "cancel": "Cancel",
+    "save": "Save & Exit",
+    "skipAllTitle": "Skip onboarding?",
+    "skipAllMessage": "You fit see these tutorials later for Settings. You sure say you wan skip am?",
+    "skipAllConfirm": "Skip All",
+    "avgSetupValue": "30s",
+    "avgSetupLabel": "Avg setup",
+    "metaEnglishPidgin": "🌍 English + Pidgin",
+    "metaOfflineSync": "🔄 Offline Sync",
+    "metaNdprSecure": "🛡️ NDPR Secure",
+    "helperTitle": "Why make you finish onboarding?",
+    "helperSubtitle": "Open PIT/VAT/CIT calculators, DigiTax-ready invoice templates, and save offline drafts wey go sync when you online.",
+    "helperPill1": "✅ Compliance tips",
+    "helperPill2": "🤝 WhatsApp support",
+    "helperPill3": "📈 SME insights",
+    "trustLocalFirst": "📍 Local-first, e go sync when you online",
+    "trustOffline": "📵 E dey work without internet",
     "continue": "Continue",
     "back": "Go back",
     "profile": {
@@ -253,6 +272,7 @@
   },
   "common": {
     "taxbridgeLogo": "TaxBridge logo",
+    "taxbridgeName": "TaxBridge",
     "taxbridgeSlogan": "Make Tax Simple, Secure Your Future",
     "continueItems": "Continue to Items →",
     "addItem": "+ Add Item",

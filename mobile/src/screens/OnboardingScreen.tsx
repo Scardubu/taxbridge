@@ -193,12 +193,12 @@ function OnboardingScreen(props: OnboardingScreenProps = {}) {
 
   const handleSkipAll = () => {
     Alert.alert(
-      'Skip Onboarding?',
-      'You can always access these tutorials later in Settings. Are you sure you want to skip?',
+      t('onboarding.skipAllTitle'),
+      t('onboarding.skipAllMessage'),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('onboarding.cancel'), style: 'cancel' },
         {
-          text: 'Skip All',
+          text: t('onboarding.skipAllConfirm'),
           style: 'destructive',
           onPress: async () => {
             addBreadcrumb({
@@ -232,12 +232,12 @@ function OnboardingScreen(props: OnboardingScreenProps = {}) {
     });
     // Save progress without completing
     Alert.alert(
-      t('onboarding.finishLaterTitle') || 'Save Progress?',
-      t('onboarding.finishLaterMessage') || 'Your progress will be saved. You can continue from Settings anytime.',
+      t('onboarding.finishLaterTitle'),
+      t('onboarding.finishLaterMessage'),
       [
-        { text: t('onboarding.cancel') || 'Cancel', style: 'cancel' },
+        { text: t('onboarding.cancel'), style: 'cancel' },
         {
-          text: t('onboarding.save') || 'Save & Exit',
+          text: t('onboarding.save'),
           onPress: async () => {
             await completeOnboarding(progress);
             navigation?.replace('MainTabs');
@@ -251,7 +251,7 @@ function OnboardingScreen(props: OnboardingScreenProps = {}) {
     <SafeAreaView style={styles.container}>
       <View style={styles.heroSection}>
         <BrandedHero
-          title="TaxBridge"
+          title={t('common.taxbridgeName')}
           subtitle={t('common.taxbridgeSlogan')}
           showProgress={true}
           progress={(currentStepIndex + 1) / activeSteps.length}
@@ -278,15 +278,15 @@ function OnboardingScreen(props: OnboardingScreenProps = {}) {
             </View>
           </View>
           <View style={styles.heroMetaBadge}>
-            <Text style={styles.heroMetaBadgeValue}>30s</Text>
-            <Text style={styles.heroMetaBadgeLabel}>Avg setup</Text>
+            <Text style={styles.heroMetaBadgeValue}>{t('onboarding.avgSetupValue')}</Text>
+            <Text style={styles.heroMetaBadgeLabel}>{t('onboarding.avgSetupLabel')}</Text>
           </View>
         </View>
 
         <View style={styles.heroMetaChips}>
-          <Text style={styles.metaChip}>🌍 English + Pidgin</Text>
-          <Text style={styles.metaChip}>🔄 Offline Sync</Text>
-          <Text style={styles.metaChip}>🛡️ NDPR Secure</Text>
+          <Text style={styles.metaChip}>{t('onboarding.metaEnglishPidgin')}</Text>
+          <Text style={styles.metaChip}>{t('onboarding.metaOfflineSync')}</Text>
+          <Text style={styles.metaChip}>{t('onboarding.metaNdprSecure')}</Text>
         </View>
       </View>
 
@@ -302,7 +302,7 @@ function OnboardingScreen(props: OnboardingScreenProps = {}) {
         </View>
         <View style={styles.headerActions}>
           <TouchableOpacity onPress={handleFinishLater} style={styles.finishLaterButton}>
-            <Text style={styles.finishLaterText}>💾 {t('onboarding.finishLater') || 'Save'}</Text>
+            <Text style={styles.finishLaterText}>💾 {t('onboarding.finishLater')}</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={handleSkipAll} style={styles.skipAllButton}>
             <Text style={styles.skipAllText}>{t('onboarding.skip')} →</Text>
@@ -342,23 +342,20 @@ function OnboardingScreen(props: OnboardingScreenProps = {}) {
         </Animated.View>
 
         <View style={styles.helperCard}>
-          <Text style={styles.helperTitle}>Why complete onboarding?</Text>
-          <Text style={styles.helperSubtitle}>
-            Unlock guided PIT/VAT/CIT calculators, DigiTax-ready invoice templates, and
-            save offline drafts that sync once you are online.
-          </Text>
+          <Text style={styles.helperTitle}>{t('onboarding.helperTitle')}</Text>
+          <Text style={styles.helperSubtitle}>{t('onboarding.helperSubtitle')}</Text>
           <View style={styles.helperPills}>
-            <Text style={styles.helperPill}>✅ Compliance tips</Text>
-            <Text style={styles.helperPill}>🤝 WhatsApp support</Text>
-            <Text style={styles.helperPill}>📈 SME insights</Text>
+            <Text style={styles.helperPill}>{t('onboarding.helperPill1')}</Text>
+            <Text style={styles.helperPill}>{t('onboarding.helperPill2')}</Text>
+            <Text style={styles.helperPill}>{t('onboarding.helperPill3')}</Text>
           </View>
         </View>
       </Animated.ScrollView>
 
       {/* Trust Footer */}
       <View style={styles.trustFooter}>
-        <Text style={styles.trustText}>� Local-first, syncs when online</Text>
-        <Text style={styles.trustText}>📵 Works without internet</Text>
+        <Text style={styles.trustText}>{t('onboarding.trustLocalFirst')}</Text>
+        <Text style={styles.trustText}>{t('onboarding.trustOffline')}</Text>
       </View>
     </SafeAreaView>
   );
