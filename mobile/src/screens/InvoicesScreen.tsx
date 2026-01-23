@@ -261,7 +261,7 @@ const styles = StyleSheet.create({
   },
   syncButtonDisabled: {
     backgroundColor: colors.disabled,
-    shadowOpacity: 0,
+    boxShadow: 'none',
   },
   syncButtonText: {
     color: colors.textOnPrimary,

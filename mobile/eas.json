@@ -51,7 +51,8 @@
         "EXPO_PUBLIC_MIXPANEL_TOKEN": "prod_mixpanel_token"
       },
       "android": {
-        "buildType": "app-bundle"
+        "buildType": "app-bundle",
+        "autoIncrement": true
       },
       "ios": {
         "resourceClass": "m-medium",
@@ -68,6 +69,7 @@
       },
       "android": {
         "buildType": "apk",
+        "autoIncrement": true,
         "gradleCommand": ":app:assembleRelease"
       }
     }

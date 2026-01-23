@@ -32,7 +32,6 @@
         "backgroundColor": "#0B5FFF"
       },
       "package": "ng.taxbridge.app",
-      "versionCode": 50003,
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.READ_EXTERNAL_STORAGE",

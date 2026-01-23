@@ -385,10 +385,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     borderWidth: 1,
     borderColor: '#E4E7EC',
-    shadowColor: '#0F172A',
-    shadowOpacity: 0.05,
-    shadowOffset: { width: 0, height: 8 },
-    shadowRadius: 16,
+    boxShadow: '0 8px 16px rgba(15, 23, 42, 0.05)',
     elevation: 3,
   },
   heroMetaLeft: {
@@ -538,10 +535,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderWidth: 1,
     borderColor: '#E4E7EC',
-    shadowColor: '#0F172A',
-    shadowOpacity: 0.06,
-    shadowOffset: { width: 0, height: 10 },
-    shadowRadius: 24,
+    boxShadow: '0 10px 24px rgba(15, 23, 42, 0.06)',
     elevation: 4,
   },
   helperCard: {

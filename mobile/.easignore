@@ -1,0 +1,58 @@
+# Exclude local/dev-only artifacts from EAS upload
+.expo/
+.expo-shared/
+node_modules/.cache/
+
+# Tests and mocks are not needed for cloud builds
+__tests__/
+__mocks__/
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+
+# Coverage/build outputs
+coverage/
+dist/
+.tmp/
+build/
+
+# Logs and OS files
+*.log
+.DS_Store
+Thumbs.db
+
+# Docs (keep app config and source)
+*.md
+!README.md
+
+# Git artifacts
+.git/
+.gitignore
+
+# IDE/Editor configs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Environment files (credentials should be in EAS secrets)
+.env
+.env.*
+!.env.example
+
+# Large media/assets not needed for build
+*.psd
+*.ai
+*.sketch
+
+# Yarn/npm artifacts
+yarn-error.log
+npm-debug.log*
+.npm/
+.yarn/
+
+# macOS/Windows system files
+.DS_Store
+Thumbs.db
+desktop.ini

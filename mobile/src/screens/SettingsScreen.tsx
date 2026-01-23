@@ -13,6 +13,7 @@ import { useFormValidation, validationRules, showValidationError } from '../util
 import AnimatedButton from '../components/AnimatedButton';
 import { useNetwork } from '../contexts/NetworkContext';
 import { useSyncContext } from '../contexts/SyncContext';
+import { colors } from '../theme/tokens';
 
 const LANGUAGE_KEY = 'language';
 
