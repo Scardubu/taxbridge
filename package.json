@@ -10,7 +10,8 @@
     "mobile",
     "backend",
     "ml",
-    "infra"
+    "infra",
+    "packages/*"
   ],
   "resolutions": {
     "expo-constants": "18.0.13"
