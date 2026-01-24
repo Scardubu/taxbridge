@@ -6,7 +6,6 @@ import {
   SafeAreaView,
   TouchableOpacity,
   Alert,
-  Image,
 } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -20,7 +19,8 @@ import { useTranslation } from 'react-i18next';
 import { useOnboarding, OnboardingStepId, UserProfile } from '../contexts/OnboardingContext';
 import { useNetwork } from '../contexts/NetworkContext';
 import { addBreadcrumb } from '../services/sentry';
-import BrandedHero from '../components/BrandedHero';
+import { LivingBridgeHeader } from '../components/header';
+import { colors, radii, spacing, typography } from '../theme/tokens';
 
 // Step components
 import ProfileAssessmentStep from '../components/onboarding/ProfileAssessmentStep';
@@ -249,48 +249,27 @@ function OnboardingScreen(props: OnboardingScreenProps = {}) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.heroSection}>
-        <BrandedHero
-          title={t('common.taxbridgeName')}
-          subtitle={t('common.taxbridgeSlogan')}
-          showProgress={true}
-          progress={(currentStepIndex + 1) / activeSteps.length}
-          showOfflineIndicator={true}
-          isOnline={isOnline}
-          variant="compact"
-          logoSource={APP_ICON}
-        />
+      {/* Living Bridge Header - Full Onboarding Variant */}
+      <LivingBridgeHeader
+        variant="onboarding"
+        title={t('common.taxbridgeName')}
+        subtitle={t('common.taxbridgeSlogan')}
+        logoSource={APP_ICON}
+        showNetworkStatus={true}
+        isOnline={isOnline}
+        showProgress={true}
+        progress={(currentStepIndex + 1) / activeSteps.length}
+        showTrustBadges={true}
+        showMetricChip={true}
+        metricValue={t('onboarding.avgSetupValue')}
+        metricLabel={t('onboarding.avgSetupLabel')}
+        showSkip={true}
+        onSkip={handleSkipAll}
+        showSave={true}
+        onSave={handleFinishLater}
+      />
 
-        <View style={styles.heroMetaCard}>
-          <View style={styles.heroMetaLeft}>
-            <Image
-              source={APP_ICON}
-              style={styles.heroMetaImage}
-              resizeMode="contain"
-              accessible
-              accessibilityLabel={t('common.taxbridgeLogo')}
-            />
-            <View style={styles.heroMetaCopy}>
-              <Text style={styles.heroMetaTitle}>{t('common.builtForSMEs')}</Text>
-              <Text style={styles.heroMetaSubtitle}>
-                {t('common.onboardingDesc')}
-              </Text>
-            </View>
-          </View>
-          <View style={styles.heroMetaBadge}>
-            <Text style={styles.heroMetaBadgeValue}>{t('onboarding.avgSetupValue')}</Text>
-            <Text style={styles.heroMetaBadgeLabel}>{t('onboarding.avgSetupLabel')}</Text>
-          </View>
-        </View>
-
-        <View style={styles.heroMetaChips}>
-          <Text style={styles.metaChip}>{t('onboarding.metaEnglishPidgin')}</Text>
-          <Text style={styles.metaChip}>{t('onboarding.metaOfflineSync')}</Text>
-          <Text style={styles.metaChip}>{t('onboarding.metaNdprSecure')}</Text>
-        </View>
-      </View>
-
-      {/* Enhanced Header with Actions */}
+      {/* Step Indicator with Progress Dots */}
       <View style={styles.header}>
         <View style={styles.stepIndicator}>
           <Text style={styles.stepNumber}>
@@ -299,14 +278,6 @@ function OnboardingScreen(props: OnboardingScreenProps = {}) {
           <Text style={styles.stepName}>
             {currentStep?.id ? t(`onboarding.${currentStep.id}.title`) : ''}
           </Text>
-        </View>
-        <View style={styles.headerActions}>
-          <TouchableOpacity onPress={handleFinishLater} style={styles.finishLaterButton}>
-            <Text style={styles.finishLaterText}>💾 {t('onboarding.finishLater')}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={handleSkipAll} style={styles.skipAllButton}>
-            <Text style={styles.skipAllText}>{t('onboarding.skip')} →</Text>
-          </TouchableOpacity>
         </View>
       </View>
 
@@ -366,220 +337,112 @@ export default memo(OnboardingScreen);
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
-  },
-  heroSection: {
-    paddingHorizontal: 16,
-    paddingTop: 8,
-  },
-  heroMetaCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 16,
-    marginTop: -8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderWidth: 1,
-    borderColor: '#E4E7EC',
-    boxShadow: '0 8px 16px rgba(15, 23, 42, 0.05)',
-    elevation: 3,
-  },
-  heroMetaLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    gap: 12,
-  },
-  heroMetaImage: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
-  },
-  heroMetaCopy: {
-    flex: 1,
-  },
-  heroMetaTitle: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#0F172A',
-  },
-  heroMetaSubtitle: {
-    fontSize: 13,
-    color: '#475467',
-    marginTop: 4,
-    lineHeight: 18,
-  },
-  heroMetaBadge: {
-    alignItems: 'flex-end',
-    backgroundColor: '#EEF2FF',
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 16,
-  },
-  heroMetaBadgeValue: {
-    fontSize: 18,
-    fontWeight: '900',
-    color: '#4338CA',
-  },
-  heroMetaBadgeLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#4338CA',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  heroMetaChips: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 12,
-    marginBottom: 4,
-  },
-  metaChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    backgroundColor: '#E0EAFF',
-    borderRadius: 20,
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#0B5FFF',
+    backgroundColor: colors.surfaceSlate,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
   },
   stepIndicator: {
     flex: 1,
   },
   stepNumber: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#0B5FFF',
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.bold,
+    color: colors.primary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   stepName: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#101828',
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.extrabold,
+    color: colors.textPrimary,
     marginTop: 2,
-  },
-  headerActions: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  finishLaterButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    backgroundColor: '#EBF4FF',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#93C5FD',
-  },
-  finishLaterText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#0B5FFF',
-  },
-  skipAllButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    backgroundColor: '#FEF3C7',
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#FDE68A',
-  },
-  skipAllText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#92400E',
   },
   stepsContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 12,
-    gap: 8,
+    paddingVertical: spacing.md,
+    gap: spacing.sm,
   },
   stepDot: {
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: '#E4E7EC',
+    backgroundColor: colors.borderSubtle,
   },
   stepDotActive: {
     width: 24,
-    backgroundColor: '#0B5FFF',
+    backgroundColor: colors.primary,
   },
   stepDotCompleted: {
-    backgroundColor: '#10B981',
+    backgroundColor: colors.success,
   },
   content: {
     flex: 1,
   },
   contentContainer: {
-    paddingHorizontal: 16,
-    paddingBottom: 32,
-    gap: 16,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.xxl + 8,
+    gap: spacing.lg,
   },
   stepCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    padding: 16,
+    backgroundColor: colors.surface,
+    borderRadius: radii.xl,
+    padding: spacing.lg,
     borderWidth: 1,
-    borderColor: '#E4E7EC',
-    boxShadow: '0 10px 24px rgba(15, 23, 42, 0.06)',
+    borderColor: colors.borderSubtle,
     elevation: 4,
   },
   helperCard: {
-    backgroundColor: '#0B5FFF',
-    borderRadius: 24,
-    padding: 20,
+    backgroundColor: colors.primary,
+    borderRadius: radii.xl,
+    padding: spacing.xl,
     gap: 10,
   },
   helperTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#FFFFFF',
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.extrabold,
+    color: colors.textOnPrimary,
   },
   helperSubtitle: {
-    fontSize: 13,
-    color: 'rgba(255, 255, 255, 0.85)',
+    fontSize: typography.size.sm - 1,
+    color: colors.textOnPrimaryMuted,
     lineHeight: 18,
   },
   helperPills: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 4,
+    gap: spacing.sm,
+    marginTop: spacing.xs,
   },
   helperPill: {
     paddingHorizontal: 10,
     paddingVertical: 6,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255, 255, 255, 0.18)',
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '600',
+    borderRadius: radii.lg,
+    backgroundColor: colors.overlayLightStrong,
+    color: colors.textOnPrimary,
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.semibold,
   },
   trustFooter: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    backgroundColor: '#FFFFFF',
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    backgroundColor: colors.surface,
     borderTopWidth: 1,
-    borderTopColor: '#E4E7EC',
-    gap: 16,
+    borderTopColor: colors.borderSubtle,
+    gap: spacing.lg,
   },
   trustText: {
-    fontSize: 11,
-    color: '#667085',
-    fontWeight: '500',
+    fontSize: typography.size.xs - 1,
+    color: colors.textMuted,
+    fontWeight: typography.weight.medium,
   },
 });

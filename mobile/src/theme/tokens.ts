@@ -1,12 +1,23 @@
 import { Platform } from 'react-native';
 
 export const colors = {
-  // Brand
+  // Brand — Living Bridge Palette
   primary: '#0B5FFF',
   primaryDark: '#0952CC',
   primaryDeep: '#052B52',
   primaryLight: '#EBF4FF',
   primaryBorder: '#93C5FD',
+  
+  // Brand Extended (Living Bridge gradient stops)
+  brandBlue50: '#EBF5FF',
+  brandBlue100: '#D6E9FF',
+  brandBlue500: '#2563EB',
+  brandBlue600: '#1E4FD8',
+  brandGreen400: '#22C55E',
+  brandGreen600: '#16A34A',
+  brandNavy900: '#071E2F',
+  brandIndigo: '#4338CA',
+  brandIndigoBg: '#EEF2FF',
 
   // Surfaces
   surface: '#FFFFFF',
@@ -82,8 +93,17 @@ export const colors = {
   overlayLightStrong: 'rgba(255, 255, 255, 0.2)',
   overlayLightSubtle: 'rgba(255, 255, 255, 0.1)',
 
+  // Header gradients (Living Bridge)
+  headerGradientStart: 'rgba(34, 197, 94, 0.12)',
+  headerGradientMid: 'rgba(37, 99, 235, 0.14)',
+  headerGradientEnd: 'rgba(37, 99, 235, 0.08)',
+  headerArcStroke: '#1E4FD8',
+  headerGridStroke: '#E6EEF9',
+
   // Shadows
   shadowPrimary: '#0B5FFF',
+  shadowHeader: 'rgba(9, 30, 66, 0.06)',
+  shadowChip: 'rgba(12, 34, 73, 0.06)',
 };
 
 export const spacing = {

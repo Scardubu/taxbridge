@@ -9,6 +9,7 @@ import { useSyncContext } from '../contexts/SyncContext';
 import SyncStatusBar from '../components/SyncStatusBar';
 import QuickActionRail from '../components/QuickActionRail';
 import InsightsCarousel from '../components/InsightsCarousel';
+import { LivingBridgeHeader } from '../components/header';
 import { colors, radii, spacing, typography, shadows } from '../theme/tokens';
 
 const { width } = Dimensions.get('window');
@@ -97,6 +98,18 @@ function HomeScreen(props: any) {
 
   return (
     <SafeAreaView style={styles.safe}>
+      {/* Living Bridge Header - Compact Home Variant */}
+      <LivingBridgeHeader
+        variant="compact"
+        title={t('home.welcome')}
+        subtitle={getGreeting()}
+        showNetworkStatus={true}
+        isOnline={isOnline}
+        showTrustBadges={false}
+        showProgress={false}
+        showMetricChip={false}
+      />
+
       <ScrollView 
         style={styles.scroll}
         contentContainerStyle={styles.container}
@@ -105,17 +118,6 @@ function HomeScreen(props: any) {
         }
         showsVerticalScrollIndicator={false}
       >
-        {/* Enhanced Header */}
-        <Animated.View entering={FadeInDown.duration(400).delay(100)} style={styles.header}>
-          <View>
-            <Text style={styles.greeting}>{getGreeting()}</Text>
-            <Text style={styles.h1}>{t('home.welcome')}</Text>
-          </View>
-          <View style={styles.headerBadge}>
-            <Text style={styles.headerBadgeIcon}>🌉</Text>
-          </View>
-        </Animated.View>
-
         {/* Sync Status Bar */}
         <Animated.View entering={FadeInDown.duration(400).delay(200)}>
           <SyncStatusBar 
@@ -206,34 +208,6 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.surfaceSlate },
   scroll: { flex: 1 },
   container: { paddingBottom: spacing.xxl + spacing.sm },
-  header: { 
-    flexDirection: 'row', 
-    justifyContent: 'space-between',
-    alignItems: 'center', 
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.lg,
-    paddingBottom: spacing.sm,
-  },
-  greeting: { 
-    fontSize: typography.size.sm, 
-    color: colors.textMuted,
-    fontWeight: typography.weight.semibold,
-    marginBottom: spacing.xs,
-  },
-  h1: { fontSize: typography.size.xxl, fontWeight: typography.weight.black, color: colors.textPrimary },
-  headerBadge: {
-    width: 48,
-    height: 48,
-    borderRadius: radii.xl,
-    backgroundColor: colors.primaryLight,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: colors.primaryBorder,
-  },
-  headerBadgeIcon: {
-    fontSize: 24,
-  },
   
   // Stats
   statsRow: { 
