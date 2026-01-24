@@ -62,14 +62,14 @@ function SyncStatusBar({ pendingCount = 0, onSyncPress }: SyncStatusBarProps) {
   }));
 
   const formatLastSync = () => {
-    if (!lastSyncAt) return 'Never synced';
+    if (!lastSyncAt) return t('sync.neverSynced');
     const diff = Date.now() - lastSyncAt;
     const minutes = Math.floor(diff / 60000);
     const hours = Math.floor(diff / 3600000);
     
-    if (minutes < 1) return 'Just now';
-    if (minutes < 60) return `${minutes}m ago`;
-    if (hours < 24) return `${hours}h ago`;
+    if (minutes < 1) return t('sync.justNow');
+    if (minutes < 60) return t('sync.minutesAgo', { count: minutes });
+    if (hours < 24) return t('sync.hoursAgo', { count: hours });
     return new Date(lastSyncAt).toLocaleDateString();
   };
 
@@ -77,7 +77,7 @@ function SyncStatusBar({ pendingCount = 0, onSyncPress }: SyncStatusBarProps) {
     if (isSyncing) {
       return {
         icon: '🔄',
-        text: 'Syncing...',
+        text: t('network.syncing'),
         bgColor: colors.infoBg,
         textColor: colors.infoDark,
         borderColor: colors.infoBorder,
@@ -86,7 +86,7 @@ function SyncStatusBar({ pendingCount = 0, onSyncPress }: SyncStatusBarProps) {
     if (!isOnline) {
       return {
         icon: '📵',
-        text: 'Offline Mode',
+        text: t('common.offlineMode'),
         bgColor: colors.warningBg,
         textColor: colors.warningDark,
         borderColor: colors.warningBorder,
@@ -95,7 +95,7 @@ function SyncStatusBar({ pendingCount = 0, onSyncPress }: SyncStatusBarProps) {
     if (pendingCount > 0) {
       return {
         icon: '⏳',
-        text: `${pendingCount} pending`,
+        text: t('sync.pendingCount', { count: pendingCount }),
         bgColor: colors.warningBg,
         textColor: colors.warningDark,
         borderColor: colors.warningBorder,
@@ -103,7 +103,7 @@ function SyncStatusBar({ pendingCount = 0, onSyncPress }: SyncStatusBarProps) {
     }
     return {
       icon: '✅',
-      text: 'All synced',
+      text: t('home.allSynced'),
       bgColor: colors.successBg,
       textColor: colors.successDark,
       borderColor: colors.successBorder,
@@ -123,7 +123,7 @@ function SyncStatusBar({ pendingCount = 0, onSyncPress }: SyncStatusBarProps) {
           )}
           <View>
             <Text style={[styles.statusText, { color: config.textColor }]}>{config.text}</Text>
-            <Text style={styles.lastSync}>Last sync: {formatLastSync()}</Text>
+            <Text style={styles.lastSync}>{t('sync.lastSync')}: {formatLastSync()}</Text>
           </View>
         </View>
         
@@ -134,7 +134,7 @@ function SyncStatusBar({ pendingCount = 0, onSyncPress }: SyncStatusBarProps) {
             accessibilityRole="button"
             accessibilityLabel={t('common.syncPending')}
           >
-            <Text style={styles.syncButtonText}>Sync</Text>
+            <Text style={styles.syncButtonText}>{t('invoices.sync')}</Text>
           </Pressable>
         )}
       </View>

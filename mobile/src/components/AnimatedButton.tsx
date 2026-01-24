@@ -8,6 +8,8 @@ import Animated, {
 } from 'react-native-reanimated';
 import { colors, radii, spacing, typography } from '../theme/tokens';
 
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
 interface AnimatedButtonProps {
   title: string;
   onPress: () => void;
@@ -64,7 +66,7 @@ function AnimatedButton({
   });
 
   return (
-    <Pressable
+    <AnimatedPressable
       onPressIn={() => {
         if (!disabled && !loading) {
           pressed.value = 1;
@@ -75,13 +77,13 @@ function AnimatedButton({
       }}
       onPress={onPress}
       disabled={disabled || loading}
-      style={[animatedStyle, styles.button, style]}
+      style={[styles.button, animatedStyle, disabled && styles.buttonDisabled, style]}
       testID={testID}
     >
-      <Animated.Text style={[textStyle, styles.text]}>
+      <Animated.Text style={[styles.text, textStyle, disabled && styles.textDisabled]}>
         {loading ? 'Loading...' : title}
       </Animated.Text>
-    </Pressable>
+    </AnimatedPressable>
   );
 }
 
@@ -95,15 +97,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: colors.border,
-    minHeight: 48,
+    borderColor: colors.primary,
+    minHeight: 52,
+    backgroundColor: colors.primary,
     elevation: 2,
     // @ts-ignore - boxShadow for web compatibility
-    boxShadow: '0px 1px 3px rgba(0, 0, 0, 0.08)',
+    boxShadow: '0px 2px 4px rgba(11, 95, 255, 0.2)',
+  },
+  buttonDisabled: {
+    backgroundColor: colors.surfaceMuted,
+    borderColor: colors.borderSubtle,
+    opacity: 0.6,
   },
   text: {
     fontSize: typography.size.md,
     fontWeight: typography.weight.bold,
-    letterSpacing: -0.5,
+    letterSpacing: -0.3,
+    color: colors.textOnPrimary,
+  },
+  textDisabled: {
+    color: colors.textMuted,
   },
 });

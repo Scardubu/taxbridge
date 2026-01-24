@@ -268,9 +268,7 @@ function LivingBridgeHeader({
             <Text style={[styles.title, isCompact && styles.titleCompact]}>
               {displayTitle}
             </Text>
-            {!isCompact && (
-              <Text style={styles.subtitle}>{displaySubtitle}</Text>
-            )}
+            <Text style={[styles.subtitle, isCompact && styles.subtitleCompact]}>{displaySubtitle}</Text>
           </View>
 
           {/* Metric Chip (right side) */}
@@ -447,9 +445,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.md,
     marginBottom: spacing.md,
+    paddingHorizontal: spacing.xs,
   },
   brandSectionCompact: {
     marginBottom: spacing.sm,
+    gap: spacing.sm,
   },
   logoContainer: {},
   logoCircle: {
@@ -479,6 +479,7 @@ const styles = StyleSheet.create({
   },
   brandText: {
     flex: 1,
+    justifyContent: 'center',
   },
   title: {
     fontSize: typography.size.xxl,
@@ -487,13 +488,18 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   titleCompact: {
-    fontSize: typography.size.xl,
+    fontSize: typography.size.lg,
+    letterSpacing: 0.2,
   },
   subtitle: {
     fontSize: typography.size.sm,
     color: colors.textMuted,
     marginTop: 2,
     fontWeight: typography.weight.medium,
+  },
+  subtitleCompact: {
+    fontSize: typography.size.xs,
+    marginTop: 1,
   },
 
   // Progress

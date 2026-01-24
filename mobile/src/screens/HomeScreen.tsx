@@ -175,7 +175,7 @@ function HomeScreen(props: any) {
         <Animated.View entering={FadeInDown.duration(400).delay(600)} style={styles.tipCard}>
           <Text style={styles.tipEmoji}>💡</Text>
           <View style={styles.tipContent}>
-            <Text style={styles.tipTitle}>Tax Tip</Text>
+            <Text style={styles.tipTitle}>{t('home.taxTip')}</Text>
             <Text style={styles.tipText}>
               {t('home.offlineNotice')}
             </Text>
@@ -186,15 +186,15 @@ function HomeScreen(props: any) {
         <Animated.View entering={FadeInDown.duration(400).delay(700)} style={styles.trustBadges}>
           <View style={styles.trustBadge}>
             <Text style={styles.trustIcon}>✓</Text>
-            <Text style={styles.trustLabel}>NRS Ready</Text>
+            <Text style={styles.trustLabel}>{t('home.nrsReady')}</Text>
           </View>
           <View style={styles.trustBadge}>
             <Text style={styles.trustIcon}>🔒</Text>
-            <Text style={styles.trustLabel}>NDPR Safe</Text>
+            <Text style={styles.trustLabel}>{t('home.ndprSafe')}</Text>
           </View>
           <View style={styles.trustBadge}>
             <Text style={styles.trustIcon}>📵</Text>
-            <Text style={styles.trustLabel}>Offline First</Text>
+            <Text style={styles.trustLabel}>{t('home.offlineFirst')}</Text>
           </View>
         </Animated.View>
       </ScrollView>

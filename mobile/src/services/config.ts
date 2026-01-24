@@ -6,6 +6,11 @@ const SETTINGS_API_BASE_URL_KEY = 'api:baseUrl';
 const LEGACY_ASYNCSTORAGE_API_BASE_URL_KEY = 'taxbridge_api_base_url';
 
 function defaultApiBaseUrl(): string {
+  // Check for environment variable first (for web platform and EAS builds)
+  if (process.env.EXPO_PUBLIC_API_URL) {
+    return process.env.EXPO_PUBLIC_API_URL;
+  }
+  
   // Default for development - works with Android emulator
   return __DEV__ ? 'http://10.0.2.2:3000' : 'https://api.taxbridge.ng';
 }

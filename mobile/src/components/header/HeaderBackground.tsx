@@ -26,7 +26,7 @@ function HeaderBackground({
   const isWeb = Platform.OS === 'web';
   
   return (
-    <View style={[styles.container, { height }]} pointerEvents="none">
+    <View style={[styles.container, { height }]}>
       <Svg
         width="100%"
         height="100%"
@@ -93,5 +93,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     overflow: 'hidden',
+    pointerEvents: 'none',
   },
 });

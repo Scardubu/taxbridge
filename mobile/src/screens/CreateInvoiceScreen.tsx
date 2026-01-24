@@ -56,9 +56,9 @@ export default function CreateInvoiceScreen(props: any) {
   const stepProgress = useSharedValue(0);
 
   const steps: { key: WizardStep; label: string; icon: string }[] = [
-    { key: 'customer', label: 'Customer', icon: '👤' },
-    { key: 'items', label: 'Items', icon: '📦' },
-    { key: 'review', label: 'Review', icon: '✅' },
+    { key: 'customer', label: t('create.stepCustomer'), icon: '👤' },
+    { key: 'items', label: t('create.stepItems'), icon: '📦' },
+    { key: 'review', label: t('create.stepReview'), icon: '✅' },
   ];
 
   const currentStepIndex = steps.findIndex(s => s.key === currentStep);
@@ -101,7 +101,7 @@ export default function CreateInvoiceScreen(props: any) {
 
   const addItem = useCallback(() => {
     if (!validateAll()) {
-      showValidationError('Validation Error', 'Please fix the errors before adding an item');
+      showValidationError(t('alerts.validationError'), t('alerts.fixErrorsBeforeAdding'));
       return;
     }
 
@@ -130,7 +130,7 @@ export default function CreateInvoiceScreen(props: any) {
       setCurrentStep('items');
     } else if (currentStep === 'items') {
       if (items.length === 0) {
-        showValidationError('No Items', 'Please add at least one item before proceeding');
+        showValidationError(t('alerts.noItems'), t('alerts.addItemBeforeProceeding'));
         return;
       }
       setCurrentStep('review');
@@ -180,7 +180,7 @@ export default function CreateInvoiceScreen(props: any) {
       }
     } catch (error) {
       if (isMountedRef.current) {
-        showValidationError('Camera Error', 'Failed to capture image. Please try again.');
+        showValidationError(t('alerts.cameraError'), t('alerts.cameraErrorDesc'));
       }
       console.error('Camera error:', error);
     } finally {
@@ -212,7 +212,7 @@ export default function CreateInvoiceScreen(props: any) {
       }
     } catch (error) {
       if (isMountedRef.current) {
-        showValidationError('Gallery Error', 'Failed to pick image. Please try again.');
+        showValidationError(t('alerts.galleryError'), t('alerts.galleryErrorDesc'));
       }
       console.error('Gallery error:', error);
     } finally {
@@ -223,7 +223,7 @@ export default function CreateInvoiceScreen(props: any) {
   const processReceiptImage = async (imageInput: string, isBase64 = false) => {
     try {
       if (isMountedRef.current) {
-        setLoadingMessage('Analyzing receipt...');
+        setLoadingMessage(t('alerts.analyzingReceipt'));
         setLoading(true);
       }
 
@@ -241,10 +241,11 @@ export default function CreateInvoiceScreen(props: any) {
         // If low confidence, ask user whether to apply detected values
         let message = '';
         if (!validation.isValid) {
-          message += 'Could not fully analyze receipt.\n\n';
+          message += t('alerts.couldNotAnalyze') + '\n\n';
           message += validation.warnings.join('\n') + '\n\n';
         }
-        message += `Detected: ${ocrResult.amount ? `₦${ocrResult.amount.toFixed(2)}` : 'No amount'}\nConfidence: ${(ocrResult.confidence * 100).toFixed(0)}%\n\nApply detected values?`;
+        const amountText = ocrResult.amount ? `₦${ocrResult.amount.toFixed(2)}` : t('alerts.noAmountDetected');
+        message += `${t('alerts.detectedAmount', { amount: amountText })}\n${t('alerts.confidence', { percent: (ocrResult.confidence * 100).toFixed(0) })}\n\n${t('alerts.applyDetectedValues')}`;
 
         Alert.alert(t('alerts.ocrResult'), message, [
           { text: t('alerts.useDetected'), onPress: () => applyOcrResult(ocrResult) },
@@ -253,14 +254,15 @@ export default function CreateInvoiceScreen(props: any) {
       } else {
         applyOcrResult(ocrResult);
         if (isMountedRef.current) {
-          Alert.alert(t('alerts.receiptAnalysisComplete'), `Detected: ${ocrResult.amount ? `₦${ocrResult.amount.toFixed(2)}` : 'No amount'}\nConfidence: ${(ocrResult.confidence * 100).toFixed(0)}%\n\nReview and adjust as needed.`);
+          const amountText = ocrResult.amount ? `₦${ocrResult.amount.toFixed(2)}` : t('alerts.noAmountDetected');
+          Alert.alert(t('alerts.receiptAnalysisComplete'), `${t('alerts.detectedAmount', { amount: amountText })}\n${t('alerts.confidence', { percent: (ocrResult.confidence * 100).toFixed(0) })}\n\n${t('alerts.reviewAndAdjust')}`);
         }
       }
     } catch (error) {
       if (isMountedRef.current) {
         showValidationError(
-          'OCR Failed',
-          `${error instanceof Error ? error.message : 'Failed to process receipt'}`
+          t('alerts.ocrProcessingError'),
+          t('alerts.ocrProcessingErrorDesc')
         );
       }
       console.error('OCR processing error:', error);
@@ -326,13 +328,13 @@ export default function CreateInvoiceScreen(props: any) {
 
   const save = async () => {
     if (!items.length) {
-      showValidationError('No Items', 'Please add at least one item to the invoice');
+      showValidationError(t('alerts.noItems'), t('alerts.addItemToInvoice'));
       return;
     }
 
     if (isMountedRef.current) {
       setLoading(true);
-      setLoadingMessage('Saving invoice...');
+      setLoadingMessage(t('alerts.savingInvoice'));
     }
 
     try {
@@ -370,14 +372,14 @@ export default function CreateInvoiceScreen(props: any) {
               }
             } catch (e) {
               if (isMountedRef.current) {
-                showValidationError('Cleanup Failed', 'Could not clear old invoices. Please clear app data.');
+                showValidationError(t('alerts.cleanupFailed'), t('alerts.cleanupFailedDesc'));
               }
             }
           }},
-          { text: 'Cancel', style: 'cancel' },
+          { text: t('settings.cancel'), style: 'cancel' },
         ]);
       } else {
-        showValidationError('Save Failed', message);
+        showValidationError(t('alerts.saveFailed'), message);
       }
       console.error('Save invoice failed', err);
     } finally {
@@ -438,12 +440,12 @@ export default function CreateInvoiceScreen(props: any) {
           {currentStep === 'customer' && (
             <Animated.View entering={FadeInRight.duration(300)} style={styles.stepContent}>
               <Text style={styles.h1}>{t('create.title')}</Text>
-              <Text style={styles.stepDescription}>Add customer details (optional)</Text>
+              <Text style={styles.stepDescription}>{t('create.customerOptional')}</Text>
 
               <View style={styles.card}>
                 <View style={styles.cardHeader}>
                   <Text style={styles.cardIcon}>👤</Text>
-                  <Text style={styles.cardTitle}>Customer Information</Text>
+                  <Text style={styles.cardTitle}>{t('create.customerInfo')}</Text>
                 </View>
 
                 <Text style={styles.label}>{t('create.customer')}</Text>
@@ -451,7 +453,7 @@ export default function CreateInvoiceScreen(props: any) {
                   value={values.customerName}
                   onChangeText={(text) => setValue('customerName', text)}
                   onBlur={() => setTouchedField('customerName')}
-                  placeholder="e.g. Aisha Mohammed"
+                  placeholder={t('create.customerPlaceholder')}
                   placeholderTextColor="#98A2B3"
                   style={[styles.input, errors.customerName && touched.customerName && styles.inputError]}
                 />
@@ -462,7 +464,7 @@ export default function CreateInvoiceScreen(props: any) {
                 <View style={styles.tipBox}>
                   <Text style={styles.tipIcon}>💡</Text>
                   <Text style={styles.tipText}>
-                    Leave blank for walk-in customers. You can always add this later.
+                    {t('create.tipWalkIn')}
                   </Text>
                 </View>
               </View>
@@ -480,7 +482,7 @@ export default function CreateInvoiceScreen(props: any) {
             <Animated.View entering={FadeInRight.duration(300)} style={styles.stepContent}>
               <View style={styles.stepHeader}>
                 <Pressable onPress={goToPrevStep} style={styles.backButton}>
-                  <Text style={styles.backButtonText}>← Back</Text>
+                  <Text style={styles.backButtonText}>{t('create.backButton')}</Text>
                 </Pressable>
                 <Text style={styles.h1}>{t('create.addItem')}</Text>
               </View>
@@ -556,7 +558,7 @@ export default function CreateInvoiceScreen(props: any) {
                 <Animated.View entering={FadeIn.duration(200)} style={styles.card}>
                   <View style={styles.cardHeader}>
                     <Text style={styles.cardIcon}>📋</Text>
-                    <Text style={styles.cardTitle}>Items Added ({items.length})</Text>
+                    <Text style={styles.cardTitle}>{t('create.itemsAdded')} ({items.length})</Text>
                   </View>
 
                   {items.map((it, idx) => (
@@ -585,21 +587,21 @@ export default function CreateInvoiceScreen(props: any) {
               {/* Sticky Summary */}
               <View style={styles.stickySummary}>
                 <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>Subtotal</Text>
+                  <Text style={styles.summaryLabel}>{t('create.subtotal')}</Text>
                   <Text style={styles.summaryValue}>₦{totals.subtotal.toFixed(2)}</Text>
                 </View>
                 <View style={styles.summaryRow}>
-                  <Text style={styles.summaryLabel}>VAT (7.5%)</Text>
+                  <Text style={styles.summaryLabel}>{t('create.vatLabel')}</Text>
                   <Text style={styles.summaryValue}>₦{totals.vat.toFixed(2)}</Text>
                 </View>
                 <View style={[styles.summaryRow, styles.summaryTotal]}>
-                  <Text style={styles.summaryTotalLabel}>Total</Text>
+                  <Text style={styles.summaryTotalLabel}>{t('create.total')}</Text>
                   <Text style={styles.summaryTotalValue}>₦{totals.total.toFixed(2)}</Text>
                 </View>
               </View>
 
               <AnimatedButton
-                title={items.length > 0 ? "Review Invoice →" : "Add items to continue"}
+                title={items.length > 0 ? t('create.reviewInvoice') : t('create.addItemsToContinue')}
                 onPress={goToNextStep}
                 style={items.length === 0 ? [styles.primaryButton, styles.buttonDisabled] : styles.primaryButton}
                 disabled={items.length === 0}
@@ -612,20 +614,20 @@ export default function CreateInvoiceScreen(props: any) {
             <Animated.View entering={FadeInRight.duration(300)} style={styles.stepContent}>
               <View style={styles.stepHeader}>
                 <Pressable onPress={goToPrevStep} style={styles.backButton}>
-                  <Text style={styles.backButtonText}>← Back</Text>
+                  <Text style={styles.backButtonText}>{t('create.backButton')}</Text>
                 </Pressable>
-                <Text style={styles.h1}>Review Invoice</Text>
+                <Text style={styles.h1}>{t('create.reviewTitle')}</Text>
               </View>
-              <Text style={styles.stepDescription}>Confirm details before saving</Text>
+              <Text style={styles.stepDescription}>{t('create.confirmDetails')}</Text>
 
               {/* Customer Card */}
               <View style={styles.reviewCard}>
                 <View style={styles.reviewHeader}>
                   <Text style={styles.reviewIcon}>👤</Text>
-                  <Text style={styles.reviewTitle}>Customer</Text>
+                  <Text style={styles.reviewTitle}>{t('create.customerLabel')}</Text>
                 </View>
                 <Text style={styles.reviewValue}>
-                  {values.customerName.trim() || 'Walk-in Customer'}
+                  {values.customerName.trim() || t('create.walkInCustomer')}
                 </Text>
               </View>
 
@@ -633,7 +635,7 @@ export default function CreateInvoiceScreen(props: any) {
               <View style={styles.reviewCard}>
                 <View style={styles.reviewHeader}>
                   <Text style={styles.reviewIcon}>📦</Text>
-                  <Text style={styles.reviewTitle}>Items ({items.length})</Text>
+                  <Text style={styles.reviewTitle}>{t('create.itemsLabel')} ({items.length})</Text>
                 </View>
                 {items.map((it, idx) => (
                   <View key={idx} style={styles.reviewItem}>
@@ -649,19 +651,19 @@ export default function CreateInvoiceScreen(props: any) {
               <View style={[styles.reviewCard, styles.totalsCard]}>
                 <View style={styles.reviewHeader}>
                   <Text style={styles.reviewIcon}>💰</Text>
-                  <Text style={styles.reviewTitle}>Invoice Total</Text>
+                  <Text style={styles.reviewTitle}>{t('create.invoiceTotal')}</Text>
                 </View>
                 <View style={styles.totalBreakdown}>
                   <View style={styles.totalRow}>
-                    <Text style={styles.totalLabel}>Subtotal</Text>
+                    <Text style={styles.totalLabel}>{t('create.subtotal')}</Text>
                     <Text style={styles.totalValue}>₦{totals.subtotal.toFixed(2)}</Text>
                   </View>
                   <View style={styles.totalRow}>
-                    <Text style={styles.totalLabel}>VAT (7.5%)</Text>
+                    <Text style={styles.totalLabel}>{t('create.vatLabel')}</Text>
                     <Text style={styles.totalValue}>₦{totals.vat.toFixed(2)}</Text>
                   </View>
                   <View style={[styles.totalRow, styles.grandTotal]}>
-                    <Text style={styles.grandTotalLabel}>Grand Total</Text>
+                    <Text style={styles.grandTotalLabel}>{t('create.grandTotal')}</Text>
                     <Text style={styles.grandTotalValue}>₦{totals.total.toFixed(2)}</Text>
                   </View>
                 </View>
@@ -671,7 +673,7 @@ export default function CreateInvoiceScreen(props: any) {
               <View style={styles.complianceNotice}>
                 <Text style={styles.complianceIcon}>🏛️</Text>
                 <Text style={styles.complianceText}>
-                  This invoice will be queued for NRS submission via DigiTax when online.
+                  {t('create.complianceNotice')}
                 </Text>
               </View>
 

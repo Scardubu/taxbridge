@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { Platform } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
 
 interface NetworkContextType {
@@ -36,6 +37,7 @@ export function NetworkProvider({ children }: NetworkProviderProps) {
     forceCheck: async () => true,
   });
 
+  const isWeb = Platform.OS === 'web';
   const pingUrl = 'https://clients3.google.com/generate_204';
   const intervalMs = 15000;
 
@@ -44,6 +46,12 @@ export function NetworkProvider({ children }: NetworkProviderProps) {
 
     // helper to perform a short fetch with timeout
     async function checkReachable(timeout = 3000) {
+      if (isWeb) {
+        if (typeof navigator !== 'undefined' && typeof navigator.onLine === 'boolean') {
+          return navigator.onLine;
+        }
+        return true;
+      }
       try {
         const controller = new AbortController();
         const id = setTimeout(() => controller.abort(), timeout);
@@ -78,15 +86,37 @@ export function NetworkProvider({ children }: NetworkProviderProps) {
     setNetworkState((prev) => ({ ...prev, forceCheck }));
 
     // periodic verification to ensure `isOnline` is accurate (helps captive portals/restrictive nets)
-    const iv = setInterval(async () => {
-      const ok = await checkReachable();
-      if (!mounted) return;
-      setNetworkState((prev) => ({ ...prev, isOnline: ok }));
-    }, intervalMs);
+    let iv: ReturnType<typeof setInterval> | null = null;
+    const handleBrowserOnline = () =>
+      setNetworkState((prev) => ({ ...prev, isOnline: true, isConnected: true }));
+    const handleBrowserOffline = () =>
+      setNetworkState((prev) => ({ ...prev, isOnline: false, isConnected: false }));
+
+    if (isWeb) {
+      if (typeof window !== 'undefined') {
+        window.addEventListener('online', handleBrowserOnline);
+        window.addEventListener('offline', handleBrowserOffline);
+      }
+      iv = setInterval(async () => {
+        const ok = await checkReachable();
+        if (!mounted) return;
+        setNetworkState((prev) => ({ ...prev, isOnline: ok }));
+      }, intervalMs);
+    } else {
+      iv = setInterval(async () => {
+        const ok = await checkReachable();
+        if (!mounted) return;
+        setNetworkState((prev) => ({ ...prev, isOnline: ok }));
+      }, intervalMs);
+    }
 
     return () => {
       mounted = false;
-      clearInterval(iv);
+      if (iv) clearInterval(iv);
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('online', handleBrowserOnline);
+        window.removeEventListener('offline', handleBrowserOffline);
+      }
       unsubscribe();
     };
   }, []);

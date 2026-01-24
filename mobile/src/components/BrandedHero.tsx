@@ -73,7 +73,7 @@ function BrandedHero({
           <View style={[styles.networkBadge, isOnline ? styles.onlineBadge : styles.offlineBadge]}>
             <Text style={styles.networkDot}>{isOnline ? '●' : '○'}</Text>
             <Text style={[styles.networkText, !isOnline && styles.offlineText]}>
-              {isOnline ? 'Sync Ready' : 'Offline Mode'}
+              {isOnline ? t('common.syncReady') : t('common.offlineMode')}
             </Text>
           </View>
         )}
@@ -104,7 +104,7 @@ function BrandedHero({
             <View style={styles.progressTrack}>
               <Animated.View style={[styles.progressFill, progressAnimatedStyle]} />
             </View>
-            <Text style={styles.progressText}>{Math.round(progress * 100)}% Complete</Text>
+            <Text style={styles.progressText}>{Math.round(progress * 100)}% {t('common.complete')}</Text>
           </View>
         )}
 
@@ -113,15 +113,15 @@ function BrandedHero({
           <View style={styles.trustBadges}>
             <View style={styles.badge}>
               <Text style={styles.badgeIcon}>🔒</Text>
-              <Text style={styles.badgeText}>NDPR Safe</Text>
+              <Text style={styles.badgeText}>{t('onboarding.metaNdprSecure')}</Text>
             </View>
             <View style={styles.badge}>
               <Text style={styles.badgeIcon}>✓</Text>
-              <Text style={styles.badgeText}>NRS Ready</Text>
+              <Text style={styles.badgeText}>{t('home.nrsReady')}</Text>
             </View>
             <View style={styles.badge}>
               <Text style={styles.badgeIcon}>📵</Text>
-              <Text style={styles.badgeText}>Works Offline</Text>
+              <Text style={styles.badgeText}>{t('home.worksOffline')}</Text>
             </View>
           </View>
         )}

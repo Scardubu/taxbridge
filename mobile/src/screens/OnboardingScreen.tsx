@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, memo } from 'react';
+import React, { useState, useEffect, useCallback, useRef, memo } from 'react';
 import {
   View,
   Text,
@@ -103,6 +103,7 @@ function OnboardingScreen(props: OnboardingScreenProps = {}) {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [stepStartTime, setStepStartTime] = useState(Date.now());
   const progressValue = useSharedValue(0);
+  const hasRestoredRef = useRef(false);
 
   // Filter steps based on gating logic
   const activeSteps = STEPS.filter((step) => {
@@ -113,7 +114,41 @@ function OnboardingScreen(props: OnboardingScreenProps = {}) {
   const currentStep = activeSteps[currentStepIndex];
   const StepComponent = currentStep?.component;
 
+  const resolveResumeIndex = useCallback(() => {
+    if (activeSteps.length === 0) return 0;
+
+    if (progress.currentStep && !progress.completedAt) {
+      const currentIndex = activeSteps.findIndex((step) => step.id === progress.currentStep);
+      if (currentIndex >= 0) return currentIndex;
+    }
+
+    const completedSet = new Set(progress.completedSteps);
+    const skippedSet = new Set(progress.skippedSteps);
+    const firstIncompleteIndex = activeSteps.findIndex(
+      (step) => !completedSet.has(step.id) && !skippedSet.has(step.id)
+    );
+    if (firstIncompleteIndex >= 0) return firstIncompleteIndex;
+
+    return Math.max(0, activeSteps.length - 1);
+  }, [activeSteps, progress.completedAt, progress.completedSteps, progress.currentStep, progress.skippedSteps]);
+
   useEffect(() => {
+    if (activeSteps.length === 0) return;
+    const resumeIndex = resolveResumeIndex();
+    setCurrentStepIndex((prev) => {
+      if (!hasRestoredRef.current) {
+        hasRestoredRef.current = true;
+        return resumeIndex;
+      }
+      if (!activeSteps[prev]) {
+        return resumeIndex;
+      }
+      return prev;
+    });
+  }, [activeSteps, resolveResumeIndex]);
+
+  useEffect(() => {
+    if (activeSteps.length === 0) return;
     setStepStartTime(Date.now());
     progressValue.value = withSpring((currentStepIndex + 1) / activeSteps.length, {
       damping: 15,
@@ -239,13 +274,15 @@ function OnboardingScreen(props: OnboardingScreenProps = {}) {
         {
           text: t('onboarding.save'),
           onPress: async () => {
-            await completeOnboarding(progress);
+            if (currentStep?.id) {
+              await updateProgress(currentStep.id, false, false);
+            }
             navigation?.replace('MainTabs');
           },
         },
       ]
     );
-  }, [completeOnboarding, navigation, progress, t]);
+  }, [currentStep?.id, navigation, t, updateProgress]);
 
   return (
     <SafeAreaView style={styles.container}>

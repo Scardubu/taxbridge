@@ -7,6 +7,74 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [5.0.4] - 2026-01-24 - Header Layout Fix & Production Polish ✨
+
+### Fixed
+
+#### Mobile App - Header Component
+- **LivingBridgeHeader Layout Issue**
+  - Fixed logo and "Welcome back" text overlapping in compact mode
+  - Reduced title font size in compact mode from `xxl` to `lg` for better fit
+  - Added `justifyContent: 'center'` to brandText for proper vertical alignment
+  - Updated brandSection gap from `md` to `sm` in compact mode
+  - Now shows subtitle in compact mode with smaller font size (xs)
+  - Added horizontal padding to brandSection for better spacing
+
+### Technical
+- **Console Warnings**: pointerEvents deprecation is from react-native-web internals (expected, not from our code)
+- **Sentry Breadcrumbs**: Normal navigation tracking logs (expected behavior)
+- **Version**: Bumped to 5.0.4 for new build
+- **TypeScript**: 0 errors
+- **Web Bundle**: Successfully compiled (1065 modules in 12.8s)
+
+---
+
+## [5.0.3] - 2026-01-20 - CreateInvoiceScreen i18n & Button Fix 🌍
+
+### Fixed
+
+#### Mobile App
+- **AnimatedButton Component**
+  - Fixed button visibility issue using `Animated.createAnimatedComponent(Pressable)` pattern
+  - Added proper `minHeight: 52` for consistent touch targets
+  - Added `buttonDisabled` and `textDisabled` styles for disabled state
+  - Ensured `backgroundColor: colors.primary` and `borderColor: colors.primary` for visibility
+
+- **Splash Screen Configuration**
+  - Added iOS-specific splash configuration in app.json
+  - Added Android-specific splash configuration in app.json
+  - Added `expo-splash-screen` plugin with proper config (imageWidth: 200, resizeMode: cover)
+  - Installed expo-splash-screen@31.0.13
+
+### Added
+
+#### i18n Improvements
+- **CreateInvoiceScreen Full i18n Coverage**
+  - Added 30+ new translation keys to en.json and pidgin.json
+  - Wizard step labels: `create.stepCustomer`, `create.stepItems`, `create.stepReview`
+  - Customer step: `create.customerOptional`, `create.customerInfo`, `create.customerPlaceholder`, `create.tipWalkIn`
+  - Items step: `create.backButton`, `create.itemsAdded`, `create.subtotal`, `create.vatLabel`, `create.total`
+  - Review step: `create.reviewInvoice`, `create.addItemsToContinue`, `create.reviewTitle`, `create.confirmDetails`
+  - Review cards: `create.customerLabel`, `create.walkInCustomer`, `create.itemsLabel`, `create.invoiceTotal`, `create.grandTotal`
+  - Compliance: `create.complianceNotice`
+  
+- **Alert Messages i18n**
+  - Added validation error keys: `alerts.validationError`, `alerts.fixErrorsBeforeAdding`
+  - Added item validation keys: `alerts.noItems`, `alerts.addItemBeforeProceeding`, `alerts.addItemToInvoice`
+  - Added camera/gallery error keys: `alerts.cameraError`, `alerts.cameraErrorDesc`, `alerts.galleryError`, `alerts.galleryErrorDesc`
+  - Added OCR error keys: `alerts.ocrProcessingError`, `alerts.ocrProcessingErrorDesc`
+  - Added save error keys: `alerts.cleanupFailed`, `alerts.cleanupFailedDesc`, `alerts.saveFailed`
+  - Added loading messages: `alerts.analyzingReceipt`, `alerts.savingInvoice`
+  - Added OCR result keys: `alerts.detectedAmount`, `alerts.noAmountDetected`, `alerts.confidence`, `alerts.applyDetectedValues`, `alerts.reviewAndAdjust`, `alerts.couldNotAnalyze`
+
+### Technical
+
+- **TypeScript compilation**: 0 errors
+- **All i18n keys verified** in both en.json and pidgin.json
+- **CreateInvoiceScreen** now fully internationalized
+
+---
+
 ## [5.0.2] - 2026-01-16 - UI Polish & Dependency Fixes 🎨
 
 ### Added

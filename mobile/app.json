@@ -2,7 +2,7 @@
   "expo": {
     "name": "TaxBridge",
     "slug": "taxbridge",
-    "version": "5.0.3",
+    "version": "5.0.4",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -11,7 +11,7 @@
     "scheme": "taxbridge",
     "splash": {
       "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
+      "resizeMode": "cover",
       "backgroundColor": "#0B5FFF"
     },
     "assetBundlePatterns": ["**/*"],
@@ -20,10 +20,15 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "ng.taxbridge.app",
-      "buildNumber": "5.0.3",
+      "buildNumber": "5.0.4",
       "infoPlist": {
         "NSCameraUsageDescription": "TaxBridge needs camera access to scan receipts and invoices for OCR processing.",
         "NSPhotoLibraryUsageDescription": "TaxBridge needs photo library access to import receipt images for tax documentation."
+      },
+      "splash": {
+        "image": "./assets/splash-icon.png",
+        "resizeMode": "cover",
+        "backgroundColor": "#0B5FFF"
       }
     },
     "android": {
@@ -40,7 +45,12 @@
         "android.permission.ACCESS_NETWORK_STATE"
       ],
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "splash": {
+        "image": "./assets/splash-icon.png",
+        "resizeMode": "cover",
+        "backgroundColor": "#0B5FFF"
+      }
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -55,6 +65,15 @@
         "expo-camera",
         {
           "cameraPermission": "TaxBridge needs camera access to scan receipts and invoices."
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 200,
+          "resizeMode": "cover",
+          "backgroundColor": "#0B5FFF"
         }
       ]
     ],

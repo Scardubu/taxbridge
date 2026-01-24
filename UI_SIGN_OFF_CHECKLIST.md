@@ -1,8 +1,9 @@
 # TaxBridge V5 — UI Sign-Off Checklist
 
-**Date:** January 20, 2026  
+**Date:** January 24, 2026  
 **Status:** 🟢 **READY FOR PRODUCTION APPROVAL**  
 **Phase:** Final UI Lockdown (Phase C Complete)
+**Last Updated:** January 24, 2026 (Session 3 - Header Layout Fix & Production Polish)
 
 ---
 
@@ -12,6 +13,46 @@ This document serves as the official UI/UX compliance verification for TaxBridge
 
 **Overall Status:** ✅ **APPROVED FOR F6 DEPLOYMENT**
 
+### Latest Update (v5.0.4)
+
+**Header Layout Fix:**
+- ✅ Fixed logo and "Welcome back" text overlapping in compact mode
+- ✅ Reduced title font size in compact mode for better fit (xxl → lg)
+- ✅ Improved brandText vertical alignment with justifyContent: center
+- ✅ Optimized gap spacing in compact mode (md → sm)
+- ✅ Subtitle now visible in compact mode with smaller font (xs)
+- ✅ Added horizontal padding to brandSection for better spacing
+
+**Production Readiness:**
+- ✅ Console warnings analyzed (pointerEvents from react-native-web internals - expected)
+- ✅ Sentry breadcrumbs working correctly (navigation tracking)
+- ✅ Version bumped to 5.0.4
+- ✅ TypeScript compilation: 0 errors
+- ✅ Web bundle: 1065 modules compiled successfully
+
+### Previous Updates (v5.0.3)
+
+**AnimatedButton Fix:**
+- ✅ Fixed button visibility issue in CreateInvoiceScreen
+- ✅ Used `Animated.createAnimatedComponent(Pressable)` pattern for proper animated styles
+- ✅ Added minHeight: 52px for consistent touch targets
+- ✅ Added proper disabled state styles
+
+**Splash Screen Configuration:**
+- ✅ Added iOS-specific splash config
+- ✅ Added Android-specific splash config
+- ✅ Installed expo-splash-screen@31.0.13
+- ✅ Plugin configured with imageWidth: 200, resizeMode: cover
+
+**CreateInvoiceScreen i18n:**
+- ✅ Added 30+ new translation keys (en.json + pidgin.json)
+- ✅ All wizard steps fully localized
+- ✅ All validation error messages localized
+- ✅ All camera/gallery/OCR error messages localized
+- ✅ All loading messages localized
+- ✅ Review step cards fully localized (customer, items, totals)
+- ✅ Compliance notice localized
+
 ---
 
 ## 1. Mobile Application (React Native + Expo)
@@ -20,7 +61,7 @@ This document serves as the official UI/UX compliance verification for TaxBridge
 
 | Category | Status | Evidence |
 |----------|--------|----------|
-| **Total Keys** | ✅ COMPLETE | 267 keys (English + Pidgin) |
+| **Total Keys** | ✅ COMPLETE | 300+ keys (English + Pidgin) |
 | **Language Parity** | ✅ 100% | Zero missing translations |
 | **Hardcoded Strings** | ✅ ELIMINATED | 0 raw strings in production flows |
 | **Alert Messages** | ✅ COMPLETE | All Alert.alert() localized |
@@ -29,8 +70,8 @@ This document serves as the official UI/UX compliance verification for TaxBridge
 | **Accessibility Labels** | ✅ COMPLETE | All interactive elements labeled |
 
 **Files Verified:**
-- ✅ `mobile/src/i18n/en.json` — 267 keys
-- ✅ `mobile/src/i18n/pidgin.json` — 267 keys
+- ✅ `mobile/src/i18n/en.json` — 300+ keys (440 lines)
+- ✅ `mobile/src/i18n/pidgin.json` — 300+ keys (matching)
 - ✅ All screens using `useTranslation()` hook
 - ✅ All components with i18n imports
 

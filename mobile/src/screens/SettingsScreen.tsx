@@ -330,7 +330,7 @@ function SettingsScreen() {
           <Text style={styles.headerIcon}>⚙️</Text>
           <View>
             <Text style={styles.h1}>{t('settings.title')}</Text>
-            <Text style={styles.subtitle}>Manage your TaxBridge preferences</Text>
+            <Text style={styles.subtitle}>{t('settings.subtitle')}</Text>
           </View>
         </Animated.View>
 
@@ -340,23 +340,23 @@ function SettingsScreen() {
             <Text style={styles.statusIcon}>{isOnline ? '🟢' : '🔴'}</Text>
             <View style={styles.statusInfo}>
               <Text style={[styles.statusTitle, !isOnline && styles.statusTitleOffline]}>
-                {isOnline ? 'Online & Syncing' : 'Offline Mode'}
+                {isOnline ? t('home.onlineSync') : t('home.offlineStatus')}
               </Text>
-              <Text style={styles.statusSubtitle}>Last sync: {formatLastSync()}</Text>
+              <Text style={styles.statusSubtitle}>{t('sync.lastSync')}: {formatLastSync()}</Text>
             </View>
           </View>
           <View style={styles.statusStats}>
             <View style={styles.statItem}>
               <Text style={styles.statValue}>{storageStats.total}</Text>
-              <Text style={styles.statLabel}>Total</Text>
+              <Text style={styles.statLabel}>{t('settings.total')}</Text>
             </View>
             <View style={styles.statItem}>
               <Text style={[styles.statValue, styles.statValueSuccess]}>{storageStats.synced}</Text>
-              <Text style={styles.statLabel}>Synced</Text>
+              <Text style={styles.statLabel}>{t('settings.synced')}</Text>
             </View>
             <View style={styles.statItem}>
               <Text style={[styles.statValue, styles.statValueWarning]}>{storageStats.pending}</Text>
-              <Text style={styles.statLabel}>Pending</Text>
+              <Text style={styles.statLabel}>{t('settings.pending')}</Text>
             </View>
           </View>
         </Animated.View>
