@@ -23,6 +23,7 @@ import {
   Globe
 } from 'lucide-react';
 import { FetchError, fetchJson } from '@/lib/fetcher';
+import { useAdminI18n } from '@/lib/i18n';
 
 interface SystemHealth {
   overall: 'healthy' | 'degraded' | 'error';
@@ -63,6 +64,7 @@ const extractErrorCode = (body: unknown): string | undefined => {
 };
 
 export default function SystemPage() {
+  const { t } = useAdminI18n();
   const [autoRefresh, setAutoRefresh] = useState(true);
 
   const { data, error, isLoading, mutate } = useSWR<SystemHealth>(
@@ -74,6 +76,7 @@ export default function SystemPage() {
         if (err instanceof FetchError) {
           const code = extractErrorCode(err.body);
           if (code === 'ADMIN_API_DISABLED') return false;
+          if (code === 'BACKEND_NOT_CONFIGURED') return false;
           if (err.status === 401 || err.status === 403) return false;
           return err.status >= 500;
         }
@@ -123,13 +126,13 @@ export default function SystemPage() {
     switch (status) {
       case 'healthy':
       case 'connected':
-        return <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200">Healthy</Badge>;
+        return <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200">{t('system.badge.healthy')}</Badge>;
       case 'mock':
-        return <Badge className="bg-blue-100 text-blue-800 border-blue-200">Mock Mode</Badge>;
+        return <Badge className="bg-blue-100 text-blue-800 border-blue-200">{t('system.badge.mock')}</Badge>;
       case 'degraded':
-        return <Badge className="bg-amber-100 text-amber-800 border-amber-200">Degraded</Badge>;
+        return <Badge className="bg-amber-100 text-amber-800 border-amber-200">{t('system.badge.degraded')}</Badge>;
       case 'error':
-        return <Badge className="bg-rose-100 text-rose-800 border-rose-200">Error</Badge>;
+        return <Badge className="bg-rose-100 text-rose-800 border-rose-200">{t('system.badge.error')}</Badge>;
       default:
         return null;
     }
@@ -151,8 +154,8 @@ export default function SystemPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">System Status</h1>
-          <p className="text-slate-600 mt-1">Monitor infrastructure health and integrations</p>
+          <h1 className="text-2xl font-bold text-slate-900">{t('system.title')}</h1>
+          <p className="text-slate-600 mt-1">{t('system.subtitle')}</p>
         </div>
         <div className="flex items-center gap-2">
           <Button
@@ -161,7 +164,7 @@ export default function SystemPage() {
             onClick={() => setAutoRefresh(!autoRefresh)}
           >
             <Activity className={`h-4 w-4 mr-2 ${autoRefresh ? 'animate-pulse' : ''}`} />
-            {autoRefresh ? 'Auto-refresh ON' : 'Auto-refresh OFF'}
+            {autoRefresh ? t('system.autoRefresh.on') : t('system.autoRefresh.off')}
           </Button>
           <Button 
             variant="outline" 
@@ -170,7 +173,7 @@ export default function SystemPage() {
             disabled={isLoading}
           >
             <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-            Refresh
+            {t('common.refresh')}
           </Button>
         </div>
       </div>
@@ -190,14 +193,25 @@ export default function SystemPage() {
           displayData.overall === 'healthy' ? 'text-emerald-800' :
           displayData.overall === 'degraded' ? 'text-amber-800' : 'text-rose-800'
         }>
-          System Status: {displayData.overall === 'healthy' ? 'All Systems Operational' : 
-            displayData.overall === 'degraded' ? 'Degraded Performance' : 'System Issues Detected'}
+          {t('system.status.label', {
+            status:
+              displayData.overall === 'healthy'
+                ? t('system.status.healthy')
+                : displayData.overall === 'degraded'
+                  ? t('system.status.degraded')
+                  : t('system.status.error'),
+          })}
         </AlertTitle>
         <AlertDescription className={
           displayData.overall === 'healthy' ? 'text-emerald-700' :
           displayData.overall === 'degraded' ? 'text-amber-700' : 'text-rose-700'
         }>
-          Uptime: {displayData.metrics.uptime}% • Last checked: {displayData.services[0]?.lastCheck ? new Date(displayData.services[0].lastCheck).toLocaleTimeString() : '—'}
+          {t('system.status.uptime', {
+            value: displayData.metrics.uptime,
+            time: displayData.services[0]?.lastCheck
+              ? new Date(displayData.services[0].lastCheck).toLocaleTimeString()
+              : '—',
+          })}
         </AlertDescription>
       </Alert>
 
@@ -207,7 +221,7 @@ export default function SystemPage() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-600">Uptime</p>
+                <p className="text-sm font-medium text-slate-600">{t('system.metrics.uptime')}</p>
                 <p className="text-2xl font-bold text-emerald-600">{displayData.metrics.uptime}%</p>
               </div>
               <div className="h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center">
@@ -220,7 +234,7 @@ export default function SystemPage() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-600">CPU</p>
+                <p className="text-sm font-medium text-slate-600">{t('system.metrics.cpu')}</p>
                 <p className="text-2xl font-bold text-slate-900">{displayData.metrics.cpuUsage}%</p>
               </div>
               <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
@@ -234,7 +248,7 @@ export default function SystemPage() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-600">Memory</p>
+                <p className="text-sm font-medium text-slate-600">{t('system.metrics.memory')}</p>
                 <p className="text-2xl font-bold text-slate-900">{displayData.metrics.memoryUsage}%</p>
               </div>
               <div className="h-10 w-10 rounded-full bg-purple-100 flex items-center justify-center">
@@ -248,7 +262,7 @@ export default function SystemPage() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-600">Disk</p>
+                <p className="text-sm font-medium text-slate-600">{t('system.metrics.disk')}</p>
                 <p className="text-2xl font-bold text-slate-900">{displayData.metrics.diskUsage}%</p>
               </div>
               <div className="h-10 w-10 rounded-full bg-amber-100 flex items-center justify-center">
@@ -262,7 +276,7 @@ export default function SystemPage() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-600">Connections</p>
+                <p className="text-sm font-medium text-slate-600">{t('system.metrics.connections')}</p>
                 <p className="text-2xl font-bold text-slate-900">{displayData.metrics.activeConnections}</p>
               </div>
               <div className="h-10 w-10 rounded-full bg-cyan-100 flex items-center justify-center">
@@ -279,7 +293,7 @@ export default function SystemPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Server className="h-5 w-5 text-blue-600" />
-              Services
+              {t('system.sections.services')}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -300,7 +314,9 @@ export default function SystemPage() {
                   </div>
                   <div className="flex items-center gap-3">
                     {service.latency !== undefined && (
-                      <span className="text-sm text-slate-500">{service.latency}ms</span>
+                      <span className="text-sm text-slate-500">
+                        {t('system.labels.latency', { latency: service.latency })}
+                      </span>
                     )}
                     {getStatusBadge(service.status)}
                   </div>
@@ -315,7 +331,7 @@ export default function SystemPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Globe className="h-5 w-5 text-purple-600" />
-              External Integrations
+              {t('system.sections.integrations')}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -330,13 +346,15 @@ export default function SystemPage() {
                     <div>
                       <p className="font-medium text-slate-900 capitalize">{name}</p>
                       {info.status === 'mock' && (
-                        <p className="text-xs text-slate-500">Running in mock/sandbox mode</p>
+                        <p className="text-xs text-slate-500">{t('system.integrations.mock')}</p>
                       )}
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
                     {info.latency !== undefined && (
-                      <span className="text-sm text-slate-500">{info.latency}ms</span>
+                      <span className="text-sm text-slate-500">
+                        {t('system.labels.latency', { latency: info.latency })}
+                      </span>
                     )}
                     {getStatusBadge(info.status)}
                   </div>
@@ -351,14 +369,14 @@ export default function SystemPage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Clock className="h-5 w-5 text-slate-600" />
-              Recent Events
+              {t('system.sections.events')}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
               {displayData.recentEvents.length === 0 ? (
                 <div className="text-center py-8 text-slate-500">
-                  No recent events
+                  {t('system.events.empty')}
                 </div>
               ) : (
                 displayData.recentEvents.map((event) => (
@@ -392,11 +410,14 @@ export default function SystemPage() {
       if (error instanceof FetchError) {
         const code = extractErrorCode(error.body);
         if (code === 'ADMIN_API_DISABLED') {
-          return 'System monitoring is disabled for this environment. Showing mock data for Stage 1 beta.';
+          return t('system.error.disabled');
         }
-        return `Failed to fetch system status: ${error.message}`;
+        if (code === 'BACKEND_NOT_CONFIGURED') {
+          return t('system.error.backendNotConfigured');
+        }
+        return t('system.error.fetch', { message: error.message });
       }
-      return 'An unexpected error occurred';
+      return t('system.error.unexpected');
     })();
 
     return (
@@ -404,7 +425,7 @@ export default function SystemPage() {
         <div className="space-y-6">
           <Alert variant="default" className="border-amber-200 bg-amber-50">
             <AlertTriangle className="h-4 w-4 text-amber-600" />
-            <AlertTitle className="text-amber-800">Limited Functionality</AlertTitle>
+            <AlertTitle className="text-amber-800">{t('system.limited.title')}</AlertTitle>
             <AlertDescription className="text-amber-700">
               {message}
             </AlertDescription>

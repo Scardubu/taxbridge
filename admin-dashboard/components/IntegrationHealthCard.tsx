@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { useAdminI18n } from '@/lib/i18n';
 
 interface HealthStatus {
   status: 'healthy' | 'degraded' | 'error';
@@ -23,6 +24,7 @@ interface IntegrationsHealth {
 }
 
 function StatusBadge({ status }: { status: string }) {
+  const { t } = useAdminI18n();
   const variants: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
     healthy: 'default',
     degraded: 'secondary',
@@ -30,9 +32,9 @@ function StatusBadge({ status }: { status: string }) {
   };
 
   const labels: Record<string, string> = {
-    healthy: '✓ Healthy',
-    degraded: '⚠ Degraded',
-    error: '✕ Error',
+    healthy: t('healthcard.badge.healthy'),
+    degraded: t('healthcard.badge.degraded'),
+    error: t('healthcard.badge.error'),
   };
 
   return (
@@ -55,6 +57,7 @@ function LatencyIndicator({ latency }: { latency?: number }) {
 }
 
 export default function IntegrationHealthCard() {
+  const { t } = useAdminI18n();
   const [health, setHealth] = useState<IntegrationsHealth | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -67,7 +70,7 @@ export default function IntegrationHealthCard() {
       setHealth(data);
       setError(null);
     } catch (err: unknown) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch health status';
+      const errorMessage = err instanceof Error ? err.message : t('healthcard.error');
       setError(errorMessage);
     } finally {
       setLoading(false);
@@ -85,11 +88,11 @@ export default function IntegrationHealthCard() {
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
-          <span>Integration Health</span>
+          <span>{t('healthcard.title')}</span>
           {health && <StatusBadge status={health.status} />}
         </CardTitle>
         <CardDescription>
-          Real-time status of external API integrations
+          {t('healthcard.subtitle')}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -110,12 +113,10 @@ export default function IntegrationHealthCard() {
             {/* Duplo/DigiTax */}
             <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
               <div>
-                <div className="font-medium">Duplo (DigiTax)</div>
-                <div className="text-xs text-gray-500">
-                  NRS e-Invoicing via NITDA-accredited APP
-                </div>
+                <div className="font-medium">{t('healthcard.duplo.title')}</div>
+                <div className="text-xs text-gray-500">{t('healthcard.duplo.subtitle')}</div>
                 {health.integrations.duplo.mode === 'mock' && (
-                  <Badge variant="outline" className="mt-1 text-xs">Mock Mode</Badge>
+                  <Badge variant="outline" className="mt-1 text-xs">{t('healthcard.mock')}</Badge>
                 )}
               </div>
               <div className="flex items-center gap-3">
@@ -127,12 +128,10 @@ export default function IntegrationHealthCard() {
             {/* Remita */}
             <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
               <div>
-                <div className="font-medium">Remita</div>
-                <div className="text-xs text-gray-500">
-                  Payment gateway (RRR generation)
-                </div>
+                <div className="font-medium">{t('healthcard.remita.title')}</div>
+                <div className="text-xs text-gray-500">{t('healthcard.remita.subtitle')}</div>
                 {health.integrations.remita.mode === 'mock' && (
-                  <Badge variant="outline" className="mt-1 text-xs">Mock Mode</Badge>
+                  <Badge variant="outline" className="mt-1 text-xs">{t('healthcard.mock')}</Badge>
                 )}
               </div>
               <div className="flex items-center gap-3">
@@ -143,12 +142,13 @@ export default function IntegrationHealthCard() {
 
             {/* Last updated */}
             <div className="text-xs text-gray-400 text-right pt-2">
-              Last checked: {new Date(health.timestamp).toLocaleTimeString()}
+              {t('healthcard.lastChecked', { time: new Date(health.timestamp).toLocaleTimeString() })}
               <button 
                 onClick={fetchHealth}
                 className="ml-2 text-blue-500 hover:text-blue-700"
+                aria-label={t('healthcard.refresh')}
               >
-                Refresh
+                {t('healthcard.refresh')}
               </button>
             </div>
           </div>

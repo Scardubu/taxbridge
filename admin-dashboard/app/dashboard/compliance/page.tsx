@@ -73,6 +73,7 @@ export default function CompliancePage() {
         if (err instanceof FetchError) {
           const code = extractErrorCode(err.body);
           if (code === 'ADMIN_API_DISABLED') return false;
+          if (code === 'BACKEND_NOT_CONFIGURED') return false;
           if (err.status === 401 || err.status === 403) return false;
           return err.status >= 500;
         }
@@ -116,15 +117,15 @@ export default function CompliancePage() {
   const getIssueBadge = (type: string) => {
     switch (type) {
       case 'missing_tin':
-        return <Badge className="bg-amber-100 text-amber-800 border-amber-200">Missing TIN</Badge>;
+        return <Badge className="bg-amber-100 text-amber-800 border-amber-200">{t('compliance.issue.missingTin')}</Badge>;
       case 'submission_failed':
-        return <Badge className="bg-rose-100 text-rose-800 border-rose-200">Submission Failed</Badge>;
+        return <Badge className="bg-rose-100 text-rose-800 border-rose-200">{t('compliance.issue.submissionFailed')}</Badge>;
       case 'format_error':
-        return <Badge className="bg-orange-100 text-orange-800 border-orange-200">Format Error</Badge>;
+        return <Badge className="bg-orange-100 text-orange-800 border-orange-200">{t('compliance.issue.formatError')}</Badge>;
       case 'invalid_amount':
-        return <Badge className="bg-purple-100 text-purple-800 border-purple-200">Invalid Amount</Badge>;
+        return <Badge className="bg-purple-100 text-purple-800 border-purple-200">{t('compliance.issue.invalidAmount')}</Badge>;
       default:
-        return <Badge variant="outline">Unknown</Badge>;
+        return <Badge variant="outline">{t('compliance.issue.unknown')}</Badge>;
     }
   };
 
@@ -133,8 +134,8 @@ export default function CompliancePage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Compliance Dashboard</h1>
-          <p className="text-slate-600 mt-1">Monitor NRS compliance and invoice validation</p>
+          <h1 className="text-2xl font-bold text-slate-900">{t('compliance.title')}</h1>
+          <p className="text-slate-600 mt-1">{t('compliance.subtitle')}</p>
         </div>
         <div className="flex items-center gap-2">
           <div className="flex gap-1">
@@ -145,7 +146,11 @@ export default function CompliancePage() {
                 size="sm"
                 onClick={() => setSelectedPeriod(period)}
               >
-                {period}
+                {period === '7d'
+                  ? t('compliance.range.7d')
+                  : period === '30d'
+                    ? t('compliance.range.30d')
+                    : t('compliance.range.90d')}
               </Button>
             ))}
           </div>
@@ -156,7 +161,7 @@ export default function CompliancePage() {
             disabled={isLoading}
           >
             <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-            Refresh
+            {t('compliance.refresh')}
           </Button>
         </div>
       </div>
@@ -179,21 +184,28 @@ export default function CompliancePage() {
           displayData.nrsStatus.status === 'mock' ? 'text-blue-800' :
           displayData.nrsStatus.status === 'connected' ? 'text-emerald-800' : 'text-rose-800'
         }>
-          NRS Integration: {displayData.nrsStatus.status === 'mock' ? 'Mock mode' : 
-            displayData.nrsStatus.status === 'connected' ? 'Connected' : 'Error'}
+          {t('compliance.nrs.title')}: {displayData.nrsStatus.status === 'mock'
+            ? t('compliance.nrs.mock')
+            : displayData.nrsStatus.status === 'connected'
+              ? t('compliance.nrs.connected')
+              : t('compliance.nrs.error')}
         </AlertTitle>
         <AlertDescription className={
           displayData.nrsStatus.status === 'mock' ? 'text-blue-700' :
           displayData.nrsStatus.status === 'connected' ? 'text-emerald-700' : 'text-rose-700'
         }>
-          {displayData.nrsStatus.status === 'mock' 
-            ? 'DigiTax integration is running in mock mode. Invoice submissions are simulated.' 
+          {displayData.nrsStatus.status === 'mock'
+            ? t('compliance.nrs.mockDesc')
             : displayData.nrsStatus.status === 'connected'
-              ? `Last sync: ${displayData.nrsStatus.lastSync ? new Date(displayData.nrsStatus.lastSync).toLocaleString() : 'Never'}`
-              : 'Unable to connect to NRS. Please check configuration.'}
+              ? t('compliance.nrs.connectedDesc', {
+                  time: displayData.nrsStatus.lastSync
+                    ? new Date(displayData.nrsStatus.lastSync).toLocaleString()
+                    : t('compliance.nrs.never'),
+                })
+              : t('compliance.nrs.errorDesc')}
           {displayData.nrsStatus.pendingSubmissions > 0 && (
             <span className="ml-2 font-medium">
-              ({displayData.nrsStatus.pendingSubmissions} pending submissions)
+              {t('compliance.nrs.pending', { count: displayData.nrsStatus.pendingSubmissions })}
             </span>
           )}
         </AlertDescription>
@@ -205,7 +217,7 @@ export default function CompliancePage() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-600">Compliance Rate</p>
+                <p className="text-sm font-medium text-slate-600">{t('compliance.stats.complianceRate')}</p>
                 <p className="text-2xl font-bold text-emerald-600">{displayData.overview.complianceRate}%</p>
               </div>
               <div className="h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center">
@@ -219,7 +231,7 @@ export default function CompliancePage() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-600">Compliant</p>
+                <p className="text-sm font-medium text-slate-600">{t('compliance.stats.compliant')}</p>
                 <p className="text-2xl font-bold text-slate-900">{displayData.overview.compliantInvoices}</p>
               </div>
               <div className="h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center">
@@ -232,7 +244,7 @@ export default function CompliancePage() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-600">Pending Review</p>
+                <p className="text-sm font-medium text-slate-600">{t('compliance.stats.pendingReview')}</p>
                 <p className="text-2xl font-bold text-amber-600">{displayData.overview.pendingReview}</p>
               </div>
               <div className="h-10 w-10 rounded-full bg-amber-100 flex items-center justify-center">
@@ -245,7 +257,7 @@ export default function CompliancePage() {
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-600">Non-Compliant</p>
+                <p className="text-sm font-medium text-slate-600">{t('compliance.stats.nonCompliant')}</p>
                 <p className="text-2xl font-bold text-rose-600">{displayData.overview.nonCompliant}</p>
               </div>
               <div className="h-10 w-10 rounded-full bg-rose-100 flex items-center justify-center">
@@ -262,7 +274,7 @@ export default function CompliancePage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-amber-600" />
-              Recent Issues
+              {t('compliance.issues.title')}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -270,7 +282,7 @@ export default function CompliancePage() {
               {displayData.recentIssues.length === 0 ? (
                 <div className="text-center py-8 text-slate-500">
                   <CheckCircle2 className="h-12 w-12 mx-auto text-emerald-500 mb-2" />
-                  <p>No compliance issues found</p>
+                  <p>{t('compliance.issues.none')}</p>
                 </div>
               ) : (
                 displayData.recentIssues.map((issue) => (
@@ -287,13 +299,13 @@ export default function CompliancePage() {
                         {issue.resolved && (
                           <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200">
                             <CheckCircle2 className="w-3 h-3 mr-1" />
-                            Resolved
+                            {t('compliance.issues.resolved')}
                           </Badge>
                         )}
                       </div>
                       <p className="text-sm text-slate-700">{issue.description}</p>
                       <p className="text-xs text-slate-500 mt-1 flex items-center gap-2">
-                        <span>Invoice: {issue.invoiceId}</span>
+                        <span>{t('compliance.issues.invoice', { id: issue.invoiceId })}</span>
                         <span>•</span>
                         <span className="flex items-center gap-1">
                           <Calendar className="h-3 w-3" />
@@ -313,7 +325,7 @@ export default function CompliancePage() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <FileCheck className="h-5 w-5 text-blue-600" />
-              Tax Exemption Breakdown
+              {t('compliance.exemptions.title')}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -342,6 +354,9 @@ export default function CompliancePage() {
         const code = extractErrorCode(error.body);
         if (code === 'ADMIN_API_DISABLED') {
           return t('compliance.limited.disabled');
+        }
+        if (code === 'BACKEND_NOT_CONFIGURED') {
+          return t('compliance.limited.backendNotConfigured');
         }
         return t('compliance.error.fetch', { message: error.message });
       }

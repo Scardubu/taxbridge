@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { logError } from '@/lib/logger';
 
 const BACKEND_URL = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+const HAS_BACKEND_URL = Boolean(process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL);
 
 function getErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Unknown error';
@@ -50,6 +51,40 @@ async function checkEndpoint(name: string, url: string): Promise<HealthCheckResu
  */
 export async function GET() {
   try {
+    if (!HAS_BACKEND_URL && process.env.VERCEL) {
+      return NextResponse.json(
+        {
+          overall: 'error',
+          services: [],
+          metrics: {
+            uptime: 0,
+            cpuUsage: 0,
+            memoryUsage: 0,
+            diskUsage: 0,
+            activeConnections: 0,
+          },
+          integrations: {
+            digitax: { status: 'error' },
+            remita: { status: 'error' },
+            supabase: { status: 'error' },
+            redis: { status: 'error' },
+          },
+          recentEvents: [
+            {
+              id: '1',
+              type: 'error',
+              message: 'Backend URL is not configured for this environment',
+              timestamp: new Date().toISOString(),
+            },
+          ],
+          error: 'Backend URL is not configured for this environment',
+          code: 'BACKEND_NOT_CONFIGURED',
+          timestamp: new Date().toISOString(),
+        },
+        { status: 503 }
+      );
+    }
+
     // Run health checks in parallel
     const [apiHealth, dbHealth, cacheHealth, queueHealth, digitaxHealth, remitaHealth] = await Promise.all([
       checkEndpoint('API Server', `${BACKEND_URL}/health/live`),

@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { useAdminI18n } from '@/lib/i18n';
 
 interface HealthCardProps {
   title: string;
@@ -10,6 +11,7 @@ interface HealthCardProps {
 }
 
 export function HealthCard({ title, status, latency, lastChecked, description }: HealthCardProps) {
+  const { t } = useAdminI18n();
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'healthy':
@@ -47,18 +49,18 @@ export function HealthCard({ title, status, latency, lastChecked, description }:
   };
 
   const formatLatencyDisplay = (latency: number | null | undefined) =>
-    isLatencyDefined(latency) ? `${latency}ms` : 'N/A';
+    isLatencyDefined(latency) ? `${latency}ms` : t('healthcard.latency.na');
 
   const getStatusMessage = (status: string) => {
     switch (status) {
       case 'healthy':
-        return 'All systems operational';
+        return t('healthcard.status.healthy');
       case 'degraded':
-        return 'Performance degraded';
+        return t('healthcard.status.degraded');
       case 'error':
-        return 'Service unavailable';
+        return t('healthcard.status.error');
       default:
-        return 'Unknown status';
+        return t('healthcard.status.unknown');
     }
   };
 
@@ -73,7 +75,7 @@ export function HealthCard({ title, status, latency, lastChecked, description }:
         <div className="flex items-center space-x-2">
           <div className={`w-2.5 h-2.5 rounded-full ${getStatusColor(status)} animate-pulse`} />
           <Badge variant={getStatusVariant(status)} className="text-xs font-semibold">
-            {status.toUpperCase()}
+            {t(`healthcard.badge.${status}`)}
           </Badge>
         </div>
       </CardHeader>
@@ -86,7 +88,7 @@ export function HealthCard({ title, status, latency, lastChecked, description }:
         </p>
         {lastChecked && (
           <p className="text-xs text-slate-500 mt-2">
-            Latency • Last checked {lastChecked}
+            {t('healthcard.latency.lastChecked', { time: lastChecked })}
           </p>
         )}
       </CardContent>

@@ -1,4 +1,4 @@
-type RequestOptions = RequestInit & { expectsJson?: boolean };
+type RequestOptions = RequestInit & { expectsJson?: boolean; timeoutMs?: number };
 
 class BackendAPIError extends Error {
   status: number;
@@ -16,6 +16,8 @@ class BackendAPIError extends Error {
 
 const rawBaseUrl = (process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000').replace(/\/$/, '');
 const adminBaseUrl = `${rawBaseUrl}/admin`;
+const hasBackendEnv = Boolean(process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL);
+const defaultTimeoutMs = 8000;
 
 const adminApiKeys = (process.env.ADMIN_API_KEYS || process.env.ADMIN_API_KEY || '')
   .split(',')
@@ -34,6 +36,14 @@ function buildUrl(path: string): string {
 }
 
 async function requestBackend(path: string, options: RequestOptions = {}) {
+  if (!hasBackendEnv && process.env.VERCEL) {
+    throw new BackendAPIError(
+      503,
+      path,
+      JSON.stringify({ error: 'Backend URL not configured', code: 'BACKEND_NOT_CONFIGURED' })
+    );
+  }
+
   const url = buildUrl(path);
   const headers = new Headers(options.headers || {});
 
@@ -59,6 +69,7 @@ async function requestBackend(path: string, options: RequestOptions = {}) {
     ...options,
     headers,
     cache: 'no-store',
+    signal: options.signal ?? AbortSignal.timeout(options.timeoutMs ?? defaultTimeoutMs),
   });
 
   if (!response.ok) {

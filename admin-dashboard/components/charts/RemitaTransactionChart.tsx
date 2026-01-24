@@ -1,6 +1,7 @@
 'use client';
 
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { useAdminI18n } from '@/lib/i18n';
 
 interface RemitaTransactionData {
   date: string;
@@ -15,6 +16,13 @@ interface RemitaTransactionChartProps {
 }
 
 export function RemitaTransactionChart({ data }: RemitaTransactionChartProps) {
+  const { t } = useAdminI18n();
+  const labels: Record<string, string> = {
+    successful: t('analytics.chart.successful'),
+    pending: t('analytics.chart.pending'),
+    failed: t('analytics.chart.failed'),
+  };
+
   return (
     <ResponsiveContainer width="100%" height={300}>
       <BarChart data={data}>
@@ -25,13 +33,16 @@ export function RemitaTransactionChart({ data }: RemitaTransactionChartProps) {
           tickFormatter={(value) => new Date(value).toLocaleDateString()}
         />
         <YAxis tick={{ fontSize: 12 }} />
-        <Tooltip 
+        <Tooltip
           labelFormatter={(value) => new Date(value).toLocaleDateString()}
-          formatter={(value: number | undefined, name: string | undefined) => [value || 0, name || '']}
+          formatter={(value: number | undefined, name: string | undefined) => {
+            const label = name ? labels[name] || name : '';
+            return [value || 0, label];
+          }}
         />
-        <Bar dataKey="successful" stackId="a" fill="#10b981" name="successful" />
-        <Bar dataKey="pending" stackId="a" fill="#f59e0b" name="pending" />
-        <Bar dataKey="failed" stackId="a" fill="#ef4444" name="failed" />
+        <Bar dataKey="successful" stackId="a" fill="#10b981" name={labels.successful} />
+        <Bar dataKey="pending" stackId="a" fill="#f59e0b" name={labels.pending} />
+        <Bar dataKey="failed" stackId="a" fill="#ef4444" name={labels.failed} />
       </BarChart>
     </ResponsiveContainer>
   );

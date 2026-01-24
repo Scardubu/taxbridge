@@ -70,6 +70,7 @@ export default function UsersPage() {
         if (err instanceof FetchError) {
           const code = extractErrorCode(err.body);
           if (code === 'ADMIN_API_DISABLED') return false;
+          if (code === 'BACKEND_NOT_CONFIGURED') return false;
           if (err.status === 401 || err.status === 403) return false;
           return err.status >= 500;
         }
@@ -117,6 +118,9 @@ export default function UsersPage() {
         const code = extractErrorCode(error.body);
         if (code === 'ADMIN_API_DISABLED') {
           return t('users.limited.disabled');
+        }
+        if (code === 'BACKEND_NOT_CONFIGURED') {
+          return t('users.limited.backendNotConfigured');
         }
         return t('users.error.fetch', { message: error.message });
       }
@@ -231,7 +235,7 @@ function UsersContent({
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-600">Total Users</p>
+                <p className="text-sm font-medium text-slate-600">{t('users.stats.total')}</p>
                 <p className="text-2xl font-bold text-slate-900">{data.stats.total}</p>
               </div>
               <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
@@ -244,7 +248,7 @@ function UsersContent({
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-600">Active</p>
+                <p className="text-sm font-medium text-slate-600">{t('users.stats.active')}</p>
                 <p className="text-2xl font-bold text-emerald-600">{data.stats.active}</p>
               </div>
               <div className="h-10 w-10 rounded-full bg-emerald-100 flex items-center justify-center">
@@ -257,7 +261,7 @@ function UsersContent({
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-600">Pending</p>
+                <p className="text-sm font-medium text-slate-600">{t('users.stats.pending')}</p>
                 <p className="text-2xl font-bold text-amber-600">{data.stats.pending}</p>
               </div>
               <div className="h-10 w-10 rounded-full bg-amber-100 flex items-center justify-center">
@@ -270,7 +274,7 @@ function UsersContent({
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-600">Suspended</p>
+                <p className="text-sm font-medium text-slate-600">{t('users.stats.suspended')}</p>
                 <p className="text-2xl font-bold text-rose-600">{data.stats.suspended}</p>
               </div>
               <div className="h-10 w-10 rounded-full bg-rose-100 flex items-center justify-center">
@@ -351,10 +355,12 @@ function UsersContent({
                   </div>
                   <div className="flex items-center gap-4">
                     <div className="text-right">
-                      <p className="text-sm font-medium text-slate-900">{user.invoiceCount} invoices</p>
+                      <p className="text-sm font-medium text-slate-900">
+                        {t('users.list.invoiceCount', { count: user.invoiceCount })}
+                      </p>
                       <p className="text-xs text-slate-500 flex items-center gap-1 justify-end">
                         <Calendar className="h-3 w-3" />
-                        Joined {new Date(user.createdAt).toLocaleDateString()}
+                        {t('users.list.joined', { date: new Date(user.createdAt).toLocaleDateString() })}
                       </p>
                     </div>
                     {getStatusBadge(user.status)}

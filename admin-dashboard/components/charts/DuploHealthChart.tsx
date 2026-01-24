@@ -1,6 +1,7 @@
 'use client';
 
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { useAdminI18n } from '@/lib/i18n';
 
 interface DuploHealthData {
   timestamp: string;
@@ -14,6 +15,12 @@ interface DuploHealthChartProps {
 }
 
 export function DuploHealthChart({ data }: DuploHealthChartProps) {
+  const { t } = useAdminI18n();
+  const labels: Record<string, string> = {
+    successRate: t('analytics.chart.successRate'),
+    latency: t('analytics.chart.latency'),
+  };
+
   return (
     <ResponsiveContainer width="100%" height={300}>
       <LineChart data={data}>
@@ -25,9 +32,12 @@ export function DuploHealthChart({ data }: DuploHealthChartProps) {
         />
         <YAxis yAxisId="left" tick={{ fontSize: 12 }} />
         <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} />
-        <Tooltip 
+        <Tooltip
           labelFormatter={(value) => new Date(value).toLocaleString()}
-          formatter={(value: number | undefined, name: string | undefined) => [value || 0, name || '']}
+          formatter={(value: number | undefined, name: string | undefined) => {
+            const label = name ? labels[name] || name : '';
+            return [value || 0, label];
+          }}
         />
         <Line
           yAxisId="left"
@@ -35,7 +45,7 @@ export function DuploHealthChart({ data }: DuploHealthChartProps) {
           dataKey="successRate"
           stroke="#10b981"
           strokeWidth={2}
-          name="successRate"
+          name={labels.successRate}
         />
         <Line
           yAxisId="right"
@@ -43,7 +53,7 @@ export function DuploHealthChart({ data }: DuploHealthChartProps) {
           dataKey="latency"
           stroke="#3b82f6"
           strokeWidth={2}
-          name="latency"
+          name={labels.latency}
         />
       </LineChart>
     </ResponsiveContainer>

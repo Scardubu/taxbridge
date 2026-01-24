@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { logError } from '@/lib/logger';
 
 const BACKEND_URL = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000';
+const HAS_BACKEND_URL = Boolean(process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL);
+const TIMEOUT_MS = 8000;
 
 /**
  * GET /api/admin/health/integrations
@@ -26,13 +28,29 @@ async function safeJson(response: Response): Promise<unknown> {
 
 export async function GET() {
   try {
+    if (!HAS_BACKEND_URL && process.env.VERCEL) {
+      return NextResponse.json(
+        {
+          status: 'error',
+          integrations: {
+            duplo: { status: 'error', error: 'Backend not configured' },
+            remita: { status: 'error', error: 'Backend not configured' },
+          },
+          error: 'Backend URL is not configured for this environment',
+          code: 'BACKEND_NOT_CONFIGURED',
+          timestamp: new Date().toISOString(),
+        },
+        { status: 503 }
+      );
+    }
+
     const response = await fetch(`${BACKEND_URL}/health/integrations`, {
       method: 'GET',
       headers: {
         'Accept': 'application/json',
       },
       cache: 'no-store',
-      signal: AbortSignal.timeout(15000),
+      signal: AbortSignal.timeout(TIMEOUT_MS),
     });
 
     const data = await safeJson(response);

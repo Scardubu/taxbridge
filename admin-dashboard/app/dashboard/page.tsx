@@ -74,7 +74,7 @@ export default function DashboardPage() {
 
   const isAuthBlocked = (err: FetchError): boolean => {
     const code = extractErrorCode(err.body);
-    return code === 'ADMIN_API_DISABLED' || err.status === 401 || err.status === 403;
+    return code === 'ADMIN_API_DISABLED' || code === 'BACKEND_NOT_CONFIGURED' || err.status === 401 || err.status === 403;
   };
 
   const shouldRetryOnError = (err: unknown) => {
@@ -82,6 +82,7 @@ export default function DashboardPage() {
       const code = extractErrorCode(err.body);
 
       if (code === 'ADMIN_API_DISABLED') return false;
+      if (code === 'BACKEND_NOT_CONFIGURED') return false;
       if (err.status === 401 || err.status === 403) return false;
       return err.status >= 500;
     }
@@ -183,6 +184,9 @@ export default function DashboardPage() {
         if (code === 'ADMIN_API_DISABLED') {
           return t('dashboard.unavailable.adminDisabled');
         }
+        if (code === 'BACKEND_NOT_CONFIGURED') {
+          return t('dashboard.unavailable.backendNotConfigured');
+        }
 
         if (effectiveStatsError.status === 403) {
           return t('dashboard.unavailable.forbidden');
@@ -250,7 +254,15 @@ export default function DashboardPage() {
         <Alert>
           <AlertTitle>{t('dashboard.limited.title')}</AlertTitle>
           <AlertDescription>
-            {t('dashboard.limited.body')}
+            {(() => {
+              if (statsError instanceof FetchError) {
+                const code = extractErrorCode(statsError.body);
+                if (code === 'BACKEND_NOT_CONFIGURED') {
+                  return t('dashboard.stats.backendNotConfigured');
+                }
+              }
+              return t('dashboard.limited.body');
+            })()}
           </AlertDescription>
         </Alert>
       ) : null}
