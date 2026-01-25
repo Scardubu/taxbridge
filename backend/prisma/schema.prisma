@@ -39,6 +39,8 @@ model User {
   invoices               Invoice[]
   auditLogs              AuditLog[]
   consents               UserConsent[]
+  devices                Device[]
+  adminActions           AdminAction[]
 
   @@unique([phone], map: "users_phone_unique")
   @@map("users")
@@ -56,6 +58,7 @@ model Invoice {
   ublXml       String?  @map("ubl_xml") @db.Text
   nrsReference String?  @map("nrs_reference")
   qrCode       String?  @map("qr_code") @db.Text
+  version      Int      @default(1) // For conflict detection
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
@@ -63,6 +66,9 @@ model Invoice {
 
   syncQueue    SyncQueue[]
   payments     Payment[]
+  versions     InvoiceVersion[]
+  conflicts    Conflict[]
+  syncJobs     SyncJob[]
 
   // Performance indexes for common query patterns
   @@index([status])                    // Filter by invoice status (queued, stamped, failed)
@@ -196,4 +202,134 @@ model UserConsent {
   @@unique([userId, consentType], map: "user_consent_unique")
   @@index([consentType])
   @@map("user_consents")
+}
+
+// ============================================
+// Device Sync Models
+// ============================================
+
+model Device {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  platform    String   // android, ios, web
+  appVersion  String   @map("app_version")
+  osVersion   String?  @map("os_version")
+  locale      String?
+  lastSeenAt  DateTime @map("last_seen_at")
+  network     String?  // online, offline
+  batteryPct  Int?     @map("battery_pct")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  user        User     @relation(fields: [userId], references: [id])
+  syncJobs    SyncJob[]
+
+  @@index([userId])
+  @@index([lastSeenAt])
+  @@index([userId, lastSeenAt])
+  @@map("devices")
+}
+
+model SyncJob {
+  id            String   @id @default(uuid()) @db.Uuid
+  deviceId      String   @map("device_id") @db.Uuid
+  userId        String   @map("user_id") @db.Uuid
+  invoiceId     String?  @map("invoice_id") @db.Uuid
+  clientId      String   @map("client_id")
+  entity        String   // invoice, payment, receipt, settings, profile
+  action        String   // create, update, delete
+  clientVersion Int      @map("client_version")
+  payload       Json
+  status        String   @default("PENDING") // PENDING, PROCESSING, SYNCED, FAILED, CONFLICT
+  attempts      Int      @default(0)
+  lastError     String?  @map("last_error") @db.Text
+  syncedAt      DateTime? @map("synced_at")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  device        Device   @relation(fields: [deviceId], references: [id])
+  invoice       Invoice? @relation(fields: [invoiceId], references: [id])
+
+  @@index([deviceId])
+  @@index([userId])
+  @@index([status])
+  @@index([status, attempts])
+  @@index([entity, action])
+  @@index([createdAt])
+  @@map("sync_jobs")
+}
+
+model Conflict {
+  id              String   @id @default(uuid()) @db.Uuid
+  invoiceId       String   @map("invoice_id") @db.Uuid
+  userId          String   @map("user_id") @db.Uuid
+  clientVersion   Int      @map("client_version")
+  serverVersion   Int      @map("server_version")
+  clientData      Json     @map("client_data")
+  serverData      Json     @map("server_data")
+  status          String   @default("PENDING") // PENDING, RESOLVED_CLIENT, RESOLVED_SERVER, RESOLVED_MANUAL
+  resolvedBy      String?  @map("resolved_by")
+  resolvedAt      DateTime? @map("resolved_at")
+  resolution      String?  @db.Text
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  invoice         Invoice  @relation(fields: [invoiceId], references: [id])
+
+  @@index([invoiceId])
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("conflicts")
+}
+
+model InvoiceVersion {
+  id          String   @id @default(uuid()) @db.Uuid
+  invoiceId   String   @map("invoice_id") @db.Uuid
+  version     Int
+  data        Json
+  changedBy   String?  @map("changed_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  invoice     Invoice  @relation(fields: [invoiceId], references: [id])
+
+  @@unique([invoiceId, version])
+  @@index([invoiceId])
+  @@index([createdAt])
+  @@map("invoice_versions")
+}
+
+model OCRJob {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  imageUri    String   @map("image_uri") @db.Text
+  status      String   @default("PENDING") // PENDING, PROCESSING, COMPLETED, FAILED
+  result      Json?
+  error       String?  @db.Text
+  confidence  Float?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("ocr_jobs")
+}
+
+model AdminAction {
+  id          String   @id @default(uuid()) @db.Uuid
+  adminId     String   @map("admin_id") @db.Uuid
+  action      String   // force_sync, resolve_conflict, reset_device
+  targetId    String?  @map("target_id") @db.Uuid
+  targetType  String?  @map("target_type") // device, user, invoice
+  metadata    Json     @default("{}")
+  result      String?  @db.Text
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  admin       User     @relation(fields: [adminId], references: [id])
+
+  @@index([adminId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("admin_actions")
 }
