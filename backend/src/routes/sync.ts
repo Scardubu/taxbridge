@@ -60,13 +60,15 @@ export default async function syncRoutes(app: FastifyInstance) {
       const body = HeartbeatSchema.parse(request.body);
 
       // Upsert device record
+      const now = new Date();
       const device = await prisma.device.upsert({
         where: { deviceId: body.deviceId },
         update: {
           platform: body.platform,
           osVersion: body.osVersion || null,
           appVersion: body.appVersion,
-          lastHeartbeat: new Date(),
+          lastSeenAt: now,
+          lastHeartbeat: now,
           active: true
         },
         create: {
@@ -75,7 +77,8 @@ export default async function syncRoutes(app: FastifyInstance) {
           platform: body.platform,
           osVersion: body.osVersion || null,
           appVersion: body.appVersion,
-          lastHeartbeat: new Date(),
+          lastSeenAt: now,
+          lastHeartbeat: now,
           active: true
         }
       });
@@ -158,14 +161,16 @@ export default async function syncRoutes(app: FastifyInstance) {
           const syncJob = await prisma.syncJob.create({
             data: {
               deviceId: device.id,
+              userId,
+              invoiceId: job.entity === 'invoice' ? (job.payload.id as string) : null,
+              clientId: job.clientId,
+              entity: job.entity,
+              action: job.action,
               operation: 'push',
-              payload: {
-                entity: job.entity,
-                action: job.action,
-                clientVersion: job.clientVersion,
-                payload: job.payload
-              },
-              status: 'pending'
+              clientVersion: job.clientVersion,
+              payload: job.payload,
+              status: 'pending',
+              startedAt: new Date()
             }
           });
 
@@ -184,6 +189,7 @@ export default async function syncRoutes(app: FastifyInstance) {
                 await prisma.conflict.create({
                   data: {
                     invoiceId,
+                    userId,
                     deviceId: device.id,
                     localVersion: job.clientVersion,
                     serverVersion: existing.version,
@@ -232,6 +238,7 @@ export default async function syncRoutes(app: FastifyInstance) {
                 await prisma.conflict.create({
                   data: {
                     invoiceId,
+                    userId,
                     deviceId: device.id,
                     localVersion: job.clientVersion,
                     serverVersion: existing.version,
