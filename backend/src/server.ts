@@ -18,6 +18,7 @@ import chatbotRoutes from './routes/chatbot';
 import { adminRoutes } from './routes/admin';
 import authRoutes from './routes/auth';
 import privacyRoutes from './routes/privacy';
+import syncRoutes from './routes/sync';
 import {
   closeInvoiceSyncQueue,
   closeRedisConnection,
@@ -880,6 +881,7 @@ taxbridge_component_status{component="sms"} ${serverMetrics.componentStatus.sms 
   await app.register(adminRoutes, { prefix: '/admin', prisma });
   await app.register(authRoutes);
   await app.register(privacyRoutes);
+  await app.register(syncRoutes);
 
   // Optionally start background payment worker in the same process when explicitly enabled.
   if (String(process.env.START_PAYMENT_WORKER || '').toLowerCase() === 'true') {
