@@ -4,7 +4,7 @@ import jwt from 'jsonwebtoken';
 import { getPrismaClient } from '../lib/prisma';
 import { HeartbeatSchema, PushSyncSchema } from '@taxbridge/contracts';
 import { createLogger } from '../lib/logger';
-import { enqueueInvoiceSync } from '../queue/client';
+import { enqueueDeviceSync } from '../queue/client';
 
 const log = createLogger('sync-routes');
 const prisma = getPrismaClient();
@@ -208,7 +208,7 @@ export default async function syncRoutes(app: FastifyInstance) {
               }
 
               // Enqueue for worker processing
-              await enqueueInvoiceSync(syncJob.id);
+              await enqueueDeviceSync(syncJob.id);
               
               await prisma.syncJob.update({
                 where: { id: syncJob.id },
@@ -257,7 +257,7 @@ export default async function syncRoutes(app: FastifyInstance) {
               }
 
               // Enqueue for worker processing
-              await enqueueInvoiceSync(syncJob.id);
+              await enqueueDeviceSync(syncJob.id);
               
               await prisma.syncJob.update({
                 where: { id: syncJob.id },
@@ -267,7 +267,7 @@ export default async function syncRoutes(app: FastifyInstance) {
               results.synced.push(job.clientId);
             } else if (job.action === 'delete') {
               // Soft delete - mark as deleted
-              await enqueueInvoiceSync(syncJob.id);
+              await enqueueDeviceSync(syncJob.id);
               
               await prisma.syncJob.update({
                 where: { id: syncJob.id },
