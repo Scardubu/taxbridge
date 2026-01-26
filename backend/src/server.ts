@@ -19,6 +19,7 @@ import { adminRoutes } from './routes/admin';
 import authRoutes from './routes/auth';
 import privacyRoutes from './routes/privacy';
 import syncRoutes from './routes/sync';
+import adminSyncRoutes from './routes/adminSync';
 import {
   closeInvoiceSyncQueue,
   closeRedisConnection,
@@ -879,6 +880,7 @@ taxbridge_component_status{component="sms"} ${serverMetrics.componentStatus.sms 
   await app.register(smsRoutes, { prisma });
   await app.register(chatbotRoutes);
   await app.register(adminRoutes, { prefix: '/admin', prisma });
+  await app.register(adminSyncRoutes); // Admin device sync monitoring
   await app.register(authRoutes);
   await app.register(privacyRoutes);
   await app.register(syncRoutes);
