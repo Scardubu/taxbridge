@@ -209,76 +209,93 @@ model UserConsent {
 // ============================================
 
 model Device {
-  id          String   @id @default(uuid()) @db.Uuid
-  userId      String   @map("user_id") @db.Uuid
-  platform    String   // android, ios, web
-  appVersion  String   @map("app_version")
-  osVersion   String?  @map("os_version")
-  locale      String?
-  lastSeenAt  DateTime @map("last_seen_at")
-  network     String?  // online, offline
-  batteryPct  Int?     @map("battery_pct")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id             String   @id @default(uuid()) @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  deviceId       String   @unique @map("device_id") // Client-generated device identifier
+  platform       String   // android, ios, web
+  appVersion     String   @map("app_version")
+  osVersion      String?  @map("os_version")
+  locale         String?
+  lastSeenAt     DateTime @map("last_seen_at")
+  lastHeartbeat  DateTime @map("last_heartbeat") // Alias for compatibility
+  network        String?  // online, offline
+  batteryPct     Int?     @map("battery_pct")
+  active         Boolean  @default(true)
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
 
-  user        User     @relation(fields: [userId], references: [id])
-  syncJobs    SyncJob[]
+  user           User       @relation(fields: [userId], references: [id])
+  syncJobs       SyncJob[]
+  conflicts      Conflict[]
 
   @@index([userId])
+  @@index([deviceId])
+  @@index([active, lastHeartbeat])
   @@index([lastSeenAt])
   @@index([userId, lastSeenAt])
   @@map("devices")
 }
 
 model SyncJob {
-  id            String   @id @default(uuid()) @db.Uuid
-  deviceId      String   @map("device_id") @db.Uuid
-  userId        String   @map("user_id") @db.Uuid
-  invoiceId     String?  @map("invoice_id") @db.Uuid
-  clientId      String   @map("client_id")
-  entity        String   // invoice, payment, receipt, settings, profile
-  action        String   // create, update, delete
-  clientVersion Int      @map("client_version")
+  id            String    @id @default(uuid()) @db.Uuid
+  deviceId      String    @map("device_id") @db.Uuid
+  userId        String    @map("user_id") @db.Uuid
+  invoiceId     String?   @map("invoice_id") @db.Uuid
+  clientId      String    @map("client_id")
+  entity        String    // invoice, payment, receipt, settings, profile
+  action        String    // create, update, delete
+  operation     String    // push, pull, conflict_resolve
+  clientVersion Int       @map("client_version")
   payload       Json
-  status        String   @default("PENDING") // PENDING, PROCESSING, SYNCED, FAILED, CONFLICT
-  attempts      Int      @default(0)
-  lastError     String?  @map("last_error") @db.Text
+  status        String    @default("pending") // pending, processing, synced, failed, conflict
+  result        Json?
+  attempts      Int       @default(0)
+  lastError     String?   @map("last_error") @db.Text
   syncedAt      DateTime? @map("synced_at")
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
+  startedAt     DateTime? @map("started_at")
+  completedAt   DateTime? @map("completed_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
 
-  device        Device   @relation(fields: [deviceId], references: [id])
-  invoice       Invoice? @relation(fields: [invoiceId], references: [id])
+  device        Device    @relation(fields: [deviceId], references: [id])
+  invoice       Invoice?  @relation(fields: [invoiceId], references: [id])
 
   @@index([deviceId])
   @@index([userId])
+  @@index([deviceId, status])
   @@index([status])
   @@index([status, attempts])
+  @@index([status, createdAt])
+  @@index([operation, status])
   @@index([entity, action])
   @@index([createdAt])
   @@map("sync_jobs")
 }
 
 model Conflict {
-  id              String   @id @default(uuid()) @db.Uuid
-  invoiceId       String   @map("invoice_id") @db.Uuid
-  userId          String   @map("user_id") @db.Uuid
-  clientVersion   Int      @map("client_version")
-  serverVersion   Int      @map("server_version")
-  clientData      Json     @map("client_data")
-  serverData      Json     @map("server_data")
-  status          String   @default("PENDING") // PENDING, RESOLVED_CLIENT, RESOLVED_SERVER, RESOLVED_MANUAL
-  resolvedBy      String?  @map("resolved_by")
+  id              String    @id @default(uuid()) @db.Uuid
+  invoiceId       String    @map("invoice_id") @db.Uuid
+  userId          String    @map("user_id") @db.Uuid
+  deviceId        String    @map("device_id") @db.Uuid
+  localVersion    Int       @map("local_version")
+  serverVersion   Int       @map("server_version")
+  localData       Json      @map("local_data")
+  serverData      Json      @map("server_data")
+  status          String    @default("PENDING") // PENDING, RESOLVED_CLIENT, RESOLVED_SERVER, RESOLVED_MANUAL
+  resolution      String?
+  resolvedBy      String?   @map("resolved_by")
   resolvedAt      DateTime? @map("resolved_at")
-  resolution      String?  @db.Text
-  createdAt       DateTime @default(now()) @map("created_at")
-  updatedAt       DateTime @updatedAt @map("updated_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
 
-  invoice         Invoice  @relation(fields: [invoiceId], references: [id])
+  invoice         Invoice   @relation(fields: [invoiceId], references: [id])
+  device          Device    @relation(fields: [deviceId], references: [id])
 
   @@index([invoiceId])
   @@index([userId])
+  @@index([deviceId])
   @@index([status])
+  @@index([resolution])
   @@index([createdAt])
   @@map("conflicts")
 }

@@ -51,3 +51,19 @@ export async function closeRedisConnection(): Promise<void> {
   redisConnection = undefined;
   await redis.quit();
 }
+
+/**
+ * Enqueue a sync job for background processing
+ */
+export async function enqueueInvoiceSync(syncJobId: string): Promise<void> {
+  const queue = getInvoiceSyncQueue();
+  await queue.add('process-sync', { syncJobId }, {
+    attempts: 5,
+    backoff: {
+      type: 'exponential',
+      delay: 5000
+    },
+    removeOnComplete: 100,
+    removeOnFail: false
+  });
+}
