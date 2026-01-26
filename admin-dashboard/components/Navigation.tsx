@@ -11,6 +11,7 @@ import {
   Settings, 
   Users,
   Shield,
+  Smartphone,
   type LucideIcon
 } from 'lucide-react';
 
@@ -40,6 +41,11 @@ const navigation: NavItem[] = [
     labelKey: 'nav.users',
     href: '/dashboard/users',
     icon: Users,
+  },
+  {
+    labelKey: 'nav.devices',
+    href: '/dashboard/devices',
+    icon: Smartphone,
   },
   {
     labelKey: 'nav.compliance',
