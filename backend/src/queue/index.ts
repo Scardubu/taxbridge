@@ -13,6 +13,7 @@ import { generateUBL } from '../lib/ubl/generator';
 import { validateUblXml } from '../lib/ubl/validate';
 import { createLogger } from '../lib/logger';
 import { notifyInvoiceStamped } from '../services/notifications';
+import { createDeviceSyncWorker } from '../workers/syncWorker';
 
 
 const log = createLogger('worker');
@@ -199,6 +200,8 @@ export const invoiceSyncWorker = new Worker(
   }
 );
 
+const deviceSyncWorker = createDeviceSyncWorker();
+
 invoiceSyncWorker.on('completed', (job, result) => {
   log.info('job completed', {
     jobId: job.id,
@@ -215,9 +218,30 @@ invoiceSyncWorker.on('failed', (job, err) => {
   });
 });
 
+deviceSyncWorker.on('completed', (job, result) => {
+  log.info('device sync job completed', {
+    jobId: job.id,
+    syncJobId: (job.data as any)?.syncJobId,
+    result
+  });
+});
+
+deviceSyncWorker.on('failed', (job, err) => {
+  log.error('device sync job failed', {
+    jobId: job?.id,
+    syncJobId: (job?.data as any)?.syncJobId,
+    err
+  });
+});
+
 async function shutdown() {
   try {
     await invoiceSyncWorker.close();
+  } catch {
+    // ignore
+  }
+  try {
+    await deviceSyncWorker.close();
   } catch {
     // ignore
   }
