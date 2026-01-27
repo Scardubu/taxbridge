@@ -9,6 +9,29 @@ on:
 jobs:
   backend-tests:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: taxbridge_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
     strategy:
       matrix:
         node-version: [18.x]
@@ -25,8 +48,22 @@ jobs:
       - name: Install dependencies
         run: yarn install --frozen-lockfile
 
+      - name: Setup test database
+        run: |
+          yarn --cwd backend prisma:generate
+          yarn --cwd backend db:migrate
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/taxbridge_test
+          REDIS_URL: redis://localhost:6379
+
       - name: Run backend tests
         run: yarn --cwd backend test
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/taxbridge_test
+          REDIS_URL: redis://localhost:6379
+          JWT_SECRET: test-jwt-secret
+          JWT_REFRESH_SECRET: test-refresh-secret
+          ENCRYPTION_KEY: test-encryption-key
 
       - name: Run backend OCR assertions
         run: yarn --cwd backend ocr:assert

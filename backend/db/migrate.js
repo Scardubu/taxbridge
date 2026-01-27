@@ -17,7 +17,13 @@ async function main() {
   const sqlPath = path.resolve(__dirname, 'migrations', '001_initial_schema.sql');
   const sql = fs.readFileSync(sqlPath, 'utf8');
 
-  const client = new Client({ connectionString: databaseUrl, ssl: { rejectUnauthorized: false } });
+  const parsedUrl = new URL(databaseUrl);
+  const sslMode = parsedUrl.searchParams.get('sslmode');
+  const sslEnabled = process.env.DATABASE_SSL === 'true' || sslMode === 'require' || parsedUrl.searchParams.get('ssl') === 'true';
+  const client = new Client({
+    connectionString: databaseUrl,
+    ssl: sslEnabled ? { rejectUnauthorized: false } : undefined
+  });
 
   try {
     await client.connect();

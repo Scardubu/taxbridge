@@ -2,6 +2,11 @@ function escapeRegex(str) {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+process.env.NODE_ENV = process.env.NODE_ENV || 'test';
+process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret-test-jwt-secret-123456';
+process.env.JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'test-refresh-secret-test-refresh-secret-123456';
+process.env.ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || 'test-encryption-key-test-encryption-key';
+
 function createRedisMock() {
   const store = new Map();
   const expirations = new Map();
@@ -113,8 +118,10 @@ jest.mock('./src/queue/client', () => {
     getRedisConnection: () => redisMockInstance,
     getInvoiceSyncQueue: queueFactory,
     getPaymentQueue: queueFactory,
+    getDeviceSyncQueue: queueFactory,
     closeInvoiceSyncQueue: jest.fn(),
     closePaymentQueue: jest.fn(),
+    closeDeviceSyncQueue: jest.fn(),
     closeRedisConnection: jest.fn(async () => redisMockInstance.quit()),
     __redisMock: redisMockInstance
   };
