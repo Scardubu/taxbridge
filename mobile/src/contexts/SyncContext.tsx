@@ -3,7 +3,7 @@ import { Alert } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useNetwork } from './NetworkContext';
 import { syncPendingInvoices } from '../services/sync';
-import { performFullSync, listConflicts } from '../services/deviceSync';
+import { performFullSync, listConflicts, collectLocalChanges } from '../services/deviceSync';
 import { getAccessToken } from '../services/authTokens';
 import { createLogger } from '../utils/logger';
 
@@ -63,7 +63,9 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
         // Try device sync first if enabled, fallback to legacy sync
         if (isDeviceSyncEnabled()) {
           log.info('Using device sync');
-          const result = await performFullSync();
+          const localChanges = await collectLocalChanges();
+          log.info('Collected local changes for sync', { count: localChanges.length });
+          const result = await performFullSync(localChanges);
           
           // Check for conflicts
           const conflictsResponse = await listConflicts();

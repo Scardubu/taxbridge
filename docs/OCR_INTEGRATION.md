@@ -8,6 +8,16 @@ This guide covers the implementation of Optical Character Recognition (OCR) for 
 
 TaxBridge uses **Tesseract.js** with advanced preprocessing for production OCR. The implementation includes:
 
+### Architecture Note
+
+⚠️ **Receipt scanning is embedded within CreateInvoiceScreen** - There is no dedicated `ReceiptScannerScreen` component. The OCR capture functionality is part of the invoice creation workflow:
+
+- **Navigation Path**: HomeScreen → CreateInvoiceScreen → Scan Receipt button → Camera/Gallery selection
+- **Implementation**: Lines 149-317 in `mobile/src/screens/CreateInvoiceScreen.tsx`
+- **Trigger Method**: `openScanMenu()` displays Alert with camera/gallery options
+
+This design choice prioritizes workflow efficiency by integrating receipt capture directly into invoice creation, reducing navigation steps for users.
+
 ### Key Features
 - **Multi-pass recognition**: Multiple PSM (Page Segmentation Mode) settings for better accuracy
 - **Image preprocessing**: Jimp-based deskew, adaptive thresholding, and contrast enhancement
@@ -411,3 +421,31 @@ OCR_MAX_FILE_SIZE=5242880
 | AWS Textract | $0.015/page | Medium | 95%+ |
 
 Choose based on your scale, budget, and accuracy requirements.
+## Accessibility Features
+
+### Screen Reader Support
+
+The OCR camera interface includes comprehensive accessibility enhancements:
+
+**Camera Controls** (`mobile/src/screens/CreateInvoiceScreen.tsx`):
+- **Capture button**: `accessibilityLabel="Capture receipt"`, `accessibilityHint="Take a photo of receipt to extract invoice data automatically"`
+- **Flip camera**: `accessibilityLabel="Flip camera"` for front/back switching
+- **Close camera**: `accessibilityLabel="Close camera"` to exit capture mode
+
+**i18n Keys**:
+```typescript
+// English
+"create.captureReceipt": "Capture receipt"
+"create.captureReceiptHint": "Take a photo of receipt to extract invoice data automatically"
+
+// Nigerian Pidgin
+"create.captureReceipt": "Snap receipt"
+"create.captureReceiptHint": "Snap receipt picture make we get di invoice info for you"
+```
+
+### User Experience Enhancements
+
+1. **Confidence Explanations**: OCR results include confidence scores to help users understand reliability
+2. **Retry Logic**: Automatic retry with exponential backoff (1s, 2s, 4s, 8s, 16s) for failed requests
+3. **Offline Detection**: Graceful degradation when network unavailable
+4. **Progressive Enhancement**: Works with or without OCR enabled via `ENABLE_OCR` feature flag

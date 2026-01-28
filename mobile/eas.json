@@ -5,23 +5,27 @@
   },
   "build": {
     "development": {
+      "channel": "development",
       "developmentClient": true,
       "distribution": "internal",
       "env": {
         "EXPO_PUBLIC_API_URL": "http://localhost:3000",
-        "EXPO_PUBLIC_ENV": "development"
+        "EXPO_PUBLIC_ENV": "development",
+        "NODE_ENV": "development"
       },
       "android": {
         "buildType": "apk"
       }
     },
     "staging": {
+      "channel": "staging",
       "distribution": "internal",
       "env": {
         "EXPO_PUBLIC_API_URL": "https://taxbridge-api-35w0.onrender.com",
         "EXPO_PUBLIC_ENV": "staging",
         "EXPO_PUBLIC_SENTRY_DSN": "https://staging@sentry.io/project",
-        "EXPO_PUBLIC_MIXPANEL_TOKEN": "staging_mixpanel_token"
+        "EXPO_PUBLIC_MIXPANEL_TOKEN": "staging_mixpanel_token",
+        "NODE_ENV": "production"
       },
       "android": {
         "buildType": "apk",
@@ -34,21 +38,25 @@
       }
     },
     "preview": {
+      "channel": "preview",
       "distribution": "internal",
       "env": {
         "EXPO_PUBLIC_API_URL": "https://taxbridge-api-35w0.onrender.com",
-        "EXPO_PUBLIC_ENV": "preview"
+        "EXPO_PUBLIC_ENV": "preview",
+        "NODE_ENV": "production"
       },
       "android": {
         "buildType": "apk"
       }
     },
     "production": {
+      "channel": "production",
       "env": {
         "EXPO_PUBLIC_API_URL": "https://taxbridge-api.onrender.com",
         "EXPO_PUBLIC_ENV": "production",
         "EXPO_PUBLIC_SENTRY_DSN": "https://prod@sentry.io/project",
-        "EXPO_PUBLIC_MIXPANEL_TOKEN": "prod_mixpanel_token"
+        "EXPO_PUBLIC_MIXPANEL_TOKEN": "prod_mixpanel_token",
+        "NODE_ENV": "production"
       },
       "android": {
         "buildType": "app-bundle",
@@ -60,12 +68,14 @@
       }
     },
     "production-apk": {
+      "channel": "production-apk",
       "distribution": "internal",
       "env": {
         "EXPO_PUBLIC_API_URL": "https://taxbridge-api.onrender.com",
         "EXPO_PUBLIC_ENV": "production",
         "EXPO_PUBLIC_SENTRY_DSN": "https://prod@sentry.io/project",
-        "EXPO_PUBLIC_MIXPANEL_TOKEN": "prod_mixpanel_token"
+        "EXPO_PUBLIC_MIXPANEL_TOKEN": "prod_mixpanel_token",
+        "NODE_ENV": "production"
       },
       "android": {
         "buildType": "apk",

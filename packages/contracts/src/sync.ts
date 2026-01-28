@@ -3,13 +3,13 @@ import { z } from 'zod';
 export const UuidSchema = z.string().uuid();
 
 export const HeartbeatSchema = z.object({
-  deviceId: UuidSchema,
-  userId: UuidSchema,
+  deviceId: z.string().min(1),
+  userId: UuidSchema.optional(),
   platform: z.enum(['android', 'ios', 'web']),
   appVersion: z.string().min(1),
   osVersion: z.string().min(1).optional(),
   locale: z.string().min(2).optional(),
-  lastSeenAt: z.string().datetime(),
+  lastSeenAt: z.string().datetime().optional(),
   network: z.enum(['online', 'offline']).optional(),
   batteryPct: z.number().min(0).max(100).optional()
 });
@@ -27,7 +27,7 @@ export const SyncJobSchema = z.object({
 });
 
 export const PushSyncSchema = z.object({
-  deviceId: UuidSchema,
+  deviceId: z.string().min(1),
   jobs: z.array(SyncJobSchema).min(1),
   clientTime: z.string().datetime(),
   lastSyncAt: z.string().datetime().optional()

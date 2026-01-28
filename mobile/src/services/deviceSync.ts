@@ -1,25 +1,79 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Device from 'expo-device';
 import * as Application from 'expo-application';
-import Constants from 'expo-constants';
-import { Platform } from 'react-native';
+import { Platform, NativeModules } from 'react-native';
 import { getAccessToken } from './authTokens';
+import { getApiBaseUrl } from './config';
 import { createLogger } from '../utils/logger';
+import { getPendingInvoices } from './database';
+import type { InvoiceItem } from '../types/invoice';
 
 const log = createLogger('device-sync');
 
-const API_BASE_URL = Constants.expoConfig?.extra?.apiUrl || 'https://api.taxbridge.ng';
+const DEVICE_ID_STORAGE_KEY = 'device:deviceId';
+
+function generateUuid(): string {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
 
 // Generate stable device ID
-export function getDeviceId(): string {
-  // Use platform-specific stable identifiers
+export async function getDeviceId(): Promise<string> {
+  const cached = await AsyncStorage.getItem(DEVICE_ID_STORAGE_KEY).catch(() => null);
+  if (cached) return cached;
+
+  let deviceId: string | null = null;
+
   if (Platform.OS === 'android') {
-    return Application.androidId || `android-${Device.modelId || 'unknown'}`;
-  } else if (Platform.OS === 'ios') {
-    // iOS doesn't provide a stable device ID, use vendorId + device name
-    const vendorId = Application.getIosIdForVendorAsync ? 'ios-vendor' : 'ios-fallback';
-    return `${vendorId}-${Device.modelId || 'unknown'}`;
+    deviceId = Application.getAndroidId();
+  } else if (Platform.OS === 'ios' && Application.getIosIdForVendorAsync) {
+    deviceId = await Application.getIosIdForVendorAsync().catch(() => null);
   }
-  return `web-${Math.random().toString(36).substr(2, 9)}`;
+
+  if (!deviceId) {
+    deviceId = generateUuid();
+  }
+
+  await AsyncStorage.setItem(DEVICE_ID_STORAGE_KEY, deviceId).catch(() => undefined);
+  return deviceId;
+}
+
+/**
+ * Collect local changes from SQLite queue for device sync push.
+ * Transforms pending invoices into LocalChange format.
+ */
+export async function collectLocalChanges(): Promise<LocalChange[]> {
+  try {
+    const pending = await getPendingInvoices();
+    log.info('Collected local changes', { count: pending.length });
+    
+    return pending.map((inv) => {
+      const items = JSON.parse(inv.items) as InvoiceItem[];
+      
+      return {
+        action: 'create' as const,
+        entityType: 'invoice' as const,
+        entityId: inv.id,
+        data: {
+          id: inv.id,
+          customerName: inv.customerName ?? undefined,
+          status: inv.status,
+          subtotal: inv.subtotal,
+          vat: inv.vat,
+          total: inv.total,
+          items,
+          createdAt: inv.createdAt,
+        },
+        version: inv.attempts ?? 0,
+      };
+    });
+  } catch (err) {
+    log.error('Failed to collect local changes', { error: err });
+    return [];
+  }
 }
 
 interface HeartbeatPayload {
@@ -29,6 +83,8 @@ interface HeartbeatPayload {
   appVersion: string;
   network?: string;
   batteryPct?: number;
+  lastSeenAt?: string;
+  locale?: string;
 }
 
 interface HeartbeatResponse {
@@ -50,21 +106,33 @@ interface SyncPullResponse {
   timestamp: string;
 }
 
+type LocalChange = {
+  action: 'create' | 'update' | 'delete';
+  entityType: 'invoice';
+  entityId: string;
+  data?: Record<string, unknown>;
+  version?: number;
+};
+
 interface SyncPushPayload {
   deviceId: string;
-  changes: Array<{
+  jobs: Array<{
+    clientId: string;
+    entity: 'invoice';
     action: 'create' | 'update' | 'delete';
-    entityType: 'invoice';
-    entityId: string;
-    data?: any;
-    version?: number;
+    clientVersion: number;
+    payload: Record<string, unknown>;
+    createdAt: string;
   }>;
+  clientTime: string;
+  lastSyncAt?: string;
 }
 
 interface SyncPushResponse {
   success: boolean;
-  jobId: string;
-  message: string;
+  synced: string[];
+  conflicts: string[];
+  failed: string[];
 }
 
 interface Conflict {
@@ -103,17 +171,34 @@ export async function sendHeartbeat(): Promise<HeartbeatResponse> {
     throw new Error('Not authenticated');
   }
 
-  const deviceId = getDeviceId();
+  const deviceId = await getDeviceId();
+  const apiBaseUrl = await getApiBaseUrl();
+  
+  // Get device locale safely
+  let locale: string | undefined;
+  try {
+    if (Platform.OS === 'ios') {
+      locale = NativeModules.SettingsManager?.settings?.AppleLocale || 
+               NativeModules.SettingsManager?.settings?.AppleLanguages?.[0];
+    } else if (Platform.OS === 'android') {
+      locale = NativeModules.I18nManager?.localeIdentifier;
+    }
+  } catch {
+    locale = undefined;
+  }
+  
   const payload: HeartbeatPayload = {
     deviceId,
     platform: Platform.OS,
     osVersion: Device.osVersion || null,
-    appVersion: Application.nativeApplicationVersion || '1.0.0'
+    appVersion: Application.nativeApplicationVersion || '1.0.0',
+    lastSeenAt: new Date().toISOString(),
+    locale
   };
 
   log.info('Sending heartbeat', { deviceId, platform: payload.platform });
 
-  const response = await fetch(`${API_BASE_URL}/api/v1/device/heartbeat`, {
+  const response = await fetch(`${apiBaseUrl}/api/v1/device/heartbeat`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -141,7 +226,8 @@ export async function syncPull(since?: string): Promise<SyncPullResponse> {
     throw new Error('Not authenticated');
   }
 
-  const deviceId = getDeviceId();
+  const deviceId = await getDeviceId();
+  const apiBaseUrl = await getApiBaseUrl();
   const params = new URLSearchParams({ deviceId });
   if (since) {
     params.append('since', since);
@@ -149,7 +235,7 @@ export async function syncPull(since?: string): Promise<SyncPullResponse> {
 
   log.info('Pulling sync updates', { deviceId, since });
 
-  const response = await fetch(`${API_BASE_URL}/api/v1/sync/pull?${params.toString()}`, {
+  const response = await fetch(`${apiBaseUrl}/api/v1/sync/pull?${params.toString()}`, {
     method: 'GET',
     headers: {
       Authorization: `Bearer ${token}`
@@ -172,21 +258,30 @@ export async function syncPull(since?: string): Promise<SyncPullResponse> {
 /**
  * Push local changes to server
  */
-export async function syncPush(changes: SyncPushPayload['changes']): Promise<SyncPushResponse> {
+export async function syncPush(changes: LocalChange[]): Promise<SyncPushResponse> {
   const token = await getAccessToken();
   if (!token) {
     throw new Error('Not authenticated');
   }
 
-  const deviceId = getDeviceId();
+  const deviceId = await getDeviceId();
+  const apiBaseUrl = await getApiBaseUrl();
   const payload: SyncPushPayload = {
     deviceId,
-    changes
+    jobs: changes.map((change) => ({
+      clientId: change.entityId,
+      entity: change.entityType,
+      action: change.action,
+      clientVersion: change.version ?? 0,
+      payload: { id: change.entityId, ...(change.data || {}) },
+      createdAt: new Date().toISOString()
+    })),
+    clientTime: new Date().toISOString()
   };
 
   log.info('Pushing sync changes', { deviceId, changeCount: changes.length });
 
-  const response = await fetch(`${API_BASE_URL}/api/v1/sync/push`, {
+  const response = await fetch(`${apiBaseUrl}/api/v1/sync/push`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -201,7 +296,11 @@ export async function syncPush(changes: SyncPushPayload['changes']): Promise<Syn
   }
 
   const data = await response.json();
-  log.info('Sync push successful', { jobId: data.jobId });
+  log.info('Sync push successful', { 
+    synced: data.synced?.length ?? 0,
+    conflicts: data.conflicts?.length ?? 0,
+    failed: data.failed?.length ?? 0
+  });
   return data;
 }
 
@@ -214,12 +313,13 @@ export async function listConflicts(): Promise<ConflictListResponse> {
     throw new Error('Not authenticated');
   }
 
-  const deviceId = getDeviceId();
+  const deviceId = await getDeviceId();
+  const apiBaseUrl = await getApiBaseUrl();
   const params = new URLSearchParams({ deviceId });
 
   log.info('Fetching conflicts', { deviceId });
 
-  const response = await fetch(`${API_BASE_URL}/api/v1/sync/conflicts?${params.toString()}`, {
+  const response = await fetch(`${apiBaseUrl}/api/v1/sync/conflicts?${params.toString()}`, {
     method: 'GET',
     headers: {
       Authorization: `Bearer ${token}`
@@ -249,7 +349,8 @@ export async function resolveConflict(
     throw new Error('Not authenticated');
   }
 
-  const deviceId = getDeviceId();
+  const deviceId = await getDeviceId();
+  const apiBaseUrl = await getApiBaseUrl();
   const payload: ConflictResolutionPayload = {
     conflictId,
     resolution,
@@ -258,7 +359,7 @@ export async function resolveConflict(
 
   log.info('Resolving conflict', { deviceId, conflictId, resolution });
 
-  const response = await fetch(`${API_BASE_URL}/api/v1/sync/conflicts/resolve`, {
+  const response = await fetch(`${apiBaseUrl}/api/v1/sync/conflicts/resolve`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -277,10 +378,7 @@ export async function resolveConflict(
   return data;
 }
 
-/**
- * Full sync operation: heartbeat → pull → push local changes
- */
-export async function performFullSync(localChanges: SyncPushPayload['changes'] = []): Promise<{
+export async function performFullSync(localChanges: LocalChange[] = []): Promise<{
   heartbeat: HeartbeatResponse;
   pulled: SyncPullResponse;
   pushed?: SyncPushResponse;

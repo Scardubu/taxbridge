@@ -739,12 +739,17 @@ export default function CreateInvoiceScreen(props: any) {
             <Pressable 
               style={[styles.cameraButton, styles.captureButton]}
               onPress={handleTakePicture}
+              accessibilityLabel={t('createInvoice.captureReceipt')}
+              accessibilityHint={t('createInvoice.captureReceiptHint')}
+              accessibilityRole="button"
             >
               <Text style={styles.cameraButtonText}>📸</Text>
             </Pressable>
             <Pressable 
               style={styles.cameraButton}
               onPress={() => setShowCamera(false)}
+              accessibilityLabel={t('alerts.closeCamera')}
+              accessibilityRole="button"
             >
               <Text style={styles.cameraButtonText}>{t('alerts.closeCamera')}</Text>
             </Pressable>

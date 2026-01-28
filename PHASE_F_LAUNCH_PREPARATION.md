@@ -32,6 +32,18 @@ Phase E validation has confirmed TaxBridge V5.0.2 is **production-ready**:
 
 ## Phase F Execution Sequence
 
+### Preflight: Expo Build Health (Required)
+
+Before any F3 build, verify Expo dependency alignment and EAS Update channel configuration.
+
+**Required checks:**
+- ✅ Single lockfile in repo root (Yarn workspace). Remove `package-lock.json` if present.
+- ✅ Expo SDK compatibility: `expo ~54.0.32`, `react-native-reanimated ~4.1.1`, `react-native-worklets ~0.7.0`, `react-native-gesture-handler ~2.28.0`.
+- ✅ EAS Update channel set per build profile in `mobile/eas.json` (staging, preview, production).
+- ✅ `NODE_ENV` set in EAS build profiles (development/staging/production) to satisfy Reanimated build checks.
+
+If any check fails, resolve before proceeding with builds.
+
 ### Step 1: Build Production Artifacts (30 min)
 
 #### 1.1 Mobile App Builds

@@ -76,7 +76,9 @@
     "itemsLabel": "Items",
     "invoiceTotal": "Invoice Total",
     "grandTotal": "Grand Total",
-    "complianceNotice": "Dis invoice go queue for NRS submission through DigiTax when network come."
+    "complianceNotice": "Dis invoice go queue for NRS submission through DigiTax when network come.",
+    "captureReceipt": "Snap receipt",
+    "captureReceiptHint": "Snap receipt picture make we get di invoice info for you"
   },
   "invoices": {
     "title": "Invoices",
