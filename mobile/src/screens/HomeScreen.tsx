@@ -228,7 +228,7 @@ const styles = StyleSheet.create({
   statCardPrimary: {
     flex: 1.5,
     backgroundColor: colors.primaryDeep,
-    borderColor: 'rgba(11, 95, 255, 0.12)',
+    borderColor: colors.overlayLightSubtle,
   },
   statHeader: {
     flexDirection: 'row',

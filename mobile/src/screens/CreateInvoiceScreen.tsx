@@ -44,7 +44,7 @@ function createLocalId(): string {
 export default function CreateInvoiceScreen(props: any) {
   const { t } = useTranslation();
   const { setLoading, setLoadingMessage } = useLoading();
-  const cameraRef = useRef<any>(null);
+  const cameraRef = useRef<CameraView>(null);
   const isMountedRef = useRef(true);
   const [showCamera, setShowCamera] = useState(false);
   const [cameraFacing, setCameraFacing] = useState<CameraFacing>('back');
@@ -306,7 +306,7 @@ export default function CreateInvoiceScreen(props: any) {
     }
   };
 
-  const applyOcrResult = (ocrResult: { amount?: number; items?: any[]; confidence: number }) => {
+  const applyOcrResult = (ocrResult: { amount?: number; items?: InvoiceItem[]; confidence: number }) => {
     // Guard against state updates after unmount
     if (!isMountedRef.current) return;
 

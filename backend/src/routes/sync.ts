@@ -59,7 +59,18 @@ export default async function syncRoutes(app: FastifyInstance) {
       const userId = await authenticate(request);
       const body: HeartbeatPayload = HeartbeatSchema.parse(request.body);
 
-      // Upsert device record
+      // Check if device already exists and verify ownership
+      const existingDevice = await prisma.device.findUnique({
+        where: { deviceId: body.deviceId }
+      });
+
+      if (existingDevice && existingDevice.userId !== userId) {
+        return reply.status(403).send({ 
+          error: 'Device belongs to another user. Cannot update device registration.' 
+        });
+      }
+
+      // Upsert device record (now safe after ownership check)
       const now = new Date();
       const device = await prisma.device.upsert({
         where: { deviceId: body.deviceId },
@@ -367,15 +378,18 @@ export default async function syncRoutes(app: FastifyInstance) {
         return reply.status(403).send({ error: 'Device not found or unauthorized' });
       }
 
-      // Validate and parse since parameter
+      // Validate and parse since parameter (format: timestamp or timestamp:id)
       let sinceDate: Date;
+      let sinceId: string | undefined;
       if (since) {
-        sinceDate = new Date(since);
+        const parts = since.split(':');
+        sinceDate = new Date(parts[0]);
         if (isNaN(sinceDate.getTime())) {
           return reply.status(400).send({ 
-            error: 'Invalid since parameter. Must be a valid ISO 8601 date string.' 
+            error: 'Invalid since parameter. Must be a valid ISO 8601 date string or timestamp:id format.' 
           });
         }
+        sinceId = parts[1]; // Optional ID for deterministic cursor
       } else {
         sinceDate = new Date(0);
       }
@@ -385,9 +399,15 @@ export default async function syncRoutes(app: FastifyInstance) {
       const invoices = await prisma.invoice.findMany({
         where: {
           userId,
-          updatedAt: { gt: sinceDate }
+          OR: [
+            { updatedAt: { gt: sinceDate } },
+            ...(sinceId ? [{ updatedAt: sinceDate, id: { gt: sinceId } }] : [])
+          ]
         },
-        orderBy: { updatedAt: 'asc' },
+        orderBy: [
+          { updatedAt: 'asc' },
+          { id: 'asc' } // Deterministic secondary sort
+        ],
         take: BATCH_SIZE + 1 // Fetch one extra to check if there are more
       });
 
@@ -395,9 +415,9 @@ export default async function syncRoutes(app: FastifyInstance) {
       const hasMore = invoices.length > BATCH_SIZE;
       const returnedInvoices = hasMore ? invoices.slice(0, BATCH_SIZE) : invoices;
       
-      // Calculate nextSince for pagination
+      // Calculate nextSince for pagination (composite cursor: timestamp:id)
       const nextSince = hasMore && returnedInvoices.length > 0
-        ? returnedInvoices[returnedInvoices.length - 1].updatedAt.toISOString()
+        ? `${returnedInvoices[returnedInvoices.length - 1].updatedAt.toISOString()}:${returnedInvoices[returnedInvoices.length - 1].id}`
         : undefined;
 
       log.info('Sync pull completed', { 
