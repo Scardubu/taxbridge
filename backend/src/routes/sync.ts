@@ -209,7 +209,7 @@ export default async function syncRoutes(app: FastifyInstance) {
 
               // Enqueue for worker processing
               await enqueueDeviceSync(syncJob.id);
-              
+
               await prisma.syncJob.update({
                 where: { id: syncJob.id },
                 data: { status: 'processing' }
@@ -258,7 +258,7 @@ export default async function syncRoutes(app: FastifyInstance) {
 
               // Enqueue for worker processing
               await enqueueDeviceSync(syncJob.id);
-              
+
               await prisma.syncJob.update({
                 where: { id: syncJob.id },
                 data: { status: 'processing' }
@@ -268,7 +268,7 @@ export default async function syncRoutes(app: FastifyInstance) {
             } else if (job.action === 'delete') {
               // Soft delete - mark as deleted
               await enqueueDeviceSync(syncJob.id);
-              
+
               await prisma.syncJob.update({
                 where: { id: syncJob.id },
                 data: { status: 'processing' }
@@ -290,8 +290,18 @@ export default async function syncRoutes(app: FastifyInstance) {
         } catch (jobError: any) {
           log.error('Sync job processing error', { 
             clientId: job.clientId, 
-            error: jobError.message 
+            error: jobError.message,
+            stack: jobError.stack
           });
+          
+          await prisma.syncJob.update({
+            where: { id: syncJob.id },
+            data: { 
+              status: 'failed',
+              result: { error: jobError.message, stack: jobError.stack }
+            }
+          }).catch(() => {}); // Ignore update errors
+          
           results.failed.push(job.clientId);
         }
       }
@@ -465,6 +475,12 @@ export default async function syncRoutes(app: FastifyInstance) {
       }
 
       let finalData: any;
+      const status =
+        body.resolution === 'local_wins'
+          ? 'RESOLVED_CLIENT'
+          : body.resolution === 'server_wins'
+            ? 'RESOLVED_SERVER'
+            : 'RESOLVED_MANUAL';
 
       if (body.resolution === 'local_wins') {
         finalData = conflict.localData;
@@ -490,6 +506,7 @@ export default async function syncRoutes(app: FastifyInstance) {
         where: { id: body.conflictId },
         data: {
           resolution: body.resolution,
+          status,
           resolvedAt: new Date()
         }
       });

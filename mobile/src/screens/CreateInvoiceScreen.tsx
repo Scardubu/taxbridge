@@ -242,7 +242,17 @@ export default function CreateInvoiceScreen(props: any) {
         let message = '';
         if (!validation.isValid) {
           message += t('alerts.couldNotAnalyze') + '\n\n';
-          message += validation.warnings.join('\n') + '\n\n';
+          const warningMessages = validation.warnings.map((code) => {
+            if (code === 'lowConfidence') {
+              return t('ocrWarnings.lowConfidence', { percent: (ocrResult.confidence * 100).toFixed(0) });
+            }
+            if (code === 'noAmountOrItems') return t('ocrWarnings.noAmountOrItems');
+            if (code === 'invalidAmount') return t('ocrWarnings.invalidAmount');
+            if (code === 'invalidDate') return t('ocrWarnings.invalidDate');
+            if (code === 'unparseableDate') return t('ocrWarnings.unparseableDate');
+            return '';
+          }).filter(Boolean);
+          message += warningMessages.join('\n') + '\n\n';
         }
         const amountText = ocrResult.amount ? `₦${ocrResult.amount.toFixed(2)}` : t('alerts.noAmountDetected');
         message += `${t('alerts.detectedAmount', { amount: amountText })}\n${t('alerts.confidence', { percent: (ocrResult.confidence * 100).toFixed(0) })}\n\n${t('alerts.applyDetectedValues')}`;

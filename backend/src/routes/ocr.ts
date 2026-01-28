@@ -10,6 +10,7 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { createLogger } from '../lib/logger';
 import { performOCR } from '../lib/performOCR';
+import { config } from '../lib/config';
 
 const logger = createLogger('ocr');
 
@@ -57,7 +58,8 @@ export default async function ocrRoutes(app: FastifyInstance) {
         response: {
           200: OCRResponseSchema,
           400: z.object({ error: z.string() }),
-          500: z.object({ error: z.string() })
+          404: z.object({ error: z.string() }),
+          500: z.object({ error: z.string(), message: z.string().optional() })
         }
       }
     },
@@ -66,6 +68,9 @@ export default async function ocrRoutes(app: FastifyInstance) {
       const requestId = (req.headers['x-request-id'] as string) || `ocr-${Date.now()}`;
       
       try {
+        if (!config.features.enableOCR) {
+          return reply.status(404).send({ error: 'OCR feature is disabled' });
+        }
         const { image, mimeType } = req.body as z.infer<typeof OCRRequestSchema>;
 
         // Validate image size (max 5MB)

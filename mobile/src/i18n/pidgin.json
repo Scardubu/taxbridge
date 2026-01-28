@@ -110,7 +110,13 @@
     "subtitle": "Manage your TaxBridge settings",
     "total": "Total",
     "synced": "Don Sync",
-    "pending": "Dey Wait"
+    "pending": "Dey Wait",
+    "accountSyncTitle": "Account & Sync",
+    "accountSyncHelper": "Sign in make sync, secure invoice submission, and payments work. You fit still create invoices offline without sign in.",
+    "signedInTitle": "You Don Sign In",
+    "signedInSubtitle": "Sync and payment dey work for this device",
+    "signIn": "Sign in",
+    "createAccount": "Create account"
   },
   "onboarding": {
     "skip": "Skip am",
@@ -370,6 +376,28 @@
     "turnover": "50,000,000",
     "incomeExample": "e.g. 2,400,000",
     "zero": "0"
+  },
+  "sync": {
+    "offlineTitle": "No Network",
+    "offlineBody": "No fit sync when network no dey.",
+    "signInRequiredTitle": "Sign in need",
+    "signInRequiredBody": "Abeg sign in for Settings > Account & Sync to sync invoices.",
+    "syncCompleteTitle": "Sync Don Complete",
+    "syncCompleteBody": "Sync {{count}} invoice{{suffix}}",
+    "syncScheduledTitle": "Sync Don Schedule",
+    "syncScheduledBody": "{{count}} invoice{{suffix}} go retry when network stable.",
+    "syncErrorTitle": "Sync Wahala",
+    "syncErrorBody": "{{count}} invoice{{suffix}} no fit sync",
+    "syncFailedTitle": "Sync Fail",
+    "syncFailedBody": "Auto sync fail. Try again manually.",
+    "syncFailedAfterReconnectBody": "{{count}} invoice{{suffix}} no fit sync after network don return"
+  },
+  "ocrWarnings": {
+    "lowConfidence": "Confidence low: {{percent}}%",
+    "noAmountOrItems": "No amount or items",
+    "invalidAmount": "Amount no correct",
+    "invalidDate": "Date format no correct",
+    "unparseableDate": "No fit read date"
   },
   "alerts": {
     "ocrResult": "Wetin Dem See",

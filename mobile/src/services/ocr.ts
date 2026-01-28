@@ -8,6 +8,13 @@ export interface OCRResult {
   confidence: number;
 }
 
+export type OCRWarningCode =
+  | 'lowConfidence'
+  | 'noAmountOrItems'
+  | 'invalidAmount'
+  | 'invalidDate'
+  | 'unparseableDate';
+
 export interface OCROptions {
   timeoutMs?: number;
   maxRetries?: number;
@@ -162,30 +169,30 @@ function detectMimeType(base64: string): string | null {
  */
 export function validateOCRResult(result: OCRResult, minConfidence: number = 0.7): {
   isValid: boolean;
-  warnings: string[];
+  warnings: OCRWarningCode[];
 } {
-  const warnings: string[] = [];
+  const warnings: OCRWarningCode[] = [];
 
   if (result.confidence < minConfidence) {
-    warnings.push(`Low confidence score: ${(result.confidence * 100).toFixed(0)}%`);
+    warnings.push('lowConfidence');
   }
 
   if (!result.amount && (!result.items || result.items.length === 0)) {
-    warnings.push('No amount or items detected');
+    warnings.push('noAmountOrItems');
   }
 
   if (result.amount && result.amount <= 0) {
-    warnings.push('Invalid amount detected');
+    warnings.push('invalidAmount');
   }
 
   if (result.date) {
     try {
       const d = new Date(result.date);
       if (isNaN(d.getTime())) {
-        warnings.push('Invalid date format');
+        warnings.push('invalidDate');
       }
     } catch {
-      warnings.push('Could not parse date');
+      warnings.push('unparseableDate');
     }
   }
 

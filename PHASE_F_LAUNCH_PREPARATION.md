@@ -259,6 +259,63 @@ eas submit --platform ios --profile production
 
 ---
 
+## Feature-Flag Rollout Plan (Device Sync + OCR)
+
+**Flags:**
+- `FEATURE_DEVICE_SYNC` (device heartbeat + push/pull + conflict resolution)
+- `ENABLE_OCR` (receipt OCR API)
+
+**Plan:**
+1. **Internal (Week 1)**
+  - `FEATURE_DEVICE_SYNC=false`, `ENABLE_OCR=true`
+  - Manual device sync tests only (admin override).
+2. **Beta (Week 2)**
+  - `FEATURE_DEVICE_SYNC=true` for staff accounts only.
+  - Enable OCR for all beta users; monitor failure rate and latency.
+3. **Soft Launch (Week 3)**
+  - `FEATURE_DEVICE_SYNC=true` for 10% of authenticated users.
+  - Expand OCR to 50% if error rate < 5% over 24h.
+4. **Full Launch (Week 4)**
+  - `FEATURE_DEVICE_SYNC=true` for all authenticated users.
+  - `ENABLE_OCR=true` globally.
+
+**Immediate rollback:** flip `FEATURE_DEVICE_SYNC=false` or `ENABLE_OCR=false` and redeploy config only.
+
+---
+
+## Known Limitations (Pre-Launch Exceptions)
+
+- Device sync push responds after enqueue; final success is determined by sync job processing.
+- OCR warnings are currently English-only in some validation paths.
+- Some settings and sync alerts are not yet localized in mobile UI.
+
+---
+
+## Monitoring Queries & Alert Thresholds
+
+**Device Sync**
+- Sync job failure rate > **5%** over **15m** → **P1**
+- Conflict creation rate > **3%** of pushes over **1h** → **P2**
+- Queue depth > **1,000** jobs for **10m** → **P1**
+
+**OCR**
+- OCR failure rate > **8%** over **30m** → **P2**
+- OCR P95 latency > **6s** over **15m** → **P2**
+
+**Mobile**
+- Crash-free users < **99%** (Sentry) → **P1**
+
+---
+
+## Estimated Follow-Up Work (Post-Launch)
+
+- Localize remaining sync + settings alerts (English + Pidgin): **2–3h**
+- Add conflict resolution UX for merged edits: **6–8h**
+- Device sync job status polling UI: **4–6h**
+- OCR validation localization + guidance: **2–4h**
+
+---
+
 ## Rollback Plan
 
 ### Immediate Rollback (< 5 min)

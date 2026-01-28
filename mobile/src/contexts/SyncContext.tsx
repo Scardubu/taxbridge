@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { Alert } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useNetwork } from './NetworkContext';
 import { syncPendingInvoices } from '../services/sync';
 import { getAccessToken } from '../services/authTokens';
@@ -22,6 +23,7 @@ export function useSyncContext() {
 
 export function SyncProvider({ children }: { children: React.ReactNode }) {
   const { isOnline, forceCheck } = useNetwork();
+  const { t } = useTranslation();
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSyncAt, setLastSyncAt] = useState<number | null>(null);
   const isOnlinePrev = useRef<boolean | null>(null);
@@ -72,12 +74,12 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
 
   async function manualSync() {
     if (!isOnline) {
-      Alert.alert('Offline', 'Cannot sync while offline');
+      Alert.alert(t('sync.offlineTitle'), t('sync.offlineBody'));
       return { synced: 0, failed: 0, deferred: 0 };
     }
 
     if (!(await hasAuthToken())) {
-      Alert.alert('Sign in required', 'Please sign in in Settings > Account & Sync to sync invoices.');
+      Alert.alert(t('sync.signInRequiredTitle'), t('sync.signInRequiredBody'));
       return { synced: 0, failed: 0, deferred: 0 };
     }
 
@@ -89,17 +91,26 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
       const res = await doSyncWithBackoff();
       setLastSyncAt(Date.now());
       if (res.synced > 0) {
-        Alert.alert('Sync Complete', `Synced ${res.synced} invoice${res.synced > 1 ? 's' : ''}`);
+        Alert.alert(
+          t('sync.syncCompleteTitle'),
+          t('sync.syncCompleteBody', { count: res.synced, suffix: res.synced > 1 ? 's' : '' })
+        );
       }
       if (res.deferred > 0 && res.synced === 0 && res.failed === 0) {
-        Alert.alert('Sync Scheduled', `${res.deferred} invoice${res.deferred > 1 ? 's' : ''} will retry automatically when the network is stable.`);
+        Alert.alert(
+          t('sync.syncScheduledTitle'),
+          t('sync.syncScheduledBody', { count: res.deferred, suffix: res.deferred > 1 ? 's' : '' })
+        );
       }
       if (res.failed > 0) {
-        Alert.alert('Sync Error', `${res.failed} invoice${res.failed > 1 ? 's' : ''} failed to sync`);
+        Alert.alert(
+          t('sync.syncErrorTitle'),
+          t('sync.syncErrorBody', { count: res.failed, suffix: res.failed > 1 ? 's' : '' })
+        );
       }
       return res;
     } catch (err) {
-      Alert.alert('Sync Failed', 'Automatic sync failed. Please try manually.');
+      Alert.alert(t('sync.syncFailedTitle'), t('sync.syncFailedBody'));
       return { synced: 0, failed: 0, deferred: 0 };
     } finally {
       syncInProgress.current = false;
@@ -125,7 +136,10 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
           }
           if (res.failed > 0) {
             // surface important failures
-            Alert.alert('Sync Error', `${res.failed} invoice${res.failed > 1 ? 's' : ''} failed to sync after reconnect`);
+            Alert.alert(
+              t('sync.syncErrorTitle'),
+              t('sync.syncFailedAfterReconnectBody', { count: res.failed, suffix: res.failed > 1 ? 's' : '' })
+            );
           }
         } finally {
           syncInProgress.current = false;

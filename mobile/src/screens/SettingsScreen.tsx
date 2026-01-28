@@ -476,7 +476,7 @@ function SettingsScreen() {
                 value={values.apiUrl}
                 onChangeText={(text) => setValue('apiUrl', text)}
                 onBlur={() => setTouchedField('apiUrl')}
-                placeholder="https://api.taxbridge.ng"
+                placeholder={t('placeholders.apiUrl')}
                 placeholderTextColor="#98A2B3"
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -498,7 +498,7 @@ function SettingsScreen() {
           <Pressable style={styles.sectionHeader} onPress={() => toggleSection('account')}>
             <View style={styles.sectionTitleRow}>
               <Text style={styles.sectionIcon}>👤</Text>
-              <Text style={styles.sectionTitle}>Account & Sync</Text>
+              <Text style={styles.sectionTitle}>{t('settings.accountSyncTitle')}</Text>
             </View>
             <Text style={styles.expandIcon}>{expandedSection === 'account' ? '▼' : '▶'}</Text>
           </Pressable>
@@ -506,7 +506,7 @@ function SettingsScreen() {
           {expandedSection === 'account' && (
             <Animated.View entering={FadeIn.duration(200)} style={styles.sectionContent}>
               <Text style={styles.helperText}>
-                Sign in to enable cross-device sync, secure invoice submission, and payments. You can still create invoices offline without signing in.
+                {t('settings.accountSyncHelper')}
               </Text>
 
               {isAuthenticated ? (
@@ -514,8 +514,8 @@ function SettingsScreen() {
                   <View style={styles.accountRow}>
                     <Text style={styles.accountStatusDot}>🟢</Text>
                     <View style={styles.accountStatusInfo}>
-                      <Text style={styles.accountStatusTitle}>Signed in</Text>
-                      <Text style={styles.accountStatusSubtitle}>Sync and payments are enabled on this device</Text>
+                      <Text style={styles.accountStatusTitle}>{t('settings.signedInTitle')}</Text>
+                      <Text style={styles.accountStatusSubtitle}>{t('settings.signedInSubtitle')}</Text>
                     </View>
                   </View>
                   <View style={styles.row}>
@@ -545,7 +545,7 @@ function SettingsScreen() {
                         setMfaToken(null);
                       }}
                     >
-                      <Text style={[styles.optionText, authMode === 'login' && styles.optionTextActive]}>Sign in</Text>
+                      <Text style={[styles.optionText, authMode === 'login' && styles.optionTextActive]}>{t('settings.signIn')}</Text>
                     </Pressable>
                     <Pressable
                       style={[styles.option, authMode === 'register' && styles.optionActive]}
@@ -555,7 +555,7 @@ function SettingsScreen() {
                         setMfaToken(null);
                       }}
                     >
-                      <Text style={[styles.optionText, authMode === 'register' && styles.optionTextActive]}>Create account</Text>
+                      <Text style={[styles.optionText, authMode === 'register' && styles.optionTextActive]}>{t('settings.createAccount')}</Text>
                     </Pressable>
                   </View>
 
