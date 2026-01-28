@@ -10,7 +10,8 @@ import {
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useOnboarding } from '../../contexts/OnboardingContext';
-import { calculateFullPIT } from '../../utils/taxCalculator';
+import { calculateFullPIT, PIT_BANDS } from '../../utils/taxCalculator';
+import { colors } from '../../theme/tokens';
 
 const { width } = Dimensions.get('window');
 
@@ -19,26 +20,27 @@ interface Props {
 }
 
 // Enhanced quiz with more user-friendly questions
-const QUIZ_QUESTIONS = [
+// Quiz questions now use i18n keys
+const getQuizQuestions = (t: any) => [
   {
     id: 1,
-    question: 'If someone earns ₦200,000 per year, how much PIT do they pay?',
+    question: t('pitTutorial.quizQuestion'),
     options: [
-      { value: 'a', label: '₦0 (Tax Free!)', emoji: '🎉', isCorrect: true },
-      { value: 'b', label: '₦14,000', emoji: '💰', isCorrect: false },
-      { value: 'c', label: '₦20,000', emoji: '📊', isCorrect: false },
+      { value: 'a', label: t('pitTutorial.quizOptionA'), emoji: '🎉', isCorrect: true },
+      { value: 'b', label: t('pitTutorial.quizOptionB'), emoji: '💰', isCorrect: false },
+      { value: 'c', label: t('pitTutorial.quizOptionC'), emoji: '📊', isCorrect: false },
     ],
-    explanation: 'Great! Income below ₦300,000 is tax-exempt under Nigerian law. This protects low-income earners! 🇳🇬',
-    wrongExplanation: 'Actually, income below ₦300,000 is completely tax-free! Nigeria\'s tax law protects low-income earners.',
+    explanation: t('pitTutorial.quizCorrect'),
+    wrongExplanation: t('pitTutorial.quizWrong'),
   },
 ];
 
-// Income level presets for quick selection
-const INCOME_PRESETS = [
-  { label: 'Market Trader', value: '600000', emoji: '🏪', description: '~₦50K/month' },
-  { label: 'Small Business', value: '1500000', emoji: '🏢', description: '~₦125K/month' },
-  { label: 'Professional', value: '3600000', emoji: '💼', description: '~₦300K/month' },
-  { label: 'Custom Amount', value: 'custom', emoji: '✏️', description: 'Enter your own' },
+// Income level presets for quick selection (now with i18n support)
+const getIncomePresets = (t: any) => [
+  { label: t('pitTutorial.presetMarket'), value: '600000', emoji: '🏪', description: t('pitTutorial.presetMarketDesc') },
+  { label: t('pitTutorial.presetBusiness'), value: '1500000', emoji: '🏢', description: t('pitTutorial.presetBusinessDesc') },
+  { label: t('pitTutorial.presetProfessional'), value: '3600000', emoji: '💼', description: t('pitTutorial.presetProfessionalDesc') },
+  { label: t('pitTutorial.presetCustom'), value: 'custom', emoji: '✏️', description: t('pitTutorial.presetCustomDesc') },
 ];
 
 export default function PITTutorialStep({ onNext }: Props) {
@@ -54,6 +56,8 @@ export default function PITTutorialStep({ onNext }: Props) {
   const [showQuizFeedback, setShowQuizFeedback] = useState(false);
   const [step, setStep] = useState<'intro' | 'calculator' | 'results' | 'quiz'>('intro');
 
+  const QUIZ_QUESTIONS = getQuizQuestions(t);
+  const INCOME_PRESETS = getIncomePresets(t);
   const currentQuestion = QUIZ_QUESTIONS[0];
   const disableCalculate = useMemo(() => grossIncome.trim().length === 0, [grossIncome]);
 
@@ -120,63 +124,67 @@ export default function PITTutorialStep({ onNext }: Props) {
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         <View style={styles.heroSection}>
           <Text style={styles.heroEmoji}>🧮</Text>
-          <Text style={styles.heroTitle}>Personal Income Tax (PIT)</Text>
+          <Text style={styles.heroTitle}>{t('pitTutorial.title')}</Text>
           <Text style={styles.heroSubtitle}>
-            Let's demystify how your income tax works in Nigeria
+            {t('pitTutorial.subtitle')}
           </Text>
         </View>
 
         <View style={styles.infoCard}>
-          <Text style={styles.infoCardTitle}>💡 Did you know?</Text>
+          <Text style={styles.infoCardTitle}>{t('pitTutorial.didYouKnow')}</Text>
           <View style={styles.factItem}>
             <Text style={styles.factEmoji}>✅</Text>
             <Text style={styles.factText}>
-              If you earn less than <Text style={styles.highlight}>₦300,000/year</Text>, you pay <Text style={styles.highlightGreen}>₦0 tax!</Text>
+              {t('pitTutorial.fact1')}
             </Text>
           </View>
           <View style={styles.factItem}>
             <Text style={styles.factEmoji}>📊</Text>
             <Text style={styles.factText}>
-              Nigeria uses a <Text style={styles.highlight}>progressive tax system</Text> - higher earners pay higher rates
+              {t('pitTutorial.fact2')}
             </Text>
           </View>
           <View style={styles.factItem}>
             <Text style={styles.factEmoji}>🏠</Text>
             <Text style={styles.factText}>
-              Your <Text style={styles.highlight}>rent payments</Text> can reduce your taxable income!
+              {t('pitTutorial.fact3')}
             </Text>
           </View>
         </View>
 
         <View style={styles.taxBandsPreview}>
-          <Text style={styles.taxBandsTitle}>🎯 Nigerian Tax Bands (2025)</Text>
+          <Text style={styles.taxBandsTitle}>{t('pitTutorial.taxBandsTitle')}</Text>
           <View style={styles.bandPreviewRow}>
-            <View style={[styles.bandDot, { backgroundColor: '#10B981' }]} />
-            <Text style={styles.bandPreviewText}>First ₦300K → <Text style={styles.bandRate}>0%</Text></Text>
+            <View style={[styles.bandDot, { backgroundColor: colors.success }]} />
+            <Text style={styles.bandPreviewText}>{t('tutorial.bandExempt')}</Text>
           </View>
           <View style={styles.bandPreviewRow}>
-            <View style={[styles.bandDot, { backgroundColor: '#3B82F6' }]} />
-            <Text style={styles.bandPreviewText}>Next ₦300K → <Text style={styles.bandRate}>7%</Text></Text>
+            <View style={[styles.bandDot, { backgroundColor: colors.info }]} />
+            <Text style={styles.bandPreviewText}>{t('tutorial.band1')}</Text>
           </View>
           <View style={styles.bandPreviewRow}>
-            <View style={[styles.bandDot, { backgroundColor: '#F59E0B' }]} />
-            <Text style={styles.bandPreviewText}>Next ₦500K → <Text style={styles.bandRate}>11%</Text></Text>
+            <View style={[styles.bandDot, { backgroundColor: colors.warning }]} />
+            <Text style={styles.bandPreviewText}>{t('tutorial.band2')}</Text>
           </View>
           <View style={styles.bandPreviewRow}>
-            <View style={[styles.bandDot, { backgroundColor: '#EF4444' }]} />
-            <Text style={styles.bandPreviewText}>Above ₦3.2M → <Text style={styles.bandRate}>24%</Text></Text>
+            <View style={[styles.bandDot, { backgroundColor: colors.error }]} />
+            <Text style={styles.bandPreviewText}>{t('tutorial.band3')}</Text>
+          </View>
+          <View style={styles.bandPreviewRow}>
+            <View style={[styles.bandDot, { backgroundColor: colors.neutralDark }]} />
+            <Text style={styles.bandPreviewText}>{t('tutorial.band4')}</Text>
           </View>
         </View>
 
         <TouchableOpacity style={styles.primaryButton} onPress={handleStartCalculator}>
-          <Text style={styles.primaryButtonText}>🧮 Try the Calculator</Text>
+          <Text style={styles.primaryButtonText}>{t('pitTutorial.tryCalculator')}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.secondaryButton} onPress={handleViewQuiz}>
-          <Text style={styles.secondaryButtonText}>📝 Take a Quick Quiz</Text>
+          <Text style={styles.secondaryButtonText}>{t('pitTutorial.takeQuiz')}</Text>
         </TouchableOpacity>
 
-        <Text style={styles.timeEstimate}>⏱️ 2-3 minutes</Text>
+        <Text style={styles.timeEstimate}>{t('pitTutorial.timeEstimate')}</Text>
       </ScrollView>
     );
   }
@@ -186,11 +194,11 @@ export default function PITTutorialStep({ onNext }: Props) {
     return (
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         <TouchableOpacity style={styles.backButton} onPress={() => setStep('intro')}>
-          <Text style={styles.backButtonText}>← Back</Text>
+          <Text style={styles.backButtonText}>{t('pitTutorial.back')}</Text>
         </TouchableOpacity>
 
-        <Text style={styles.title}>📊 Calculate Your PIT</Text>
-        <Text style={styles.subtitle}>Select your income level or enter a custom amount</Text>
+        <Text style={styles.title}>{t('pitTutorial.calculateTitle')}</Text>
+        <Text style={styles.subtitle}>{t('pitTutorial.calculateSubtitle')}</Text>
 
         {/* Income Presets */}
         <View style={styles.presetsContainer}>
@@ -213,7 +221,7 @@ export default function PITTutorialStep({ onNext }: Props) {
         {/* Custom input if selected */}
         {selectedPreset === 'custom' && (
           <View style={styles.customInputCard}>
-            <Text style={styles.inputLabel}>Enter your annual income</Text>
+            <Text style={styles.inputLabel}>{t('pitTutorial.enterIncome')}</Text>
             <View style={styles.inputContainer}>
               <Text style={styles.currencySymbol}>₦</Text>
               <TextInput
@@ -222,7 +230,7 @@ export default function PITTutorialStep({ onNext }: Props) {
                 placeholder={t('placeholders.incomeExample')}
                 value={grossIncome}
                 onChangeText={setGrossIncome}
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={colors.textMuted}
               />
             </View>
           </View>
@@ -231,11 +239,11 @@ export default function PITTutorialStep({ onNext }: Props) {
         {/* Optional deductions (collapsible) */}
         {selectedPreset && (
           <View style={styles.deductionsCard}>
-            <Text style={styles.deductionsTitle}>💰 Add Deductions (Optional)</Text>
-            <Text style={styles.deductionsHint}>These reduce your taxable income</Text>
+            <Text style={styles.deductionsTitle}>{t('pitTutorial.addDeductions')}</Text>
+            <Text style={styles.deductionsHint}>{t('pitTutorial.deductionsHint')}</Text>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Annual Rent Paid</Text>
+              <Text style={styles.inputLabel}>{t('pitTutorial.annualRent')}</Text>
               <View style={styles.inputContainer}>
                 <Text style={styles.currencySymbol}>₦</Text>
                 <TextInput
@@ -244,13 +252,13 @@ export default function PITTutorialStep({ onNext }: Props) {
                   placeholder={t('placeholders.zero')}
                   value={rent}
                   onChangeText={setRent}
-                  placeholderTextColor="#9CA3AF"
+                  placeholderTextColor={colors.textMuted}
                 />
               </View>
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Pension Contribution</Text>
+              <Text style={styles.inputLabel}>{t('pitTutorial.pensionContribution')}</Text>
               <View style={styles.inputContainer}>
                 <Text style={styles.currencySymbol}>₦</Text>
                 <TextInput
@@ -259,7 +267,7 @@ export default function PITTutorialStep({ onNext }: Props) {
                   placeholder={t('placeholders.zero')}
                   value={pension}
                   onChangeText={setPension}
-                  placeholderTextColor="#9CA3AF"
+                  placeholderTextColor={colors.textMuted}
                 />
               </View>
             </View>
@@ -272,7 +280,7 @@ export default function PITTutorialStep({ onNext }: Props) {
           disabled={disableCalculate}
         >
           <Text style={styles.calculateButtonText}>
-            {disableCalculate ? 'Select income first' : '🎯 Calculate My Tax'}
+            {disableCalculate ? t('pitTutorial.selectIncome') : t('pitTutorial.calculateTax')}
           </Text>
         </TouchableOpacity>
       </ScrollView>
@@ -284,45 +292,45 @@ export default function PITTutorialStep({ onNext }: Props) {
     return (
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         <TouchableOpacity style={styles.backButton} onPress={() => setStep('calculator')}>
-          <Text style={styles.backButtonText}>← Recalculate</Text>
+          <Text style={styles.backButtonText}>{t('pitTutorial.recalculate')}</Text>
         </TouchableOpacity>
 
         <View style={styles.resultsHero}>
-          <Text style={styles.resultsHeroTitle}>Your Estimated PIT</Text>
+          <Text style={styles.resultsHeroTitle}>{t('pitTutorial.estimatedPIT')}</Text>
           <Text style={styles.resultsHeroValue}>{formatCurrency(pitResult.estimatedTax)}</Text>
           {pitResult.isExempt && (
             <View style={styles.exemptBadgeLarge}>
-              <Text style={styles.exemptBadgeText}>🎉 Tax Free!</Text>
+              <Text style={styles.exemptBadgeText}>{t('pitTutorial.taxFree')}</Text>
             </View>
           )}
           <Text style={styles.resultsHeroSubtext}>
-            per year on {formatCurrency(pitResult.grossIncome)} income
+            {t('pitTutorial.perYear', { income: formatCurrency(pitResult.grossIncome) })}
           </Text>
         </View>
 
         {/* Visual breakdown */}
         <View style={styles.breakdownCard}>
-          <Text style={styles.breakdownTitle}>📊 How it's calculated</Text>
+          <Text style={styles.breakdownTitle}>{t('pitTutorial.howCalculated')}</Text>
           
           <View style={styles.breakdownVisual}>
             <View style={styles.breakdownBar}>
               <View style={[styles.breakdownSegment, { 
                 flex: pitResult.chargeableIncome / Math.max(pitResult.grossIncome, 1),
-                backgroundColor: '#0B5FFF' 
+                backgroundColor: colors.primary 
               }]} />
               <View style={[styles.breakdownSegment, { 
                 flex: (pitResult.grossIncome - pitResult.chargeableIncome) / Math.max(pitResult.grossIncome, 1),
-                backgroundColor: '#10B981' 
+                backgroundColor: colors.success 
               }]} />
             </View>
             <View style={styles.breakdownLegend}>
               <View style={styles.legendItem}>
-                <View style={[styles.legendDot, { backgroundColor: '#0B5FFF' }]} />
-                <Text style={styles.legendText}>Taxable: {formatCurrency(pitResult.chargeableIncome)}</Text>
+                <View style={[styles.legendDot, { backgroundColor: colors.primary }]} />
+                <Text style={styles.legendText}>{t('pitTutorial.taxable', { amount: formatCurrency(pitResult.chargeableIncome) })}</Text>
               </View>
               <View style={styles.legendItem}>
-                <View style={[styles.legendDot, { backgroundColor: '#10B981' }]} />
-                <Text style={styles.legendText}>Deductions: {formatCurrency(pitResult.grossIncome - pitResult.chargeableIncome)}</Text>
+                <View style={[styles.legendDot, { backgroundColor: colors.success }]} />
+                <Text style={styles.legendText}>{t('pitTutorial.deductions', { amount: formatCurrency(pitResult.grossIncome - pitResult.chargeableIncome) })}</Text>
               </View>
             </View>
           </View>
@@ -342,7 +350,7 @@ export default function PITTutorialStep({ onNext }: Props) {
 
         {/* Tax bands applied */}
         <View style={styles.bandsCard}>
-          <Text style={styles.bandsCardTitle}>📈 Tax Bands Applied</Text>
+          <Text style={styles.bandsCardTitle}>{t('pitTutorial.taxBandsApplied')}</Text>
           {pitResult.breakdown.map((band, index) => (
             <View key={`band-${index}`} style={styles.bandRowEnhanced}>
               <View style={styles.bandInfo}>
@@ -350,7 +358,7 @@ export default function PITTutorialStep({ onNext }: Props) {
                 <Text style={styles.bandRateText}>{(band.rate * 100).toFixed(0)}%</Text>
               </View>
               <View style={styles.bandAmount}>
-                <Text style={styles.bandAmountText}>on {formatCurrency(band.amount)}</Text>
+                <Text style={styles.bandAmountText}>{t('pitTutorial.on', { amount: formatCurrency(band.amount) })}</Text>
                 <Text style={styles.bandTaxText}>= {formatCurrency(band.amount * band.rate)}</Text>
               </View>
             </View>
@@ -358,11 +366,11 @@ export default function PITTutorialStep({ onNext }: Props) {
         </View>
 
         <TouchableOpacity style={styles.primaryButton} onPress={() => setStep('quiz')}>
-          <Text style={styles.primaryButtonText}>📝 Take the Quiz</Text>
+          <Text style={styles.primaryButtonText}>{t('pitTutorial.takeQuiz')}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.secondaryButton} onPress={onNext}>
-          <Text style={styles.secondaryButtonText}>Continue →</Text>
+          <Text style={styles.secondaryButtonText}>{t('pitTutorial.continue')}</Text>
         </TouchableOpacity>
       </ScrollView>
     );
@@ -372,19 +380,17 @@ export default function PITTutorialStep({ onNext }: Props) {
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <TouchableOpacity style={styles.backButton} onPress={() => setStep(pitResult ? 'results' : 'intro')}>
-        <Text style={styles.backButtonText}>← Back</Text>
+        <Text style={styles.backButtonText}>{t('pitTutorial.back')}</Text>
       </TouchableOpacity>
 
       <View style={styles.quizHero}>
         <Text style={styles.quizHeroEmoji}>🧠</Text>
-        <Text style={styles.quizHeroTitle}>Quick Quiz</Text>
-        <Text style={styles.quizHeroSubtitle}>Test what you've learned!</Text>
+        <Text style={styles.quizHeroTitle}>{t('pitTutorial.quickQuiz')}</Text>
+        <Text style={styles.quizHeroSubtitle}>{t('pitTutorial.testLearning')}</Text>
       </View>
 
       <View style={styles.questionCard}>
-        <Text style={styles.questionNumber}>Question 1 of 1</Text>
-        <Text style={styles.questionText}>{currentQuestion.question}</Text>
-
+        <Text style={styles.questionNumber}>{t('pitTutorial.questionNumber')}</Text>
         <View style={styles.optionsContainer}>
           {currentQuestion.options.map((option) => {
             const isSelected = quizAnswer === option.value;
@@ -437,7 +443,7 @@ export default function PITTutorialStep({ onNext }: Props) {
 
       {showQuizFeedback && (
         <TouchableOpacity style={styles.primaryButton} onPress={onNext}>
-          <Text style={styles.primaryButtonText}>Continue to Next Step →</Text>
+          <Text style={styles.primaryButtonText}>{t('pitTutorial.continueNext')}</Text>
         </TouchableOpacity>
       )}
     </ScrollView>
@@ -457,13 +463,12 @@ function BreakdownRow({ label, value, isDeduction }: { label: string; value: num
 }
 
 function getBandColor(rate: number): string {
-  if (rate === 0) return '#10B981';
-  if (rate <= 0.07) return '#3B82F6';
-  if (rate <= 0.11) return '#F59E0B';
-  if (rate <= 0.15) return '#F97316';
-  if (rate <= 0.19) return '#EF4444';
-  if (rate <= 0.21) return '#DC2626';
-  return '#991B1B';
+  // Map tax rates to design tokens (PRD-aligned: 0%, 15%, 19%, 21%, 25%)
+  if (rate === 0) return colors.success;       // Green for exempt
+  if (rate <= 0.15) return colors.info;        // Blue for 15%
+  if (rate <= 0.19) return colors.warning;     // Amber for 19%
+  if (rate <= 0.21) return colors.error;       // Red for 21%
+  return colors.neutralDark;                   // Dark gray for 25%
 }
 
 function formatCurrency(amount: number): string {
