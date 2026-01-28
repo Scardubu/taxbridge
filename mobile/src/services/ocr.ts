@@ -58,7 +58,9 @@ export async function extractReceiptData(
       // Validate image size (max 5MB base64 ~ 6.7MB raw)
       const estimatedSizeBytes = base64.length * (3 / 4);
       if (estimatedSizeBytes > 5 * 1024 * 1024) {
-        throw new Error('Image too large (max 5MB). Please use a smaller image.');
+        const error = new Error('IMAGE_TOO_LARGE');
+        error.name = 'OCRError';
+        throw error;
       }
 
       // Detect MIME type from base64 or default to JPEG
@@ -102,22 +104,26 @@ export async function extractReceiptData(
       clearTimeout(timeoutId);
       
       if (error instanceof Error && error.name === 'AbortError') {
-        lastError = new Error('OCR request timed out. Please try again with a clearer image.');
+        const timeoutError = new Error('OCR_TIMEOUT');
+        timeoutError.name = 'OCRError';
+        lastError = timeoutError;
         // Retry on timeout
         if (attempt < maxRetries) {
-          await sleep(retryDelayMs * (attempt + 1));
+          await sleep(retryDelayMs * Math.pow(2, attempt));
           continue;
         }
       } else if (error instanceof RetryableError) {
         lastError = error;
         if (attempt < maxRetries) {
-          await sleep(retryDelayMs * (attempt + 1));
+          await sleep(retryDelayMs * Math.pow(2, attempt));
           continue;
         }
       } else {
         // Non-retryable error
         console.error('OCR extraction failed:', error);
-        throw new Error(`Failed to extract receipt data: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        const extractError = new Error('OCR_EXTRACTION_FAILED');
+        extractError.name = 'OCRError';
+        throw extractError;
       }
     } finally {
       clearTimeout(timeoutId);
@@ -125,7 +131,12 @@ export async function extractReceiptData(
   }
   
   // All retries exhausted
-  throw lastError || new Error('OCR extraction failed after all retries');
+  if (lastError) {
+    throw lastError;
+  }
+  const retriesError = new Error('OCR_RETRIES_EXHAUSTED');
+  retriesError.name = 'OCRError';
+  throw retriesError;
 }
 
 /**

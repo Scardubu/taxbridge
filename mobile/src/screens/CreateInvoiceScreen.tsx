@@ -270,10 +270,32 @@ export default function CreateInvoiceScreen(props: any) {
       }
     } catch (error) {
       if (isMountedRef.current) {
-        showValidationError(
-          t('alerts.ocrProcessingError'),
-          t('alerts.ocrProcessingErrorDesc')
-        );
+        // Handle OCR-specific error codes for localization
+        let errorTitle = t('alerts.ocrProcessingError');
+        let errorMessage = t('alerts.ocrProcessingErrorDesc');
+        
+        if (error instanceof Error && error.name === 'OCRError') {
+          switch (error.message) {
+            case 'IMAGE_TOO_LARGE':
+              errorTitle = t('ocrErrors.imageTooLarge');
+              errorMessage = t('ocrErrors.imageTooLargeDesc');
+              break;
+            case 'OCR_TIMEOUT':
+              errorTitle = t('ocrErrors.timeout');
+              errorMessage = t('ocrErrors.timeoutDesc');
+              break;
+            case 'OCR_EXTRACTION_FAILED':
+              errorTitle = t('ocrErrors.extractionFailed');
+              errorMessage = t('ocrErrors.extractionFailedDesc');
+              break;
+            case 'OCR_RETRIES_EXHAUSTED':
+              errorTitle = t('ocrErrors.retriesExhausted');
+              errorMessage = t('ocrErrors.retriesExhaustedDesc');
+              break;
+          }
+        }
+        
+        showValidationError(errorTitle, errorMessage);
       }
       console.error('OCR processing error:', error);
     } finally {
@@ -369,7 +391,7 @@ export default function CreateInvoiceScreen(props: any) {
     } catch (err) {
       if (!isMountedRef.current) return;
       
-      const message = err instanceof Error ? err.message : 'Failed to save invoice. Please try again.';
+      const message = err instanceof Error ? err.message : t('alerts.saveFailedDesc');
       if (String(message).toLowerCase().includes('storage quota') || String(message).toLowerCase().includes('storage')) {
         Alert.alert(t('alerts.storageFull'), t('alerts.storageFullDesc'), [
           { text: t('alerts.clearOldSynced'), onPress: async () => {
@@ -464,7 +486,7 @@ export default function CreateInvoiceScreen(props: any) {
                   onChangeText={(text) => setValue('customerName', text)}
                   onBlur={() => setTouchedField('customerName')}
                   placeholder={t('create.customerPlaceholder')}
-                  placeholderTextColor="#98A2B3"
+                  placeholderTextColor={colors.textMuted}
                   style={[styles.input, errors.customerName && touched.customerName && styles.inputError]}
                 />
                 {errors.customerName && touched.customerName && (
@@ -510,7 +532,7 @@ export default function CreateInvoiceScreen(props: any) {
                   onChangeText={(text) => setValue('description', text)}
                   onBlur={() => setTouchedField('description')}
                   placeholder={t('common.itemPlaceholder')} 
-                  placeholderTextColor="#98A2B3"
+                  placeholderTextColor={colors.textMuted}
                   style={[styles.input, errors.description && touched.description && styles.inputError]}
                 />
                 {errors.description && touched.description && (
@@ -712,7 +734,7 @@ export default function CreateInvoiceScreen(props: any) {
                 cameraFacing === 'back' ? 'front' : 'back'
               )}
             >
-              <Text style={styles.cameraButtonText}>Flip</Text>
+              <Text style={styles.cameraButtonText}>{t('alerts.flipCamera')}</Text>
             </Pressable>
             <Pressable 
               style={[styles.cameraButton, styles.captureButton]}
@@ -724,7 +746,7 @@ export default function CreateInvoiceScreen(props: any) {
               style={styles.cameraButton}
               onPress={() => setShowCamera(false)}
             >
-              <Text style={styles.cameraButtonText}>Close</Text>
+              <Text style={styles.cameraButtonText}>{t('alerts.closeCamera')}</Text>
             </Pressable>
           </View>
         </View>
@@ -734,8 +756,8 @@ export default function CreateInvoiceScreen(props: any) {
       {ocrLoading && (
         <Modal transparent animationType="fade">
           <View style={styles.loadingOverlay}>
-            <ActivityIndicator size="large" color="#0B5FFF" />
-            <Text style={styles.loadingText}>Analyzing receipt...</Text>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={styles.loadingText}>{t('alerts.analyzingReceipt')}</Text>
           </View>
         </Modal>
       )}
@@ -744,16 +766,16 @@ export default function CreateInvoiceScreen(props: any) {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F8FAFC' },
+  safe: { flex: 1, backgroundColor: colors.surfaceSlate },
   container: { padding: 16, paddingBottom: 100 },
   
   // Step Indicator
   stepIndicatorContainer: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     paddingVertical: 16,
     paddingHorizontal: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#E4E7EC',
+    borderBottomColor: colors.borderSubtle,
   },
   stepIndicator: {
     flexDirection: 'row',
@@ -996,12 +1018,12 @@ const styles = StyleSheet.create({
   },
   summaryValue: {
     fontSize: typography.size.sm,
-    color: 'rgba(255,255,255,0.9)',
+    color: colors.textOnPrimaryStrong,
     fontWeight: typography.weight.semibold,
   },
   summaryTotal: {
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.2)',
+    borderTopColor: colors.overlayLightStrong,
     paddingTop: spacing.md,
     marginTop: spacing.sm,
     marginBottom: 0,
@@ -1089,12 +1111,12 @@ const styles = StyleSheet.create({
   },
   totalValue: {
     fontSize: typography.size.sm,
-    color: 'rgba(255,255,255,0.9)',
+    color: colors.textOnPrimaryStrong,
     fontWeight: typography.weight.semibold,
   },
   grandTotal: {
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.2)',
+    borderTopColor: colors.overlayLightStrong,
     paddingTop: spacing.md,
     marginTop: spacing.sm,
   },
@@ -1139,7 +1161,7 @@ const styles = StyleSheet.create({
   // Camera Modal
   cameraContainer: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: colors.surfaceDark,
   },
   camera: {
     flex: 1,
@@ -1148,7 +1170,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'center',
-    backgroundColor: '#000',
+    backgroundColor: colors.surfaceDark,
     paddingVertical: spacing.lg,
     paddingBottom: 40,
   },
@@ -1173,7 +1195,7 @@ const styles = StyleSheet.create({
   // Loading Overlay
   loadingOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    backgroundColor: colors.overlayDark,
     justifyContent: 'center',
     alignItems: 'center',
     gap: spacing.lg,

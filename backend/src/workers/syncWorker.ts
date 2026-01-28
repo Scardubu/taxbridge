@@ -262,6 +262,50 @@ export async function processSyncJob(syncJobId: string): Promise<{ status: strin
     return { status: 'synced' };
   }
 
+  // Handle delete action
+  if (syncJob.action === 'delete') {
+    if (!existingInvoice) {
+      // Invoice already deleted or never existed - mark as synced
+      await prisma.syncJob.update({
+        where: { id: syncJobId },
+        data: {
+          status: 'synced',
+          completedAt: new Date(),
+          result: { message: 'Invoice already deleted or not found' }
+        }
+      });
+      return { status: 'synced' };
+    }
+
+    // Soft delete the invoice
+    await prisma.invoice.update({
+      where: { id: invoiceId },
+      data: {
+        status: 'deleted',
+        version: { increment: 1 }
+      }
+    });
+
+    await prisma.syncJob.update({
+      where: { id: syncJobId },
+      data: {
+        status: 'synced',
+        completedAt: new Date(),
+        result: { invoiceId, deleted: true }
+      }
+    });
+
+    await prisma.auditLog.create({
+      data: {
+        action: 'device_sync_invoice_deleted',
+        userId: syncJob.userId,
+        metadata: { invoiceId, deviceId: syncJob.deviceId }
+      }
+    });
+
+    return { status: 'synced' };
+  }
+
   await prisma.syncJob.update({
     where: { id: syncJobId },
     data: {

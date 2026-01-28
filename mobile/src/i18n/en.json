@@ -19,6 +19,17 @@
     "onlineSync": "Online & Syncing",
     "offlineStatus": "Offline Mode"
   },
+  "quickActions": {
+    "title": "Quick Actions",
+    "create": "Create",
+    "createSublabel": "New Invoice",
+    "scan": "Scan",
+    "scanSublabel": "Receipt",
+    "invoices": "View",
+    "invoicesSublabel": "Invoices",
+    "tax": "Tax",
+    "taxSublabel": "Calculator"
+  },
   "sync": {
     "neverSynced": "Never synced",
     "justNow": "Just now",
@@ -175,11 +186,11 @@
       "chargeableIncome": "Chargeable Income",
       "taxBreakdown": "Tax Breakdown by Band",
       "bandExempt": "₦0 - ₦800,000 (0%)",
-      "band1": "₦800k - ₦3M (15%)",
-      "band2": "₦3M - ₦12M (18%)",
-      "band3": "₦12M - ₦25M (21%)",
-      "band4": "₦25M - ₦50M (23%)",
-      "band5": "Above ₦50M (25%)",
+      "band1": "₦800k - ₦3.2M (15%)",
+      "band2": "₦3.2M - ₦8M (19%)",
+      "band3": "₦8M - ₦15M (21%)",
+      "band4": "Above ₦15M (25%)",
+      "band5": "Above ₦15M (25%)",
       "totalTax": "Total Estimated Tax",
       "effectiveRate": "Effective Rate",
       "quizTitle": "Quick Quiz",
@@ -346,6 +357,16 @@
     "pension": "Pension",
     "nhis": "NHIS (5%)"
   },
+  "tax": {
+    "vatStatusMandatory": "Registration mandatory",
+    "vatStatusApproaching": "Approaching threshold",
+    "vatStatusExempt": "Exempt from registration",
+    "vatDisclaimerMandatory": "Consult FIRS for official guidance",
+    "vatDisclaimerEstimate": "Educational estimate - monitor actuals",
+    "citDescSmall": "Small company relief (₦0-50M turnover)",
+    "citDescMedium": "Medium company rate (₦50-100M turnover)",
+    "citDescLarge": "Standard CIT rate (>₦100M turnover)"
+  },
   "payment": {
     "payerName": "Payer Name",
     "payerNamePlaceholder": "e.g., John Doe",
@@ -400,6 +421,16 @@
     "invalidDate": "Invalid date format",
     "unparseableDate": "Could not parse date"
   },
+  "ocrErrors": {
+    "imageTooLarge": "Image Too Large",
+    "imageTooLargeDesc": "Image exceeds 5MB limit. Please use a smaller image or compress it.",
+    "timeout": "Request Timed Out",
+    "timeoutDesc": "OCR processing took too long. Please try again with a clearer, smaller image.",
+    "extractionFailed": "Extraction Failed",
+    "extractionFailedDesc": "Failed to extract receipt data. Please ensure the image is clear and try again.",
+    "retriesExhausted": "Processing Failed",
+    "retriesExhaustedDesc": "Could not process receipt after multiple attempts. Please check your connection and try again."
+  },
   "alerts": {
     "ocrResult": "OCR Result",
     "useDetected": "Use Detected",
@@ -421,6 +452,8 @@
     "scanReceiptDesc": "Choose how to capture your receipt:",
     "takePhoto": "Take Photo",
     "chooseFromGallery": "Choose from Gallery",
+    "flipCamera": "Flip",
+    "closeCamera": "Close",
     "offline": "Offline",
     "offlineSignIn": "Please connect to the internet to sign in. You can keep creating invoices offline.",
     "mfaRequired": "MFA Required",
@@ -456,6 +489,7 @@
     "cleanupFailed": "Cleanup Failed",
     "cleanupFailedDesc": "Could not clear old invoices. Please clear app data.",
     "saveFailed": "Save Failed",
+    "saveFailedDesc": "Failed to save invoice. Please try again.",
     "analyzingReceipt": "Analyzing receipt...",
     "savingInvoice": "Saving invoice...",
     "detectedAmount": "Detected: {{amount}}",

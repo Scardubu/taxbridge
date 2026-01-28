@@ -24,6 +24,7 @@ export const colors = {
   surfaceMuted: '#F8F9FA',
   surfaceSecondary: '#F2F4F7',
   surfaceSlate: '#F8FAFC',
+  surfaceDark: '#000000',
 
   // Borders
   border: '#D0D5DD',
@@ -35,6 +36,7 @@ export const colors = {
   textSecondary: '#344054',
   textMuted: '#667085',
   textOnPrimary: '#FFFFFF',
+  textOnPrimaryStrong: 'rgba(255, 255, 255, 0.9)',
   textOnPrimaryMuted: 'rgba(255, 255, 255, 0.85)',
   textOnPrimarySubtle: 'rgba(255, 255, 255, 0.8)',
 
@@ -92,6 +94,7 @@ export const colors = {
   overlayLightBorder: 'rgba(255, 255, 255, 0.3)',
   overlayLightStrong: 'rgba(255, 255, 255, 0.2)',
   overlayLightSubtle: 'rgba(255, 255, 255, 0.1)',
+  overlayDark: 'rgba(0, 0, 0, 0.8)',
 
   // Header gradients (Living Bridge)
   headerGradientStart: 'rgba(34, 197, 94, 0.12)',

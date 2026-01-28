@@ -2,7 +2,7 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
 import jwt from 'jsonwebtoken';
 import { getPrismaClient } from '../lib/prisma';
-import { HeartbeatSchema, PushSyncSchema } from '@taxbridge/contracts';
+import { HeartbeatSchema, PushSyncSchema, type HeartbeatPayload } from '@taxbridge/contracts';
 import { createLogger } from '../lib/logger';
 import { enqueueDeviceSync } from '../queue/client';
 
@@ -57,7 +57,7 @@ export default async function syncRoutes(app: FastifyInstance) {
 
     try {
       const userId = await authenticate(request);
-      const body = HeartbeatSchema.parse(request.body);
+      const body: HeartbeatPayload = HeartbeatSchema.parse(request.body);
 
       // Upsert device record
       const now = new Date();
@@ -84,6 +84,7 @@ export default async function syncRoutes(app: FastifyInstance) {
       });
 
       // Write audit log
+      const bodyWithOptionals = body as any; // Type assertion for optional fields
       await prisma.auditLog.create({
         data: {
           action: 'DEVICE_HEARTBEAT',
@@ -92,8 +93,8 @@ export default async function syncRoutes(app: FastifyInstance) {
             deviceId: body.deviceId,
             platform: body.platform,
             appVersion: body.appVersion,
-            network: body.network,
-            batteryPct: body.batteryPct
+            network: bodyWithOptionals.network,
+            batteryPct: bodyWithOptionals.batteryPct
           }
         }
       });
@@ -294,13 +295,28 @@ export default async function syncRoutes(app: FastifyInstance) {
             stack: jobError.stack
           });
           
-          await prisma.syncJob.update({
-            where: { id: syncJob.id },
-            data: { 
-              status: 'failed',
-              result: { error: jobError.message, stack: jobError.stack }
+          // Try to update sync job if it was created
+          try {
+            const existingSyncJob = await prisma.syncJob.findFirst({
+              where: { 
+                userId,
+                deviceId: device.id,
+                clientId: job.clientId
+              }
+            });
+            
+            if (existingSyncJob) {
+              await prisma.syncJob.update({
+                where: { id: existingSyncJob.id },
+                data: { 
+                  status: 'failed',
+                  result: { error: jobError.message, stack: jobError.stack }
+                }
+              });
             }
-          }).catch(() => {}); // Ignore update errors
+          } catch (updateError) {
+            // Ignore update errors
+          }
           
           results.failed.push(job.clientId);
         }
@@ -351,28 +367,52 @@ export default async function syncRoutes(app: FastifyInstance) {
         return reply.status(403).send({ error: 'Device not found or unauthorized' });
       }
 
-      const sinceDate = since ? new Date(since) : new Date(0);
+      // Validate and parse since parameter
+      let sinceDate: Date;
+      if (since) {
+        sinceDate = new Date(since);
+        if (isNaN(sinceDate.getTime())) {
+          return reply.status(400).send({ 
+            error: 'Invalid since parameter. Must be a valid ISO 8601 date string.' 
+          });
+        }
+      } else {
+        sinceDate = new Date(0);
+      }
 
-      // Pull invoices updated since timestamp
+      // Pull invoices updated since timestamp with pagination
+      const BATCH_SIZE = 100;
       const invoices = await prisma.invoice.findMany({
         where: {
           userId,
           updatedAt: { gt: sinceDate }
         },
         orderBy: { updatedAt: 'asc' },
-        take: 100 // Limit to prevent huge payloads
+        take: BATCH_SIZE + 1 // Fetch one extra to check if there are more
       });
+
+      // Check if there are more results
+      const hasMore = invoices.length > BATCH_SIZE;
+      const returnedInvoices = hasMore ? invoices.slice(0, BATCH_SIZE) : invoices;
+      
+      // Calculate nextSince for pagination
+      const nextSince = hasMore && returnedInvoices.length > 0
+        ? returnedInvoices[returnedInvoices.length - 1].updatedAt.toISOString()
+        : undefined;
 
       log.info('Sync pull completed', { 
         userId, 
         deviceId, 
         since: sinceDate,
-        invoiceCount: invoices.length 
+        invoiceCount: returnedInvoices.length,
+        hasMore 
       });
 
       return reply.send({
         success: true,
-        invoices,
+        invoices: returnedInvoices,
+        hasMore,
+        nextSince,
         timestamp: new Date().toISOString()
       });
     } catch (error: any) {
@@ -487,6 +527,32 @@ export default async function syncRoutes(app: FastifyInstance) {
       } else if (body.resolution === 'server_wins') {
         finalData = conflict.serverData;
       } else if (body.resolution === 'merged' && body.mergedData) {
+        // Validate merged data contains required invoice fields
+        const requiredFields = ['subtotal', 'vat', 'total', 'items'];
+        const missingFields = requiredFields.filter(field => !(field in body.mergedData!));
+        
+        if (missingFields.length > 0) {
+          return reply.status(400).send({ 
+            error: `Merged data missing required fields: ${missingFields.join(', ')}` 
+          });
+        }
+        
+        // Validate numeric fields
+        if (typeof body.mergedData.subtotal !== 'number' || 
+            typeof body.mergedData.vat !== 'number' || 
+            typeof body.mergedData.total !== 'number') {
+          return reply.status(400).send({ 
+            error: 'Merged data numeric fields must be numbers' 
+          });
+        }
+        
+        // Validate items is an array
+        if (!Array.isArray(body.mergedData.items)) {
+          return reply.status(400).send({ 
+            error: 'Merged data items must be an array' 
+          });
+        }
+        
         finalData = body.mergedData;
       } else {
         return reply.status(400).send({ error: 'Invalid resolution or missing mergedData' });

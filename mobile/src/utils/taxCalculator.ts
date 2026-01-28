@@ -8,11 +8,10 @@ export interface PITBand {
 
 export const PIT_BANDS: PITBand[] = [
   { limit: 800_000, rate: 0 },           // First ₦800k: 0%
-  { limit: 3_000_000, rate: 0.15 },      // Next ₦2.2M: 15%
-  { limit: 12_000_000, rate: 0.18 },     // Next ₦9M: 18%
-  { limit: 25_000_000, rate: 0.21 },     // Next ₦13M: 21%
-  { limit: 50_000_000, rate: 0.23 },     // Next ₦25M: 23%
-  { limit: Infinity, rate: 0.25 },       // Above ₦50M: 25%
+  { limit: 3_200_000, rate: 0.15 },      // Next ₦2.4M: 15%
+  { limit: 8_000_000, rate: 0.19 },      // Next ₦4.8M: 19%
+  { limit: 15_000_000, rate: 0.21 },     // Next ₦7M: 21%
+  { limit: Infinity, rate: 0.25 },       // Above ₦15M: 25%
 ];
 
 export interface BandBreakdown {
@@ -131,30 +130,30 @@ export function calculateNHF(grossIncome: number): number {
  */
 export interface VATThresholdResult {
   requiresRegistration: boolean;
-  status: string;
+  statusCode: 'mandatory' | 'approaching' | 'exempt';
+  disclaimerCode: 'mandatory' | 'estimate';
   threshold: number;
   percentageOfThreshold: number;
-  disclaimer: string;
   isAboveThreshold: boolean;
 }
 
 export function checkVATThreshold(annualTurnover: number): VATThresholdResult {
   const threshold = 100_000_000;
   const percentage = (annualTurnover / threshold) * 100;
+  const isAboveThreshold = annualTurnover >= threshold;
+  const isApproaching = annualTurnover >= threshold * 0.8;
 
   return {
-    requiresRegistration: annualTurnover >= threshold,
-    status: annualTurnover >= threshold 
-      ? 'Registration mandatory' 
-      : annualTurnover >= threshold * 0.8
-      ? 'Approaching threshold'
-      : 'Exempt from registration',
+    requiresRegistration: isAboveThreshold,
+    statusCode: isAboveThreshold 
+      ? 'mandatory' 
+      : isApproaching
+      ? 'approaching'
+      : 'exempt',
+    disclaimerCode: isAboveThreshold ? 'mandatory' : 'estimate',
     threshold,
     percentageOfThreshold: Math.min(percentage, 100),
-    disclaimer: annualTurnover >= threshold
-      ? 'Consult FIRS for official guidance'
-      : 'Educational estimate - monitor actuals',
-    isAboveThreshold: annualTurnover >= threshold,
+    isAboveThreshold,
   };
 }
 
@@ -164,7 +163,7 @@ export function checkVATThreshold(annualTurnover: number): VATThresholdResult {
  */
 export interface CITRateResult {
   rate: number;
-  description: string;
+  descriptionCode: 'small' | 'medium' | 'large';
   bracket: 'small' | 'medium' | 'large';
 }
 
@@ -172,20 +171,20 @@ export function checkCITRate(annualTurnover: number): CITRateResult {
   if (annualTurnover <= 50_000_000) {
     return {
       rate: 0,
-      description: 'Small company relief (₦0-50M turnover)',
+      descriptionCode: 'small',
       bracket: 'small',
     };
   }
   if (annualTurnover <= 100_000_000) {
     return {
       rate: 0.20,
-      description: 'Medium company rate (₦50-100M turnover)',
+      descriptionCode: 'medium',
       bracket: 'medium',
     };
   }
   return {
     rate: 0.30,
-    description: 'Standard CIT rate (>₦100M turnover)',
+    descriptionCode: 'large',
     bracket: 'large',
   };
 }

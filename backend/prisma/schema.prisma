@@ -76,6 +76,7 @@ model Invoice {
   @@index([createdAt])                 // Recent invoices sorting
   @@index([nrsReference])              // Lookup by NRS reference
   @@index([status, userId])            // User's invoices by status
+  @@index([userId, updatedAt])         // Sync pull performance (delta updates)
   @@map("invoices")
 }
 

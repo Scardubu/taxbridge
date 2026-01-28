@@ -19,6 +19,17 @@
     "onlineSync": "Online & Dey Sync",
     "offlineStatus": "Offline Mode"
   },
+  "quickActions": {
+    "title": "Sharp Actions",
+    "create": "Make",
+    "createSublabel": "New Invoice",
+    "scan": "Scan",
+    "scanSublabel": "Receipt",
+    "invoices": "See",
+    "invoicesSublabel": "Invoices",
+    "tax": "Tax",
+    "taxSublabel": "Calculator"
+  },
   "sync": {
     "neverSynced": "Never sync",
     "justNow": "Just now",
@@ -174,11 +185,11 @@
       "chargeableIncome": "Money Wey Dem Go Tax",
       "taxBreakdown": "Tax Breakdown",
       "bandExempt": "₦0 - ₦800,000 (0%)",
-      "band1": "₦800k - ₦3M (15%)",
-      "band2": "₦3M - ₦12M (18%)",
-      "band3": "₦12M - ₦25M (21%)",
-      "band4": "₦25M - ₦50M (23%)",
-      "band5": "Above ₦50M (25%)",
+      "band1": "₦800k - ₦3.2M (15%)",
+      "band2": "₦3.2M - ₦8M (19%)",
+      "band3": "₦8M - ₦15M (21%)",
+      "band4": "Above ₦15M (25%)",
+      "band5": "Above ₦15M (25%)",
       "totalTax": "Total Tax Wey You Go Pay",
       "effectiveRate": "Your Tax Rate",
       "quizTitle": "Quick Quiz",
@@ -345,6 +356,16 @@
     "pension": "Pension",
     "nhis": "NHIS (5%)"
   },
+  "tax": {
+    "vatStatusMandatory": "You must register now",
+    "vatStatusApproaching": "You dey near the limit",
+    "vatStatusExempt": "You no need register yet",
+    "vatDisclaimerMandatory": "Go ask FIRS for proper advice",
+    "vatDisclaimerEstimate": "Na just estimate - check your real numbers",
+    "citDescSmall": "Small company free (₦0-50M turnover)",
+    "citDescMedium": "Medium company rate (₦50-100M turnover)",
+    "citDescLarge": "Big company rate (>₦100M turnover)"
+  },
   "payment": {
     "payerName": "Who Dey Pay",
     "payerNamePlaceholder": "e.g., John Doe",
@@ -399,6 +420,16 @@
     "invalidDate": "Date format no correct",
     "unparseableDate": "No fit read date"
   },
+  "ocrErrors": {
+    "imageTooLarge": "Picture Big Too Much",
+    "imageTooLargeDesc": "This picture big pass 5MB. Abeg use small picture or compress am.",
+    "timeout": "E Take Time Too Much",
+    "timeoutDesc": "The thing take long time. Try again with better picture wey small.",
+    "extractionFailed": "E No Work",
+    "extractionFailedDesc": "We no fit read the receipt. Make sure say the picture clear, try again.",
+    "retriesExhausted": "E No Gree Work",
+    "retriesExhaustedDesc": "We try many times but e no work. Check your network try again."
+  },
   "alerts": {
     "ocrResult": "Wetin Dem See",
     "useDetected": "Use Wetin Dem See",
@@ -420,6 +451,8 @@
     "scanReceiptDesc": "Choose how you wan capture receipt:",
     "takePhoto": "Snap Photo",
     "chooseFromGallery": "Pick From Gallery",
+    "flipCamera": "Turn Camera",
+    "closeCamera": "Close",
     "offline": "No Network",
     "offlineSignIn": "Connect internet make you fit sign in. You fit still make invoice offline.",
     "mfaRequired": "MFA Need Am",
@@ -455,6 +488,7 @@
     "cleanupFailed": "Cleanup No Work",
     "cleanupFailedDesc": "No fit clear old invoices. Clear app data from settings.",
     "saveFailed": "Save No Work",
+    "saveFailedDesc": "No fit save invoice. Try again abeg.",
     "analyzingReceipt": "E dey look the receipt...",
     "savingInvoice": "E dey save invoice...",
     "detectedAmount": "Dem see: {{amount}}",

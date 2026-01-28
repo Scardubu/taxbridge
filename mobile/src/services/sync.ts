@@ -35,7 +35,7 @@ export async function syncPendingInvoices(): Promise<{ synced: number; failed: n
     try {
       await updateInvoiceStatus(inv.id, 'processing');
       const items = JSON.parse(inv.items) as InvoiceItem[];
-      const maxAttempts = 8;
+      const maxAttempts = 5;
       const nextAttempt = (inv.attempts ?? 0) + 1;
 
       try {

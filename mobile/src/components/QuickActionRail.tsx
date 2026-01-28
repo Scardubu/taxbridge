@@ -1,10 +1,11 @@
-import React, { memo, useCallback } from 'react';
+import React, { memo, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, Pressable, Dimensions } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withSpring,
 } from 'react-native-reanimated';
+import { useTranslation } from 'react-i18next';
 import { colors, radii, spacing, typography } from '../theme/tokens';
 
 const { width } = Dimensions.get('window');
@@ -24,41 +25,6 @@ interface QuickActionRailProps {
   onViewInvoices?: () => void;
   onTaxCalculator?: () => void;
 }
-
-const ACTIONS: QuickAction[] = [
-  {
-    id: 'create',
-    icon: '📄',
-    label: 'Create',
-    sublabel: 'New Invoice',
-    color: colors.primary,
-    bgColor: colors.primaryLight,
-  },
-  {
-    id: 'scan',
-    icon: '📷',
-    label: 'Scan',
-    sublabel: 'Receipt',
-    color: colors.actionGreen,
-    bgColor: colors.actionGreenBg,
-  },
-  {
-    id: 'invoices',
-    icon: '📋',
-    label: 'View',
-    sublabel: 'Invoices',
-    color: colors.actionPurple,
-    bgColor: colors.actionPurpleBg,
-  },
-  {
-    id: 'calculator',
-    icon: '🧮',
-    label: 'Tax',
-    sublabel: 'Calculator',
-    color: colors.actionOrange,
-    bgColor: colors.actionOrangeBg,
-  },
-];
 
 function ActionButton({ action, onPress }: { action: QuickAction; onPress: () => void }) {
   const scale = useSharedValue(1);
@@ -101,6 +67,43 @@ function QuickActionRail({
   onViewInvoices,
   onTaxCalculator,
 }: QuickActionRailProps) {
+  const { t } = useTranslation();
+
+  const actions: QuickAction[] = useMemo(() => ([
+    {
+      id: 'create',
+      icon: '📄',
+      label: t('quickActions.create'),
+      sublabel: t('quickActions.createSublabel'),
+      color: colors.primary,
+      bgColor: colors.primaryLight,
+    },
+    {
+      id: 'scan',
+      icon: '📷',
+      label: t('quickActions.scan'),
+      sublabel: t('quickActions.scanSublabel'),
+      color: colors.actionGreen,
+      bgColor: colors.actionGreenBg,
+    },
+    {
+      id: 'invoices',
+      icon: '📋',
+      label: t('quickActions.invoices'),
+      sublabel: t('quickActions.invoicesSublabel'),
+      color: colors.actionPurple,
+      bgColor: colors.actionPurpleBg,
+    },
+    {
+      id: 'calculator',
+      icon: '🧮',
+      label: t('quickActions.tax'),
+      sublabel: t('quickActions.taxSublabel'),
+      color: colors.actionOrange,
+      bgColor: colors.actionOrangeBg,
+    },
+  ]), [t]);
+
   const handleAction = useCallback((actionId: string) => {
     switch (actionId) {
       case 'create':
@@ -120,9 +123,9 @@ function QuickActionRail({
 
   return (
     <View style={styles.container}>
-      <Text style={styles.sectionTitle}>Quick Actions</Text>
+      <Text style={styles.sectionTitle}>{t('quickActions.title')}</Text>
       <View style={styles.rail}>
-        {ACTIONS.map((action) => (
+        {actions.map((action) => (
           <ActionButton
             key={action.id}
             action={action}
