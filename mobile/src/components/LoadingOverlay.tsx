@@ -6,9 +6,12 @@ import Animated, {
   withSpring,
   interpolateColor,
 } from 'react-native-reanimated';
+import { useTranslation } from 'react-i18next';
 import { useLoading } from '../contexts/LoadingContext';
+import { colors, spacing, radii, typography, shadows } from '../theme/tokens';
 
 export default function LoadingOverlay() {
+  const { t } = useTranslation();
   const { isLoading, loadingMessage } = useLoading();
   const opacity = useSharedValue(0);
 
@@ -21,7 +24,7 @@ export default function LoadingOverlay() {
       backgroundColor: interpolateColor(
         opacity.value,
         [0, 1],
-        ['rgba(0, 0, 0, 0)', 'rgba(0, 0, 0, 0.5)']
+        ['transparent', colors.overlayDark]
       ),
     };
   });
@@ -48,9 +51,9 @@ export default function LoadingOverlay() {
   return (
     <Animated.View style={[styles.overlay, animatedStyle]}>
       <Animated.View style={[styles.content, contentStyle]}>
-        <ActivityIndicator size="large" color="#0B5FFF" />
+        <ActivityIndicator size="large" color={colors.primary} />
         <Text style={styles.message}>
-          {loadingMessage || 'Loading...'}
+          {loadingMessage || t('common.loading')}
         </Text>
       </Animated.View>
     </Animated.View>
@@ -69,20 +72,18 @@ const styles = StyleSheet.create({
     zIndex: 1000,
   },
   content: {
-    backgroundColor: '#FFFFFF',
-    paddingVertical: 24,
-    paddingHorizontal: 32,
-    borderRadius: 16,
+    backgroundColor: colors.surface,
+    paddingVertical: spacing.xxl,
+    paddingHorizontal: spacing.xxl + 8,
+    borderRadius: radii.lg,
     alignItems: 'center',
-    gap: 12,
-    elevation: 8,
-    // @ts-ignore - boxShadow for web compatibility
-    boxShadow: '0px 4px 16px rgba(0, 0, 0, 0.15)',
+    gap: spacing.md,
+    ...shadows.lg,
   },
   message: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#101828',
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.semibold,
+    color: colors.textPrimary,
     textAlign: 'center',
   },
 });

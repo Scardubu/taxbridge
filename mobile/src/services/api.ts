@@ -196,6 +196,24 @@ export async function createInvoice(
   )) as CreateInvoiceResponse;
 }
 
+export async function checkConsent(userId: string, consentType: string): Promise<boolean> {
+  try {
+    const response = await requestJson('GET', `/privacy/consent/${userId}/${consentType}`);
+    return response?.hasConsent ?? false;
+  } catch (err) {
+    // If API call fails, assume no consent (fail-safe)
+    return false;
+  }
+}
+
+export async function updateConsent(
+  userId: string,
+  consentType: 'data_processing' | 'sms_marketing' | 'ai_analytics' | 'device_tracking',
+  granted: boolean
+): Promise<void> {
+  await requestJson('POST', '/privacy/consent', { userId, consentType, granted });
+}
+
 export const api = {
   post: (path: string, body?: any, options?: RequestOptions) => requestJson('POST', path, body, options),
   get: (path: string, options?: RequestOptions) => requestJson('GET', path, undefined, options)

@@ -399,7 +399,8 @@
     "newItem": "New Item",
     "itemPlaceholder": "e.g. Rice bag (50kg)",
     "taxableIncome": "Money Wey Dem Go Tax",
-    "ok": "OK"
+    "ok": "OK",
+    "loading": "We dey load..."
   },
   "tutorial": {
     "grossIncome": "Total Money",
@@ -488,6 +489,15 @@
     "extractionFailedDesc": "We no fit read the receipt. Make sure say the picture clear, try again.",
     "retriesExhausted": "E No Gree Work",
     "retriesExhaustedDesc": "We try many times but e no work. Check your network try again."
+  },
+  "errors": {
+    "boundary": {
+      "title": "Something Spoil",
+      "subtitle": "Abeg sorry for wahala. We don report the matter and we go fix am sharp sharp.",
+      "details": "Wetin Happen:",
+      "tryAgain": "Try Again",
+      "hint": "If problem still dey, try close and open the app again."
+    }
   },
   "alerts": {
     "ocrResult": "Wetin Dem See",

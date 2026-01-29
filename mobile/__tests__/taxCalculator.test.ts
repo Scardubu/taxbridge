@@ -18,26 +18,24 @@ import {
 
 describe('Tax Calculator - Nigeria Tax Act 2025', () => {
   describe('PIT Bands Configuration', () => {
-    it('should have 6 tax bands', () => {
-      expect(PIT_BANDS).toHaveLength(6);
+    it('should have 5 tax bands', () => {
+      expect(PIT_BANDS).toHaveLength(5);
     });
 
     it('should have correct band limits', () => {
       expect(PIT_BANDS[0].limit).toBe(800_000);
-      expect(PIT_BANDS[1].limit).toBe(3_000_000);
-      expect(PIT_BANDS[2].limit).toBe(12_000_000);
-      expect(PIT_BANDS[3].limit).toBe(25_000_000);
-      expect(PIT_BANDS[4].limit).toBe(50_000_000);
-      expect(PIT_BANDS[5].limit).toBe(Infinity);
+      expect(PIT_BANDS[1].limit).toBe(3_200_000);
+      expect(PIT_BANDS[2].limit).toBe(8_000_000);
+      expect(PIT_BANDS[3].limit).toBe(15_000_000);
+      expect(PIT_BANDS[4].limit).toBe(Infinity);
     });
 
     it('should have correct rates', () => {
       expect(PIT_BANDS[0].rate).toBe(0);
       expect(PIT_BANDS[1].rate).toBe(0.15);
-      expect(PIT_BANDS[2].rate).toBe(0.18);
+      expect(PIT_BANDS[2].rate).toBe(0.19);
       expect(PIT_BANDS[3].rate).toBe(0.21);
-      expect(PIT_BANDS[4].rate).toBe(0.23);
-      expect(PIT_BANDS[5].rate).toBe(0.25);
+      expect(PIT_BANDS[4].rate).toBe(0.25);
     });
   });
 
@@ -76,59 +74,61 @@ describe('Tax Calculator - Nigeria Tax Act 2025', () => {
       expect(result.breakdown).toHaveLength(2);
     });
 
-    it('should calculate tax correctly for ₦5M (₦690k tax)', () => {
+    it('should calculate tax correctly for ₦5M (₦726k tax)', () => {
       // Income: ₦5,000,000
       // Band 1: ₦800,000 @ 0% = ₦0
-      // Band 2: ₦2,200,000 @ 15% = ₦330,000
-      // Band 3: ₦2,000,000 @ 18% = ₦360,000
-      // Total: ₦690,000
+      // Band 2: ₦2,400,000 @ 15% = ₦360,000 (₦800k to ₦3.2M)
+      // Band 3: ₦1,800,000 @ 19% = ₦342,000 (₦3.2M to ₦5M)
+      // Total: ₦702,000
       const result = calculatePIT(5_000_000);
-      expect(result.estimatedTax).toBe(690_000);
+      expect(result.estimatedTax).toBe(702_000);
       expect(result.breakdown).toHaveLength(3);
     });
 
-    it('should calculate tax correctly for ₦12M (₦1.95M tax)', () => {
+    it('should calculate tax correctly for ₦12M (₦2.032M tax)', () => {
       // Income: ₦12,000,000
       // Band 1: ₦800,000 @ 0% = ₦0
-      // Band 2: ₦2,200,000 @ 15% = ₦330,000
-      // Band 3: ₦9,000,000 @ 18% = ₦1,620,000
-      // Total: ₦1,950,000
+      // Band 2: ₦2,400,000 @ 15% = ₦360,000 (₦800k to ₦3.2M)
+      // Band 3: ₦4,800,000 @ 19% = ₦912,000 (₦3.2M to ₦8M)
+      // Band 4: ₦4,000,000 @ 21% = ₦840,000 (₦8M to ₦12M)
+      // Total: ₦2,112,000
       const result = calculatePIT(12_000_000);
-      expect(result.estimatedTax).toBe(1_950_000);
-      expect(result.breakdown).toHaveLength(3);
-    });
-
-    it('should calculate tax correctly for ₦25M', () => {
-      // Income: ₦25,000,000
-      // Band 1: ₦800,000 @ 0% = ₦0
-      // Band 2: ₦2,200,000 @ 15% = ₦330,000
-      // Band 3: ₦9,000,000 @ 18% = ₦1,620,000
-      // Band 4: ₦13,000,000 @ 21% = ₦2,730,000
-      // Total: ₦4,680,000
-      const result = calculatePIT(25_000_000);
-      expect(result.estimatedTax).toBe(4_680_000);
+      expect(result.estimatedTax).toBe(2_112_000);
       expect(result.breakdown).toHaveLength(4);
     });
 
-    it('should calculate tax correctly for ₦50M', () => {
-      // Income: ₦50,000,000
-      // Band 1-4: ₦4,680,000 (as above)
-      // Band 5: ₦25,000,000 @ 23% = ₦5,750,000
-      // Total: ₦10,430,000
-      const result = calculatePIT(50_000_000);
-      expect(result.estimatedTax).toBe(10_430_000);
+    it('should calculate tax correctly for ₦25M (₦4.882M tax)', () => {
+      // Income: ₦25,000,000
+      // Band 1: ₦800,000 @ 0% = ₦0
+      // Band 2: ₦2,400,000 @ 15% = ₦360,000 (₦800k to ₦3.2M)
+      // Band 3: ₦4,800,000 @ 19% = ₦912,000 (₦3.2M to ₦8M)
+      // Band 4: ₦7,000,000 @ 21% = ₦1,470,000 (₦8M to ₦15M)
+      // Band 5: ₦10,000,000 @ 25% = ₦2,500,000 (above ₦15M)
+      // Total: ₦5,242,000
+      const result = calculatePIT(25_000_000);
+      expect(result.estimatedTax).toBe(5_242_000);
       expect(result.breakdown).toHaveLength(5);
     });
 
-    it('should calculate tax correctly for ₦100M (high earner)', () => {
+    it('should calculate tax correctly for ₦50M (₦11.492M tax)', () => {
+      // Income: ₦50,000,000
+      // Bands 1-4: ₦2,742,000 (as above for first ₦15M)
+      // Band 5: ₦35,000,000 @ 25% = ₦8,750,000 (above ₦15M)
+      // Total: ₦11,492,000
+      const result = calculatePIT(50_000_000);
+      expect(result.estimatedTax).toBe(11_492_000);
+      expect(result.breakdown).toHaveLength(5);
+    });
+
+    it('should calculate tax correctly for ₦100M (high earner, ₦23.992M tax)', () => {
       // Income: ₦100,000,000
-      // Bands 1-5: ₦10,430,000
-      // Band 6: ₦50,000,000 @ 25% = ₦12,500,000
-      // Total: ₦22,930,000
+      // Bands 1-4: ₦2,742,000 (first ₦15M)
+      // Band 5: ₦85,000,000 @ 25% = ₦21,250,000 (above ₦15M)
+      // Total: ₦23,992,000
       const result = calculatePIT(100_000_000);
-      expect(result.estimatedTax).toBe(22_930_000);
-      expect(result.breakdown).toHaveLength(6);
-      expect(result.effectiveRate).toBeCloseTo(0.2293, 2);
+      expect(result.estimatedTax).toBe(23_992_000);
+      expect(result.breakdown).toHaveLength(5);
+      expect(result.effectiveRate).toBeCloseTo(0.2399, 2);
     });
 
     it('should handle zero income', () => {

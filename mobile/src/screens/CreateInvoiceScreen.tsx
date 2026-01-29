@@ -31,6 +31,10 @@ import { colors, spacing, radii, typography, shadows } from '../theme/tokens';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
+// Feature flags
+const ENABLE_OCR = process.env.EXPO_PUBLIC_FEATURE_OCR === 'true' || 
+                   process.env.EXPO_PUBLIC_FEATURE_OCR_SCANNER === 'true';
+
 // Wizard step type
 type WizardStep = 'customer' | 'items' | 'review';
 
@@ -575,13 +579,15 @@ export default function CreateInvoiceScreen(props: any) {
                     variant="secondary"
                     style={styles.addItemButton}
                   />
-                  <AnimatedButton 
-                    title={t('common.scan')}
-                    onPress={openScanMenu}
-                    variant="secondary"
-                    style={styles.scanButton}
-                    testID="button-scanReceipt"
-                  />
+                  {ENABLE_OCR && (
+                    <AnimatedButton 
+                      title={t('common.scan')}
+                      onPress={openScanMenu}
+                      variant="secondary"
+                      style={styles.scanButton}
+                      testID="button-scanReceipt"
+                    />
+                  )}
                 </View>
               </View>
 

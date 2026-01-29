@@ -38,7 +38,7 @@ const deleteRequestSchema = z.object({
 
 const consentUpdateSchema = z.object({
   userId: z.string().uuid(),
-  consentType: z.enum(['data_processing', 'sms_marketing', 'ai_analytics']),
+  consentType: z.enum(['data_processing', 'sms_marketing', 'ai_analytics', 'device_tracking']),
   granted: z.boolean()
 });
 

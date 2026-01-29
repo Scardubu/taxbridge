@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useNetwork } from '../contexts/NetworkContext';
 import { useContext, useRef, useEffect } from 'react';
 import { SyncContext } from '../contexts/SyncContext';
+import { colors, spacing, typography, radii } from '../theme/tokens';
 
 export default function NetworkStatus() {
   const { t } = useTranslation();
@@ -58,30 +59,30 @@ export default function NetworkStatus() {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#FEE2E2',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
+    backgroundColor: colors.errorBg,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.md,
     alignItems: 'center',
     flexDirection: 'row',
     justifyContent: 'center',
   },
   containerSyncing: {
-    backgroundColor: '#FEF3C7',
+    backgroundColor: colors.warningBg,
   },
   syncDot: {
     width: 8,
     height: 8,
-    borderRadius: 4,
-    backgroundColor: '#D97706',
-    marginRight: 8,
+    borderRadius: radii.full,
+    backgroundColor: colors.warningDark,
+    marginRight: spacing.xs,
   },
   text: {
-    color: '#991B1B',
-    fontSize: 13,
-    fontWeight: '600',
+    color: colors.errorDark,
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.semibold as any,
   },
   syncText: {
-    color: '#92400E',
-    fontWeight: '500',
+    color: colors.warningDark,
+    fontWeight: typography.weight.medium as any,
   },
 });

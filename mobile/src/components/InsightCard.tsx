@@ -33,10 +33,10 @@ interface InsightCardProps {
 }
 
 const GRADIENT_COLORS = {
-  blue: { bg: '#EBF4FF', accent: '#0B5FFF', border: '#93C5FD' },
-  green: { bg: '#ECFDF5', accent: '#059669', border: '#6EE7B7' },
-  orange: { bg: '#FFF7ED', accent: '#EA580C', border: '#FDBA74' },
-  purple: { bg: '#F5F3FF', accent: '#7C3AED', border: '#C4B5FD' },
+  blue: { bg: themeColors.primaryLight, accent: themeColors.primary, border: themeColors.primaryBorder },
+  green: { bg: themeColors.successBg, accent: themeColors.brandGreen600, border: themeColors.successBorder },
+  orange: { bg: themeColors.actionOrangeBg, accent: themeColors.actionOrange, border: themeColors.actionOrangeBorder },
+  purple: { bg: themeColors.actionPurpleBg, accent: themeColors.actionPurple, border: themeColors.actionPurpleBorder },
 };
 
 function InsightCard({

@@ -6,11 +6,14 @@ import { getAccessToken } from './authTokens';
 import { getApiBaseUrl } from './config';
 import { createLogger } from '../utils/logger';
 import { getPendingInvoices } from './database';
+import { checkConsent } from './api';
 import type { InvoiceItem } from '../types/invoice';
+import jwt from 'jwt-decode';
 
 const log = createLogger('device-sync');
 
 const DEVICE_ID_STORAGE_KEY = 'device:deviceId';
+const CONSENT_CHECKED_KEY = 'device:consentChecked';
 
 function generateUuid(): string {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
@@ -20,11 +23,35 @@ function generateUuid(): string {
   });
 }
 
-// Generate stable device ID
+// Generate stable device ID (NDPC-compliant: requires consent)
 export async function getDeviceId(): Promise<string> {
   const cached = await AsyncStorage.getItem(DEVICE_ID_STORAGE_KEY).catch(() => null);
   if (cached) return cached;
 
+  // Check if user has granted device_tracking consent
+  const token = await getAccessToken();
+  if (token) {
+    try {
+      const decoded = jwt<{ userId?: string }>(token);
+      if (decoded.userId) {
+        const hasConsent = await checkConsent(decoded.userId, 'device_tracking');
+        if (!hasConsent) {
+          log.warn('Device tracking consent not granted, using session-only ID');
+          // Return session-only UUID that won't be persisted
+          return generateUuid();
+        }
+      }
+    } catch (err) {
+      log.error('Failed to check device tracking consent', { error: err });
+      // Fail-safe: don't persist device ID without explicit consent
+      return generateUuid();
+    }
+  } else {
+    // User not authenticated - use session-only ID
+    return generateUuid();
+  }
+
+  // User has granted consent - generate and persist device ID
   let deviceId: string | null = null;
 
   if (Platform.OS === 'android') {
@@ -38,6 +65,8 @@ export async function getDeviceId(): Promise<string> {
   }
 
   await AsyncStorage.setItem(DEVICE_ID_STORAGE_KEY, deviceId).catch(() => undefined);
+  await AsyncStorage.setItem(CONSENT_CHECKED_KEY, 'true').catch(() => undefined);
+  log.info('Device ID generated and persisted with user consent');
   return deviceId;
 }
 

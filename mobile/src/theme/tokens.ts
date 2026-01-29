@@ -18,6 +18,7 @@ export const colors = {
   brandNavy900: '#071E2F',
   brandIndigo: '#4338CA',
   brandIndigoBg: '#EEF2FF',
+  brandIndigoBorder: '#C7D2FE',
 
   // Surfaces
   surface: '#FFFFFF',
@@ -84,8 +85,11 @@ export const colors = {
   actionGreenBg: '#ECFDF5',
   actionPurple: '#7C3AED',
   actionPurpleBg: '#F5F3FF',
+  actionPurpleBorder: '#C4B5FD',
   actionOrange: '#EA580C',
   actionOrangeBg: '#FFF7ED',
+  actionOrangeAccent: '#EA580C',
+  actionOrangeBorder: '#FDBA74',
 
   // Overlays
   overlaySuccess: 'rgba(16, 185, 129, 0.2)',
@@ -110,6 +114,7 @@ export const colors = {
 };
 
 export const spacing = {
+  xxs: 2,
   xs: 4,
   sm: 8,
   md: 12,

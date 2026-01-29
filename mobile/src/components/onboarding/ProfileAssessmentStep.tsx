@@ -11,6 +11,8 @@ import {
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useOnboarding } from '../../contexts/OnboardingContext';
+import { colors, spacing, radii, typography } from '../../theme/tokens';
+
 
 interface Props {
   onNext: () => void;
@@ -127,7 +129,7 @@ function ProfileAssessmentStep({ onNext }: Props) {
             style={styles.input}
             keyboardType="numeric"
             placeholder={t('placeholders.income')}
-            placeholderTextColor="#9CA3AF"
+            placeholderTextColor={colors.disabled}
             value={annualIncome}
             onChangeText={handleIncomeChange}
             accessibilityLabel={t('onboarding.profile.annualIncome')}
@@ -146,7 +148,7 @@ function ProfileAssessmentStep({ onNext }: Props) {
               style={styles.input}
               keyboardType="numeric"
               placeholder={t('placeholders.turnover')}
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={colors.disabled}
               value={annualTurnover}
               onChangeText={handleTurnoverChange}
               accessibilityLabel={t('onboarding.profile.annualTurnover')}
@@ -212,28 +214,28 @@ function ProfileAssessmentStep({ onNext }: Props) {
 
 const styles = StyleSheet.create({
   container: {
-    paddingTop: 20,
+    paddingTop: spacing.xl,
   },
   title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#101828',
-    marginBottom: 8,
+    fontSize: typography.size.xxl + 2,
+    fontWeight: typography.weight.bold,
+    color: colors.textPrimary,
+    marginBottom: spacing.sm,
   },
   subtitle: {
-    fontSize: 16,
-    color: '#667085',
-    marginBottom: 32,
+    fontSize: typography.size.md,
+    color: colors.textMuted,
+    marginBottom: spacing.xxl + spacing.sm,
     lineHeight: 24,
   },
   section: {
-    marginBottom: 28,
+    marginBottom: spacing.xxl + spacing.xs,
   },
   label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#344054',
-    marginBottom: 12,
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.semibold,
+    color: colors.textSecondary,
+    marginBottom: spacing.md,
   },
   optionsGrid: {
     flexDirection: 'row',
@@ -241,15 +243,15 @@ const styles = StyleSheet.create({
     marginHorizontal: -6,
   },
   optionsColumn: {
-    gap: 8,
+    gap: spacing.sm,
   },
   optionButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 14,
-    backgroundColor: '#F9FAFB',
-    borderRadius: 12,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm + 6,
+    backgroundColor: colors.surfaceSecondary,
+    borderRadius: radii.md,
     borderWidth: 1.5,
-    borderColor: '#E4E7EC',
+    borderColor: colors.borderSubtle,
     margin: 6,
     minWidth: '45%',
     alignItems: 'center',
@@ -257,16 +259,16 @@ const styles = StyleSheet.create({
   optionButtonColumn: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    backgroundColor: '#F9FAFB',
-    borderRadius: 12,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm + 6,
+    backgroundColor: colors.surfaceSecondary,
+    borderRadius: radii.md,
     borderWidth: 1.5,
-    borderColor: '#E4E7EC',
+    borderColor: colors.borderSubtle,
   },
   optionButtonActive: {
-    backgroundColor: '#EBF4FF',
-    borderColor: '#0B5FFF',
+    backgroundColor: colors.primaryLight,
+    borderColor: colors.primary,
   },
   optionEmoji: {
     fontSize: 24,
@@ -274,74 +276,74 @@ const styles = StyleSheet.create({
   },
   optionEmojiColumn: {
     fontSize: 20,
-    marginRight: 12,
+    marginRight: spacing.md,
   },
   optionText: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: '#667085',
+    fontSize: typography.size.sm - 1,
+    fontWeight: typography.weight.medium,
+    color: colors.textMuted,
     textAlign: 'center',
   },
   optionTextColumn: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: '#667085',
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.medium,
+    color: colors.textMuted,
   },
   optionTextActive: {
-    color: '#0B5FFF',
-    fontWeight: '600',
+    color: colors.primary,
+    fontWeight: typography.weight.semibold,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F9FAFB',
-    borderRadius: 12,
+    backgroundColor: colors.surfaceSecondary,
+    borderRadius: radii.md,
     borderWidth: 1.5,
-    borderColor: '#E4E7EC',
-    paddingHorizontal: 16,
+    borderColor: colors.borderSubtle,
+    paddingHorizontal: spacing.lg,
   },
   currencySymbol: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#344054',
-    marginRight: 8,
+    fontSize: typography.size.lg,
+    fontWeight: typography.weight.bold,
+    color: colors.textSecondary,
+    marginRight: spacing.sm,
   },
   input: {
     flex: 1,
-    paddingVertical: 14,
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#101828',
+    paddingVertical: spacing.sm + 6,
+    fontSize: typography.size.lg,
+    fontWeight: typography.weight.semibold,
+    color: colors.textPrimary,
   },
   hint: {
-    fontSize: 12,
-    color: '#667085',
-    marginTop: 8,
+    fontSize: typography.size.xs,
+    color: colors.textMuted,
+    marginTop: spacing.sm,
     fontStyle: 'italic',
   },
   continueButton: {
-    backgroundColor: '#0B5FFF',
-    paddingVertical: 16,
-    borderRadius: 12,
+    backgroundColor: colors.primary,
+    paddingVertical: spacing.lg,
+    borderRadius: radii.md,
     alignItems: 'center',
-    marginTop: 16,
+    marginTop: spacing.lg,
   },
   continueButtonDisabled: {
-    backgroundColor: '#D0D5DD',
+    backgroundColor: colors.border,
   },
   continueButtonLoading: {
     opacity: 0.7,
   },
   continueButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#FFFFFF',
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.bold,
+    color: colors.textOnPrimary,
   },
   timeEstimate: {
-    fontSize: 12,
-    color: '#667085',
+    fontSize: typography.size.xs,
+    color: colors.textMuted,
     textAlign: 'center',
-    marginTop: 16,
+    marginTop: spacing.lg,
   },
 });
 

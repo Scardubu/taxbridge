@@ -15,5 +15,13 @@
   ],
   "resolutions": {
     "expo-constants": "18.0.13"
+  },
+  "scripts": {
+    "lint": "yarn workspaces run lint",
+    "test": "yarn workspaces run test",
+    "build": "yarn workspaces run build"
+  },
+  "devDependencies": {
+    "typescript": "~5.9.2"
   }
 }

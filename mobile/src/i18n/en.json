@@ -107,6 +107,7 @@
   },
   "settings": {
     "title": "Settings",
+    "subtitle": "Manage your TaxBridge preferences",
     "language": "Language",
     "english": "English",
     "pidgin": "Pidgin",
@@ -121,7 +122,6 @@
     "exportTitle": "Export Your Data",
     "exportDesc": "Download a copy of all your invoices and tax calculations.",
     "exportBtn": "Export CSV",
-    "subtitle": "Manage your TaxBridge preferences",
     "total": "Total",
     "synced": "Synced",
     "pending": "Pending",
@@ -130,7 +130,16 @@
     "signedInTitle": "Signed in",
     "signedInSubtitle": "Sync and payments are enabled on this device",
     "signIn": "Sign in",
-    "createAccount": "Create account"
+    "createAccount": "Create account",
+    "securityComplianceTitle": "Security & Compliance",
+    "ndprCompliant": "NDPR Compliant",
+    "ndprText": "Your data is protected under Nigeria Data Protection Regulation. We never share your information with third parties without consent.",
+    "localFirstStorage": "Local-first storage",
+    "offlineArchitecture": "Offline-first architecture",
+    "nrsReady": "NRS e-invoicing ready",
+    "appName": "TaxBridge v{{version}}",
+    "appTagline": "Simplify Your Taxes, Bridge Your Future",
+    "copyright": "© 2026 TaxBridge. All rights reserved."
   },
   "onboarding": {
     "finishLater": "Save",
@@ -400,7 +409,8 @@
     "newItem": "New Item",
     "itemPlaceholder": "e.g. Rice bag (50kg)",
     "taxableIncome": "Taxable Income",
-    "ok": "OK"
+    "ok": "OK",
+    "loading": "Loading..."
   },
   "tutorial": {
     "grossIncome": "Gross Income",
@@ -420,6 +430,7 @@
     "citDescLarge": "Standard CIT rate (>₦100M turnover)"
   },
   "payment": {
+    "title": "Tax Payment",
     "payerName": "Payer Name",
     "payerNamePlaceholder": "e.g., John Doe",
     "payerEmail": "Payer Email",
@@ -430,11 +441,28 @@
     "enterPayerName": "Please enter payer name",
     "enterValidEmail": "Please enter valid email",
     "enterValidPhone": "Please enter valid phone number",
+    "signInRequired": "Sign in required",
+    "signInRequiredDesc": "Please sign in in Settings > Account & Sync before generating a payment code.",
+    "goToSettings": "Go to Settings",
+    "generateRRR": "Generate Payment Code (RRR)",
+    "checkStatus": "Check Payment Status",
+    "paymentReady": "Payment Ready",
+    "paymentReadyDesc": "Your RRR: {{rrr}}\nAmount: ₦{{amount}}\n\nSecurely proceed to Remita to complete payment.",
+    "proceedToPayment": "Proceed to Payment",
+    "rrrLabel": "Your Payment Code (RRR)",
+    "rrrHint": "Keep this code for reference",
+    "nextSteps": "Next Steps:",
+    "nextStepRemita": "Visit any bank or Remita portal to make payment",
+    "nextStepQuote": "Quote your RRR (Payment Code) at the teller",
+    "nextStepReturn": "Return here to check payment status after paying",
+    "payerInfoTitle": "Payer Information",
     "offlineRRR": "Connect to the internet to generate an RRR.",
     "offlineStatus": "Connect to the internet to check payment status.",
     "cannotOpenURL": "Cannot open payment URL",
     "failedOpenLink": "Failed to open payment link",
-    "error": "Error"
+    "error": "Error",
+    "invoiceTotal": "Invoice Total",
+    "rrrDisclaimer": "Remita payment links are secure and processed by SystemSpecs Limited. TaxBridge does not store card information."
   },
   "chatbot": {
     "placeholder": "Ask about taxes, e-invoicing, payments..."
@@ -489,6 +517,15 @@
     "extractionFailedDesc": "Failed to extract receipt data. Please ensure the image is clear and try again.",
     "retriesExhausted": "Processing Failed",
     "retriesExhaustedDesc": "Could not process receipt after multiple attempts. Please check your connection and try again."
+  },
+  "errors": {
+    "boundary": {
+      "title": "Something went wrong",
+      "subtitle": "We're sorry for the inconvenience. The error has been reported and we'll fix it as soon as possible.",
+      "details": "Error Details:",
+      "tryAgain": "Try Again",
+      "hint": "If the problem persists, try closing and reopening the app."
+    }
   },
   "alerts": {
     "ocrResult": "OCR Result",

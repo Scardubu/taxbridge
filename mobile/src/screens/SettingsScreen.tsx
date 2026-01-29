@@ -477,7 +477,7 @@ function SettingsScreen() {
                 onChangeText={(text) => setValue('apiUrl', text)}
                 onBlur={() => setTouchedField('apiUrl')}
                 placeholder={t('placeholders.apiUrl')}
-                placeholderTextColor="#98A2B3"
+                placeholderTextColor={colors.disabled}
                 autoCapitalize="none"
                 autoCorrect={false}
               />
@@ -567,7 +567,7 @@ function SettingsScreen() {
                         value={authName}
                         onChangeText={setAuthName}
                         placeholder="e.g. Amina Yusuf"
-                        placeholderTextColor="#98A2B3"
+                        placeholderTextColor={colors.disabled}
                         autoCapitalize="words"
                       />
                     </>
@@ -579,7 +579,7 @@ function SettingsScreen() {
                     value={authPhone}
                     onChangeText={setAuthPhone}
                     placeholder="08012345678"
-                    placeholderTextColor="#98A2B3"
+                    placeholderTextColor={colors.disabled}
                     keyboardType="phone-pad"
                     autoCapitalize="none"
                     autoCorrect={false}
@@ -591,7 +591,7 @@ function SettingsScreen() {
                     value={authPassword}
                     onChangeText={setAuthPassword}
                     placeholder="••••••••"
-                    placeholderTextColor="#98A2B3"
+                    placeholderTextColor={colors.disabled}
                     secureTextEntry
                     autoCapitalize="none"
                     autoCorrect={false}
@@ -605,7 +605,7 @@ function SettingsScreen() {
                         value={totpCode}
                         onChangeText={setTotpCode}
                         placeholder="123456"
-                        placeholderTextColor="#98A2B3"
+                        placeholderTextColor={colors.disabled}
                         keyboardType="number-pad"
                         autoCapitalize="none"
                         autoCorrect={false}
@@ -642,7 +642,7 @@ function SettingsScreen() {
                         value={authOtp}
                         onChangeText={setAuthOtp}
                         placeholder="123456"
-                        placeholderTextColor="#98A2B3"
+                        placeholderTextColor={colors.disabled}
                         keyboardType="number-pad"
                         autoCapitalize="none"
                         autoCorrect={false}
@@ -701,7 +701,7 @@ function SettingsScreen() {
           <Pressable style={styles.sectionHeader} onPress={() => toggleSection('security')}>
             <View style={styles.sectionTitleRow}>
               <Text style={styles.sectionIcon}>🔒</Text>
-              <Text style={styles.sectionTitle}>Security & Compliance</Text>
+              <Text style={styles.sectionTitle}>{t('settings.securityComplianceTitle')}</Text>
             </View>
             <Text style={styles.expandIcon}>{expandedSection === 'security' ? '▼' : '▶'}</Text>
           </Pressable>
@@ -711,25 +711,25 @@ function SettingsScreen() {
               <View style={styles.complianceCard}>
                 <View style={styles.complianceBadge}>
                   <Text style={styles.complianceBadgeIcon}>✓</Text>
-                  <Text style={styles.complianceBadgeText}>NDPR Compliant</Text>
+                  <Text style={styles.complianceBadgeText}>{t('settings.ndprCompliant')}</Text>
                 </View>
                 <Text style={styles.complianceText}>
-                  Your data is protected under Nigeria Data Protection Regulation. We never share your information with third parties without consent.
+                  {t('settings.ndprText')}
                 </Text>
               </View>
 
               <View style={styles.securityFeatures}>
                 <View style={styles.featureItem}>
                   <Text style={styles.featureIcon}>🔐</Text>
-                  <Text style={styles.featureText}>Local-first storage</Text>
+                  <Text style={styles.featureText}>{t('settings.localFirstStorage')}</Text>
                 </View>
                 <View style={styles.featureItem}>
                   <Text style={styles.featureIcon}>📵</Text>
-                  <Text style={styles.featureText}>Offline-first architecture</Text>
+                  <Text style={styles.featureText}>{t('settings.offlineArchitecture')}</Text>
                 </View>
                 <View style={styles.featureItem}>
                   <Text style={styles.featureIcon}>🏛️</Text>
-                  <Text style={styles.featureText}>NRS e-invoicing ready</Text>
+                  <Text style={styles.featureText}>{t('settings.nrsReady')}</Text>
                 </View>
               </View>
             </Animated.View>
@@ -738,9 +738,9 @@ function SettingsScreen() {
 
         {/* App Info */}
         <Animated.View entering={FadeInDown.duration(300).delay(700)} style={styles.appInfo}>
-          <Text style={styles.appName}>TaxBridge v{Constants.expoConfig?.version || '5.0.2'}</Text>
-          <Text style={styles.appTagline}>Simplify Your Taxes, Bridge Your Future</Text>
-          <Text style={styles.copyright}>© 2026 TaxBridge. All rights reserved.</Text>
+          <Text style={styles.appName}>{t('settings.appName', { version: Constants.expoConfig?.version || '5.0.2' })}</Text>
+          <Text style={styles.appTagline}>{t('settings.appTagline')}</Text>
+          <Text style={styles.copyright}>{t('settings.copyright')}</Text>
         </Animated.View>
       </ScrollView>
     </SafeAreaView>
@@ -750,7 +750,7 @@ function SettingsScreen() {
 export default memo(SettingsScreen);
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: '#F8FAFC' },
+  safe: { flex: 1, backgroundColor: colors.surfaceSlate },
   scroll: { flex: 1 },
   container: { padding: 16, paddingBottom: 40 },
   
@@ -764,8 +764,8 @@ const styles = StyleSheet.create({
   headerIcon: {
     fontSize: 32,
   },
-  h1: { fontSize: 26, fontWeight: '900', color: '#101828' },
-  subtitle: { fontSize: 14, color: '#667085', marginTop: 2 },
+  h1: { fontSize: 26, fontWeight: '900', color: colors.textPrimary },
+  subtitle: { fontSize: 14, color: colors.textMuted, marginTop: 2 },
   
   // Status Card
   statusCard: {
@@ -775,12 +775,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   statusOnline: {
-    backgroundColor: '#F0FDF4',
-    borderColor: '#86EFAC',
+    backgroundColor: colors.successBg,
+    borderColor: colors.successBorder,
   },
   statusOffline: {
-    backgroundColor: '#FEF3C7',
-    borderColor: '#FDE68A',
+    backgroundColor: colors.warningBg,
+    borderColor: colors.warningBorder,
   },
   statusRow: {
     flexDirection: 'row',
@@ -797,14 +797,14 @@ const styles = StyleSheet.create({
   statusTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#166534',
+    color: colors.successDark,
   },
   statusTitleOffline: {
-    color: '#92400E',
+    color: colors.warningDark,
   },
   statusSubtitle: {
     fontSize: 12,
-    color: '#667085',
+    color: colors.textMuted,
     marginTop: 2,
   },
   statusStats: {
@@ -812,7 +812,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(0,0,0,0.1)',
+    borderTopColor: colors.borderTransparent,
   },
   statItem: {
     alignItems: 'center',
@@ -840,12 +840,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     padding: 16,
     borderRadius: 12,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#E4E7EC',
+    borderColor: colors.borderSubtle,
   },
   sectionTitleRow: {
     flexDirection: 'row',
@@ -858,19 +858,19 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#101828',
+    color: colors.textPrimary,
   },
   expandIcon: {
     fontSize: 12,
-    color: '#667085',
+    color: colors.textMuted,
   },
   sectionContent: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#E4E7EC',
+    borderColor: colors.borderSubtle,
   },
   
   // Language Options
@@ -883,34 +883,34 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 12,
     borderRadius: 12,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.surfaceSlate,
     borderWidth: 2,
-    borderColor: '#E4E7EC',
+    borderColor: colors.borderSubtle,
     gap: 8,
   },
   optionActive: {
-    borderColor: '#0B5FFF',
-    backgroundColor: '#EBF4FF',
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryLight,
   },
   optionEmoji: {
     fontSize: 20,
   },
-  optionText: { color: '#344054', fontWeight: '700', fontSize: 14 },
-  optionTextActive: { color: '#0B5FFF' },
+  optionText: { color: colors.textSecondary, fontWeight: '700', fontSize: 14 },
+  optionTextActive: { color: colors.primary },
   helperText: {
     fontSize: 12,
-    color: '#667085',
+    color: colors.textMuted,
     marginTop: 12,
     textAlign: 'center',
   },
 
   // Account
   accountCard: {
-    backgroundColor: '#F0FDF4',
+    backgroundColor: colors.successBg,
     borderRadius: 12,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#86EFAC',
+    borderColor: colors.successBorder,
     marginTop: 12,
   },
   accountRow: {
@@ -928,11 +928,11 @@ const styles = StyleSheet.create({
   accountStatusTitle: {
     fontSize: 14,
     fontWeight: '800',
-    color: '#166534',
+    color: colors.successDark,
   },
   accountStatusSubtitle: {
     fontSize: 12,
-    color: '#166534',
+    color: colors.successDark,
     marginTop: 2,
   },
   
@@ -948,11 +948,11 @@ const styles = StyleSheet.create({
   storageLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#344054',
+    color: colors.textSecondary,
   },
   storageValue: {
     fontSize: 14,
-    color: '#667085',
+    color: colors.textMuted,
   },
   storageBar: {
     height: 8,
@@ -998,12 +998,12 @@ const styles = StyleSheet.create({
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.surfaceSlate,
     padding: 14,
     borderRadius: 12,
     gap: 12,
     borderWidth: 1,
-    borderColor: '#E4E7EC',
+    borderColor: colors.borderSubtle,
   },
   actionIcon: {
     fontSize: 20,
@@ -1011,31 +1011,31 @@ const styles = StyleSheet.create({
   actionTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#101828',
+    color: colors.textPrimary,
   },
   actionSubtitle: {
     fontSize: 12,
-    color: '#667085',
+    color: colors.textMuted,
   },
   
   // Form
-  label: { color: '#344054', marginBottom: 8, fontWeight: '700', fontSize: 14 },
+  label: { color: colors.textSecondary, marginBottom: 8, fontWeight: '700', fontSize: 14 },
   input: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.surfaceSlate,
     borderWidth: 1,
-    borderColor: '#D0D5DD',
+    borderColor: colors.border,
     borderRadius: 12,
     padding: 14,
     fontSize: 16,
     marginBottom: 12,
-    color: '#101828',
+    color: colors.textPrimary,
   },
   inputError: {
-    borderColor: '#DC2626',
-    backgroundColor: '#FEF2F2',
+    borderColor: colors.error,
+    backgroundColor: colors.errorBgSubtle,
   },
   errorText: {
-    color: '#DC2626',
+    color: colors.error,
     fontSize: 12,
     marginBottom: 8,
     fontWeight: '500',
@@ -1049,12 +1049,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#EBF4FF',
+    backgroundColor: colors.primaryLight,
     padding: 16,
     borderRadius: 12,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#93C5FD',
+    borderColor: colors.primaryBorder,
   },
   communityHeader: {
     flexDirection: 'row',
@@ -1067,27 +1067,27 @@ const styles = StyleSheet.create({
   communityTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#1E40AF',
+    color: colors.infoDark,
   },
   communitySubtitle: {
     fontSize: 12,
-    color: '#3B82F6',
+    color: colors.info,
     marginTop: 2,
   },
   communityArrow: {
     fontSize: 18,
-    color: '#0B5FFF',
+    color: colors.primary,
     fontWeight: '700',
   },
   referralCard: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: '#FEF3C7',
+    backgroundColor: colors.warningBg,
     padding: 14,
     borderRadius: 12,
     gap: 12,
     borderWidth: 1,
-    borderColor: '#FDE68A',
+    borderColor: colors.warningBorder,
   },
   referralIcon: {
     fontSize: 24,
@@ -1098,23 +1098,23 @@ const styles = StyleSheet.create({
   referralTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#92400E',
+    color: colors.warningDark,
     marginBottom: 4,
   },
   referralText: {
     fontSize: 13,
-    color: '#92400E',
+    color: colors.warningDark,
     lineHeight: 18,
   },
   
   // Compliance
   complianceCard: {
-    backgroundColor: '#F0FDF4',
+    backgroundColor: colors.successBg,
     padding: 16,
     borderRadius: 12,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#86EFAC',
+    borderColor: colors.successBorder,
   },
   complianceBadge: {
     flexDirection: 'row',
@@ -1124,16 +1124,16 @@ const styles = StyleSheet.create({
   },
   complianceBadgeIcon: {
     fontSize: 14,
-    color: '#10B981',
+    color: colors.success,
   },
   complianceBadgeText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#166534',
+    color: colors.successDark,
   },
   complianceText: {
     fontSize: 13,
-    color: '#166534',
+    color: colors.successDark,
     lineHeight: 18,
   },
   securityFeatures: {
@@ -1143,7 +1143,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: colors.surfaceSlate,
     padding: 12,
     borderRadius: 10,
   },
@@ -1152,7 +1152,7 @@ const styles = StyleSheet.create({
   },
   featureText: {
     fontSize: 14,
-    color: '#344054',
+    color: colors.textSecondary,
     fontWeight: '500',
   },
   
@@ -1163,21 +1163,21 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
     marginTop: 8,
     borderTopWidth: 1,
-    borderTopColor: '#E4E7EC',
+    borderTopColor: colors.borderSubtle,
   },
   appName: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#101828',
+    color: colors.textPrimary,
   },
   appTagline: {
     fontSize: 12,
-    color: '#667085',
+    color: colors.textMuted,
     marginTop: 4,
   },
   copyright: {
     fontSize: 11,
-    color: '#98A2B3',
+    color: colors.disabled,
     marginTop: 8,
   },
 });

@@ -493,30 +493,30 @@ const styles = StyleSheet.create({
   heroTitle: {
     fontSize: 28,
     fontWeight: '800',
-    color: '#101828',
+    color: colors.textPrimary,
     textAlign: 'center',
     marginBottom: 8,
   },
   heroSubtitle: {
     fontSize: 16,
-    color: '#667085',
+    color: colors.textMuted,
     textAlign: 'center',
     lineHeight: 24,
     paddingHorizontal: 20,
   },
   // Info card
   infoCard: {
-    backgroundColor: '#EBF4FF',
+    backgroundColor: colors.primaryLight,
     borderRadius: 16,
     padding: 20,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: '#0B5FFF20',
+    borderColor: colors.primaryBorder,
   },
   infoCardTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#101828',
+    color: colors.textPrimary,
     marginBottom: 16,
   },
   factItem: {
@@ -532,30 +532,30 @@ const styles = StyleSheet.create({
   factText: {
     flex: 1,
     fontSize: 15,
-    color: '#344054',
+    color: colors.textSecondary,
     lineHeight: 22,
   },
   highlight: {
     fontWeight: '700',
-    color: '#0B5FFF',
+    color: colors.primary,
   },
   highlightGreen: {
     fontWeight: '700',
-    color: '#16A34A',
+    color: colors.success,
   },
   // Tax bands preview
   taxBandsPreview: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.surfaceSecondary,
     borderRadius: 12,
     padding: 16,
     marginBottom: 24,
     borderWidth: 1,
-    borderColor: '#E4E7EC',
+    borderColor: colors.borderSubtle,
   },
   taxBandsTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#101828',
+    color: colors.textPrimary,
     marginBottom: 12,
   },
   bandPreviewRow: {
@@ -571,15 +571,15 @@ const styles = StyleSheet.create({
   },
   bandPreviewText: {
     fontSize: 14,
-    color: '#344054',
+    color: colors.textSecondary,
   },
   bandRate: {
     fontWeight: '700',
-    color: '#0B5FFF',
+    color: colors.primary,
   },
   // Buttons
   primaryButton: {
-    backgroundColor: '#0B5FFF',
+    backgroundColor: colors.primary,
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
@@ -588,21 +588,21 @@ const styles = StyleSheet.create({
   primaryButtonText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.textOnPrimary,
   },
   secondaryButton: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#D0D5DD',
+    borderColor: colors.border,
   },
   secondaryButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#344054',
+    color: colors.textSecondary,
   },
   backButton: {
     paddingVertical: 8,
@@ -610,12 +610,12 @@ const styles = StyleSheet.create({
   },
   backButtonText: {
     fontSize: 16,
-    color: '#0B5FFF',
+    color: colors.primary,
     fontWeight: '600',
   },
   timeEstimate: {
     fontSize: 13,
-    color: '#667085',
+    color: colors.textMuted,
     textAlign: 'center',
     marginTop: 8,
     marginBottom: 20,
@@ -624,12 +624,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#101828',
+    color: colors.textPrimary,
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 15,
-    color: '#667085',
+    color: colors.textMuted,
     marginBottom: 20,
     lineHeight: 22,
   },
@@ -641,16 +641,16 @@ const styles = StyleSheet.create({
   },
   presetCard: {
     width: (width - 52) / 2,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 16,
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#E4E7EC',
+    borderColor: colors.borderSubtle,
   },
   presetCardSelected: {
-    borderColor: '#0B5FFF',
-    backgroundColor: '#EBF4FF',
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryLight,
   },
   presetEmoji: {
     fontSize: 32,
@@ -659,40 +659,40 @@ const styles = StyleSheet.create({
   presetLabel: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#101828',
+    color: colors.textPrimary,
     textAlign: 'center',
     marginBottom: 4,
   },
   presetDescription: {
     fontSize: 12,
-    color: '#667085',
+    color: colors.textMuted,
     textAlign: 'center',
   },
   customInputCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#E4E7EC',
+    borderColor: colors.borderSubtle,
   },
   deductionsCard: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.surfaceSecondary,
     borderRadius: 12,
     padding: 16,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: '#E4E7EC',
+    borderColor: colors.borderSubtle,
   },
   deductionsTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#101828',
+    color: colors.textPrimary,
     marginBottom: 4,
   },
   deductionsHint: {
     fontSize: 13,
-    color: '#667085',
+    color: colors.textMuted,
     marginBottom: 16,
   },
   inputGroup: {
@@ -701,70 +701,70 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#344054',
+    color: colors.textSecondary,
     marginBottom: 8,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#D0D5DD',
+    borderColor: colors.border,
     paddingHorizontal: 12,
   },
   currencySymbol: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#344054',
+    color: colors.textSecondary,
     marginRight: 8,
   },
   input: {
     flex: 1,
     paddingVertical: 12,
     fontSize: 16,
-    color: '#101828',
+    color: colors.textPrimary,
   },
   calculateButton: {
-    backgroundColor: '#0B5FFF',
+    backgroundColor: colors.primary,
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
     marginBottom: 20,
   },
   calculateButtonDisabled: {
-    backgroundColor: '#94A3B8',
+    backgroundColor: colors.disabled,
   },
   calculateButtonText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#FFFFFF',
+    color: colors.textOnPrimary,
   },
   // Results
   resultsHero: {
     alignItems: 'center',
-    backgroundColor: '#EBF4FF',
+    backgroundColor: colors.primaryLight,
     borderRadius: 16,
     padding: 24,
     marginBottom: 20,
   },
   resultsHeroTitle: {
     fontSize: 16,
-    color: '#667085',
+    color: colors.textMuted,
     marginBottom: 8,
   },
   resultsHeroValue: {
     fontSize: 48,
     fontWeight: '800',
-    color: '#0B5FFF',
+    color: colors.primary,
     marginBottom: 8,
   },
   resultsHeroSubtext: {
     fontSize: 14,
-    color: '#667085',
+    color: colors.textMuted,
   },
   exemptBadgeLarge: {
-    backgroundColor: '#DCFCE7',
+    backgroundColor: colors.successBg,
     paddingHorizontal: 20,
     paddingVertical: 8,
     borderRadius: 20,
@@ -773,20 +773,20 @@ const styles = StyleSheet.create({
   exemptBadgeText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#16A34A',
+    color: colors.success,
   },
   breakdownCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#E4E7EC',
+    borderColor: colors.borderSubtle,
   },
   breakdownTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#101828',
+    color: colors.textPrimary,
     marginBottom: 16,
   },
   breakdownVisual: {
@@ -818,11 +818,11 @@ const styles = StyleSheet.create({
   },
   legendText: {
     fontSize: 12,
-    color: '#667085',
+    color: colors.textMuted,
   },
   deductionsList: {
     borderTopWidth: 1,
-    borderTopColor: '#E4E7EC',
+    borderTopColor: colors.borderSubtle,
     paddingTop: 12,
   },
   breakdownRow: {
@@ -832,47 +832,47 @@ const styles = StyleSheet.create({
   },
   breakdownLabel: {
     fontSize: 14,
-    color: '#667085',
+    color: colors.textMuted,
   },
   breakdownValue: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#344054',
+    color: colors.textSecondary,
   },
   deductionValue: {
-    color: '#16A34A',
+    color: colors.success,
   },
   totalRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingVertical: 12,
     borderTopWidth: 2,
-    borderTopColor: '#0B5FFF',
+    borderTopColor: colors.primary,
     marginTop: 8,
   },
   totalLabel: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#101828',
+    color: colors.textPrimary,
   },
   totalValue: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#0B5FFF',
+    color: colors.primary,
   },
   // Bands card
   bandsCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 16,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: '#E4E7EC',
+    borderColor: colors.borderSubtle,
   },
   bandsCardTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#101828',
+    color: colors.textPrimary,
     marginBottom: 12,
   },
   bandRowEnhanced: {
@@ -881,7 +881,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: colors.surfaceSecondary,
   },
   bandInfo: {
     flexDirection: 'row',
@@ -896,19 +896,19 @@ const styles = StyleSheet.create({
   bandRateText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#344054',
+    color: colors.textSecondary,
   },
   bandAmount: {
     alignItems: 'flex-end',
   },
   bandAmountText: {
     fontSize: 13,
-    color: '#667085',
+    color: colors.textMuted,
   },
   bandTaxText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#0B5FFF',
+    color: colors.primary,
   },
   // Quiz
   quizHero: {
@@ -923,32 +923,32 @@ const styles = StyleSheet.create({
   quizHeroTitle: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#101828',
+    color: colors.textPrimary,
     marginBottom: 4,
   },
   quizHeroSubtitle: {
     fontSize: 15,
-    color: '#667085',
+    color: colors.textMuted,
   },
   questionCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 16,
     padding: 20,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: '#E4E7EC',
+    borderColor: colors.borderSubtle,
   },
   questionNumber: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#0B5FFF',
+    color: colors.primary,
     marginBottom: 8,
     textTransform: 'uppercase',
   },
   questionText: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#101828',
+    color: colors.textPrimary,
     marginBottom: 20,
     lineHeight: 26,
   },
@@ -958,23 +958,23 @@ const styles = StyleSheet.create({
   optionCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.surfaceSecondary,
     borderRadius: 12,
     padding: 16,
     borderWidth: 2,
-    borderColor: '#E4E7EC',
+    borderColor: colors.borderSubtle,
   },
   optionSelected: {
-    borderColor: '#0B5FFF',
-    backgroundColor: '#EBF4FF',
+    borderColor: colors.primary,
+    backgroundColor: colors.primaryLight,
   },
   optionCorrect: {
-    borderColor: '#16A34A',
-    backgroundColor: '#DCFCE7',
+    borderColor: colors.success,
+    backgroundColor: colors.successBg,
   },
   optionWrong: {
-    borderColor: '#DC2626',
-    backgroundColor: '#FEE2E2',
+    borderColor: colors.error,
+    backgroundColor: colors.errorBg,
   },
   optionEmoji: {
     fontSize: 24,
@@ -984,23 +984,23 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 16,
     fontWeight: '600',
-    color: '#344054',
+    color: colors.textSecondary,
   },
   optionTextCorrect: {
-    color: '#16A34A',
+    color: colors.success,
   },
   optionTextWrong: {
-    color: '#DC2626',
+    color: colors.error,
   },
   checkmark: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#16A34A',
+    color: colors.success,
   },
   crossmark: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#DC2626',
+    color: colors.error,
   },
   feedbackCard: {
     flexDirection: 'row',
@@ -1010,10 +1010,10 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   feedbackCorrect: {
-    backgroundColor: '#DCFCE7',
+    backgroundColor: colors.successBg,
   },
   feedbackWrong: {
-    backgroundColor: '#FEF3C7',
+    backgroundColor: colors.warningBg,
   },
   feedbackEmoji: {
     fontSize: 24,
@@ -1022,7 +1022,7 @@ const styles = StyleSheet.create({
   feedbackText: {
     flex: 1,
     fontSize: 14,
-    color: '#344054',
+    color: colors.textSecondary,
     lineHeight: 20,
   },
 });

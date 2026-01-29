@@ -6,6 +6,7 @@ import { api } from '../services/api';
 import { LoadingContext } from '../contexts/LoadingContext';
 import { useNetwork } from '../contexts/NetworkContext';
 import { getAccessToken } from '../services/authTokens';
+import { colors } from '../theme/tokens';
 
 type PaymentRouteParams = {
   Payment: {
@@ -93,12 +94,12 @@ export default function PaymentScreen({ route: propRoute }: PaymentScreenProps =
     const token = await getAccessToken();
     if (!token) {
       Alert.alert(
-        'Sign in required',
-        'Please sign in in Settings > Account & Sync before generating a payment code.',
+        t('payment.signInRequired'),
+        t('payment.signInRequiredDesc'),
         [
-          { text: 'Cancel', style: 'cancel' },
+          { text: t('settings.cancel'), style: 'cancel' },
           {
-            text: 'Go to Settings',
+            text: t('payment.goToSettings'),
             onPress: () => {
               try {
                 // Navigate to Settings tab inside MainTabs
@@ -138,11 +139,11 @@ export default function PaymentScreen({ route: propRoute }: PaymentScreenProps =
       setPaymentUrl(url);
 
       Alert.alert(
-        'Payment Ready',
-        `Your RRR: ${generatedRRR}\nAmount: ₦${amount.toFixed(2)}\n\nSecurely proceed to Remita to complete payment.`,
+        t('payment.paymentReady'),
+        t('payment.paymentReadyDesc', { rrr: generatedRRR, amount: amount.toFixed(2) }),
         [
           {
-            text: 'Cancel',
+            text: t('settings.cancel'),
             onPress: () => {
               setRrr(null);
               setPaymentUrl(null);
@@ -150,7 +151,7 @@ export default function PaymentScreen({ route: propRoute }: PaymentScreenProps =
             style: 'cancel'
           },
           {
-            text: 'Proceed to Payment',
+            text: t('payment.proceedToPayment'),
             onPress: async () => {
               try {
                 const { Linking } = await import('react-native');
@@ -193,12 +194,12 @@ export default function PaymentScreen({ route: propRoute }: PaymentScreenProps =
     const token = await getAccessToken();
     if (!token) {
       Alert.alert(
-        'Sign in required',
-        'Please sign in in Settings > Account & Sync before checking payment status.',
+        t('payment.signInRequired'),
+        t('payment.signInRequiredDesc'),
         [
-          { text: 'Cancel', style: 'cancel' },
+          { text: t('settings.cancel'), style: 'cancel' },
           {
-            text: 'Go to Settings',
+            text: t('payment.goToSettings'),
             onPress: () => {
               try {
                 (navigation as any).navigate('MainTabs', { screen: 'Settings' });
@@ -250,7 +251,7 @@ export default function PaymentScreen({ route: propRoute }: PaymentScreenProps =
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Tax Payment</Text>
+        <Text style={styles.title}>{t('payment.title')}</Text>
         <Text style={styles.subtitle}>via Remita</Text>
       </View>
 
@@ -265,13 +266,13 @@ export default function PaymentScreen({ route: propRoute }: PaymentScreenProps =
           </>
         )}
 
-        <Text style={styles.label}>Amount Due</Text>
+        <Text style={styles.label}>{t('payment.invoiceTotal')}</Text>
         <Text style={styles.amountValue}>₦{invoice.total.toFixed(2)}</Text>
       </View>
 
       {!rrr ? (
         <View style={styles.formSection}>
-          <Text style={styles.formTitle}>Payer Information</Text>
+          <Text style={styles.formTitle}>{t('payment.payerInfoTitle')}</Text>
 
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>{t('payment.payerName')} *</Text>
@@ -281,7 +282,7 @@ export default function PaymentScreen({ route: propRoute }: PaymentScreenProps =
               value={payerName}
               onChangeText={setPayerName}
               editable={!loading}
-              placeholderTextColor="#999"
+              placeholderTextColor={colors.textMuted}
             />
           </View>
 
@@ -294,7 +295,7 @@ export default function PaymentScreen({ route: propRoute }: PaymentScreenProps =
               onChangeText={setPayerEmail}
               keyboardType="email-address"
               editable={!loading}
-              placeholderTextColor="#999"
+              placeholderTextColor={colors.textMuted}
               autoCapitalize="none"
             />
           </View>
@@ -308,7 +309,7 @@ export default function PaymentScreen({ route: propRoute }: PaymentScreenProps =
               onChangeText={setPayerPhone}
               keyboardType="phone-pad"
               editable={!loading}
-              placeholderTextColor="#999"
+              placeholderTextColor={colors.textMuted}
             />
           </View>
 
@@ -318,30 +319,29 @@ export default function PaymentScreen({ route: propRoute }: PaymentScreenProps =
             disabled={loading}
           >
             {loading ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={colors.textOnPrimary} />
             ) : (
-              <Text style={styles.buttonText}>Generate Payment Code (RRR)</Text>
+              <Text style={styles.buttonText}>{t('payment.generateRRR')}</Text>
             )}
           </TouchableOpacity>
 
           <Text style={styles.disclaimer}>
-            By proceeding, you agree to pay the tax amount via Remita's secure payment gateway.
+            {t('payment.rrrDisclaimer')}
           </Text>
         </View>
       ) : (
         <View style={styles.successSection}>
           <View style={styles.rrrBox}>
-            <Text style={styles.rrrLabel}>Your Payment Code (RRR)</Text>
+            <Text style={styles.rrrLabel}>{t('payment.rrrLabel')}</Text>
             <Text style={styles.rrrValue}>{rrr}</Text>
-            <Text style={styles.rrrHint}>Keep this code for reference</Text>
+            <Text style={styles.rrrHint}>{t('payment.rrrHint')}</Text>
           </View>
 
           <View style={styles.instructionsBox}>
-            <Text style={styles.instructionsTitle}>Next Steps:</Text>
-            <Text style={styles.instructionStep}>1. Tap "Proceed to Payment" to go to Remita</Text>
-            <Text style={styles.instructionStep}>2. Pay via Bank Transfer, Card, or USSD</Text>
-            <Text style={styles.instructionStep}>3. Return to TaxBridge once payment is complete</Text>
-            <Text style={styles.instructionStep}>4. Tap "Check Payment Status" to confirm</Text>
+            <Text style={styles.instructionsTitle}>{t('payment.nextSteps')}</Text>
+            <Text style={styles.instructionStep}>1. {t('payment.nextStepRemita')}</Text>
+            <Text style={styles.instructionStep}>2. {t('payment.nextStepQuote')}</Text>
+            <Text style={styles.instructionStep}>3. {t('payment.nextStepReturn')}</Text>
           </View>
 
           <TouchableOpacity
@@ -350,9 +350,9 @@ export default function PaymentScreen({ route: propRoute }: PaymentScreenProps =
             disabled={loading}
           >
             {loading ? (
-              <ActivityIndicator color="#fff" />
+              <ActivityIndicator color={colors.textOnPrimary} />
             ) : (
-              <Text style={styles.buttonText}>Check Payment Status</Text>
+              <Text style={styles.buttonText}>{t('payment.checkStatus')}</Text>
             )}
           </TouchableOpacity>
 
@@ -377,7 +377,7 @@ export default function PaymentScreen({ route: propRoute }: PaymentScreenProps =
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.surfaceMuted,
     padding: 16
   },
   header: {
@@ -387,25 +387,25 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#000',
+    color: colors.textPrimary,
     marginBottom: 4
   },
   subtitle: {
     fontSize: 16,
-    color: '#667085',
+    color: colors.textMuted,
     fontWeight: '500'
   },
   invoiceInfo: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     padding: 16,
     borderRadius: 12,
     marginBottom: 24,
     borderWidth: 1,
-    borderColor: '#e4e7ec'
+    borderColor: colors.borderSubtle
   },
   label: {
     fontSize: 12,
-    color: '#667085',
+    color: colors.textMuted,
     fontWeight: '600',
     marginTop: 12,
     marginBottom: 4,
@@ -413,26 +413,26 @@ const styles = StyleSheet.create({
   },
   value: {
     fontSize: 16,
-    color: '#1d2939',
+    color: colors.textSecondary,
     fontWeight: '600'
   },
   amountValue: {
     fontSize: 24,
-    color: '#0b5fff',
+    color: colors.primary,
     fontWeight: '700',
     marginTop: 8
   },
   formSection: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#e4e7ec'
+    borderColor: colors.borderSubtle
   },
   formTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#1d2939',
+    color: colors.textSecondary,
     marginBottom: 16
   },
   inputGroup: {
@@ -441,17 +441,17 @@ const styles = StyleSheet.create({
   inputLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#344054',
+    color: colors.textSecondary,
     marginBottom: 8
   },
   input: {
-    backgroundColor: '#f2f4f7',
+    backgroundColor: colors.surfaceSecondary,
     borderWidth: 1,
-    borderColor: '#d0d5dd',
+    borderColor: colors.border,
     borderRadius: 8,
     padding: 12,
     fontSize: 14,
-    color: '#1d2939'
+    color: colors.textSecondary
   },
   button: {
     padding: 14,
@@ -461,23 +461,23 @@ const styles = StyleSheet.create({
     marginTop: 8
   },
   primaryButton: {
-    backgroundColor: '#0b5fff'
+    backgroundColor: colors.primary
   },
   secondaryButton: {
     borderWidth: 1,
-    borderColor: '#d0d5dd',
+    borderColor: colors.border,
     padding: 12,
     borderRadius: 8,
     alignItems: 'center',
     marginTop: 12
   },
   buttonText: {
-    color: '#fff',
+    color: colors.textOnPrimary,
     fontSize: 16,
     fontWeight: '600'
   },
   secondaryButtonText: {
-    color: '#0b5fff',
+    color: colors.primary,
     fontSize: 14,
     fontWeight: '600'
   },
@@ -486,29 +486,29 @@ const styles = StyleSheet.create({
   },
   disclaimer: {
     fontSize: 12,
-    color: '#667085',
+    color: colors.textMuted,
     marginTop: 16,
     fontStyle: 'italic',
     lineHeight: 18
   },
   successSection: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     padding: 16,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#e4e7ec'
+    borderColor: colors.borderSubtle
   },
   rrrBox: {
-    backgroundColor: '#f0f3ff',
+    backgroundColor: colors.primaryLight,
     padding: 16,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#0b5fff',
+    borderColor: colors.primary,
     marginBottom: 16
   },
   rrrLabel: {
     fontSize: 12,
-    color: '#667085',
+    color: colors.textMuted,
     fontWeight: '600',
     marginBottom: 8,
     textTransform: 'uppercase'
@@ -516,16 +516,16 @@ const styles = StyleSheet.create({
   rrrValue: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#0b5fff',
+    color: colors.primary,
     marginBottom: 4,
     fontFamily: 'monospace'
   },
   rrrHint: {
     fontSize: 12,
-    color: '#667085'
+    color: colors.textMuted
   },
   instructionsBox: {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: colors.surfaceMuted,
     padding: 12,
     borderRadius: 8,
     marginBottom: 16
@@ -533,12 +533,12 @@ const styles = StyleSheet.create({
   instructionsTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#1d2939',
+    color: colors.textSecondary,
     marginBottom: 8
   },
   instructionStep: {
     fontSize: 13,
-    color: '#344054',
+    color: colors.textSecondary,
     marginBottom: 6,
     lineHeight: 18
   }

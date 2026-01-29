@@ -7,11 +7,11 @@ export interface PITBand {
 }
 
 export const PIT_BANDS: PITBand[] = [
-  { limit: 800_000, rate: 0 },           // First ₦800k: 0%
-  { limit: 3_200_000, rate: 0.15 },      // Next ₦2.4M: 15%
-  { limit: 8_000_000, rate: 0.19 },      // Next ₦4.8M: 19%
-  { limit: 15_000_000, rate: 0.21 },     // Next ₦7M: 21%
-  { limit: Infinity, rate: 0.25 },       // Above ₦15M: 25%
+  { limit: 800_000, rate: 0 },           // ₦0 - ₦800,000: 0%
+  { limit: 3_200_000, rate: 0.15 },      // ₦800,001 - ₦3,200,000: 15%
+  { limit: 8_000_000, rate: 0.19 },      // ₦3,200,001 - ₦8,000,000: 19%
+  { limit: 15_000_000, rate: 0.21 },     // ₦8,000,001 - ₦15,000,000: 21%
+  { limit: Infinity, rate: 0.25 },       // Above ₦15,000,000: 25%
 ];
 
 export interface BandBreakdown {

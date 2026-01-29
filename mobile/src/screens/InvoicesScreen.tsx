@@ -315,7 +315,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   filterBadgeActive: {
-    backgroundColor: 'rgba(255,255,255,0.3)',
+    backgroundColor: colors.overlayLightStrong,
   },
   filterBadgeError: {
     backgroundColor: colors.errorBg,

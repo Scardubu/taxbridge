@@ -9,6 +9,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { useOnboarding } from '../../contexts/OnboardingContext';
 import { checkVATThreshold, checkCITRate } from '../../utils/taxCalculator';
+import { colors, shadows } from '../../theme/tokens';
 
 interface Props {
   onNext: () => void;
@@ -99,9 +100,9 @@ export default function VATCITAwarenessStep({ onNext, onSkip }: Props) {
                 <View
                   style={[
                     styles.sliderFill,
+                    vatStatus.requiresRegistration ? styles.sliderFillError : styles.sliderFillSuccess,
                     {
                       width: `${Math.min(vatStatus.percentageOfThreshold, 100)}%`,
-                      backgroundColor: vatStatus.requiresRegistration ? '#DC2626' : '#10B981',
                     },
                   ]}
                 />
@@ -125,17 +126,13 @@ export default function VATCITAwarenessStep({ onNext, onSkip }: Props) {
             <View
               style={[
                 styles.statusBadge,
-                {
-                  backgroundColor: vatStatus.requiresRegistration ? '#FEE2E2' : '#DCFCE7',
-                },
+                vatStatus.requiresRegistration ? styles.statusBadgeError : styles.statusBadgeSuccess,
               ]}
             >
               <Text
                 style={[
                   styles.statusText,
-                  {
-                    color: vatStatus.requiresRegistration ? '#DC2626' : '#16A34A',
-                  },
+                  vatStatus.requiresRegistration ? styles.statusTextError : styles.statusTextSuccess,
                 ]}
               >
                 {vatStatus.status}
@@ -227,22 +224,22 @@ export default function VATCITAwarenessStep({ onNext, onSkip }: Props) {
               
               <View style={styles.flowBranch}>
                 <View style={styles.flowLeft}>
-                  <View style={[styles.flowNode, styles.flowNodeSmall, { backgroundColor: '#EBF4FF' }]}>
+                <View style={[styles.flowNode, styles.flowNodeSmall, styles.flowNodeInfoLight]}>
                     <Text style={styles.flowNodeTextSmall}>{t('onboarding.vatcit.soleProp')}</Text>
                   </View>
                   <View style={styles.flowArrow} />
-                  <View style={[styles.flowNode, styles.flowNodeResult, { backgroundColor: '#DCFCE7' }]}>
+                  <View style={[styles.flowNode, styles.flowNodeResult, styles.flowNodeSuccessLight]}>
                     <Text style={styles.flowNodeResultText}>PIT</Text>
                     <Text style={styles.flowNodeResultSubtext}>0-25%</Text>
                   </View>
                 </View>
                 
                 <View style={styles.flowRight}>
-                  <View style={[styles.flowNode, styles.flowNodeSmall, { backgroundColor: '#FFF7ED' }]}>
+                <View style={[styles.flowNode, styles.flowNodeSmall, styles.flowNodeWarningLight]}>
                     <Text style={styles.flowNodeTextSmall}>{t('onboarding.vatcit.incorporated')}</Text>
                   </View>
                   <View style={styles.flowArrow} />
-                  <View style={[styles.flowNode, styles.flowNodeResult, { backgroundColor: '#FEF3C7' }]}>
+                  <View style={[styles.flowNode, styles.flowNodeResult, styles.flowNodeCautionLight]}>
                     <Text style={styles.flowNodeResultText}>CIT</Text>
                     <Text style={styles.flowNodeResultSubtext}>0-30%</Text>
                   </View>
@@ -366,19 +363,19 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#101828',
+    color: colors.textPrimary,
     marginBottom: 8,
     marginTop: 20,
   },
   subtitle: {
     fontSize: 16,
-    color: '#667085',
+    color: colors.textMuted,
     marginBottom: 24,
     lineHeight: 24,
   },
   tabContainer: {
     flexDirection: 'row',
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.surfaceSecondary,
     borderRadius: 8,
     padding: 4,
     marginBottom: 20,
@@ -398,32 +395,30 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   tabActive: {
-    backgroundColor: '#FFFFFF',
-    elevation: 2,
-    // @ts-ignore - boxShadow for web compatibility
-    boxShadow: '0px 1px 2px rgba(0, 0, 0, 0.1)',
+    backgroundColor: colors.surface,
+    ...shadows.sm,
   },
   tabText: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#667085',
+    color: colors.textMuted,
   },
   tabTextActive: {
-    color: '#0B5FFF',
+    color: colors.primary,
     fontWeight: '600',
   },
   card: {
-    backgroundColor: '#F9FAFB',
+    backgroundColor: colors.surfaceSecondary,
     borderRadius: 12,
     padding: 20,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: '#E4E7EC',
+    borderColor: colors.border,
   },
   cardTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#101828',
+    color: colors.textPrimary,
     marginBottom: 16,
   },
   sliderContainer: {
@@ -431,13 +426,19 @@ const styles = StyleSheet.create({
   },
   sliderTrack: {
     height: 12,
-    backgroundColor: '#E4E7EC',
+    backgroundColor: colors.border,
     borderRadius: 6,
     overflow: 'hidden',
   },
   sliderFill: {
     height: '100%',
     borderRadius: 6,
+  },
+  sliderFillError: {
+    backgroundColor: colors.error,
+  },
+  sliderFillSuccess: {
+    backgroundColor: colors.success,
   },
   sliderLabels: {
     flexDirection: 'row',
@@ -446,7 +447,7 @@ const styles = StyleSheet.create({
   },
   sliderLabel: {
     fontSize: 12,
-    color: '#667085',
+    color: colors.textMuted,
     fontWeight: '500',
   },
   sliderMarker: {
@@ -459,14 +460,14 @@ const styles = StyleSheet.create({
     width: 16,
     height: 16,
     borderRadius: 8,
-    backgroundColor: '#0B5FFF',
+    backgroundColor: colors.primary,
     borderWidth: 3,
-    borderColor: '#FFFFFF',
+    borderColor: colors.surface,
   },
   markerText: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#0B5FFF',
+    color: colors.primary,
     marginTop: 4,
   },
   statusBadge: {
@@ -476,18 +477,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
   },
+  statusBadgeError: {
+    backgroundColor: colors.errorBg,
+  },
+  statusBadgeSuccess: {
+    backgroundColor: colors.successBg,
+  },
   statusText: {
     fontSize: 14,
     fontWeight: '600',
   },
+  statusTextError: {
+    color: colors.error,
+  },
+  statusTextSuccess: {
+    color: colors.success,
+  },
   disclaimerText: {
     fontSize: 12,
-    color: '#667085',
+    color: colors.textMuted,
     marginBottom: 20,
     fontStyle: 'italic',
   },
   explanationBox: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 8,
     padding: 16,
     marginTop: 12,
@@ -495,12 +508,12 @@ const styles = StyleSheet.create({
   explanationTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#101828',
+    color: colors.textPrimary,
     marginBottom: 8,
   },
   explanationText: {
     fontSize: 13,
-    color: '#667085',
+    color: colors.textMuted,
     lineHeight: 20,
     marginBottom: 12,
   },
@@ -509,27 +522,27 @@ const styles = StyleSheet.create({
   },
   bulletItem: {
     fontSize: 13,
-    color: '#667085',
+    color: colors.textMuted,
     lineHeight: 20,
   },
   alertBox: {
-    backgroundColor: '#FFF7ED',
+    backgroundColor: colors.warningBg,
     borderRadius: 8,
     padding: 12,
     borderWidth: 1,
-    borderColor: '#F59E0B',
+    borderColor: colors.warning,
     marginTop: 12,
   },
   alertText: {
     fontSize: 13,
-    color: '#92400E',
+    color: colors.warningDark,
     fontWeight: '500',
   },
   flowchart: {
     marginBottom: 20,
   },
   flowNode: {
-    backgroundColor: '#EBF4FF',
+    backgroundColor: colors.primaryLight,
     borderRadius: 8,
     padding: 16,
     alignItems: 'center',
@@ -538,7 +551,19 @@ const styles = StyleSheet.create({
   flowNodeText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#0B5FFF',
+    color: colors.primary,
+  },
+  flowNodeInfoLight: {
+    backgroundColor: colors.primaryLight,
+  },
+  flowNodeSuccessLight: {
+    backgroundColor: colors.successBg,
+  },
+  flowNodeWarningLight: {
+    backgroundColor: colors.warningBg,
+  },
+  flowNodeCautionLight: {
+    backgroundColor: colors.warningBgLight,
   },
   flowBranch: {
     flexDirection: 'row',
@@ -560,13 +585,13 @@ const styles = StyleSheet.create({
   flowNodeTextSmall: {
     fontSize: 12,
     fontWeight: '500',
-    color: '#344054',
+    color: colors.textSecondary,
     textAlign: 'center',
   },
   flowArrow: {
     width: 2,
     height: 20,
-    backgroundColor: '#D0D5DD',
+    backgroundColor: colors.borderSubtle,
     marginVertical: 8,
   },
   flowNodeResult: {
@@ -575,17 +600,17 @@ const styles = StyleSheet.create({
   flowNodeResultText: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#101828',
+    color: colors.textPrimary,
     textAlign: 'center',
   },
   flowNodeResultSubtext: {
     fontSize: 12,
-    color: '#667085',
+    color: colors.textMuted,
     marginTop: 4,
     textAlign: 'center',
   },
   tableContainer: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 8,
     padding: 16,
     marginBottom: 16,
@@ -593,14 +618,14 @@ const styles = StyleSheet.create({
   tableTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#101828',
+    color: colors.textPrimary,
     marginBottom: 12,
   },
   tableRow: {
     flexDirection: 'row',
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#E4E7EC',
+    borderBottomColor: colors.border,
   },
   tableRowData: {
     borderBottomWidth: 0,
@@ -609,15 +634,15 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 12,
     fontWeight: '600',
-    color: '#667085',
+    color: colors.textMuted,
   },
   tableCellData: {
     flex: 1,
     fontSize: 13,
-    color: '#344054',
+    color: colors.textSecondary,
   },
   statusCard: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 8,
     padding: 16,
     marginBottom: 16,
@@ -625,31 +650,31 @@ const styles = StyleSheet.create({
   statusCardTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#101828',
+    color: colors.textPrimary,
     marginBottom: 8,
   },
   statusCardText: {
     fontSize: 13,
-    color: '#344054',
+    color: colors.textSecondary,
     marginBottom: 4,
   },
   statusCardDescription: {
     fontSize: 12,
-    color: '#667085',
+    color: colors.textMuted,
     marginTop: 8,
     fontStyle: 'italic',
   },
   quizCard: {
-    backgroundColor: '#FFF7ED',
+    backgroundColor: colors.warningBg,
     borderRadius: 12,
     padding: 20,
     marginBottom: 20,
     borderWidth: 1,
-    borderColor: '#F59E0B33',
+    borderColor: colors.warningBorder,
   },
   quizQuestion: {
     fontSize: 14,
-    color: '#344054',
+    color: colors.textSecondary,
     marginBottom: 16,
     lineHeight: 20,
   },
@@ -657,38 +682,38 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   quizOption: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     padding: 16,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#E4E7EC',
+    borderColor: colors.border,
   },
   quizOptionSelected: {
-    borderColor: '#F59E0B',
-    backgroundColor: '#FFF7ED',
+    borderColor: colors.warning,
+    backgroundColor: colors.warningBg,
   },
   quizOptionCorrect: {
-    borderColor: '#16A34A',
-    backgroundColor: '#DCFCE7',
+    borderColor: colors.success,
+    backgroundColor: colors.successBg,
   },
   quizOptionWrong: {
-    borderColor: '#DC2626',
-    backgroundColor: '#FEE2E2',
+    borderColor: colors.error,
+    backgroundColor: colors.errorBg,
   },
   quizOptionText: {
     fontSize: 14,
-    color: '#344054',
+    color: colors.textSecondary,
     fontWeight: '500',
   },
   quizFeedback: {
     marginTop: 12,
     padding: 12,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     borderRadius: 8,
   },
   quizFeedbackText: {
     fontSize: 13,
-    color: '#344054',
+    color: colors.textSecondary,
     lineHeight: 20,
   },
   buttonContainer: {
@@ -702,16 +727,16 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#E4E7EC',
+    borderColor: colors.border,
   },
   skipButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#667085',
+    color: colors.textMuted,
   },
   continueButton: {
     flex: 1,
-    backgroundColor: '#0B5FFF',
+    backgroundColor: colors.primary,
     paddingVertical: 16,
     borderRadius: 8,
     alignItems: 'center',
@@ -722,11 +747,11 @@ const styles = StyleSheet.create({
   continueButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: colors.surface,
   },
   timeEstimate: {
     fontSize: 12,
-    color: '#667085',
+    color: colors.textMuted,
     textAlign: 'center',
     marginTop: 16,
     marginBottom: 20,

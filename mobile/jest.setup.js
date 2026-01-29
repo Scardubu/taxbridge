@@ -435,3 +435,83 @@ jest.mock('@react-navigation/bottom-tabs', () => ({
     Screen: ({ children }) => children,
   })),
 }));
+
+// Mock expo-device for deviceSync service
+jest.mock('expo-device', () => ({
+  brand: 'MockBrand',
+  manufacturer: 'MockManufacturer',
+  modelName: 'MockModel',
+  deviceName: 'MockDevice',
+  osName: 'iOS',
+  osVersion: '14.0',
+  osBuildId: 'MockBuildId',
+  deviceYearClass: 2020,
+  totalMemory: 4000000000,
+  supportedCpuArchitectures: ['arm64'],
+  deviceType: 1,
+}));
+
+// Mock expo-application for deviceSync service
+jest.mock('expo-application', () => ({
+  nativeApplicationVersion: '1.0.0',
+  nativeBuildVersion: '1',
+  applicationName: 'TaxBridge',
+  applicationId: 'ng.taxbridge.app',
+  getAndroidId: jest.fn(() => 'mock-android-id'),
+  getIosIdForVendorAsync: jest.fn(async () => 'mock-ios-vendor-id'),
+}));
+
+// Mock react-native-svg for charts/graphics
+jest.mock('react-native-svg', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+
+  // Create mock component factory
+  const mockSvgComponent = (name) => {
+    const MockComp = React.forwardRef((props, ref) => {
+      return React.createElement(View, { ...props, ref }, props.children);
+    });
+    MockComp.displayName = name;
+    return MockComp;
+  };
+
+  return {
+    __esModule: true,
+    default: mockSvgComponent('Svg'),
+    Svg: mockSvgComponent('Svg'),
+    Circle: mockSvgComponent('Circle'),
+    Ellipse: mockSvgComponent('Ellipse'),
+    G: mockSvgComponent('G'),
+    Text: mockSvgComponent('SvgText'),
+    TSpan: mockSvgComponent('TSpan'),
+    TextPath: mockSvgComponent('TextPath'),
+    Path: mockSvgComponent('Path'),
+    Polygon: mockSvgComponent('Polygon'),
+    Polyline: mockSvgComponent('Polyline'),
+    Line: mockSvgComponent('Line'),
+    Rect: mockSvgComponent('Rect'),
+    Use: mockSvgComponent('Use'),
+    Image: mockSvgComponent('SvgImage'),
+    Symbol: mockSvgComponent('Symbol'),
+    Defs: mockSvgComponent('Defs'),
+    LinearGradient: mockSvgComponent('LinearGradient'),
+    RadialGradient: mockSvgComponent('RadialGradient'),
+    Stop: mockSvgComponent('Stop'),
+    ClipPath: mockSvgComponent('ClipPath'),
+    Pattern: mockSvgComponent('Pattern'),
+    Mask: mockSvgComponent('Mask'),
+  };
+});
+
+// Mock jwt-decode for deviceSync token parsing
+jest.mock('jwt-decode', () => ({
+  __esModule: true,
+  default: jest.fn((token) => {
+    // Return mock decoded JWT payload
+    return {
+      userId: 'mock-user-id',
+      exp: Date.now() / 1000 + 3600,
+      iat: Date.now() / 1000,
+    };
+  }),
+}));

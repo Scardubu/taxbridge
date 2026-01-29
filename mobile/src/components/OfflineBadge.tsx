@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { colors, spacing, typography, radii } from '../theme/tokens';
 
 export default function OfflineBadge({ online }: { online: boolean }) {
   const { t } = useTranslation();
@@ -18,25 +19,25 @@ export default function OfflineBadge({ online }: { online: boolean }) {
 const styles = StyleSheet.create({
   wrap: {
     position: 'absolute',
-    top: 12,
-    right: 12,
-    backgroundColor: '#FEE4E2',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 20,
+    top: spacing.sm,
+    right: spacing.sm,
+    backgroundColor: colors.errorBg,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: radii.full,
     borderWidth: 1,
-    borderColor: '#FECACA',
+    borderColor: colors.errorBorder,
     zIndex: 20,
     flexDirection: 'row',
     alignItems: 'center',
   },
   icon: {
-    fontSize: 14,
-    marginRight: 6,
+    fontSize: typography.size.sm,
+    marginRight: spacing.xs,
   },
   text: { 
-    color: '#B42318', 
-    fontWeight: '700',
-    fontSize: 12,
+    color: colors.errorDark, 
+    fontWeight: typography.weight.bold as any,
+    fontSize: typography.size.xs,
   },
 });

@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useOnboarding } from '../../contexts/OnboardingContext';
+import { colors, spacing, radii, typography } from '../../theme/tokens';
 
 interface Props {
   onNext: () => void;
@@ -95,8 +96,8 @@ export default function GamificationStep({ onNext, onSkip }: Props) {
           <Switch
             value={enableGamification}
             onValueChange={setEnableGamification}
-            trackColor={{ false: '#E4E7EC', true: '#0B5FFF' }}
-            thumbColor="#FFFFFF"
+            trackColor={{ false: colors.borderSubtle, true: colors.primary }}
+            thumbColor={colors.surface}
           />
         </View>
 
@@ -114,8 +115,8 @@ export default function GamificationStep({ onNext, onSkip }: Props) {
               <Switch
                 value={enableLeaderboard}
                 onValueChange={setEnableLeaderboard}
-                trackColor={{ false: '#E4E7EC', true: '#0B5FFF' }}
-                thumbColor="#FFFFFF"
+                trackColor={{ false: colors.borderSubtle, true: colors.primary }}
+                thumbColor={colors.surface}
               />
             </View>
 
@@ -131,8 +132,8 @@ export default function GamificationStep({ onNext, onSkip }: Props) {
               <Switch
                 value={enableReminders}
                 onValueChange={setEnableReminders}
-                trackColor={{ false: '#E4E7EC', true: '#0B5FFF' }}
-                thumbColor="#FFFFFF"
+                trackColor={{ false: colors.borderSubtle, true: colors.primary }}
+                thumbColor={colors.surface}
               />
             </View>
           </>
@@ -200,224 +201,224 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#101828',
-    marginBottom: 8,
-    marginTop: 20,
+    fontSize: typography.size.xxl + 2,
+    fontWeight: typography.weight.bold,
+    color: colors.textPrimary,
+    marginBottom: spacing.sm,
+    marginTop: spacing.xl,
   },
   subtitle: {
-    fontSize: 16,
-    color: '#667085',
-    marginBottom: 24,
+    fontSize: typography.size.md,
+    color: colors.textMuted,
+    marginBottom: spacing.xxl,
     lineHeight: 24,
   },
   card: {
-    backgroundColor: '#F9FAFB',
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 20,
+    backgroundColor: colors.surfaceSecondary,
+    borderRadius: radii.md,
+    padding: spacing.xl,
+    marginBottom: spacing.xl,
     borderWidth: 1,
-    borderColor: '#E4E7EC',
+    borderColor: colors.borderSubtle,
   },
   cardTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#101828',
-    marginBottom: 16,
+    fontSize: typography.size.lg,
+    fontWeight: typography.weight.bold,
+    color: colors.textPrimary,
+    marginBottom: spacing.lg,
   },
   progressBar: {
-    marginBottom: 20,
+    marginBottom: spacing.xl,
   },
   progressTrack: {
     height: 8,
-    backgroundColor: '#E4E7EC',
-    borderRadius: 4,
+    backgroundColor: colors.borderSubtle,
+    borderRadius: radii.sm / 2,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#0B5FFF',
-    borderRadius: 4,
+    backgroundColor: colors.primary,
+    borderRadius: radii.sm / 2,
   },
   progressText: {
-    marginTop: 8,
-    fontSize: 14,
-    color: '#667085',
+    marginTop: spacing.sm,
+    fontSize: typography.size.sm,
+    color: colors.textMuted,
     textAlign: 'center',
-    fontWeight: '500',
+    fontWeight: typography.weight.medium,
   },
   achievementsScroll: {
-    marginHorizontal: -20,
-    paddingHorizontal: 20,
+    marginHorizontal: -spacing.xl,
+    paddingHorizontal: spacing.xl,
   },
   achievementCard: {
     width: 140,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 8,
-    padding: 12,
-    marginRight: 12,
+    backgroundColor: colors.surface,
+    borderRadius: radii.sm,
+    padding: spacing.md,
+    marginRight: spacing.md,
     borderWidth: 1,
-    borderColor: '#E4E7EC',
+    borderColor: colors.borderSubtle,
     opacity: 0.6,
   },
   achievementCardUnlocked: {
-    borderColor: '#0B5FFF',
+    borderColor: colors.primary,
     opacity: 1,
   },
   achievementIcon: {
     fontSize: 32,
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   achievementName: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#101828',
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.semibold,
+    color: colors.textPrimary,
     textAlign: 'center',
-    marginBottom: 4,
+    marginBottom: spacing.xs,
   },
   achievementDescription: {
     fontSize: 10,
-    color: '#667085',
+    color: colors.textMuted,
     textAlign: 'center',
     lineHeight: 14,
   },
   unlockedBadge: {
-    marginTop: 8,
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    backgroundColor: '#DCFCE7',
-    borderRadius: 4,
+    marginTop: spacing.sm,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    backgroundColor: colors.successBg,
+    borderRadius: radii.sm / 2,
   },
   unlockedText: {
     fontSize: 10,
-    fontWeight: '600',
-    color: '#16A34A',
+    fontWeight: typography.weight.semibold,
+    color: colors.brandGreen600,
     textAlign: 'center',
   },
   toggleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 12,
+    paddingVertical: spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: '#E4E7EC',
+    borderBottomColor: colors.borderSubtle,
   },
   toggleRowIndented: {
-    paddingLeft: 16,
+    paddingLeft: spacing.lg,
   },
   toggleInfo: {
     flex: 1,
-    marginRight: 12,
+    marginRight: spacing.md,
   },
   toggleTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#101828',
-    marginBottom: 4,
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.semibold,
+    color: colors.textPrimary,
+    marginBottom: spacing.xs,
   },
   toggleDescription: {
-    fontSize: 12,
-    color: '#667085',
+    fontSize: typography.size.xs,
+    color: colors.textMuted,
     lineHeight: 16,
   },
   privacyCard: {
-    backgroundColor: '#EBF4FF',
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 20,
+    backgroundColor: colors.primaryLight,
+    borderRadius: radii.md,
+    padding: spacing.xl,
+    marginBottom: spacing.xl,
     borderWidth: 1,
-    borderColor: '#0B5FFF33',
+    borderColor: colors.primaryBorder,
   },
   privacyTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#101828',
-    marginBottom: 12,
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.bold,
+    color: colors.textPrimary,
+    marginBottom: spacing.md,
   },
   privacyText: {
-    fontSize: 14,
-    color: '#344054',
+    fontSize: typography.size.sm,
+    color: colors.textSecondary,
     lineHeight: 20,
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
   bulletList: {
-    gap: 8,
+    gap: spacing.sm,
   },
   bulletItem: {
-    fontSize: 13,
-    color: '#667085',
+    fontSize: typography.size.sm - 1,
+    color: colors.textMuted,
     lineHeight: 18,
   },
   streakPreview: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 12,
+    backgroundColor: colors.surface,
+    borderRadius: radii.sm,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
   },
   streakEmoji: {
     fontSize: 48,
-    marginRight: 16,
+    marginRight: spacing.lg,
   },
   streakInfo: {
     flex: 1,
   },
   streakCount: {
     fontSize: 24,
-    fontWeight: '700',
-    color: '#101828',
+    fontWeight: typography.weight.bold,
+    color: colors.textPrimary,
   },
   streakLabel: {
-    fontSize: 12,
-    color: '#667085',
-    marginTop: 4,
+    fontSize: typography.size.xs,
+    color: colors.textMuted,
+    marginTop: spacing.xs,
   },
   streakDescription: {
-    fontSize: 13,
-    color: '#667085',
+    fontSize: typography.size.sm - 1,
+    color: colors.textMuted,
     lineHeight: 18,
   },
   buttonContainer: {
     flexDirection: 'row',
-    gap: 12,
-    marginTop: 12,
+    gap: spacing.md,
+    marginTop: spacing.md,
   },
   skipButton: {
     flex: 1,
-    paddingVertical: 16,
-    borderRadius: 8,
+    paddingVertical: spacing.lg,
+    borderRadius: radii.sm,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#E4E7EC',
+    borderColor: colors.borderSubtle,
   },
   skipButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#667085',
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.semibold,
+    color: colors.textMuted,
   },
   continueButton: {
     flex: 1,
-    backgroundColor: '#0B5FFF',
-    paddingVertical: 16,
-    borderRadius: 8,
+    backgroundColor: colors.primary,
+    paddingVertical: spacing.lg,
+    borderRadius: radii.sm,
     alignItems: 'center',
   },
   continueButtonFull: {
     flex: 1,
   },
   continueButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#FFFFFF',
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.semibold,
+    color: colors.textOnPrimary,
   },
   timeEstimate: {
-    fontSize: 12,
-    color: '#667085',
+    fontSize: typography.size.xs,
+    color: colors.textMuted,
     textAlign: 'center',
-    marginTop: 16,
-    marginBottom: 20,
+    marginTop: spacing.lg,
+    marginBottom: spacing.xl,
   },
 });

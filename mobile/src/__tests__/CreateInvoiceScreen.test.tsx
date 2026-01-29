@@ -51,12 +51,12 @@ describe('CreateInvoiceScreen', () => {
     expect(getByText('create.title')).toBeTruthy();
     expect(getByText('create.customer')).toBeTruthy();
     
-    // Customer placeholder should be visible
-    const customerInput = getByPlaceholderText('e.g. Aisha Mohammed');
+    // Customer placeholder should be visible (i18n key)
+    const customerInput = getByPlaceholderText('create.customerPlaceholder');
     expect(customerInput).toBeTruthy();
     
-    // Continue button should be present
-    expect(getByText('Continue to Items →')).toBeTruthy();
+    // Continue button should be present (i18n key)
+    expect(getByText('common.continueItems')).toBeTruthy();
   });
 
   it('navigates through wizard steps', async () => {
@@ -66,15 +66,14 @@ describe('CreateInvoiceScreen', () => {
     // Start on Step 1: Customer
     expect(getByText('create.customer')).toBeTruthy();
     
-    // Navigate to Step 2: Items
+    // Navigate to Step 2: Items (i18n key)
     await act(async () => {
-      fireEvent.press(getByText('Continue to Items →'));
+      fireEvent.press(getByText('common.continueItems'));
     });
 
-    // Step 2 should show item input fields
+    // Step 2 should show item input fields (i18n placeholder key)
     await waitFor(() => {
-      // Check for item-related content (description placeholder)
-      expect(getByPlaceholderText('e.g. Rice bag (50kg)')).toBeTruthy();
+      expect(getByPlaceholderText('common.itemPlaceholder')).toBeTruthy();
     });
   });
 
@@ -82,24 +81,24 @@ describe('CreateInvoiceScreen', () => {
     const navigation: any = { navigate: jest.fn() };
     const { getByText, getByPlaceholderText, getByTestId, queryAllByTestId } = render(<CreateInvoiceScreen navigation={navigation} />);
 
-    // Navigate to Items step
+    // Navigate to Items step (i18n key)
     await act(async () => {
-      fireEvent.press(getByText('Continue to Items →'));
+      fireEvent.press(getByText('common.continueItems'));
     });
 
     await waitFor(() => {
-      expect(getByPlaceholderText('e.g. Rice bag (50kg)')).toBeTruthy();
+      expect(getByPlaceholderText('common.itemPlaceholder')).toBeTruthy();
     });
 
-    // Fill in item details
-    const descInput = getByPlaceholderText('e.g. Rice bag (50kg)');
+    // Fill in item details (i18n placeholder key)
+    const descInput = getByPlaceholderText('common.itemPlaceholder');
     
     await act(async () => {
       fireEvent.changeText(descInput, 'Rice');
     });
 
-    // Add item button should work
-    const addItemButton = getByTestId('button-+ Add Item');
+    // Add item button should work (i18n key)
+    const addItemButton = getByTestId('button-common.addItem');
     expect(addItemButton).toBeTruthy();
   });
 });

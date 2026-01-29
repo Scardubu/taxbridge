@@ -20,6 +20,8 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { captureException, addBreadcrumb } from '../services/sentry';
+import { colors, spacing, radii, typography } from '../theme/tokens';
+import i18n from '../i18n';
 
 interface Props {
   children: ReactNode;
@@ -90,15 +92,14 @@ export class ErrorBoundary extends Component<Props, State> {
         <SafeAreaView style={styles.container}>
           <View style={styles.content}>
             <Text style={styles.emoji}>😔</Text>
-            <Text style={styles.title}>Something went wrong</Text>
+            <Text style={styles.title}>{i18n.t('errors.boundary.title')}</Text>
             <Text style={styles.subtitle}>
-              We&apos;re sorry for the inconvenience. The error has been reported
-              and we&apos;ll fix it as soon as possible.
+              {i18n.t('errors.boundary.subtitle')}
             </Text>
 
             {__DEV__ && error && (
               <View style={styles.errorBox}>
-                <Text style={styles.errorTitle}>Error Details:</Text>
+                <Text style={styles.errorTitle}>{i18n.t('errors.boundary.details')}</Text>
                 <Text style={styles.errorText} numberOfLines={5}>
                   {error.message}
                 </Text>
@@ -106,11 +107,11 @@ export class ErrorBoundary extends Component<Props, State> {
             )}
 
             <TouchableOpacity style={styles.button} onPress={this.handleRetry}>
-              <Text style={styles.buttonText}>Try Again</Text>
+              <Text style={styles.buttonText}>{i18n.t('errors.boundary.tryAgain')}</Text>
             </TouchableOpacity>
 
             <Text style={styles.hint}>
-              If the problem persists, try closing and reopening the app.
+              {i18n.t('errors.boundary.hint')}
             </Text>
           </View>
         </SafeAreaView>
@@ -124,67 +125,67 @@ export class ErrorBoundary extends Component<Props, State> {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
   },
   content: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
+    padding: spacing.lg,
   },
   emoji: {
     fontSize: 64,
-    marginBottom: 16,
+    marginBottom: spacing.md,
   },
   title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#101828',
-    marginBottom: 8,
+    fontSize: typography.size.xl,
+    fontWeight: typography.weight.bold as any,
+    color: colors.textPrimary,
+    marginBottom: spacing.xs,
     textAlign: 'center',
   },
   subtitle: {
-    fontSize: 16,
-    color: '#667085',
+    fontSize: typography.size.md,
+    color: colors.textMuted,
     textAlign: 'center',
     lineHeight: 24,
-    marginBottom: 24,
+    marginBottom: spacing.lg,
     maxWidth: 300,
   },
   errorBox: {
-    backgroundColor: '#FEF3F2',
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 24,
+    backgroundColor: colors.errorBgSubtle,
+    borderRadius: radii.md,
+    padding: spacing.md,
+    marginBottom: spacing.lg,
     width: '100%',
     maxWidth: 300,
   },
   errorTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#B42318',
-    marginBottom: 8,
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.semibold as any,
+    color: colors.errorDark,
+    marginBottom: spacing.xs,
   },
   errorText: {
-    fontSize: 12,
+    fontSize: typography.size.xs,
     fontFamily: 'monospace',
-    color: '#D92D20',
+    color: colors.error,
   },
   button: {
-    backgroundColor: '#0B5FFF',
-    paddingHorizontal: 32,
-    paddingVertical: 14,
-    borderRadius: 8,
-    marginBottom: 16,
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.sm,
+    borderRadius: radii.md,
+    marginBottom: spacing.md,
   },
   buttonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
+    color: colors.textOnPrimary,
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.semibold as any,
   },
   hint: {
-    fontSize: 14,
-    color: '#98A2B3',
+    fontSize: typography.size.sm,
+    color: colors.disabled,
     textAlign: 'center',
   },
 });

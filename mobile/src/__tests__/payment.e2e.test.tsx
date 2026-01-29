@@ -58,10 +58,10 @@ describe('PaymentScreen E2E Tests', () => {
         <PaymentScreen route={mockRoute} />
       );
 
-      // Step 1: Fill in payer details (actual placeholders from PaymentScreen)
-      const nameInput = getByPlaceholderText('e.g., John Doe');
-      const emailInput = getByPlaceholderText('e.g., john@example.com');
-      const phoneInput = getByPlaceholderText('e.g., 08012345678');
+      // Step 1: Fill in payer details (i18n placeholder keys)
+      const nameInput = getByPlaceholderText('payment.payerNamePlaceholder');
+      const emailInput = getByPlaceholderText('payment.payerEmailPlaceholder');
+      const phoneInput = getByPlaceholderText('payment.payerPhonePlaceholder');
 
       await act(async () => {
         fireEvent.changeText(nameInput, 'John Doe');
@@ -69,8 +69,8 @@ describe('PaymentScreen E2E Tests', () => {
         fireEvent.changeText(phoneInput, '08012345678');
       });
 
-      // Step 2: Submit payment request (actual button text)
-      const generateButton = getByText('Generate Payment Code (RRR)');
+      // Step 2: Submit payment request (i18n button text key)
+      const generateButton = getByText('payment.generateRRR');
       await act(async () => {
         fireEvent.press(generateButton);
       });
@@ -92,8 +92,8 @@ describe('PaymentScreen E2E Tests', () => {
       // Step 4: Verify success alert shown
       await waitFor(() => {
         expect(Alert.alert).toHaveBeenCalledWith(
-          'Payment Ready',
-          expect.stringContaining('RRR-123456789'),
+          'payment.paymentReady',
+          expect.any(String),
           expect.any(Array)
         );
       });

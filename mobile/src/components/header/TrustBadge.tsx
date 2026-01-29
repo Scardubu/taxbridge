@@ -25,7 +25,7 @@ const toneStyles: Record<BadgeTone, { bg: string; text: string; border: string }
   indigo: {
     bg: colors.brandIndigoBg,
     text: colors.brandIndigo,
-    border: '#C7D2FE',
+    border: colors.brandIndigoBorder,
   },
   yellow: {
     bg: colors.warningBg,

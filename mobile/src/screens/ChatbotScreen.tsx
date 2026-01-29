@@ -12,17 +12,19 @@ import {
   Pressable
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { colors } from '../theme/tokens';
+
 
 // Optional imports - these may not be installed
 // @ts-ignore - Icon may not be installed
-let Icon: any = null;
+let Icon: React.ComponentType<any> | null = null;
 try {
   // @ts-ignore
   Icon = require('react-native-vector-icons/MaterialIcons').default;
 } catch { /* not installed */ }
 
 // @ts-ignore - Voice may not be installed
-let Voice: any = null;
+let Voice: any | null = null;
 try {
   // @ts-ignore
   Voice = require('@react-native-voice/voice').default;
@@ -34,7 +36,7 @@ interface Message {
   isUser: boolean;
   timestamp: Date;
   apiAction?: string;
-  apiData?: any;
+  apiData?: Record<string, any>;
 }
 
 interface ChatbotScreenProps {
@@ -181,7 +183,7 @@ export default function ChatbotScreen({ navigation, userId }: ChatbotScreenProps
     }
   };
 
-  const showAPIActionDialog = (action: string, data: any) => {
+  const showAPIActionDialog = (action: string, data: Record<string, any>) => {
     if (action === 'einvoice_submit') {
       Alert.alert(
         'E-Invoice Submitted',
@@ -253,11 +255,11 @@ export default function ChatbotScreen({ navigation, userId }: ChatbotScreenProps
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Icon name="arrow-back" size={24} color="#333" />
+          <Icon name="arrow-back" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>TaxBridge Assistant</Text>
         <TouchableOpacity onPress={() => setShowLanguageModal(true)}>
-          <Icon name="language" size={24} color="#333" />
+          <Icon name="language" size={24} color={colors.textPrimary} />
         </TouchableOpacity>
       </View>
 
@@ -270,7 +272,7 @@ export default function ChatbotScreen({ navigation, userId }: ChatbotScreenProps
         {messages.map(renderMessage)}
         {isLoading && (
           <View style={[styles.messageContainer, styles.botMessage]}>
-            <ActivityIndicator size="small" color="#007AFF" />
+            <ActivityIndicator size="small" color={colors.primary} />
             <Text style={styles.typingText}>Typing...</Text>
           </View>
         )}
@@ -283,7 +285,7 @@ export default function ChatbotScreen({ navigation, userId }: ChatbotScreenProps
           value={inputText}
           onChangeText={setInputText}
           placeholder="Ask about taxes, e-invoicing, payments..."
-          placeholderTextColor="#999"
+          placeholderTextColor={colors.disabled}
           multiline
           maxLength={500}
         />
@@ -296,7 +298,7 @@ export default function ChatbotScreen({ navigation, userId }: ChatbotScreenProps
           <Icon 
             name={isRecording ? "mic" : "mic-none"} 
             size={24} 
-            color={isRecording ? "#FF3B30" : "#007AFF"} 
+            color={isRecording ? colors.error : colors.primary} 
           />
         </TouchableOpacity>
 
@@ -305,7 +307,7 @@ export default function ChatbotScreen({ navigation, userId }: ChatbotScreenProps
           onPress={sendMessage}
           disabled={!inputText.trim() || isLoading}
         >
-          <Icon name="send" size={20} color="#fff" />
+          <Icon name="send" size={20} color={colors.surface} />
         </TouchableOpacity>
       </View>
 
@@ -356,25 +358,25 @@ export default function ChatbotScreen({ navigation, userId }: ChatbotScreenProps
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.surfaceMuted,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: 16,
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    borderBottomColor: colors.border,
   },
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
+    color: colors.textSecondary,
   },
   messagesContainer: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: colors.surfaceMuted,
   },
   messagesContent: {
     padding: 16,
@@ -385,17 +387,17 @@ const styles = StyleSheet.create({
   },
   userMessage: {
     alignSelf: 'flex-end',
-    backgroundColor: '#007AFF',
+    backgroundColor: colors.primary,
     borderRadius: 18,
     borderBottomRightRadius: 4,
   },
   botMessage: {
     alignSelf: 'flex-start',
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderRadius: 18,
     borderBottomLeftRadius: 4,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: colors.border,
   },
   messageText: {
     padding: 12,
@@ -403,34 +405,34 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   userText: {
-    color: '#fff',
+    color: colors.surface,
   },
   botText: {
-    color: '#333',
+    color: colors.textSecondary,
   },
   timestamp: {
     fontSize: 11,
-    color: '#666',
+    color: colors.textMuted,
     marginHorizontal: 12,
     marginBottom: 4,
   },
   typingText: {
     marginLeft: 8,
-    color: '#666',
+    color: colors.textMuted,
     fontStyle: 'italic',
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     padding: 16,
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderTopWidth: 1,
-    borderTopColor: '#e0e0e0',
+    borderTopColor: colors.border,
   },
   textInput: {
     flex: 1,
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: colors.borderSubtle,
     borderRadius: 20,
     paddingHorizontal: 16,
     paddingVertical: 8,
@@ -441,29 +443,29 @@ const styles = StyleSheet.create({
   iconButton: {
     padding: 8,
     borderRadius: 20,
-    backgroundColor: '#f0f0f0',
+    backgroundColor: colors.surfaceSecondary,
     marginHorizontal: 4,
   },
   recordingButton: {
-    backgroundColor: '#ffebee',
+    backgroundColor: colors.errorBgSubtle,
   },
   sendButton: {
     padding: 12,
     borderRadius: 20,
-    backgroundColor: '#007AFF',
+    backgroundColor: colors.primary,
     marginLeft: 4,
   },
   disabledButton: {
-    backgroundColor: '#ccc',
+    backgroundColor: colors.disabled,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: colors.overlayMedium,
     justifyContent: 'center',
     alignItems: 'center',
   },
   modalContent: {
-    backgroundColor: '#fff',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 24,
     width: '80%',
@@ -478,11 +480,11 @@ const styles = StyleSheet.create({
   languageOption: {
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
+    borderBottomColor: colors.surfaceSecondary,
   },
   languageText: {
     fontSize: 16,
-    color: '#333',
+    color: colors.textSecondary,
   },
   cancelButton: {
     padding: 16,
@@ -490,7 +492,7 @@ const styles = StyleSheet.create({
   },
   cancelText: {
     fontSize: 16,
-    color: '#007AFF',
+    color: colors.primary,
     textAlign: 'center',
   },
 });
