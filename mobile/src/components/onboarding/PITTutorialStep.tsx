@@ -11,7 +11,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { useOnboarding } from '../../contexts/OnboardingContext';
 import { calculateFullPIT, PIT_BANDS } from '../../utils/taxCalculator';
-import { colors } from '../../theme/tokens';
+import { colors, radii, spacing, typography } from '../../theme/tokens';
 
 const { width } = Dimensions.get('window');
 
@@ -24,23 +24,23 @@ interface Props {
 const getQuizQuestions = (t: any) => [
   {
     id: 1,
-    question: t('pitTutorial.quizQuestion'),
+    question: t('onboarding.pitTutorial.quizQuestion'),
     options: [
-      { value: 'a', label: t('pitTutorial.quizOptionA'), emoji: '🎉', isCorrect: true },
-      { value: 'b', label: t('pitTutorial.quizOptionB'), emoji: '💰', isCorrect: false },
-      { value: 'c', label: t('pitTutorial.quizOptionC'), emoji: '📊', isCorrect: false },
+      { value: 'a', label: t('onboarding.pitTutorial.quizOptionA'), emoji: '🎉', isCorrect: true },
+      { value: 'b', label: t('onboarding.pitTutorial.quizOptionB'), emoji: '💰', isCorrect: false },
+      { value: 'c', label: t('onboarding.pitTutorial.quizOptionC'), emoji: '📊', isCorrect: false },
     ],
-    explanation: t('pitTutorial.quizCorrect'),
-    wrongExplanation: t('pitTutorial.quizWrong'),
+    explanation: t('onboarding.pitTutorial.quizCorrect'),
+    wrongExplanation: t('onboarding.pitTutorial.quizWrong'),
   },
 ];
 
 // Income level presets for quick selection (now with i18n support)
 const getIncomePresets = (t: any) => [
-  { label: t('pitTutorial.presetMarket'), value: '600000', emoji: '🏪', description: t('pitTutorial.presetMarketDesc') },
-  { label: t('pitTutorial.presetBusiness'), value: '1500000', emoji: '🏢', description: t('pitTutorial.presetBusinessDesc') },
-  { label: t('pitTutorial.presetProfessional'), value: '3600000', emoji: '💼', description: t('pitTutorial.presetProfessionalDesc') },
-  { label: t('pitTutorial.presetCustom'), value: 'custom', emoji: '✏️', description: t('pitTutorial.presetCustomDesc') },
+  { label: t('onboarding.pitTutorial.presetMarket'), value: '600000', emoji: '🏪', description: t('onboarding.pitTutorial.presetMarketDesc') },
+  { label: t('onboarding.pitTutorial.presetBusiness'), value: '1500000', emoji: '🏢', description: t('onboarding.pitTutorial.presetBusinessDesc') },
+  { label: t('onboarding.pitTutorial.presetProfessional'), value: '3600000', emoji: '💼', description: t('onboarding.pitTutorial.presetProfessionalDesc') },
+  { label: t('onboarding.pitTutorial.presetCustom'), value: 'custom', emoji: '✏️', description: t('onboarding.pitTutorial.presetCustomDesc') },
 ];
 
 export default function PITTutorialStep({ onNext }: Props) {
@@ -124,36 +124,36 @@ export default function PITTutorialStep({ onNext }: Props) {
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         <View style={styles.heroSection}>
           <Text style={styles.heroEmoji}>🧮</Text>
-          <Text style={styles.heroTitle}>{t('pitTutorial.title')}</Text>
+          <Text style={styles.heroTitle}>{t('onboarding.pitTutorial.title')}</Text>
           <Text style={styles.heroSubtitle}>
-            {t('pitTutorial.subtitle')}
+            {t('onboarding.pitTutorial.subtitle')}
           </Text>
         </View>
 
         <View style={styles.infoCard}>
-          <Text style={styles.infoCardTitle}>{t('pitTutorial.didYouKnow')}</Text>
+          <Text style={styles.infoCardTitle}>{t('onboarding.pitTutorial.didYouKnow')}</Text>
           <View style={styles.factItem}>
             <Text style={styles.factEmoji}>✅</Text>
             <Text style={styles.factText}>
-              {t('pitTutorial.fact1')}
+              {t('onboarding.pitTutorial.fact1')}
             </Text>
           </View>
           <View style={styles.factItem}>
             <Text style={styles.factEmoji}>📊</Text>
             <Text style={styles.factText}>
-              {t('pitTutorial.fact2')}
+              {t('onboarding.pitTutorial.fact2')}
             </Text>
           </View>
           <View style={styles.factItem}>
             <Text style={styles.factEmoji}>🏠</Text>
             <Text style={styles.factText}>
-              {t('pitTutorial.fact3')}
+              {t('onboarding.pitTutorial.fact3')}
             </Text>
           </View>
         </View>
 
         <View style={styles.taxBandsPreview}>
-          <Text style={styles.taxBandsTitle}>{t('pitTutorial.taxBandsTitle')}</Text>
+          <Text style={styles.taxBandsTitle}>{t('onboarding.pitTutorial.taxBandsTitle')}</Text>
           <View style={styles.bandPreviewRow}>
             <View style={[styles.bandDot, { backgroundColor: colors.success }]} />
             <Text style={styles.bandPreviewText}>{t('tutorial.bandExempt')}</Text>
@@ -177,14 +177,14 @@ export default function PITTutorialStep({ onNext }: Props) {
         </View>
 
         <TouchableOpacity style={styles.primaryButton} onPress={handleStartCalculator}>
-          <Text style={styles.primaryButtonText}>{t('pitTutorial.tryCalculator')}</Text>
+          <Text style={styles.primaryButtonText}>{t('onboarding.pitTutorial.tryCalculator')}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.secondaryButton} onPress={handleViewQuiz}>
-          <Text style={styles.secondaryButtonText}>{t('pitTutorial.takeQuiz')}</Text>
+          <Text style={styles.secondaryButtonText}>{t('onboarding.pitTutorial.takeQuiz')}</Text>
         </TouchableOpacity>
 
-        <Text style={styles.timeEstimate}>{t('pitTutorial.timeEstimate')}</Text>
+        <Text style={styles.timeEstimate}>{t('onboarding.pitTutorial.timeEstimate')}</Text>
       </ScrollView>
     );
   }
@@ -194,11 +194,11 @@ export default function PITTutorialStep({ onNext }: Props) {
     return (
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         <TouchableOpacity style={styles.backButton} onPress={() => setStep('intro')}>
-          <Text style={styles.backButtonText}>{t('pitTutorial.back')}</Text>
+          <Text style={styles.backButtonText}>{t('onboarding.pitTutorial.back')}</Text>
         </TouchableOpacity>
 
-        <Text style={styles.title}>{t('pitTutorial.calculateTitle')}</Text>
-        <Text style={styles.subtitle}>{t('pitTutorial.calculateSubtitle')}</Text>
+        <Text style={styles.title}>{t('onboarding.pitTutorial.calculateTitle')}</Text>
+        <Text style={styles.subtitle}>{t('onboarding.pitTutorial.calculateSubtitle')}</Text>
 
         {/* Income Presets */}
         <View style={styles.presetsContainer}>
@@ -221,7 +221,7 @@ export default function PITTutorialStep({ onNext }: Props) {
         {/* Custom input if selected */}
         {selectedPreset === 'custom' && (
           <View style={styles.customInputCard}>
-            <Text style={styles.inputLabel}>{t('pitTutorial.enterIncome')}</Text>
+            <Text style={styles.inputLabel}>{t('onboarding.pitTutorial.enterIncome')}</Text>
             <View style={styles.inputContainer}>
               <Text style={styles.currencySymbol}>₦</Text>
               <TextInput
@@ -239,11 +239,11 @@ export default function PITTutorialStep({ onNext }: Props) {
         {/* Optional deductions (collapsible) */}
         {selectedPreset && (
           <View style={styles.deductionsCard}>
-            <Text style={styles.deductionsTitle}>{t('pitTutorial.addDeductions')}</Text>
-            <Text style={styles.deductionsHint}>{t('pitTutorial.deductionsHint')}</Text>
+            <Text style={styles.deductionsTitle}>{t('onboarding.pitTutorial.addDeductions')}</Text>
+            <Text style={styles.deductionsHint}>{t('onboarding.pitTutorial.deductionsHint')}</Text>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>{t('pitTutorial.annualRent')}</Text>
+              <Text style={styles.inputLabel}>{t('onboarding.pitTutorial.annualRent')}</Text>
               <View style={styles.inputContainer}>
                 <Text style={styles.currencySymbol}>₦</Text>
                 <TextInput
@@ -258,7 +258,7 @@ export default function PITTutorialStep({ onNext }: Props) {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>{t('pitTutorial.pensionContribution')}</Text>
+              <Text style={styles.inputLabel}>{t('onboarding.pitTutorial.pensionContribution')}</Text>
               <View style={styles.inputContainer}>
                 <Text style={styles.currencySymbol}>₦</Text>
                 <TextInput
@@ -280,7 +280,7 @@ export default function PITTutorialStep({ onNext }: Props) {
           disabled={disableCalculate}
         >
           <Text style={styles.calculateButtonText}>
-            {disableCalculate ? t('pitTutorial.selectIncome') : t('pitTutorial.calculateTax')}
+            {disableCalculate ? t('onboarding.pitTutorial.selectIncome') : t('onboarding.pitTutorial.calculateTax')}
           </Text>
         </TouchableOpacity>
       </ScrollView>
@@ -292,25 +292,25 @@ export default function PITTutorialStep({ onNext }: Props) {
     return (
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
         <TouchableOpacity style={styles.backButton} onPress={() => setStep('calculator')}>
-          <Text style={styles.backButtonText}>{t('pitTutorial.recalculate')}</Text>
+          <Text style={styles.backButtonText}>{t('onboarding.pitTutorial.recalculate')}</Text>
         </TouchableOpacity>
 
         <View style={styles.resultsHero}>
-          <Text style={styles.resultsHeroTitle}>{t('pitTutorial.estimatedPIT')}</Text>
+          <Text style={styles.resultsHeroTitle}>{t('onboarding.pitTutorial.estimatedPIT')}</Text>
           <Text style={styles.resultsHeroValue}>{formatCurrency(pitResult.estimatedTax)}</Text>
           {pitResult.isExempt && (
             <View style={styles.exemptBadgeLarge}>
-              <Text style={styles.exemptBadgeText}>{t('pitTutorial.taxFree')}</Text>
+              <Text style={styles.exemptBadgeText}>{t('onboarding.pitTutorial.taxFree')}</Text>
             </View>
           )}
           <Text style={styles.resultsHeroSubtext}>
-            {t('pitTutorial.perYear', { income: formatCurrency(pitResult.grossIncome) })}
+            {t('onboarding.pitTutorial.perYear', { income: formatCurrency(pitResult.grossIncome) })}
           </Text>
         </View>
 
         {/* Visual breakdown */}
         <View style={styles.breakdownCard}>
-          <Text style={styles.breakdownTitle}>{t('pitTutorial.howCalculated')}</Text>
+          <Text style={styles.breakdownTitle}>{t('onboarding.pitTutorial.howCalculated')}</Text>
           
           <View style={styles.breakdownVisual}>
             <View style={styles.breakdownBar}>
@@ -326,11 +326,11 @@ export default function PITTutorialStep({ onNext }: Props) {
             <View style={styles.breakdownLegend}>
               <View style={styles.legendItem}>
                 <View style={[styles.legendDot, { backgroundColor: colors.primary }]} />
-                <Text style={styles.legendText}>{t('pitTutorial.taxable', { amount: formatCurrency(pitResult.chargeableIncome) })}</Text>
+                <Text style={styles.legendText}>{t('onboarding.pitTutorial.taxable', { amount: formatCurrency(pitResult.chargeableIncome) })}</Text>
               </View>
               <View style={styles.legendItem}>
                 <View style={[styles.legendDot, { backgroundColor: colors.success }]} />
-                <Text style={styles.legendText}>{t('pitTutorial.deductions', { amount: formatCurrency(pitResult.grossIncome - pitResult.chargeableIncome) })}</Text>
+                <Text style={styles.legendText}>{t('onboarding.pitTutorial.deductions', { amount: formatCurrency(pitResult.grossIncome - pitResult.chargeableIncome) })}</Text>
               </View>
             </View>
           </View>
@@ -350,7 +350,7 @@ export default function PITTutorialStep({ onNext }: Props) {
 
         {/* Tax bands applied */}
         <View style={styles.bandsCard}>
-          <Text style={styles.bandsCardTitle}>{t('pitTutorial.taxBandsApplied')}</Text>
+          <Text style={styles.bandsCardTitle}>{t('onboarding.pitTutorial.taxBandsApplied')}</Text>
           {pitResult.breakdown.map((band, index) => (
             <View key={`band-${index}`} style={styles.bandRowEnhanced}>
               <View style={styles.bandInfo}>
@@ -358,7 +358,7 @@ export default function PITTutorialStep({ onNext }: Props) {
                 <Text style={styles.bandRateText}>{(band.rate * 100).toFixed(0)}%</Text>
               </View>
               <View style={styles.bandAmount}>
-                <Text style={styles.bandAmountText}>{t('pitTutorial.on', { amount: formatCurrency(band.amount) })}</Text>
+                <Text style={styles.bandAmountText}>{t('onboarding.pitTutorial.on', { amount: formatCurrency(band.amount) })}</Text>
                 <Text style={styles.bandTaxText}>= {formatCurrency(band.amount * band.rate)}</Text>
               </View>
             </View>
@@ -366,11 +366,11 @@ export default function PITTutorialStep({ onNext }: Props) {
         </View>
 
         <TouchableOpacity style={styles.primaryButton} onPress={() => setStep('quiz')}>
-          <Text style={styles.primaryButtonText}>{t('pitTutorial.takeQuiz')}</Text>
+          <Text style={styles.primaryButtonText}>{t('onboarding.pitTutorial.takeQuiz')}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.secondaryButton} onPress={onNext}>
-          <Text style={styles.secondaryButtonText}>{t('pitTutorial.continue')}</Text>
+          <Text style={styles.secondaryButtonText}>{t('onboarding.pitTutorial.continue')}</Text>
         </TouchableOpacity>
       </ScrollView>
     );
@@ -380,17 +380,17 @@ export default function PITTutorialStep({ onNext }: Props) {
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <TouchableOpacity style={styles.backButton} onPress={() => setStep(pitResult ? 'results' : 'intro')}>
-        <Text style={styles.backButtonText}>{t('pitTutorial.back')}</Text>
+        <Text style={styles.backButtonText}>{t('onboarding.pitTutorial.back')}</Text>
       </TouchableOpacity>
 
       <View style={styles.quizHero}>
         <Text style={styles.quizHeroEmoji}>🧠</Text>
-        <Text style={styles.quizHeroTitle}>{t('pitTutorial.quickQuiz')}</Text>
-        <Text style={styles.quizHeroSubtitle}>{t('pitTutorial.testLearning')}</Text>
+        <Text style={styles.quizHeroTitle}>{t('onboarding.pitTutorial.quickQuiz')}</Text>
+        <Text style={styles.quizHeroSubtitle}>{t('onboarding.pitTutorial.testLearning')}</Text>
       </View>
 
       <View style={styles.questionCard}>
-        <Text style={styles.questionNumber}>{t('pitTutorial.questionNumber')}</Text>
+        <Text style={styles.questionNumber}>{t('onboarding.pitTutorial.questionNumber')}</Text>
         <View style={styles.optionsContainer}>
           {currentQuestion.options.map((option) => {
             const isSelected = quizAnswer === option.value;
@@ -443,7 +443,7 @@ export default function PITTutorialStep({ onNext }: Props) {
 
       {showQuizFeedback && (
         <TouchableOpacity style={styles.primaryButton} onPress={onNext}>
-          <Text style={styles.primaryButtonText}>{t('pitTutorial.continueNext')}</Text>
+          <Text style={styles.primaryButtonText}>{t('onboarding.pitTutorial.continueNext')}</Text>
         </TouchableOpacity>
       )}
     </ScrollView>
@@ -479,171 +479,171 @@ function formatCurrency(amount: number): string {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: 4,
+    paddingHorizontal: spacing.xs,
   },
   // Hero section
   heroSection: {
     alignItems: 'center',
-    paddingVertical: 24,
+    paddingVertical: spacing.xxl,
   },
   heroEmoji: {
-    fontSize: 64,
-    marginBottom: 16,
+    fontSize: typography.size.xxxl * 2,
+    marginBottom: spacing.lg,
   },
   heroTitle: {
-    fontSize: 28,
-    fontWeight: '800',
+    fontSize: typography.size.xxl + spacing.xxs,
+    fontWeight: typography.weight.extrabold,
     color: colors.textPrimary,
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   heroSubtitle: {
-    fontSize: 16,
+    fontSize: typography.size.md,
     color: colors.textMuted,
     textAlign: 'center',
-    lineHeight: 24,
-    paddingHorizontal: 20,
+    lineHeight: spacing.xxl,
+    paddingHorizontal: spacing.xl,
   },
   // Info card
   infoCard: {
     backgroundColor: colors.primaryLight,
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 20,
+    borderRadius: radii.lg,
+    padding: spacing.xl,
+    marginBottom: spacing.xl,
     borderWidth: 1,
     borderColor: colors.primaryBorder,
   },
   infoCardTitle: {
-    fontSize: 18,
-    fontWeight: '700',
+    fontSize: typography.size.lg,
+    fontWeight: typography.weight.bold,
     color: colors.textPrimary,
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   factItem: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
   factEmoji: {
-    fontSize: 18,
-    marginRight: 12,
-    marginTop: 2,
+    fontSize: typography.size.lg,
+    marginRight: spacing.md,
+    marginTop: spacing.xxs,
   },
   factText: {
     flex: 1,
-    fontSize: 15,
+    fontSize: typography.size.sm,
     color: colors.textSecondary,
-    lineHeight: 22,
+    lineHeight: spacing.xl + spacing.xxs,
   },
   highlight: {
-    fontWeight: '700',
+    fontWeight: typography.weight.bold,
     color: colors.primary,
   },
   highlightGreen: {
-    fontWeight: '700',
+    fontWeight: typography.weight.bold,
     color: colors.success,
   },
   // Tax bands preview
   taxBandsPreview: {
     backgroundColor: colors.surfaceSecondary,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 24,
+    borderRadius: radii.md,
+    padding: spacing.lg,
+    marginBottom: spacing.xxl,
     borderWidth: 1,
     borderColor: colors.borderSubtle,
   },
   taxBandsTitle: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.bold,
     color: colors.textPrimary,
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
   bandPreviewRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   bandDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginRight: 12,
+    width: spacing.md,
+    height: spacing.md,
+    borderRadius: spacing.xs + spacing.xxs,
+    marginRight: spacing.md,
   },
   bandPreviewText: {
-    fontSize: 14,
+    fontSize: typography.size.sm,
     color: colors.textSecondary,
   },
   bandRate: {
-    fontWeight: '700',
+    fontWeight: typography.weight.bold,
     color: colors.primary,
   },
   // Buttons
   primaryButton: {
     backgroundColor: colors.primary,
-    paddingVertical: 16,
-    borderRadius: 12,
+    paddingVertical: spacing.lg,
+    borderRadius: radii.md,
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
   primaryButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.bold,
     color: colors.textOnPrimary,
   },
   secondaryButton: {
     backgroundColor: colors.surface,
-    paddingVertical: 16,
-    borderRadius: 12,
+    paddingVertical: spacing.lg,
+    borderRadius: radii.md,
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: spacing.md,
     borderWidth: 1,
     borderColor: colors.border,
   },
   secondaryButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.semibold,
     color: colors.textSecondary,
   },
   backButton: {
-    paddingVertical: 8,
-    marginBottom: 8,
+    paddingVertical: spacing.sm,
+    marginBottom: spacing.sm,
   },
   backButtonText: {
-    fontSize: 16,
+    fontSize: typography.size.md,
     color: colors.primary,
-    fontWeight: '600',
+    fontWeight: typography.weight.semibold,
   },
   timeEstimate: {
-    fontSize: 13,
+    fontSize: typography.size.xs + spacing.xxs,
     color: colors.textMuted,
     textAlign: 'center',
-    marginTop: 8,
-    marginBottom: 20,
+    marginTop: spacing.sm,
+    marginBottom: spacing.xl,
   },
   // Calculator
   title: {
-    fontSize: 24,
-    fontWeight: '700',
+    fontSize: typography.size.xl + spacing.xs,
+    fontWeight: typography.weight.bold,
     color: colors.textPrimary,
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   subtitle: {
-    fontSize: 15,
+    fontSize: typography.size.sm,
     color: colors.textMuted,
-    marginBottom: 20,
-    lineHeight: 22,
+    marginBottom: spacing.xl,
+    lineHeight: spacing.xl + spacing.xxs,
   },
   presetsContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
-    marginBottom: 20,
+    gap: spacing.md,
+    marginBottom: spacing.xl,
   },
   presetCard: {
     width: (width - 52) / 2,
     backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: radii.md,
+    padding: spacing.lg,
     alignItems: 'center',
     borderWidth: 2,
     borderColor: colors.borderSubtle,
@@ -653,151 +653,151 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primaryLight,
   },
   presetEmoji: {
-    fontSize: 32,
-    marginBottom: 8,
+    fontSize: typography.size.xxxl,
+    marginBottom: spacing.sm,
   },
   presetLabel: {
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.bold,
     color: colors.textPrimary,
     textAlign: 'center',
-    marginBottom: 4,
+    marginBottom: spacing.xs,
   },
   presetDescription: {
-    fontSize: 12,
+    fontSize: typography.size.xs,
     color: colors.textMuted,
     textAlign: 'center',
   },
   customInputCard: {
     backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
+    borderRadius: radii.md,
+    padding: spacing.lg,
+    marginBottom: spacing.lg,
     borderWidth: 1,
     borderColor: colors.borderSubtle,
   },
   deductionsCard: {
     backgroundColor: colors.surfaceSecondary,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 20,
+    borderRadius: radii.md,
+    padding: spacing.lg,
+    marginBottom: spacing.xl,
     borderWidth: 1,
     borderColor: colors.borderSubtle,
   },
   deductionsTitle: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.bold,
     color: colors.textPrimary,
-    marginBottom: 4,
+    marginBottom: spacing.xs,
   },
   deductionsHint: {
-    fontSize: 13,
+    fontSize: typography.size.xs + spacing.xxs,
     color: colors.textMuted,
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   inputGroup: {
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
   inputLabel: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.semibold,
     color: colors.textSecondary,
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.surface,
-    borderRadius: 8,
+    borderRadius: radii.sm,
     borderWidth: 1,
     borderColor: colors.border,
-    paddingHorizontal: 12,
+    paddingHorizontal: spacing.md,
   },
   currencySymbol: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: typography.size.lg,
+    fontWeight: typography.weight.semibold,
     color: colors.textSecondary,
-    marginRight: 8,
+    marginRight: spacing.sm,
   },
   input: {
     flex: 1,
-    paddingVertical: 12,
-    fontSize: 16,
+    paddingVertical: spacing.md,
+    fontSize: typography.size.md,
     color: colors.textPrimary,
   },
   calculateButton: {
     backgroundColor: colors.primary,
-    paddingVertical: 16,
-    borderRadius: 12,
+    paddingVertical: spacing.lg,
+    borderRadius: radii.md,
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: spacing.xl,
   },
   calculateButtonDisabled: {
     backgroundColor: colors.disabled,
   },
   calculateButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.bold,
     color: colors.textOnPrimary,
   },
   // Results
   resultsHero: {
     alignItems: 'center',
     backgroundColor: colors.primaryLight,
-    borderRadius: 16,
-    padding: 24,
-    marginBottom: 20,
+    borderRadius: radii.lg,
+    padding: spacing.xxl,
+    marginBottom: spacing.xl,
   },
   resultsHeroTitle: {
-    fontSize: 16,
+    fontSize: typography.size.md,
     color: colors.textMuted,
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   resultsHeroValue: {
-    fontSize: 48,
-    fontWeight: '800',
+    fontSize: typography.size.xxxl + typography.size.xl,
+    fontWeight: typography.weight.extrabold,
     color: colors.primary,
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   resultsHeroSubtext: {
-    fontSize: 14,
+    fontSize: typography.size.sm,
     color: colors.textMuted,
   },
   exemptBadgeLarge: {
     backgroundColor: colors.successBg,
-    paddingHorizontal: 20,
-    paddingVertical: 8,
-    borderRadius: 20,
-    marginBottom: 8,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.sm,
+    borderRadius: radii.xl - spacing.xs,
+    marginBottom: spacing.sm,
   },
   exemptBadgeText: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.bold,
     color: colors.success,
   },
   breakdownCard: {
     backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
+    borderRadius: radii.md,
+    padding: spacing.lg,
+    marginBottom: spacing.lg,
     borderWidth: 1,
     borderColor: colors.borderSubtle,
   },
   breakdownTitle: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.bold,
     color: colors.textPrimary,
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   breakdownVisual: {
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   breakdownBar: {
     flexDirection: 'row',
-    height: 12,
-    borderRadius: 6,
+    height: spacing.md,
+    borderRadius: spacing.xs + spacing.xxs,
     overflow: 'hidden',
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   breakdownSegment: {
     height: '100%',
@@ -811,32 +811,32 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   legendDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    marginRight: 6,
+    width: spacing.sm + spacing.xxs,
+    height: spacing.sm + spacing.xxs,
+    borderRadius: spacing.xs + spacing.xxs,
+    marginRight: spacing.xs + spacing.xxs,
   },
   legendText: {
-    fontSize: 12,
+    fontSize: typography.size.xs,
     color: colors.textMuted,
   },
   deductionsList: {
     borderTopWidth: 1,
     borderTopColor: colors.borderSubtle,
-    paddingTop: 12,
+    paddingTop: spacing.md,
   },
   breakdownRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 8,
+    paddingVertical: spacing.sm,
   },
   breakdownLabel: {
-    fontSize: 14,
+    fontSize: typography.size.sm,
     color: colors.textMuted,
   },
   breakdownValue: {
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.medium,
     color: colors.textSecondary,
   },
   deductionValue: {
@@ -845,41 +845,41 @@ const styles = StyleSheet.create({
   totalRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingVertical: 12,
+    paddingVertical: spacing.md,
     borderTopWidth: 2,
     borderTopColor: colors.primary,
-    marginTop: 8,
+    marginTop: spacing.sm,
   },
   totalLabel: {
-    fontSize: 15,
-    fontWeight: '700',
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.bold,
     color: colors.textPrimary,
   },
   totalValue: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.bold,
     color: colors.primary,
   },
   // Bands card
   bandsCard: {
     backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 20,
+    borderRadius: radii.md,
+    padding: spacing.lg,
+    marginBottom: spacing.xl,
     borderWidth: 1,
     borderColor: colors.borderSubtle,
   },
   bandsCardTitle: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.bold,
     color: colors.textPrimary,
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
   bandRowEnhanced: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 10,
+    paddingVertical: spacing.sm + spacing.xxs,
     borderBottomWidth: 1,
     borderBottomColor: colors.surfaceSecondary,
   },
@@ -888,79 +888,79 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   bandColorDot: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    marginRight: 10,
+    width: typography.size.sm,
+    height: typography.size.sm,
+    borderRadius: spacing.xs + spacing.xxs,
+    marginRight: spacing.sm + spacing.xxs,
   },
   bandRateText: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.bold,
     color: colors.textSecondary,
   },
   bandAmount: {
     alignItems: 'flex-end',
   },
   bandAmountText: {
-    fontSize: 13,
+    fontSize: typography.size.xs + spacing.xxs,
     color: colors.textMuted,
   },
   bandTaxText: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.semibold,
     color: colors.primary,
   },
   // Quiz
   quizHero: {
     alignItems: 'center',
-    paddingVertical: 20,
-    marginBottom: 20,
+    paddingVertical: spacing.xl,
+    marginBottom: spacing.xl,
   },
   quizHeroEmoji: {
-    fontSize: 56,
-    marginBottom: 12,
+    fontSize: typography.size.xxl * 2 + spacing.xs,
+    marginBottom: spacing.md,
   },
   quizHeroTitle: {
-    fontSize: 24,
-    fontWeight: '700',
+    fontSize: typography.size.xl + spacing.xs,
+    fontWeight: typography.weight.bold,
     color: colors.textPrimary,
-    marginBottom: 4,
+    marginBottom: spacing.xs,
   },
   quizHeroSubtitle: {
-    fontSize: 15,
+    fontSize: typography.size.sm,
     color: colors.textMuted,
   },
   questionCard: {
     backgroundColor: colors.surface,
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 20,
+    borderRadius: radii.lg,
+    padding: spacing.xl,
+    marginBottom: spacing.xl,
     borderWidth: 1,
     borderColor: colors.borderSubtle,
   },
   questionNumber: {
-    fontSize: 12,
-    fontWeight: '600',
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.semibold,
     color: colors.primary,
-    marginBottom: 8,
+    marginBottom: spacing.sm,
     textTransform: 'uppercase',
   },
   questionText: {
-    fontSize: 18,
-    fontWeight: '600',
+    fontSize: typography.size.lg,
+    fontWeight: typography.weight.semibold,
     color: colors.textPrimary,
-    marginBottom: 20,
-    lineHeight: 26,
+    marginBottom: spacing.xl,
+    lineHeight: typography.size.xxl,
   },
   optionsContainer: {
-    gap: 12,
+    gap: spacing.md,
   },
   optionCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.surfaceSecondary,
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: radii.md,
+    padding: spacing.lg,
     borderWidth: 2,
     borderColor: colors.borderSubtle,
   },
@@ -977,13 +977,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.errorBg,
   },
   optionEmoji: {
-    fontSize: 24,
-    marginRight: 12,
+    fontSize: typography.size.xl + spacing.xs,
+    marginRight: spacing.md,
   },
   optionText: {
     flex: 1,
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.semibold,
     color: colors.textSecondary,
   },
   optionTextCorrect: {
@@ -993,21 +993,21 @@ const styles = StyleSheet.create({
     color: colors.error,
   },
   checkmark: {
-    fontSize: 20,
-    fontWeight: '700',
+    fontSize: typography.size.xl,
+    fontWeight: typography.weight.bold,
     color: colors.success,
   },
   crossmark: {
-    fontSize: 20,
-    fontWeight: '700',
+    fontSize: typography.size.xl,
+    fontWeight: typography.weight.bold,
     color: colors.error,
   },
   feedbackCard: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    borderRadius: 12,
-    padding: 16,
-    marginTop: 16,
+    borderRadius: radii.md,
+    padding: spacing.lg,
+    marginTop: spacing.lg,
   },
   feedbackCorrect: {
     backgroundColor: colors.successBg,
@@ -1016,13 +1016,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.warningBg,
   },
   feedbackEmoji: {
-    fontSize: 24,
-    marginRight: 12,
+    fontSize: typography.size.xl + spacing.xs,
+    marginRight: spacing.md,
   },
   feedbackText: {
     flex: 1,
-    fontSize: 14,
+    fontSize: typography.size.sm,
     color: colors.textSecondary,
-    lineHeight: 20,
+    lineHeight: spacing.xl,
   },
 });

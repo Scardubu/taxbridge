@@ -1,7 +1,18 @@
-import { useEffect, useState, useCallback, memo } from 'react';
-import { Pressable, SafeAreaView, StyleSheet, Text, View, RefreshControl, ScrollView, Dimensions } from 'react-native';
-import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
+import { useEffect, useState, useCallback, memo, useMemo, useRef } from 'react';
+import { 
+  Pressable, 
+  SafeAreaView, 
+  StyleSheet, 
+  Text, 
+  View, 
+  RefreshControl, 
+  ScrollView, 
+  Dimensions,
+  ActivityIndicator,
+} from 'react-native';
+import Animated, { FadeInDown, FadeInUp, FadeIn } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
+import * as Haptics from 'expo-haptics';
 
 import { getInvoices } from '../services/database';
 import { useNetwork } from '../contexts/NetworkContext';
@@ -14,37 +25,211 @@ import { colors, radii, spacing, typography, shadows } from '../theme/tokens';
 
 const { width } = Dimensions.get('window');
 
+// ============================================================================
+// Types
+// ============================================================================
+
+interface Invoice {
+  id: string;
+  synced: 0 | 1;
+  items: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+interface InvoiceItem {
+  id: string;
+  name: string;
+  quantity: number;
+  unitPrice: number;
+}
+
+interface InvoiceStats {
+  count: number;
+  pendingCount: number;
+  totalSales: number;
+}
+
+// ============================================================================
+// Utilities
+// ============================================================================
+
+const parseInvoiceItems = (itemsJson: string): InvoiceItem[] => {
+  try {
+    const items = JSON.parse(itemsJson);
+    return Array.isArray(items) ? items : [];
+  } catch {
+    return [];
+  }
+};
+
+const calculateInvoiceStats = (invoices: Invoice[]): InvoiceStats => {
+  const pendingCount = invoices.filter(inv => inv.synced === 0).length;
+  const totalSales = invoices.reduce((sum, inv) => {
+    const items = parseInvoiceItems(inv.items);
+    return sum + items.reduce((s, item) => s + (item.quantity * item.unitPrice), 0);
+  }, 0);
+
+  return {
+    count: invoices.length,
+    pendingCount,
+    totalSales,
+  };
+};
+
+// ============================================================================
+// Empty State Component
+// ============================================================================
+
+const EmptyInvoicesState = memo(({ onCreateInvoice }: { onCreateInvoice: () => void }) => {
+  const { t } = useTranslation();
+
+  return (
+    <Animated.View entering={FadeInDown.duration(400).delay(300)} style={styles.emptyState}>
+      <Text style={styles.emptyEmoji}>📄</Text>
+      <Text style={styles.emptyTitle}>{t('home.noInvoicesTitle')}</Text>
+      <Text style={styles.emptyText}>{t('home.noInvoicesText')}</Text>
+      <Pressable 
+        style={styles.emptyButton}
+        onPress={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          onCreateInvoice();
+        }}
+        accessible={true}
+        accessibilityLabel={t('home.createFirstInvoice')}
+        accessibilityRole="button"
+      >
+        <Text style={styles.emptyButtonIcon}>➕</Text>
+        <Text style={styles.emptyButtonText}>{t('home.createFirstInvoice')}</Text>
+      </Pressable>
+    </Animated.View>
+  );
+});
+
+EmptyInvoicesState.displayName = 'EmptyInvoicesState';
+
+// ============================================================================
+// Loading Skeleton Component
+// ============================================================================
+
+const LoadingSkeleton = memo(() => (
+  <>
+    <Animated.View entering={FadeIn.duration(200)} style={styles.skeletonContainer}>
+      {/* Stats Skeleton */}
+      <View style={styles.statsRow}>
+        <View style={[styles.skeletonCard, styles.skeletonCardLarge]}>
+          <View style={styles.skeletonHeader} />
+          <View style={styles.skeletonValue} />
+          <View style={styles.skeletonBadge} />
+        </View>
+        <View style={styles.skeletonCard}>
+          <View style={styles.skeletonHeader} />
+          <View style={styles.skeletonValue} />
+          <View style={styles.skeletonMeta} />
+        </View>
+      </View>
+
+      {/* Quick Actions Skeleton */}
+      <View style={styles.skeletonActions}>
+        <View style={styles.skeletonAction} />
+        <View style={styles.skeletonAction} />
+        <View style={styles.skeletonAction} />
+      </View>
+
+      <ActivityIndicator size="large" color={colors.primary} style={styles.loadingIndicator} />
+    </Animated.View>
+  </>
+));
+
+LoadingSkeleton.displayName = 'LoadingSkeleton';
+
+// ============================================================================
+// Stats Cards Component
+// ============================================================================
+
+interface StatsCardsProps {
+  stats: InvoiceStats;
+  formatCurrency: (amount: number) => string;
+}
+
+const StatsCards = memo(({ stats, formatCurrency }: StatsCardsProps) => {
+  const { t } = useTranslation();
+
+  return (
+    <Animated.View entering={FadeInDown.duration(400).delay(300)} style={styles.statsRow}>
+      <Pressable
+        style={[styles.statCard, styles.statCardPrimary]}
+        accessible={true}
+        accessibilityLabel={`${t('home.monthlySales')}: ${formatCurrency(stats.totalSales)}`}
+        accessibilityRole="button"
+      >
+        <View style={styles.statHeader}>
+          <Text style={styles.statEmoji}>💰</Text>
+          <Text style={styles.statLabel}>{t('home.monthlySales')}</Text>
+        </View>
+        <Text style={styles.statValue}>{formatCurrency(stats.totalSales)}</Text>
+        <View style={styles.statBadge}>
+          <Text style={styles.statBadgeText}>📈 {t('home.thisMonth')}</Text>
+        </View>
+      </Pressable>
+      
+      <View style={styles.statCard}>
+        <View style={styles.statHeader}>
+          <Text style={styles.statEmoji}>📄</Text>
+          <Text style={styles.statLabel}>{t('home.invoicesLabel')}</Text>
+        </View>
+        <Text style={styles.statValueSmall}>{stats.count}</Text>
+        <Text style={styles.statMeta}>
+          {stats.pendingCount > 0 
+            ? `${stats.pendingCount} ${t('home.pending')}` 
+            : t('home.allSynced')}
+        </Text>
+      </View>
+    </Animated.View>
+  );
+});
+
+StatsCards.displayName = 'StatsCards';
+
+// ============================================================================
+// Main Component
+// ============================================================================
+
 function HomeScreen(props: any) {
   const { t } = useTranslation();
-  const [count, setCount] = useState(0);
-  const [pendingCount, setPendingCount] = useState(0);
-  const [totalSales, setTotalSales] = useState(0);
-  const [refreshing, setRefreshing] = useState(false);
   const { isOnline } = useNetwork();
   const { manualSync, lastSyncAt } = useSyncContext();
 
+  // State
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+
+  // Refs for debouncing
+  const refreshTimeoutRef = useRef<NodeJS.Timeout>();
+
+  // Memoized stats calculation
+  const stats = useMemo(() => calculateInvoiceStats(invoices), [invoices]);
+
+  // Load data function with error handling
   const loadData = useCallback(async () => {
     try {
+      setError(null);
       const rows = await getInvoices();
-      setCount(rows.length);
-      // Calculate pending (unsynced) count
-      const pending = rows.filter((inv: any) => inv.synced === 0).length;
-      setPendingCount(pending);
-      // Calculate total sales from invoices
-      const total = rows.reduce((sum: number, inv: any) => {
-        const items = inv.items ? JSON.parse(inv.items) : [];
-        const invoiceTotal = items.reduce((s: number, item: any) => 
-          s + (item.quantity * item.unitPrice), 0);
-        return sum + invoiceTotal;
-      }, 0);
-      setTotalSales(total);
-    } catch {
-      setCount(0);
-      setPendingCount(0);
-      setTotalSales(0);
+      setInvoices(rows as Invoice[]);
+    } catch (err) {
+      if (__DEV__) {
+        console.error('Failed to load invoices:', err);
+      }
+      setError(err as Error);
+      setInvoices([]);
+    } finally {
+      setIsLoading(false);
     }
   }, []);
 
+  // Initial load
   useEffect(() => {
     let mounted = true;
     
@@ -57,44 +242,113 @@ function HomeScreen(props: any) {
     };
   }, [loadData]);
 
+  // Pull-to-refresh handler with debounce
   const onRefresh = useCallback(async () => {
+    // Clear any pending refresh
+    if (refreshTimeoutRef.current) {
+      clearTimeout(refreshTimeoutRef.current);
+    }
+
     setRefreshing(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    
     await loadData();
-    setRefreshing(false);
+    
+    // Minimum refresh time for better UX
+    refreshTimeoutRef.current = setTimeout(() => {
+      setRefreshing(false);
+    }, 500);
   }, [loadData]);
 
-  const formatCurrency = (amount: number) => {
-    return `₦${amount.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
-  };
+  // Cleanup
+  useEffect(() => {
+    return () => {
+      if (refreshTimeoutRef.current) {
+        clearTimeout(refreshTimeoutRef.current);
+      }
+    };
+  }, []);
 
+  // Currency formatter
+  const formatCurrency = useCallback((amount: number) => {
+    return `₦${amount.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
+  }, []);
+
+  // Navigation handlers with haptic feedback
   const handleCreateInvoice = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     props.navigation.navigate('Create');
   }, [props.navigation]);
 
   const handleScanReceipt = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     props.navigation.navigate('Create', { openScan: true });
   }, [props.navigation]);
 
   const handleViewInvoices = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     props.navigation.navigate('Invoices');
   }, [props.navigation]);
 
   const handleTaxCalculator = useCallback(() => {
-    // Navigate to settings where tax calculator info is shown
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     props.navigation.navigate('Settings');
   }, [props.navigation]);
 
   const handleSync = useCallback(async () => {
-    await manualSync();
-    await loadData();
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    try {
+      await manualSync();
+      await loadData();
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (err) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      if (__DEV__) {
+        console.error('Sync failed:', err);
+      }
+    }
   }, [manualSync, loadData]);
 
-  const getGreeting = () => {
+  // Contextual greeting
+  const getGreeting = useCallback(() => {
     const hour = new Date().getHours();
+    const day = new Date().getDay();
+    
+    // Weekend special greetings
+    if (day === 0 || day === 6) {
+      if (hour < 12) return `🌅 ${t('home.weekendMorning', { defaultValue: t('home.goodMorning') })}`;
+      return `🎉 ${t('home.weekendVibes', { defaultValue: t('home.goodEvening') })}`;
+    }
+    
+    // Weekday greetings
     if (hour < 12) return `🌅 ${t('home.goodMorning')}`;
-    if (hour < 17) return `☀️ ${t('home.goodAfternoon')}`;
+    if (hour < 14) return `☀️ ${t('home.lunchTime', { defaultValue: t('home.goodAfternoon') })}`;
+    if (hour < 17) return `💼 ${t('home.afternoonHustle', { defaultValue: t('home.goodAfternoon') })}`;
     return `🌙 ${t('home.goodEvening')}`;
-  };
+  }, [t]);
+
+  // Error state
+  if (error && !isLoading) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <LivingBridgeHeader
+          variant="compact"
+          title={t('home.welcome')}
+          subtitle={getGreeting()}
+          showNetworkStatus={true}
+          isOnline={isOnline}
+        />
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorEmoji}>⚠️</Text>
+          <Text style={styles.errorTitle}>{t('errors.loadFailed')}</Text>
+          <Text style={styles.errorText}>{t('errors.tryAgain')}</Text>
+          <Pressable style={styles.errorButton} onPress={loadData}>
+            <Text style={styles.errorButtonText}>{t('common.retry')}</Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -114,95 +368,97 @@ function HomeScreen(props: any) {
         style={styles.scroll}
         contentContainerStyle={styles.container}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />
+          <RefreshControl 
+            refreshing={refreshing} 
+            onRefresh={onRefresh} 
+            colors={[colors.primary]}
+            tintColor={colors.primary}
+          />
         }
         showsVerticalScrollIndicator={false}
+        accessible={true}
+        accessibilityLabel={t('home.mainContent')}
       >
-        {/* Sync Status Bar */}
-        <Animated.View entering={FadeInDown.duration(400).delay(200)}>
-          <SyncStatusBar 
-            pendingCount={pendingCount} 
-            onSyncPress={handleSync}
-          />
-        </Animated.View>
+        {/* Loading State */}
+        {isLoading && <LoadingSkeleton />}
 
-        {/* Stats Cards */}
-        <Animated.View entering={FadeInDown.duration(400).delay(300)} style={styles.statsRow}>
-          <View style={[styles.statCard, styles.statCardPrimary]}>
-            <View style={styles.statHeader}>
-              <Text style={styles.statEmoji}>💰</Text>
-              <Text style={styles.statLabel}>{t('home.monthlySales')}</Text>
-            </View>
-            <Text style={styles.statValue}>{formatCurrency(totalSales)}</Text>
-            <View style={styles.statBadge}>
-              <Text style={styles.statBadgeText}>📈 {t('home.thisMonth')}</Text>
-            </View>
-          </View>
-          
-          <View style={styles.statCard}>
-            <View style={styles.statHeader}>
-              <Text style={styles.statEmoji}>📄</Text>
-              <Text style={styles.statLabel}>{t('home.invoicesLabel')}</Text>
-            </View>
-            <Text style={styles.statValueSmall}>{count}</Text>
-            <Text style={styles.statMeta}>
-              {pendingCount > 0 ? `${pendingCount} ${t('home.pending')}` : t('home.allSynced')}
-            </Text>
-          </View>
-        </Animated.View>
+        {/* Content - Only show when not loading */}
+        {!isLoading && (
+          <>
+            {/* Empty State */}
+            {stats.count === 0 ? (
+              <EmptyInvoicesState onCreateInvoice={handleCreateInvoice} />
+            ) : (
+              <>
+                {/* Sync Status Bar */}
+                <Animated.View entering={FadeInDown.duration(400).delay(200)}>
+                  <SyncStatusBar 
+                    pendingCount={stats.pendingCount} 
+                    onSyncPress={handleSync}
+                  />
+                </Animated.View>
 
-        {/* Quick Action Rail */}
-        <Animated.View entering={FadeInDown.duration(400).delay(400)}>
-          <QuickActionRail
-            onCreateInvoice={handleCreateInvoice}
-            onScanReceipt={handleScanReceipt}
-            onViewInvoices={handleViewInvoices}
-            onTaxCalculator={handleTaxCalculator}
-          />
-        </Animated.View>
+                {/* Stats Cards */}
+                <StatsCards stats={stats} formatCurrency={formatCurrency} />
 
-        {/* Insights Carousel */}
-        <Animated.View entering={FadeInDown.duration(400).delay(500)}>
-          <InsightsCarousel
-            invoiceCount={count}
-            pendingCount={pendingCount}
-            totalSales={totalSales}
-            onNavigate={(screen) => props.navigation.navigate(screen)}
-          />
-        </Animated.View>
+                {/* Quick Action Rail */}
+                <Animated.View entering={FadeInDown.duration(400).delay(400)}>
+                  <QuickActionRail
+                    onCreateInvoice={handleCreateInvoice}
+                    onScanReceipt={handleScanReceipt}
+                    onViewInvoices={handleViewInvoices}
+                    onTaxCalculator={handleTaxCalculator}
+                  />
+                </Animated.View>
 
-        {/* Compliance Tip */}
-        <Animated.View entering={FadeInDown.duration(400).delay(600)} style={styles.tipCard}>
-          <Text style={styles.tipEmoji}>💡</Text>
-          <View style={styles.tipContent}>
-            <Text style={styles.tipTitle}>{t('home.taxTip')}</Text>
-            <Text style={styles.tipText}>
-              {t('home.offlineNotice')}
-            </Text>
-          </View>
-        </Animated.View>
+                {/* Insights Carousel */}
+                <Animated.View entering={FadeInDown.duration(400).delay(500)}>
+                  <InsightsCarousel
+                    invoiceCount={stats.count}
+                    pendingCount={stats.pendingCount}
+                    totalSales={stats.totalSales}
+                    onNavigate={(screen) => props.navigation.navigate(screen)}
+                  />
+                </Animated.View>
 
-        {/* Trust Badges */}
-        <Animated.View entering={FadeInDown.duration(400).delay(700)} style={styles.trustBadges}>
-          <View style={styles.trustBadge}>
-            <Text style={styles.trustIcon}>✓</Text>
-            <Text style={styles.trustLabel}>{t('home.nrsReady')}</Text>
-          </View>
-          <View style={styles.trustBadge}>
-            <Text style={styles.trustIcon}>🔒</Text>
-            <Text style={styles.trustLabel}>{t('home.ndprSafe')}</Text>
-          </View>
-          <View style={styles.trustBadge}>
-            <Text style={styles.trustIcon}>📵</Text>
-            <Text style={styles.trustLabel}>{t('home.offlineFirst')}</Text>
-          </View>
-        </Animated.View>
+                {/* Compliance Tip */}
+                <Animated.View entering={FadeInDown.duration(400).delay(600)} style={styles.tipCard}>
+                  <Text style={styles.tipEmoji}>💡</Text>
+                  <View style={styles.tipContent}>
+                    <Text style={styles.tipTitle}>{t('home.taxTip')}</Text>
+                    <Text style={styles.tipText}>{t('home.offlineNotice')}</Text>
+                  </View>
+                </Animated.View>
+
+                {/* Trust Badges */}
+                <Animated.View entering={FadeInDown.duration(400).delay(700)} style={styles.trustBadges}>
+                  <View style={styles.trustBadge}>
+                    <Text style={styles.trustIcon}>✓</Text>
+                    <Text style={styles.trustLabel}>{t('home.nrsReady')}</Text>
+                  </View>
+                  <View style={styles.trustBadge}>
+                    <Text style={styles.trustIcon}>🔒</Text>
+                    <Text style={styles.trustLabel}>{t('home.ndprSafe')}</Text>
+                  </View>
+                  <View style={styles.trustBadge}>
+                    <Text style={styles.trustIcon}>📵</Text>
+                    <Text style={styles.trustLabel}>{t('home.offlineFirst')}</Text>
+                  </View>
+                </Animated.View>
+              </>
+            )}
+          </>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 export default memo(HomeScreen);
+
+// ============================================================================
+// Styles
+// ============================================================================
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.surfaceSlate },
@@ -237,7 +493,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   statEmoji: {
-    fontSize: 18,
+    fontSize: typography.size.lg,
   },
   statLabel: { 
     color: colors.textOnPrimarySubtle, 
@@ -263,15 +519,15 @@ const styles = StyleSheet.create({
     fontWeight: typography.weight.medium,
   },
   statBadge: {
-    marginTop: spacing.sm + 2,
+    marginTop: spacing.sm + spacing.xxs,
     backgroundColor: colors.overlaySuccess,
-    paddingHorizontal: spacing.sm + 2,
-    paddingVertical: spacing.xs + 1,
+    paddingHorizontal: spacing.sm + spacing.xxs,
+    paddingVertical: spacing.xs + spacing.xxs,
     borderRadius: radii.md,
     alignSelf: 'flex-start',
   },
   statBadgeText: {
-    fontSize: 11,
+    fontSize: typography.size.xs,
     color: colors.success,
     fontWeight: typography.weight.semibold,
   },
@@ -290,7 +546,7 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   tipEmoji: {
-    fontSize: 24,
+    fontSize: typography.size.xl + spacing.xs,
   },
   tipContent: {
     flex: 1,
@@ -304,8 +560,8 @@ const styles = StyleSheet.create({
   tipText: {
     flex: 1,
     color: colors.tipText,
-    fontSize: 13,
-    lineHeight: 20,
+    fontSize: typography.size.xs + spacing.xxs,
+    lineHeight: spacing.xl,
   },
 
   // Trust Badges
@@ -325,14 +581,157 @@ const styles = StyleSheet.create({
     borderRadius: radii.full,
     borderWidth: 1,
     borderColor: colors.borderSubtle,
-    gap: spacing.sm - 2,
+    gap: spacing.xs,
   },
   trustIcon: {
-    fontSize: 14,
+    fontSize: typography.size.sm,
   },
   trustLabel: {
     fontSize: typography.size.xs,
     fontWeight: typography.weight.semibold,
     color: colors.textSecondary,
+  },
+
+  // Empty State
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.xxxl,
+    paddingHorizontal: spacing.xl,
+    marginHorizontal: spacing.lg,
+    backgroundColor: colors.surface,
+    borderRadius: radii.xl,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+  },
+  emptyEmoji: {
+    fontSize: 64,
+    marginBottom: spacing.lg,
+  },
+  emptyTitle: {
+    fontSize: typography.size.xl,
+    fontWeight: typography.weight.black,
+    color: colors.textPrimary,
+    marginBottom: spacing.sm,
+    textAlign: 'center',
+  },
+  emptyText: {
+    fontSize: typography.size.md,
+    color: colors.textMuted,
+    textAlign: 'center',
+    marginBottom: spacing.xl,
+    lineHeight: spacing.xl,
+  },
+  emptyButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+    borderRadius: radii.lg,
+    gap: spacing.sm,
+  },
+  emptyButtonIcon: {
+    fontSize: typography.size.lg,
+  },
+  emptyButtonText: {
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.bold,
+    color: colors.textOnPrimary,
+  },
+
+  // Loading Skeleton
+  skeletonContainer: {
+    paddingHorizontal: spacing.lg,
+  },
+  skeletonCard: {
+    flex: 1,
+    backgroundColor: colors.surface,
+    borderRadius: radii.xl,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+  },
+  skeletonCardLarge: {
+    flex: 1.5,
+  },
+  skeletonHeader: {
+    height: 16,
+    backgroundColor: colors.borderSubtle,
+    borderRadius: radii.sm,
+    marginBottom: spacing.sm,
+    width: '60%',
+  },
+  skeletonValue: {
+    height: 32,
+    backgroundColor: colors.borderSubtle,
+    borderRadius: radii.sm,
+    marginBottom: spacing.sm,
+    width: '80%',
+  },
+  skeletonBadge: {
+    height: 20,
+    backgroundColor: colors.borderSubtle,
+    borderRadius: radii.md,
+    width: '50%',
+  },
+  skeletonMeta: {
+    height: 14,
+    backgroundColor: colors.borderSubtle,
+    borderRadius: radii.sm,
+    width: '40%',
+  },
+  skeletonActions: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    marginTop: spacing.xl,
+    marginBottom: spacing.xl,
+  },
+  skeletonAction: {
+    flex: 1,
+    height: 80,
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+  },
+  loadingIndicator: {
+    marginTop: spacing.xxl,
+  },
+
+  // Error State
+  errorContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: spacing.xl,
+  },
+  errorEmoji: {
+    fontSize: 64,
+    marginBottom: spacing.lg,
+  },
+  errorTitle: {
+    fontSize: typography.size.xl,
+    fontWeight: typography.weight.black,
+    color: colors.error,
+    marginBottom: spacing.sm,
+    textAlign: 'center',
+  },
+  errorText: {
+    fontSize: typography.size.md,
+    color: colors.textMuted,
+    textAlign: 'center',
+    marginBottom: spacing.xl,
+  },
+  errorButton: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.md,
+    borderRadius: radii.lg,
+  },
+  errorButtonText: {
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.bold,
+    color: colors.textOnPrimary,
   },
 });
