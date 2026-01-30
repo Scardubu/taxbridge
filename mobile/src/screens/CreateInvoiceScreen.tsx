@@ -23,6 +23,7 @@ import { saveInvoice } from '../services/database';
 import { useFormValidation, validationRules, showValidationError } from '../utils/validation';
 import AnimatedButton from '../components/AnimatedButton';
 import { useLoading } from '../contexts/LoadingContext';
+import { useFeatureFlag } from '../contexts/FeatureFlagContext';
 import { generateUuid } from '../utils/uuid';
 import { colors, spacing, radii, typography, shadows } from '../theme/tokens';
 
@@ -46,9 +47,6 @@ const INVOICE_CONSTANTS = {
   DRAFT_KEY: 'invoice_draft',
   MAX_ITEMS: 100,
 } as const;
-
-const ENABLE_OCR = process.env.EXPO_PUBLIC_FEATURE_OCR === 'true' || 
-                   process.env.EXPO_PUBLIC_FEATURE_OCR_SCANNER === 'true';
 
 // ============================================================================
 // Types
@@ -287,6 +285,7 @@ TotalsSummary.displayName = 'TotalsSummary';
 function CreateInvoiceScreen(props: any) {
   const { t } = useTranslation();
   const { setLoading, setLoadingMessage } = useLoading();
+  const ocrEnabled = useFeatureFlag('ocrScanner');
 
   // Refs
   const customerNameRef = useRef<TextInput>(null);
@@ -548,7 +547,7 @@ function CreateInvoiceScreen(props: any) {
   // ============================================================================
 
   const openScanMenu = useCallback(async () => {
-    if (!ENABLE_OCR) return;
+    if (!ocrEnabled) return;
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     
@@ -689,7 +688,6 @@ function CreateInvoiceScreen(props: any) {
               <Text 
                 style={styles.h1}
                 accessibilityRole="header"
-                accessibilityLevel={1}
               >
                 {t('create.title')}
               </Text>
@@ -743,7 +741,6 @@ function CreateInvoiceScreen(props: any) {
                 <Text 
                   style={styles.h1}
                   accessibilityRole="header"
-                  accessibilityLevel={1}
                 >
                   {t('create.addItem')}
                 </Text>
@@ -829,7 +826,7 @@ function CreateInvoiceScreen(props: any) {
                       style={styles.cancelButton}
                     />
                   )}
-                  {ENABLE_OCR && editingIndex === null && (
+                  {ocrEnabled && editingIndex === null && (
                     <AnimatedButton 
                       title={t('common.scan')}
                       onPress={openScanMenu}
@@ -885,7 +882,6 @@ function CreateInvoiceScreen(props: any) {
                 <Text 
                   style={styles.h1}
                   accessibilityRole="header"
-                  accessibilityLevel={1}
                 >
                   {t('create.reviewTitle')}
                 </Text>
@@ -943,7 +939,7 @@ function CreateInvoiceScreen(props: any) {
       </KeyboardAvoidingView>
 
       {/* Camera Modal (Lazy Loaded) */}
-      {ENABLE_OCR && showCamera && (
+      {ocrEnabled && showCamera && (
         <Suspense fallback={<ActivityIndicator size="large" color={colors.primary} />}>
           <CameraModal
             visible={showCamera}

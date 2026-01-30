@@ -188,6 +188,10 @@
     "skipAllTitle": "Skip onboarding?",
     "skipAllMessage": "You fit see these tutorials later for Settings. You sure say you wan skip am?",
     "skipAllConfirm": "Skip All",
+    "validation": {
+      "title": "Information Never Complete",
+      "message": "Abeg complete all the required things before you continue"
+    },
     "avgSetupValue": "30s",
     "avgSetupLabel": "Avg setup",
     "metaEnglishPidgin": "🌍 English + Pidgin",

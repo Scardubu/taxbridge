@@ -15,12 +15,14 @@ export type FeatureFlags = {
   receiptsScanner: boolean;
   taxEngineV2: boolean;
   offlineInvoices: boolean;
+  ocrScanner: boolean;
 };
 
 let flags: FeatureFlags = {
   receiptsScanner: false,
   taxEngineV2: false,
   offlineInvoices: true,
+  ocrScanner: false,
 };
 
 export function getFeatureFlags(): FeatureFlags {

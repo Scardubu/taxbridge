@@ -196,6 +196,10 @@
     "skipAllTitle": "Skip onboarding?",
     "skipAllMessage": "You can always access these tutorials later in Settings. Are you sure you want to skip?",
     "skipAllConfirm": "Skip All",
+    "validation": {
+      "title": "Missing Information",
+      "message": "Please complete all required fields before continuing"
+    },
     "avgSetupValue": "30s",
     "avgSetupLabel": "Avg setup",
     "metaEnglishPidgin": "🌍 English + Pidgin",
