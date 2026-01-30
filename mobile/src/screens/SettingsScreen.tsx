@@ -1,8 +1,22 @@
-import { useEffect, useState, useCallback, memo } from 'react';
-import { Pressable, SafeAreaView, StyleSheet, Text, TextInput, View, Alert, ScrollView, Linking } from 'react-native';
+import { useEffect, useState, useCallback, memo, useMemo, useRef } from 'react';
+import { 
+  Pressable, 
+  SafeAreaView, 
+  StyleSheet, 
+  Text, 
+  TextInput, 
+  View, 
+  Alert, 
+  ScrollView, 
+  Linking,
+  Platform,
+} from 'react-native';
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
 import Constants from 'expo-constants';
+import * as Haptics from 'expo-haptics';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 
 import i18n, { type SupportedLanguage } from '../i18n';
 import { getSetting, setSetting, getInvoices, clearSyncedLocalInvoices } from '../services/database';
@@ -15,23 +29,166 @@ import { useNetwork } from '../contexts/NetworkContext';
 import { useSyncContext } from '../contexts/SyncContext';
 import { colors, spacing, radii, typography } from '../theme/tokens';
 
+// ============================================================================
+// Constants
+// ============================================================================
+
 const LANGUAGE_KEY = 'language';
 
-interface SettingSection {
-  id: string;
-  title: string;
-  icon: string;
-  expanded: boolean;
+const VALIDATION_LIMITS = {
+  PHONE_MIN_LENGTH: 10,
+  PASSWORD_MIN_LENGTH: 6,
+  NAME_MIN_LENGTH: 2,
+  OTP_LENGTH: 4,
+} as const;
+
+// ============================================================================
+// Types
+// ============================================================================
+
+interface StorageStats {
+  total: number;
+  synced: number;
+  pending: number;
 }
+
+interface Invoice {
+  id: string;
+  synced: 0 | 1;
+  items: string;
+  createdAt: number;
+}
+
+interface InvoiceItem {
+  quantity: number;
+  unitPrice: number;
+}
+
+// ============================================================================
+// Utility Functions
+// ============================================================================
+
+const parseInvoiceItems = (itemsJson: string): InvoiceItem[] => {
+  try {
+    const items = JSON.parse(itemsJson);
+    return Array.isArray(items) ? items : [];
+  } catch {
+    return [];
+  }
+};
+
+const formatLastSync = (lastSyncAt: number | null): string => {
+  if (!lastSyncAt) return 'Never';
+  
+  const diff = Date.now() - lastSyncAt;
+  const minutes = Math.floor(diff / 60000);
+  const hours = Math.floor(diff / 3600000);
+  
+  if (minutes < 1) return 'Just now';
+  if (minutes < 60) return `${minutes} min ago`;
+  if (hours < 24) return `${hours}h ago`;
+  
+  return new Date(lastSyncAt).toLocaleDateString();
+};
+
+// ============================================================================
+// Section Components
+// ============================================================================
+
+interface SectionHeaderProps {
+  icon: string;
+  title: string;
+  expanded: boolean;
+  onPress: () => void;
+}
+
+const SectionHeader = memo(({ icon, title, expanded, onPress }: SectionHeaderProps) => (
+  <Pressable 
+    style={styles.sectionHeader} 
+    onPress={() => {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      onPress();
+    }}
+    accessible={true}
+    accessibilityRole="button"
+    accessibilityState={{ expanded }}
+    accessibilityLabel={`${title} section`}
+  >
+    <View style={styles.sectionTitleRow}>
+      <Text style={styles.sectionIcon}>{icon}</Text>
+      <Text 
+        style={styles.sectionTitle}
+        accessibilityRole="header"
+        accessibilityLevel={2}
+      >
+        {title}
+      </Text>
+    </View>
+    <Text style={styles.expandIcon}>{expanded ? '▼' : '▶'}</Text>
+  </Pressable>
+));
+
+SectionHeader.displayName = 'SectionHeader';
+
+// ============================================================================
+// Storage Meter Component
+// ============================================================================
+
+interface StorageMeterProps {
+  stats: StorageStats;
+}
+
+const StorageMeter = memo(({ stats }: StorageMeterProps) => {
+  const { t } = useTranslation();
+  
+  const fillPercentage = useMemo(() => {
+    if (stats.total === 0) return 0;
+    return Math.min((stats.synced / stats.total) * 100, 100);
+  }, [stats.total, stats.synced]);
+
+  return (
+    <View style={styles.storageMeter}>
+      <View style={styles.storageHeader}>
+        <Text style={styles.storageLabel}>Local Storage</Text>
+        <Text style={styles.storageValue}>{stats.total} invoices</Text>
+      </View>
+      <View style={styles.storageBar}>
+        <View 
+          style={[styles.storageBarFill, { width: `${fillPercentage}%` }]} 
+        />
+      </View>
+      <View style={styles.storageLegend}>
+        <View style={styles.legendItem}>
+          <View style={[styles.legendDot, styles.legendDotSuccess]} />
+          <Text style={styles.legendText}>Synced ({stats.synced})</Text>
+        </View>
+        <View style={styles.legendItem}>
+          <View style={[styles.legendDot, styles.legendDotWarning]} />
+          <Text style={styles.legendText}>Pending ({stats.pending})</Text>
+        </View>
+      </View>
+    </View>
+  );
+});
+
+StorageMeter.displayName = 'StorageMeter';
+
+// ============================================================================
+// Main Component
+// ============================================================================
 
 function SettingsScreen() {
   const { t } = useTranslation();
   const { isOnline } = useNetwork();
   const { lastSyncAt, manualSync } = useSyncContext();
-  const [lang, setLang] = useState<SupportedLanguage>('en');
-  const [storageStats, setStorageStats] = useState({ total: 0, synced: 0, pending: 0 });
-  const [expandedSection, setExpandedSection] = useState<string | null>('language');
 
+  // State
+  const [lang, setLang] = useState<SupportedLanguage>('en');
+  const [storageStats, setStorageStats] = useState<StorageStats>({ total: 0, synced: 0, pending: 0 });
+  const [expandedSection, setExpandedSection] = useState<string | null>('language');
+  const [isExporting, setIsExporting] = useState(false);
+
+  // Auth state
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const [authName, setAuthName] = useState('');
@@ -43,18 +200,28 @@ function SettingsScreen() {
   const [totpCode, setTotpCode] = useState('');
   const [isAuthSubmitting, setIsAuthSubmitting] = useState(false);
 
+  // Form validation
   const { values, errors, touched, setValue, setTouchedField, validateAll } = useFormValidation(
     { apiUrl: '' },
     { apiUrl: validationRules.apiUrl }
   );
 
+  // Refs
+  const phoneInputRef = useRef<TextInput>(null);
+  const passwordInputRef = useRef<TextInput>(null);
+
+  // ============================================================================
+  // Data Loading
+  // ============================================================================
+
   const loadStorageStats = useCallback(async () => {
     try {
-      const invoices = await getInvoices();
-      const synced = invoices.filter((inv: any) => inv.synced === 1).length;
-      const pending = invoices.filter((inv: any) => inv.synced === 0).length;
+      const invoices = await getInvoices() as Invoice[];
+      const synced = invoices.filter(inv => inv.synced === 1).length;
+      const pending = invoices.filter(inv => inv.synced === 0).length;
       setStorageStats({ total: invoices.length, synced, pending });
-    } catch {
+    } catch (error) {
+      console.error('Failed to load storage stats:', error);
       setStorageStats({ total: 0, synced: 0, pending: 0 });
     }
   }, []);
@@ -69,7 +236,8 @@ function SettingsScreen() {
   }, []);
 
   useEffect(() => {
-    void getSetting(LANGUAGE_KEY)
+    // Load language preference
+    getSetting(LANGUAGE_KEY)
       .then((v) => {
         if (v === 'pidgin' || v === 'en') {
           setLang(v);
@@ -78,13 +246,27 @@ function SettingsScreen() {
       })
       .catch(() => undefined);
 
-    void getApiBaseUrl().then(url => {
-      setValue('apiUrl', url);
-    }).catch(() => undefined);
+    // Load API URL
+    getApiBaseUrl()
+      .then(url => setValue('apiUrl', url))
+      .catch(() => undefined);
 
     loadStorageStats();
     void refreshAuthStatus();
   }, [loadStorageStats, refreshAuthStatus, setValue]);
+
+  // Auto-focus on validation errors
+  useEffect(() => {
+    if (errors.phone && touched.phone) {
+      phoneInputRef.current?.focus();
+    } else if (errors.password && touched.password) {
+      passwordInputRef.current?.focus();
+    }
+  }, [errors.phone, errors.password, touched.phone, touched.password]);
+
+  // ============================================================================
+  // Auth Handlers
+  // ============================================================================
 
   const resetAuthForms = useCallback(() => {
     setAuthName('');
@@ -98,129 +280,136 @@ function SettingsScreen() {
 
   const handleLogin = useCallback(async () => {
     if (isAuthSubmitting) return;
+    
     if (!isOnline) {
-      Alert.alert('Offline', 'Please connect to the internet to sign in. You can keep creating invoices offline.');
+      Alert.alert(t('settings.offline'), t('settings.offlineSignInMsg'));
       return;
     }
-    if (!authPhone.trim() || authPhone.trim().length < 10) {
-      showValidationError('Validation Error', 'Enter a valid phone number');
+    
+    if (!authPhone.trim() || authPhone.trim().length < VALIDATION_LIMITS.PHONE_MIN_LENGTH) {
+      showValidationError(t('settings.validationError'), t('settings.enterValidPhone'));
       return;
     }
-    if (!authPassword || authPassword.length < 6) {
-      showValidationError('Validation Error', 'Enter your password (min 6 characters)');
+    
+    if (!authPassword || authPassword.length < VALIDATION_LIMITS.PASSWORD_MIN_LENGTH) {
+      showValidationError(t('settings.validationError'), t('settings.enterPassword', { count: VALIDATION_LIMITS.PASSWORD_MIN_LENGTH }));
       return;
     }
 
     setIsAuthSubmitting(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    
     try {
       const res = await authApi.login(authPhone.trim(), authPassword);
+      
       if ((res as any)?.requiresMfa && (res as any)?.mfaToken) {
         setMfaToken((res as any).mfaToken);
-        Alert.alert('MFA Required', 'Enter your authenticator code to finish signing in.');
+        Alert.alert(t('settings.mfaRequired'), t('settings.mfaRequiredMsg'));
         return;
       }
 
       await refreshAuthStatus();
-      Alert.alert('Signed in', 'Sync is now enabled on this device.');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert(t('settings.signedIn'), t('settings.signedInMsg'));
       resetAuthForms();
+      
       if (isOnline) {
         void manualSync();
       }
-    } catch {
-      showValidationError('Sign-in failed', 'Please check your phone number and password and try again.');
+    } catch (error) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      showValidationError(t('settings.signInFailed'), t('settings.signInFailedMsg'));
     } finally {
       setIsAuthSubmitting(false);
     }
   }, [authPassword, authPhone, isAuthSubmitting, isOnline, manualSync, refreshAuthStatus, resetAuthForms]);
 
   const handleMfaVerify = useCallback(async () => {
-    if (isAuthSubmitting) return;
-    if (!isOnline) {
-      Alert.alert('Offline', 'Please connect to the internet to verify MFA.');
-      return;
-    }
-    if (!mfaToken) {
-      showValidationError('Missing step', 'Please start sign-in again.');
-      return;
-    }
-    if (!totpCode.trim() || totpCode.trim().length < 4) {
-      showValidationError('Validation Error', 'Enter your authenticator code');
+    if (isAuthSubmitting || !isOnline || !mfaToken) return;
+    
+    if (!totpCode.trim() || totpCode.trim().length < VALIDATION_LIMITS.OTP_LENGTH) {
+      showValidationError(t('settings.validationError'), t('settings.enterAuthCode'));
       return;
     }
 
     setIsAuthSubmitting(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    
     try {
       await authApi.mfaLogin(mfaToken, totpCode.trim());
       await refreshAuthStatus();
-      Alert.alert('Signed in', 'Sync is now enabled on this device.');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert(t('settings.signedIn'), t('settings.signedInMsg'));
       resetAuthForms();
+      
       if (isOnline) {
         void manualSync();
       }
-    } catch {
-      showValidationError('MFA failed', 'Please check the code and try again.');
+    } catch (error) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      showValidationError(t('settings.mfaFailed'), t('settings.mfaFailedMsg'));
     } finally {
       setIsAuthSubmitting(false);
     }
   }, [isAuthSubmitting, isOnline, manualSync, mfaToken, refreshAuthStatus, resetAuthForms, totpCode]);
 
   const handleRegister = useCallback(async () => {
-    if (isAuthSubmitting) return;
-    if (!isOnline) {
-      Alert.alert('Offline', 'Please connect to the internet to create an account.');
+    if (isAuthSubmitting || !isOnline) return;
+    
+    if (!authName.trim() || authName.trim().length < VALIDATION_LIMITS.NAME_MIN_LENGTH) {
+      showValidationError(t('settings.validationError'), t('settings.enterFullName'));
       return;
     }
-    if (!authName.trim() || authName.trim().length < 2) {
-      showValidationError('Validation Error', 'Enter your full name');
+    
+    if (!authPhone.trim() || authPhone.trim().length < VALIDATION_LIMITS.PHONE_MIN_LENGTH) {
+      showValidationError(t('settings.validationError'), t('settings.enterValidPhone'));
       return;
     }
-    if (!authPhone.trim() || authPhone.trim().length < 10) {
-      showValidationError('Validation Error', 'Enter a valid phone number');
-      return;
-    }
-    if (!authPassword || authPassword.length < 6) {
-      showValidationError('Validation Error', 'Create a password (min 6 characters)');
+    
+    if (!authPassword || authPassword.length < VALIDATION_LIMITS.PASSWORD_MIN_LENGTH) {
+      showValidationError(t('settings.validationError'), t('settings.createPassword', { count: VALIDATION_LIMITS.PASSWORD_MIN_LENGTH }));
       return;
     }
 
     setIsAuthSubmitting(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    
     try {
       const res = await authApi.register(authPhone.trim(), authName.trim(), authPassword);
       setRegisterUserId(res.userId);
-      Alert.alert('Verify phone', 'Enter the OTP sent to your phone to finish setup.');
-    } catch {
-      showValidationError('Signup failed', 'Could not create account. Please try again.');
+      Alert.alert(t('settings.verifyPhone'), t('settings.verifyPhoneMsg'));
+    } catch (error) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      showValidationError(t('settings.signupFailed'), t('settings.signupFailedMsg'));
     } finally {
       setIsAuthSubmitting(false);
     }
   }, [authName, authPassword, authPhone, isAuthSubmitting, isOnline]);
 
   const handleVerifyOtp = useCallback(async () => {
-    if (isAuthSubmitting) return;
-    if (!isOnline) {
-      Alert.alert('Offline', 'Please connect to the internet to verify your phone.');
-      return;
-    }
-    if (!registerUserId) {
-      showValidationError('Missing step', 'Please create your account first.');
-      return;
-    }
-    if (!authOtp.trim() || authOtp.trim().length < 4) {
-      showValidationError('Validation Error', 'Enter the OTP');
+    if (isAuthSubmitting || !isOnline || !registerUserId) return;
+    
+    if (!authOtp.trim() || authOtp.trim().length < VALIDATION_LIMITS.OTP_LENGTH) {
+      showValidationError(t('settings.validationError'), t('settings.enterOtp'));
       return;
     }
 
     setIsAuthSubmitting(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    
     try {
       await authApi.verifyPhone(registerUserId, authOtp.trim());
       await refreshAuthStatus();
-      Alert.alert('Account ready', 'Your phone is verified and sync is now enabled.');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert(t('settings.accountReady'), t('settings.accountReadyMsg'));
       resetAuthForms();
+      
       if (isOnline) {
         void manualSync();
       }
-    } catch {
-      showValidationError('Verification failed', 'Please check the OTP and try again.');
+    } catch (error) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      showValidationError(t('settings.verificationFailed'), t('settings.verificationFailedMsg'));
     } finally {
       setIsAuthSubmitting(false);
     }
@@ -228,55 +417,73 @@ function SettingsScreen() {
 
   const handleLogout = useCallback(async () => {
     if (isAuthSubmitting) return;
+    
     setIsAuthSubmitting(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    
     try {
       await authApi.logout();
       await refreshAuthStatus();
-      Alert.alert('Signed out', 'This device is now signed out. Offline invoices remain on your phone.');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert(t('settings.signedOut'), t('settings.signedOutMsg'));
       resetAuthForms();
-    } catch {
-      showValidationError('Sign-out failed', 'Please try again.');
+    } catch (error) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      showValidationError(t('settings.signOutFailed'), t('settings.signOutFailedMsg'));
     } finally {
       setIsAuthSubmitting(false);
     }
   }, [isAuthSubmitting, refreshAuthStatus, resetAuthForms]);
 
-  const choose = async (next: SupportedLanguage) => {
+  // ============================================================================
+  // Settings Handlers
+  // ============================================================================
+
+  const chooseLanguage = useCallback(async (next: SupportedLanguage) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setLang(next);
     await setSetting(LANGUAGE_KEY, next);
     await i18n.changeLanguage(next);
-  };
+  }, []);
 
-  const saveApiUrl = async () => {
+  const saveApiUrl = useCallback(async () => {
     if (!validateAll()) {
-      showValidationError('Validation Error', 'Please enter a valid API URL');
+      showValidationError(t('settings.validationError'), t('settings.enterValidApiUrl'));
       return;
     }
 
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    
     try {
       await setApiBaseUrl(values.apiUrl);
-      Alert.alert('Success', 'API URL updated successfully');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert(t('settings.success'), t('settings.apiUrlUpdated'));
     } catch (error) {
-      showValidationError('Error', 'Failed to save API URL');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      showValidationError(t('settings.error'), t('settings.failedSaveApiUrl'));
     }
-  };
+  }, [validateAll, values.apiUrl]);
 
   const handleClearSyncedData = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    
     Alert.alert(
-      'Clear Synced Invoices?',
-      `This will remove ${storageStats.synced} synced invoices from local storage. They are safely stored on the server.`,
+      t('settings.clearSyncedTitle'),
+      t('settings.clearSyncedMsg', { count: storageStats.synced }),
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t('settings.cancel'), style: 'cancel' },
         {
-          text: 'Clear',
+          text: t('settings.clear'),
           style: 'destructive',
           onPress: async () => {
             try {
               const removed = await clearSyncedLocalInvoices(0);
-              Alert.alert('Success', `Removed ${removed} synced invoices from local storage.`);
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              Alert.alert(t('settings.success'), t('settings.removedSyncedMsg', { count: removed }));
               loadStorageStats();
-            } catch {
-              showValidationError('Error', 'Failed to clear data');
+            } catch (error) {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+              showValidationError(t('settings.error'), t('settings.failedClearData'));
             }
           },
         },
@@ -284,25 +491,67 @@ function SettingsScreen() {
     );
   }, [storageStats.synced, loadStorageStats]);
 
+  const handleExportData = useCallback(async () => {
+    if (isExporting) return;
+    
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setIsExporting(true);
+    
+    try {
+      const invoices = await getInvoices() as Invoice[];
+      
+      // Generate CSV
+      const headers = 'Date,Amount,Status\n';
+      const rows = invoices.map(inv => {
+        const items = parseInvoiceItems(inv.items);
+        const total = items.reduce((s, item) => s + (item.quantity * item.unitPrice), 0);
+        const date = new Date(inv.createdAt).toLocaleDateString();
+        const status = inv.synced ? 'Synced' : 'Pending';
+        return `${date},${total},${status}`;
+      }).join('\n');
+      
+      const csv = headers + rows;
+      
+      // Save to file
+      const fileName = `taxbridge_invoices_${Date.now()}.csv`;
+      const fileUri = `${FileSystem.documentDirectory}${fileName}`;
+      await FileSystem.writeAsStringAsync(fileUri, csv);
+      
+      // Share file
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(fileUri, {
+          mimeType: 'text/csv',
+          dialogTitle: t('settings.exportInvoices'),
+        });
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } else {
+        Alert.alert(t('settings.exportCompleteTitle'), t('settings.exportCompleteMsg', { path: fileUri }));
+      }
+    } catch (error) {
+      console.error('Export failed:', error);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      showValidationError(t('error'), t('settings.exportFailed'));
+    } finally {
+      setIsExporting(false);
+    }
+  }, [isExporting, t]);
+
   const handleJoinCommunity = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    
     Alert.alert(
       'Join TaxBridge Community',
       'Connect with 2,000+ Nigerian SMEs sharing tax tips and best practices.',
       [
         { text: t('settings.cancel'), style: 'cancel' },
-        { text: t('settings.whatsappGroup'), onPress: () => Linking.openURL('https://chat.whatsapp.com/taxbridge') },
-        { text: t('settings.discord'), onPress: () => Linking.openURL('https://discord.gg/taxbridge') },
-      ]
-    );
-  }, []);
-
-  const handleExportData = useCallback(() => {
-    Alert.alert(
-      t('settings.exportTitle'),
-      t('settings.exportDesc'),
-      [
-        { text: t('settings.cancel'), style: 'cancel' },
-        // { text: t('settings.exportBtn'), onPress: () => Alert.alert(t('common.comingSoon'), t('settings.exportComingSoon')) },
+        { 
+          text: t('settings.whatsappGroup'), 
+          onPress: () => Linking.openURL('https://chat.whatsapp.com/taxbridge') 
+        },
+        { 
+          text: t('settings.discord'), 
+          onPress: () => Linking.openURL('https://discord.gg/taxbridge') 
+        },
       ]
     );
   }, [t]);
@@ -311,20 +560,19 @@ function SettingsScreen() {
     setExpandedSection(prev => prev === sectionId ? null : sectionId);
   }, []);
 
-  const formatLastSync = () => {
-    if (!lastSyncAt) return 'Never';
-    const diff = Date.now() - lastSyncAt;
-    const minutes = Math.floor(diff / 60000);
-    const hours = Math.floor(diff / 3600000);
-    if (minutes < 1) return 'Just now';
-    if (minutes < 60) return `${minutes} min ago`;
-    if (hours < 24) return `${hours}h ago`;
-    return new Date(lastSyncAt).toLocaleDateString();
-  };
+  // ============================================================================
+  // Render
+  // ============================================================================
 
   return (
     <SafeAreaView style={styles.safe}>
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={styles.scroll} 
+        contentContainerStyle={styles.container} 
+        showsVerticalScrollIndicator={false}
+        accessible={true}
+        accessibilityLabel={t('settings.mainContent')}
+      >
         {/* Header */}
         <Animated.View entering={FadeInDown.duration(300)} style={styles.header}>
           <Text style={styles.headerIcon}>⚙️</Text>
@@ -335,14 +583,19 @@ function SettingsScreen() {
         </Animated.View>
 
         {/* Network Status Card */}
-        <Animated.View entering={FadeInDown.duration(300).delay(100)} style={[styles.statusCard, isOnline ? styles.statusOnline : styles.statusOffline]}>
+        <Animated.View 
+          entering={FadeInDown.duration(300).delay(100)} 
+          style={[styles.statusCard, isOnline ? styles.statusOnline : styles.statusOffline]}
+        >
           <View style={styles.statusRow}>
             <Text style={styles.statusIcon}>{isOnline ? '🟢' : '🔴'}</Text>
             <View style={styles.statusInfo}>
               <Text style={[styles.statusTitle, !isOnline && styles.statusTitleOffline]}>
                 {isOnline ? t('home.onlineSync') : t('home.offlineStatus')}
               </Text>
-              <Text style={styles.statusSubtitle}>{t('sync.lastSync')}: {formatLastSync()}</Text>
+              <Text style={styles.statusSubtitle}>
+                {t('sync.lastSync')}: {formatLastSync(lastSyncAt)}
+              </Text>
             </View>
           </View>
           <View style={styles.statusStats}>
@@ -363,20 +616,22 @@ function SettingsScreen() {
 
         {/* Language & Accessibility Section */}
         <Animated.View entering={FadeInDown.duration(300).delay(200)}>
-          <Pressable style={styles.sectionHeader} onPress={() => toggleSection('language')}>
-            <View style={styles.sectionTitleRow}>
-              <Text style={styles.sectionIcon}>🌍</Text>
-              <Text style={styles.sectionTitle}>{t('settings.language')} & Accessibility</Text>
-            </View>
-            <Text style={styles.expandIcon}>{expandedSection === 'language' ? '▼' : '▶'}</Text>
-          </Pressable>
+          <SectionHeader
+            icon="🌍"
+            title={`${t('settings.language')} & Accessibility`}
+            expanded={expandedSection === 'language'}
+            onPress={() => toggleSection('language')}
+          />
           
           {expandedSection === 'language' && (
             <Animated.View entering={FadeIn.duration(200)} style={styles.sectionContent}>
               <View style={styles.row}>
                 <Pressable 
                   style={[styles.option, lang === 'en' && styles.optionActive]} 
-                  onPress={() => void choose('en')}
+                  onPress={() => void chooseLanguage('en')}
+                  accessible={true}
+                  accessibilityRole="radio"
+                  accessibilityState={{ checked: lang === 'en' }}
                 >
                   <Text style={styles.optionEmoji}>🇬🇧</Text>
                   <Text style={[styles.optionText, lang === 'en' && styles.optionTextActive]}>
@@ -385,7 +640,10 @@ function SettingsScreen() {
                 </Pressable>
                 <Pressable
                   style={[styles.option, lang === 'pidgin' && styles.optionActive]}
-                  onPress={() => void choose('pidgin')}
+                  onPress={() => void chooseLanguage('pidgin')}
+                  accessible={true}
+                  accessibilityRole="radio"
+                  accessibilityState={{ checked: lang === 'pidgin' }}
                 >
                   <Text style={styles.optionEmoji}>🇳🇬</Text>
                   <Text style={[styles.optionText, lang === 'pidgin' && styles.optionTextActive]}>
@@ -402,54 +660,44 @@ function SettingsScreen() {
 
         {/* Data & Storage Section */}
         <Animated.View entering={FadeInDown.duration(300).delay(300)}>
-          <Pressable style={styles.sectionHeader} onPress={() => toggleSection('data')}>
-            <View style={styles.sectionTitleRow}>
-              <Text style={styles.sectionIcon}>💾</Text>
-              <Text style={styles.sectionTitle}>Data & Storage</Text>
-            </View>
-            <Text style={styles.expandIcon}>{expandedSection === 'data' ? '▼' : '▶'}</Text>
-          </Pressable>
+          <SectionHeader
+            icon="💾"
+            title="Data & Storage"
+            expanded={expandedSection === 'data'}
+            onPress={() => toggleSection('data')}
+          />
           
           {expandedSection === 'data' && (
             <Animated.View entering={FadeIn.duration(200)} style={styles.sectionContent}>
-              {/* Storage Meter */}
-              <View style={styles.storageMeter}>
-                <View style={styles.storageHeader}>
-                  <Text style={styles.storageLabel}>Local Storage</Text>
-                  <Text style={styles.storageValue}>{storageStats.total} invoices</Text>
-                </View>
-                <View style={styles.storageBar}>
-                  <View 
-                    style={[
-                      styles.storageBarFill, 
-                      { width: `${Math.min((storageStats.synced / Math.max(storageStats.total, 1)) * 100, 100)}%` }
-                    ]} 
-                  />
-                </View>
-                <View style={styles.storageLegend}>
-                  <View style={styles.legendItem}>
-                    <View style={[styles.legendDot, styles.legendDotSuccess]} />
-                    <Text style={styles.legendText}>Synced ({storageStats.synced})</Text>
-                  </View>
-                  <View style={styles.legendItem}>
-                    <View style={[styles.legendDot, styles.legendDotWarning]} />
-                    <Text style={styles.legendText}>Pending ({storageStats.pending})</Text>
-                  </View>
-                </View>
-              </View>
+              <StorageMeter stats={storageStats} />
 
               <View style={styles.actionButtons}>
-                <Pressable style={styles.actionButton} onPress={handleClearSyncedData}>
+                <Pressable 
+                  style={styles.actionButton} 
+                  onPress={handleClearSyncedData}
+                  accessible={true}
+                  accessibilityRole="button"
+                  accessibilityLabel="Clear synced data to free up local storage"
+                >
                   <Text style={styles.actionIcon}>🗑️</Text>
                   <View>
                     <Text style={styles.actionTitle}>Clear Synced Data</Text>
                     <Text style={styles.actionSubtitle}>Free up local storage</Text>
                   </View>
                 </Pressable>
-                <Pressable style={styles.actionButton} onPress={handleExportData}>
+                <Pressable 
+                  style={styles.actionButton} 
+                  onPress={handleExportData}
+                  disabled={isExporting}
+                  accessible={true}
+                  accessibilityRole="button"
+                  accessibilityLabel="Export your invoices as CSV"
+                >
                   <Text style={styles.actionIcon}>📤</Text>
                   <View>
-                    <Text style={styles.actionTitle}>Export Your Data</Text>
+                    <Text style={styles.actionTitle}>
+                      {isExporting ? 'Exporting...' : 'Export Your Data'}
+                    </Text>
                     <Text style={styles.actionSubtitle}>Download invoices as CSV</Text>
                   </View>
                 </Pressable>
@@ -460,13 +708,12 @@ function SettingsScreen() {
 
         {/* Network & Sync Section */}
         <Animated.View entering={FadeInDown.duration(300).delay(400)}>
-          <Pressable style={styles.sectionHeader} onPress={() => toggleSection('network')}>
-            <View style={styles.sectionTitleRow}>
-              <Text style={styles.sectionIcon}>🔄</Text>
-              <Text style={styles.sectionTitle}>Network & Sync</Text>
-            </View>
-            <Text style={styles.expandIcon}>{expandedSection === 'network' ? '▼' : '▶'}</Text>
-          </Pressable>
+          <SectionHeader
+            icon="🔄"
+            title="Network & Sync"
+            expanded={expandedSection === 'network'}
+            onPress={() => toggleSection('network')}
+          />
           
           {expandedSection === 'network' && (
             <Animated.View entering={FadeIn.duration(200)} style={styles.sectionContent}>
@@ -480,6 +727,8 @@ function SettingsScreen() {
                 placeholderTextColor={colors.disabled}
                 autoCapitalize="none"
                 autoCorrect={false}
+                accessible={true}
+                accessibilityLabel="API URL"
               />
               {errors.apiUrl && touched.apiUrl && (
                 <Text style={styles.errorText}>{errors.apiUrl}</Text>
@@ -495,13 +744,12 @@ function SettingsScreen() {
 
         {/* Account & Sync Section */}
         <Animated.View entering={FadeInDown.duration(300).delay(450)}>
-          <Pressable style={styles.sectionHeader} onPress={() => toggleSection('account')}>
-            <View style={styles.sectionTitleRow}>
-              <Text style={styles.sectionIcon}>👤</Text>
-              <Text style={styles.sectionTitle}>{t('settings.accountSyncTitle')}</Text>
-            </View>
-            <Text style={styles.expandIcon}>{expandedSection === 'account' ? '▼' : '▶'}</Text>
-          </Pressable>
+          <SectionHeader
+            icon="👤"
+            title={t('settings.accountSyncTitle')}
+            expanded={expandedSection === 'account'}
+            onPress={() => toggleSection('account')}
+          />
 
           {expandedSection === 'account' && (
             <Animated.View entering={FadeIn.duration(200)} style={styles.sectionContent}>
@@ -544,8 +792,13 @@ function SettingsScreen() {
                         setRegisterUserId(null);
                         setMfaToken(null);
                       }}
+                      accessible={true}
+                      accessibilityRole="tab"
+                      accessibilityState={{ selected: authMode === 'login' }}
                     >
-                      <Text style={[styles.optionText, authMode === 'login' && styles.optionTextActive]}>{t('settings.signIn')}</Text>
+                      <Text style={[styles.optionText, authMode === 'login' && styles.optionTextActive]}>
+                        {t('settings.signIn')}
+                      </Text>
                     </Pressable>
                     <Pressable
                       style={[styles.option, authMode === 'register' && styles.optionActive]}
@@ -554,8 +807,13 @@ function SettingsScreen() {
                         setRegisterUserId(null);
                         setMfaToken(null);
                       }}
+                      accessible={true}
+                      accessibilityRole="tab"
+                      accessibilityState={{ selected: authMode === 'register' }}
                     >
-                      <Text style={[styles.optionText, authMode === 'register' && styles.optionTextActive]}>{t('settings.createAccount')}</Text>
+                      <Text style={[styles.optionText, authMode === 'register' && styles.optionTextActive]}>
+                        {t('settings.createAccount')}
+                      </Text>
                     </Pressable>
                   </View>
 
@@ -569,12 +827,15 @@ function SettingsScreen() {
                         placeholder="e.g. Amina Yusuf"
                         placeholderTextColor={colors.disabled}
                         autoCapitalize="words"
+                        accessible={true}
+                        accessibilityLabel="Full name"
                       />
                     </>
                   )}
 
                   <Text style={styles.label}>Phone number</Text>
                   <TextInput
+                    ref={phoneInputRef}
                     style={styles.input}
                     value={authPhone}
                     onChangeText={setAuthPhone}
@@ -583,10 +844,13 @@ function SettingsScreen() {
                     keyboardType="phone-pad"
                     autoCapitalize="none"
                     autoCorrect={false}
+                    accessible={true}
+                    accessibilityLabel="Phone number"
                   />
 
                   <Text style={styles.label}>Password</Text>
                   <TextInput
+                    ref={passwordInputRef}
                     style={styles.input}
                     value={authPassword}
                     onChangeText={setAuthPassword}
@@ -595,6 +859,8 @@ function SettingsScreen() {
                     secureTextEntry
                     autoCapitalize="none"
                     autoCorrect={false}
+                    accessible={true}
+                    accessibilityLabel="Password"
                   />
 
                   {mfaToken && (
@@ -662,13 +928,12 @@ function SettingsScreen() {
 
         {/* Community Section */}
         <Animated.View entering={FadeInDown.duration(300).delay(500)}>
-          <Pressable style={styles.sectionHeader} onPress={() => toggleSection('community')}>
-            <View style={styles.sectionTitleRow}>
-              <Text style={styles.sectionIcon}>👥</Text>
-              <Text style={styles.sectionTitle}>Community</Text>
-            </View>
-            <Text style={styles.expandIcon}>{expandedSection === 'community' ? '▼' : '▶'}</Text>
-          </Pressable>
+          <SectionHeader
+            icon="👥"
+            title="Community"
+            expanded={expandedSection === 'community'}
+            onPress={() => toggleSection('community')}
+          />
           
           {expandedSection === 'community' && (
             <Animated.View entering={FadeIn.duration(200)} style={styles.sectionContent}>
@@ -698,13 +963,12 @@ function SettingsScreen() {
 
         {/* Security & Compliance Section */}
         <Animated.View entering={FadeInDown.duration(300).delay(600)}>
-          <Pressable style={styles.sectionHeader} onPress={() => toggleSection('security')}>
-            <View style={styles.sectionTitleRow}>
-              <Text style={styles.sectionIcon}>🔒</Text>
-              <Text style={styles.sectionTitle}>{t('settings.securityComplianceTitle')}</Text>
-            </View>
-            <Text style={styles.expandIcon}>{expandedSection === 'security' ? '▼' : '▶'}</Text>
-          </Pressable>
+          <SectionHeader
+            icon="🔒"
+            title={t('settings.securityComplianceTitle')}
+            expanded={expandedSection === 'security'}
+            onPress={() => toggleSection('security')}
+          />
           
           {expandedSection === 'security' && (
             <Animated.View entering={FadeIn.duration(200)} style={styles.sectionContent}>
@@ -738,7 +1002,9 @@ function SettingsScreen() {
 
         {/* App Info */}
         <Animated.View entering={FadeInDown.duration(300).delay(700)} style={styles.appInfo}>
-          <Text style={styles.appName}>{t('settings.appName', { version: Constants.expoConfig?.version || '5.0.2' })}</Text>
+          <Text style={styles.appName}>
+            {t('settings.appName', { version: Constants.expoConfig?.version || '5.0.2' })}
+          </Text>
           <Text style={styles.appTagline}>{t('settings.appTagline')}</Text>
           <Text style={styles.copyright}>{t('settings.copyright')}</Text>
         </Animated.View>
@@ -749,29 +1015,33 @@ function SettingsScreen() {
 
 export default memo(SettingsScreen);
 
+// ============================================================================
+// Styles
+// ============================================================================
+
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.surfaceSlate },
   scroll: { flex: 1 },
-  container: { padding: 16, paddingBottom: 40 },
+  container: { padding: spacing.lg, paddingBottom: spacing.xxl + spacing.lg },
   
   // Header
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
-    marginBottom: 20,
+    gap: spacing.md,
+    marginBottom: spacing.xl,
   },
   headerIcon: {
-    fontSize: 32,
+    fontSize: typography.size.xxxl,
   },
-  h1: { fontSize: 26, fontWeight: '900', color: colors.textPrimary },
-  subtitle: { fontSize: 14, color: colors.textMuted, marginTop: 2 },
+  h1: { fontSize: typography.size.xxl, fontWeight: typography.weight.black, color: colors.textPrimary },
+  subtitle: { fontSize: typography.size.sm, color: colors.textMuted, marginTop: spacing.xxs },
   
   // Status Card
   statusCard: {
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 20,
+    borderRadius: radii.lg,
+    padding: spacing.lg,
+    marginBottom: spacing.xl,
     borderWidth: 1,
   },
   statusOnline: {
@@ -785,32 +1055,32 @@ const styles = StyleSheet.create({
   statusRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    marginBottom: 12,
+    gap: spacing.md,
+    marginBottom: spacing.md,
   },
   statusIcon: {
-    fontSize: 18,
+    fontSize: typography.size.lg,
   },
   statusInfo: {
     flex: 1,
   },
   statusTitle: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.bold,
     color: colors.successDark,
   },
   statusTitleOffline: {
     color: colors.warningDark,
   },
   statusSubtitle: {
-    fontSize: 12,
+    fontSize: typography.size.xs,
     color: colors.textMuted,
-    marginTop: 2,
+    marginTop: spacing.xxs,
   },
   statusStats: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    paddingTop: 12,
+    paddingTop: spacing.md,
     borderTopWidth: 1,
     borderTopColor: colors.borderTransparent,
   },
@@ -818,8 +1088,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   statValue: {
-    fontSize: 20,
-    fontWeight: '900',
+    fontSize: typography.size.xl,
+    fontWeight: typography.weight.black,
     color: colors.textPrimary,
   },
   statValueSuccess: {
@@ -829,10 +1099,10 @@ const styles = StyleSheet.create({
     color: colors.warning,
   },
   statLabel: {
-    fontSize: 11,
+    fontSize: typography.size.xs,
     color: colors.textMuted,
-    fontWeight: '500',
-    marginTop: 2,
+    fontWeight: typography.weight.medium,
+    marginTop: spacing.xxs,
   },
   
   // Section
@@ -841,121 +1111,121 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     backgroundColor: colors.surface,
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 8,
+    padding: spacing.lg,
+    borderRadius: radii.md,
+    marginBottom: spacing.sm,
     borderWidth: 1,
     borderColor: colors.borderSubtle,
   },
   sectionTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: spacing.sm + spacing.xxs,
   },
   sectionIcon: {
-    fontSize: 18,
+    fontSize: typography.size.lg,
   },
   sectionTitle: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.bold,
     color: colors.textPrimary,
   },
   expandIcon: {
-    fontSize: 12,
+    fontSize: typography.size.xs,
     color: colors.textMuted,
   },
   sectionContent: {
     backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
+    borderRadius: radii.md,
+    padding: spacing.lg,
+    marginBottom: spacing.lg,
     borderWidth: 1,
     borderColor: colors.borderSubtle,
   },
   
   // Language Options
-  row: { flexDirection: 'row', gap: 12 },
+  row: { flexDirection: 'row', gap: spacing.md },
   option: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 12,
-    borderRadius: 12,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    borderRadius: radii.md,
     backgroundColor: colors.surfaceSlate,
     borderWidth: 2,
     borderColor: colors.borderSubtle,
-    gap: 8,
+    gap: spacing.sm,
   },
   optionActive: {
     borderColor: colors.primary,
     backgroundColor: colors.primaryLight,
   },
   optionEmoji: {
-    fontSize: 20,
+    fontSize: typography.size.xl,
   },
-  optionText: { color: colors.textSecondary, fontWeight: '700', fontSize: 14 },
+  optionText: { color: colors.textSecondary, fontWeight: typography.weight.bold, fontSize: typography.size.sm },
   optionTextActive: { color: colors.primary },
   helperText: {
-    fontSize: 12,
+    fontSize: typography.size.xs,
     color: colors.textMuted,
-    marginTop: 12,
+    marginTop: spacing.md,
     textAlign: 'center',
   },
 
   // Account
   accountCard: {
     backgroundColor: colors.successBg,
-    borderRadius: 12,
-    padding: 14,
+    borderRadius: radii.md,
+    padding: spacing.md,
     borderWidth: 1,
     borderColor: colors.successBorder,
-    marginTop: 12,
+    marginTop: spacing.md,
   },
   accountRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    marginBottom: 12,
+    gap: spacing.sm + spacing.xxs,
+    marginBottom: spacing.md,
   },
   accountStatusDot: {
-    fontSize: 16,
+    fontSize: typography.size.md,
   },
   accountStatusInfo: {
     flex: 1,
   },
   accountStatusTitle: {
-    fontSize: 14,
-    fontWeight: '800',
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.extrabold,
     color: colors.successDark,
   },
   accountStatusSubtitle: {
-    fontSize: 12,
+    fontSize: typography.size.xs,
     color: colors.successDark,
-    marginTop: 2,
+    marginTop: spacing.xxs,
   },
   
   // Storage
   storageMeter: {
-    marginBottom: 16,
+    marginBottom: spacing.lg,
   },
   storageHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   storageLabel: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.semibold,
     color: colors.textSecondary,
   },
   storageValue: {
-    fontSize: 14,
+    fontSize: typography.size.sm,
     color: colors.textMuted,
   },
   storageBar: {
-    height: 8,
+    height: spacing.sm,
     backgroundColor: colors.borderSubtle,
     borderRadius: radii.sm,
     overflow: 'hidden',
@@ -976,8 +1246,8 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   legendDot: {
-    width: 8,
-    height: 8,
+    width: spacing.sm,
+    height: spacing.sm,
     borderRadius: radii.full,
   },
   legendDotSuccess: {
@@ -993,41 +1263,41 @@ const styles = StyleSheet.create({
   
   // Action Buttons
   actionButtons: {
-    gap: 8,
+    gap: spacing.sm,
   },
   actionButton: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.surfaceSlate,
-    padding: 14,
-    borderRadius: 12,
-    gap: 12,
+    padding: spacing.md,
+    borderRadius: radii.md,
+    gap: spacing.md,
     borderWidth: 1,
     borderColor: colors.borderSubtle,
   },
   actionIcon: {
-    fontSize: 20,
+    fontSize: typography.size.xl,
   },
   actionTitle: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.semibold,
     color: colors.textPrimary,
   },
   actionSubtitle: {
-    fontSize: 12,
+    fontSize: typography.size.xs,
     color: colors.textMuted,
   },
   
   // Form
-  label: { color: colors.textSecondary, marginBottom: 8, fontWeight: '700', fontSize: 14 },
+  label: { color: colors.textSecondary, marginBottom: spacing.sm, fontWeight: typography.weight.bold, fontSize: typography.size.sm },
   input: {
     backgroundColor: colors.surfaceSlate,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 12,
-    padding: 14,
-    fontSize: 16,
-    marginBottom: 12,
+    borderRadius: radii.md,
+    padding: spacing.md,
+    fontSize: typography.size.md,
+    marginBottom: spacing.md,
     color: colors.textPrimary,
   },
   inputError: {
@@ -1036,12 +1306,12 @@ const styles = StyleSheet.create({
   },
   errorText: {
     color: colors.error,
-    fontSize: 12,
-    marginBottom: 8,
-    fontWeight: '500',
+    fontSize: typography.size.xs,
+    marginBottom: spacing.sm,
+    fontWeight: typography.weight.medium,
   },
   saveButton: {
-    marginTop: 8,
+    marginTop: spacing.sm,
   },
   
   // Community
@@ -1050,134 +1320,134 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: colors.primaryLight,
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
+    padding: spacing.lg,
+    borderRadius: radii.md,
+    marginBottom: spacing.md,
     borderWidth: 1,
     borderColor: colors.primaryBorder,
   },
   communityHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: spacing.md,
   },
   communityIcon: {
-    fontSize: 28,
+    fontSize: typography.size.xxl + spacing.xxs,
   },
   communityTitle: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.bold,
     color: colors.infoDark,
   },
   communitySubtitle: {
-    fontSize: 12,
+    fontSize: typography.size.xs,
     color: colors.info,
-    marginTop: 2,
+    marginTop: spacing.xxs,
   },
   communityArrow: {
-    fontSize: 18,
+    fontSize: typography.size.lg,
     color: colors.primary,
-    fontWeight: '700',
+    fontWeight: typography.weight.bold,
   },
   referralCard: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     backgroundColor: colors.warningBg,
-    padding: 14,
-    borderRadius: 12,
-    gap: 12,
+    padding: spacing.md,
+    borderRadius: radii.md,
+    gap: spacing.md,
     borderWidth: 1,
     borderColor: colors.warningBorder,
   },
   referralIcon: {
-    fontSize: 24,
+    fontSize: typography.size.xl + spacing.xs,
   },
   referralInfo: {
     flex: 1,
   },
   referralTitle: {
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.bold,
     color: colors.warningDark,
-    marginBottom: 4,
+    marginBottom: spacing.xs,
   },
   referralText: {
-    fontSize: 13,
+    fontSize: typography.size.xs + spacing.xxs,
     color: colors.warningDark,
-    lineHeight: 18,
+    lineHeight: spacing.lg + spacing.xxs,
   },
   
   // Compliance
   complianceCard: {
     backgroundColor: colors.successBg,
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
+    padding: spacing.lg,
+    borderRadius: radii.md,
+    marginBottom: spacing.md,
     borderWidth: 1,
     borderColor: colors.successBorder,
   },
   complianceBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginBottom: 10,
+    gap: spacing.xs + spacing.xxs,
+    marginBottom: spacing.sm + spacing.xxs,
   },
   complianceBadgeIcon: {
-    fontSize: 14,
+    fontSize: typography.size.sm,
     color: colors.success,
   },
   complianceBadgeText: {
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.bold,
     color: colors.successDark,
   },
   complianceText: {
-    fontSize: 13,
+    fontSize: typography.size.xs + spacing.xxs,
     color: colors.successDark,
-    lineHeight: 18,
+    lineHeight: spacing.lg + spacing.xxs,
   },
   securityFeatures: {
-    gap: 10,
+    gap: spacing.sm + spacing.xxs,
   },
   featureItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: spacing.sm + spacing.xxs,
     backgroundColor: colors.surfaceSlate,
-    padding: 12,
-    borderRadius: 10,
+    padding: spacing.md,
+    borderRadius: radii.sm + spacing.xxs,
   },
   featureIcon: {
-    fontSize: 16,
+    fontSize: typography.size.md,
   },
   featureText: {
-    fontSize: 14,
+    fontSize: typography.size.sm,
     color: colors.textSecondary,
-    fontWeight: '500',
+    fontWeight: typography.weight.medium,
   },
   
   // App Info
   appInfo: {
     alignItems: 'center',
-    paddingTop: 24,
-    paddingBottom: 16,
-    marginTop: 8,
+    paddingTop: spacing.xxl,
+    paddingBottom: spacing.lg,
+    marginTop: spacing.sm,
     borderTopWidth: 1,
     borderTopColor: colors.borderSubtle,
   },
   appName: {
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.bold,
     color: colors.textPrimary,
   },
   appTagline: {
-    fontSize: 12,
+    fontSize: typography.size.xs,
     color: colors.textMuted,
-    marginTop: 4,
+    marginTop: spacing.xs,
   },
   copyright: {
-    fontSize: 11,
+    fontSize: typography.size.xs,
     color: colors.disabled,
-    marginTop: 8,
+    marginTop: spacing.sm,
   },
 });

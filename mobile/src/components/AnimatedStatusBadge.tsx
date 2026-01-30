@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
 import { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
+import { useTranslation } from 'react-i18next';
 import { colors, radii, spacing, typography } from '../theme/tokens';
 
 interface StatusBadgeProps {
@@ -9,6 +10,7 @@ interface StatusBadgeProps {
 }
 
 export default function StatusBadge({ status, size = 'medium' }: StatusBadgeProps) {
+  const { t } = useTranslation();
   const scale = useSharedValue(1);
 
   const animatedStyle = useAnimatedStyle(() => {
@@ -19,10 +21,12 @@ export default function StatusBadge({ status, size = 'medium' }: StatusBadgeProp
 
   React.useEffect(() => {
     scale.value = 1.1;
-    setTimeout(() => {
+    const timer = setTimeout(() => {
       scale.value = 1;
     }, 200);
-  }, [status]);
+    
+    return () => clearTimeout(timer);
+  }, [status, scale]);
 
   const getStatusConfig = () => {
     switch (status) {
@@ -30,37 +34,37 @@ export default function StatusBadge({ status, size = 'medium' }: StatusBadgeProp
         return {
           backgroundColor: colors.warningBg,
           color: colors.warningDark,
-          text: 'Queued',
+          text: t('common.queued'),
         };
       case 'processing':
         return {
           backgroundColor: colors.infoBg,
           color: colors.infoDark,
-          text: 'Processing',
+          text: t('common.processing'),
         };
       case 'completed':
         return {
           backgroundColor: colors.successBg,
           color: colors.successDark,
-          text: 'Completed',
+          text: t('common.completed'),
         };
       case 'failed':
         return {
           backgroundColor: colors.errorBg,
           color: colors.errorDark,
-          text: 'Failed',
+          text: t('common.failed'),
         };
       case 'stamped':
         return {
           backgroundColor: colors.successBg,
           color: colors.successDark,
-          text: 'Stamped',
+          text: t('common.stamped'),
         };
       default:
         return {
           backgroundColor: colors.neutralBg,
           color: colors.neutralDark,
-          text: 'Unknown',
+          text: t('common.unknown'),
         };
     }
   };

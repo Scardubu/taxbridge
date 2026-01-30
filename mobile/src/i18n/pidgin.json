@@ -17,7 +17,15 @@
     "worksOffline": "E Dey Work Offline",
     "taxTip": "Tax Tip",
     "onlineSync": "Online & Dey Sync",
-    "offlineStatus": "Offline Mode"
+    "offlineStatus": "Offline Mode",
+    "noInvoicesTitle": "No Invoice Yet",
+    "noInvoicesText": "Make your first invoice begin dey track your sales",
+    "createFirstInvoice": "Make First Invoice",
+    "weekendMorning": "Good Morning",
+    "weekendVibes": "Weekend Vibes",
+    "lunchTime": "Lunch Time",
+    "afternoonHustle": "Afternoon Hustle",
+    "mainContent": "Home screen main thing"
   },
   "quickActions": {
     "title": "Sharp Actions",
@@ -78,7 +86,13 @@
     "grandTotal": "Grand Total",
     "complianceNotice": "Dis invoice go queue for NRS submission through DigiTax when network come.",
     "captureReceipt": "Snap receipt",
-    "captureReceiptHint": "Snap receipt picture make we get di invoice info for you"
+    "captureReceiptHint": "Snap receipt picture make we get di invoice info for you",
+    "editingItem": "Dey Edit Item",
+    "draftFound": "Draft Dey",
+    "draftFoundDesc": "You get invoice wey you never save. You wan restore am?",
+    "discardDraft": "Throw Am Away",
+    "restoreDraft": "Restore Am",
+    "mainContent": "Make invoice screen"
   },
   "invoices": {
     "title": "Invoices",
@@ -400,14 +414,30 @@
     "itemPlaceholder": "e.g. Rice bag (50kg)",
     "taxableIncome": "Money Wey Dem Go Tax",
     "ok": "OK",
-    "loading": "We dey load..."
+    "loading": "We dey load...",
+    "updateItem": "Update Item",
+    "cancel": "Cancel",
+    "close": "Close",
+    "retry": "Try Again",
+    "queued": "Dey Queue",
+    "processing": "Dey Process",
+    "completed": "Don Complete",
+    "failed": "E Fail",
+    "stamped": "Don Stamp",
+    "unknown": "We No Know"
   },
   "tutorial": {
     "grossIncome": "Total Money",
     "rentRelief": "Rent Relief",
     "nhf": "NHF (2.5%)",
     "pension": "Pension",
-    "nhis": "NHIS (5%)"
+    "nhis": "NHIS (5%)",
+    "taxableIncome": "Money Wey Dem Go Tax",
+    "bandExempt": "₦0 - ₦800,000 (0%)",
+    "band1": "₦800k - ₦3.2M (15%)",
+    "band2": "₦3.2M - ₦8M (19%)",
+    "band3": "₦8M - ₦15M (21%)",
+    "band4": "Above ₦15M (25%)"
   },
   "tax": {
     "vatStatusMandatory": "You must register now",
@@ -497,7 +527,9 @@
       "details": "Wetin Happen:",
       "tryAgain": "Try Again",
       "hint": "If problem still dey, try close and open the app again."
-    }
+    },
+    "loadFailed": "E No Fit Load",
+    "tryAgain": "Try again or check your connection"
   },
   "alerts": {
     "ocrResult": "Wetin Dem See",
@@ -512,6 +544,9 @@
     "cleanupComplete": "Clean Up Don Finish",
     "cleanupDesc": "Remove {{count}} old invoices. Try save again.",
     "removed": "Remove",
+    "tooManyItems": "Items Don Too Much",
+    "maxItemsReached": "You don reach maximum items (100) for this invoice.",
+    "grantPermission": "Give Permission",
     "oldSyncedInvoices": "old invoices wey don sync",
     "pleaseRetry": "Try save again.",
     "cameraPermissionRequired": "Camera Permission Need Am",
@@ -566,5 +601,52 @@
     "applyDetectedValues": "You wan use wetin dem see?",
     "reviewAndAdjust": "Check am well make sure say e correct.",
     "couldNotAnalyze": "No fit read receipt well well."
+  },
+  "settings": {
+    "offline": "Offline",
+    "offlineSignInMsg": "Connect internet first make you fit sign in. You fit still dey make invoices offline.",
+    "validationError": "Validation Error",
+    "enterValidPhone": "Enter correct phone number",
+    "enterPassword": "Enter your password (at least {{count}} letters)",
+    "mfaRequired": "MFA Required",
+    "mfaRequiredMsg": "Enter your authenticator code make you finish sign in.",
+    "signedIn": "You don sign in",
+    "signedInMsg": "Sync don start for this device.",
+    "signInFailed": "Sign-in fail",
+    "signInFailedMsg": "Check your phone number and password try again.",
+    "enterAuthCode": "Enter your authenticator code",
+    "mfaFailed": "MFA fail",
+    "mfaFailedMsg": "Check the code try again.",
+    "enterFullName": "Enter your full name",
+    "createPassword": "Create password (at least {{count}} letters)",
+    "verifyPhone": "Verify phone",
+    "verifyPhoneMsg": "Enter the OTP wey dem send your phone make you finish setup.",
+    "signupFailed": "Signup fail",
+    "signupFailedMsg": "We no fit create account. Try again abeg.",
+    "enterOtp": "Enter the OTP",
+    "accountReady": "Account ready",
+    "accountReadyMsg": "Your phone don verify and sync don start.",
+    "verificationFailed": "Verification fail",
+    "verificationFailedMsg": "Check the OTP try again.",
+    "signedOut": "You don sign out",
+    "signedOutMsg": "This device don sign out. Offline invoices still dey your phone.",
+    "signOutFailed": "Sign-out fail",
+    "signOutFailedMsg": "Try again abeg.",
+    "enterValidApiUrl": "Enter correct API URL",
+    "success": "Success",
+    "apiUrlUpdated": "API URL don update",
+    "error": "Error",
+    "failedSaveApiUrl": "We no fit save API URL",
+    "clearSyncedTitle": "Clear Synced Invoices?",
+    "clearSyncedMsg": "This go remove {{count}} synced invoices from local storage. Dem safe for server.",
+    "cancel": "Cancel",
+    "clear": "Clear",
+    "removedSyncedMsg": "We don remove {{count}} synced invoices from local storage.",
+    "failedClearData": "We no fit clear data",
+    "exportCompleteTitle": "Export Complete",
+    "exportCompleteMsg": "File don save for: {{path}}",
+    "clearAllDataTitle": "Clear All Data?",
+    "clearAllDataMsg": "This go remove ALL invoices and settings from this device. You no fit undo am.",
+    "clearAll": "Clear All"
   }
 }
