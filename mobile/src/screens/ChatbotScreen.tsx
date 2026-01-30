@@ -1012,7 +1012,7 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 4,
   },
   botMessageContent: {
-    backgroundColor: colors.backgroundSecondary,
+    backgroundColor: colors.surfaceMuted,
     borderBottomLeftRadius: 4,
   },
   messageText: {

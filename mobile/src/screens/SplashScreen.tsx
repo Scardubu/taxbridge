@@ -26,7 +26,6 @@ import {
 
 // 🔌 Boot services (existing or to be added)
 import { warmUpSyncEngine } from '../sync/syncEngine';
-import { hydrateFeatureFlags } from '../services/featureFlags';
 
 const { width, height } = Dimensions.get('window');
 const LOGO_SIZE = Math.min(width, height) * 0.42;
@@ -57,7 +56,6 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
       // 2️⃣ Parallel warm-ups (never serial)
       await Promise.allSettled([
         warmUpSyncEngine(),
-        hydrateFeatureFlags(),
       ]);
 
       // 3️⃣ Enforce minimum splash duration
