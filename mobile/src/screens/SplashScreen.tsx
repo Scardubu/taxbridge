@@ -26,6 +26,7 @@ import {
 
 // 🔌 Boot services (existing or to be added)
 import { warmUpSyncEngine } from '../sync/syncEngine';
+import { hydrateFeatureFlags } from '../services/featureFlag';
 
 const { width, height } = Dimensions.get('window');
 const LOGO_SIZE = Math.min(width, height) * 0.42;
@@ -56,6 +57,7 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
       // 2️⃣ Parallel warm-ups (never serial)
       await Promise.allSettled([
         warmUpSyncEngine(),
+        hydrateFeatureFlags(),
       ]);
 
       // 3️⃣ Enforce minimum splash duration
@@ -85,7 +87,7 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
 
       <Animated.View style={[styles.logoWrapper, { opacity }]}>
         <Image
-          source={require('../assets/logo.png')}
+          source={require('../../assets/icon-square.png')}
           style={styles.logo}
           resizeMode="contain"
         />

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useReducer } from 'react';
 import { Alert } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useNetwork } from './NetworkContext';
@@ -6,15 +6,28 @@ import { syncPendingInvoices } from '../services/sync';
 import { performFullSync, listConflicts, collectLocalChanges } from '../services/deviceSync';
 import { getAccessToken } from '../services/authTokens';
 import { createLogger } from '../utils/logger';
+import { 
+  syncReducer, 
+  initialSyncState, 
+  type SyncState,
+  type SyncError,
+  type SyncProgress
+} from '../sync/syncReducer';
 
 const log = createLogger('sync-context');
 
 type SyncResult = { synced: number; failed: number; deferred: number; conflicts?: number };
 
 interface SyncContextType {
-  isSyncing: boolean;
+  syncState: SyncState;
   lastSyncAt: number | null;
+  conflictCount: number;
+  lastError: SyncError | null;
+  progress: SyncProgress | null;
   manualSync: () => Promise<SyncResult>;
+  retrySync: () => Promise<void>;
+  // Legacy compatibility
+  isSyncing: boolean;
 }
 
 export const SyncContext = createContext<SyncContextType | undefined>(undefined);
@@ -33,8 +46,7 @@ function isDeviceSyncEnabled(): boolean {
 export function SyncProvider({ children }: { children: React.ReactNode }) {
   const { isOnline, forceCheck } = useNetwork();
   const { t } = useTranslation();
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [lastSyncAt, setLastSyncAt] = useState<number | null>(null);
+  const [state, dispatch] = useReducer(syncReducer, initialSyncState);
   const isOnlinePrev = useRef<boolean | null>(null);
   const syncInProgress = useRef(false);
 
@@ -46,6 +58,8 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
   async function doSyncWithBackoff(maxAttempts = 3): Promise<SyncResult> {
     let attempt = 0;
     let lastResult: SyncResult = { synced: 0, failed: 0, deferred: 0, conflicts: 0 };
+
+    dispatch({ type: 'SYNC_CONNECTING' });
 
     while (attempt < maxAttempts) {
       attempt += 1;
@@ -65,10 +79,22 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
           log.info('Using device sync');
           const localChanges = await collectLocalChanges();
           log.info('Collected local changes for sync', { count: localChanges.length });
+          
+          dispatch({ type: 'SYNC_PUSHING', payload: { total: localChanges.length } });
+          
           const result = await performFullSync(localChanges);
+          
+          dispatch({ type: 'SYNC_PULLING', payload: { total: result.pulled.invoices.length } });
           
           // Check for conflicts
           const conflictsResponse = await listConflicts();
+          
+          if (conflictsResponse.conflicts.length > 0) {
+            dispatch({ 
+              type: 'SYNC_RESOLVING', 
+              payload: { conflictCount: conflictsResponse.conflicts.length } 
+            });
+          }
           
           lastResult = {
             synced: result.pulled.invoices.length,
@@ -76,11 +102,26 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
             deferred: result.pushed ? 1 : 0,
             conflicts: conflictsResponse.conflicts.length
           };
+          
+          dispatch({ 
+            type: 'SYNC_SUCCESS', 
+            payload: { 
+              synced: lastResult.synced, 
+              conflictCount: lastResult.conflicts || 0 
+            } 
+          });
+          
           return lastResult;
         } else {
           log.info('Using legacy invoice sync');
           const res = await syncPendingInvoices();
           lastResult = { ...res, conflicts: 0 };
+          
+          dispatch({ 
+            type: 'SYNC_SUCCESS', 
+            payload: { synced: res.synced, conflictCount: 0 } 
+          });
+          
           // If we synced or failed any, break and return results
           if (res.synced > 0 || res.failed > 0) {
             return lastResult;
@@ -90,6 +131,18 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
         }
       } catch (err) {
         log.error('Sync attempt failed', { attempt, error: err });
+        
+        const isLastAttempt = attempt >= maxAttempts;
+        if (isLastAttempt) {
+          dispatch({ 
+            type: 'SYNC_ERROR', 
+            payload: { 
+              message: err instanceof Error ? err.message : 'Unknown sync error',
+              retryable: true 
+            } 
+          });
+        }
+        
         // wait exponential backoff with jitter before retrying
         const base = Math.min(30000, Math.pow(2, attempt) * 1000);
         const jitter = Math.round(Math.random() * 1000);
@@ -115,11 +168,10 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
 
     if (syncInProgress.current) return { synced: 0, failed: 0, deferred: 0, conflicts: 0 };
 
-    setIsSyncing(true);
     syncInProgress.current = true;
     try {
       const res = await doSyncWithBackoff();
-      setLastSyncAt(Date.now());
+      
       if (res.synced > 0) {
         Alert.alert(
           t('sync.syncCompleteTitle'),
@@ -147,11 +199,24 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
       return res;
     } catch (err) {
       log.error('Manual sync failed', { error: err });
+      dispatch({ 
+        type: 'SYNC_ERROR', 
+        payload: { 
+          message: err instanceof Error ? err.message : 'Unknown error',
+          retryable: true 
+        } 
+      });
       Alert.alert(t('sync.syncFailedTitle'), t('sync.syncFailedBody'));
       return { synced: 0, failed: 0, deferred: 0, conflicts: 0 };
     } finally {
       syncInProgress.current = false;
-      setIsSyncing(false);
+    }
+  }
+
+  async function retrySync() {
+    if (state.lastError && state.lastError.retryable) {
+      dispatch({ type: 'SYNC_RESET' });
+      await manualSync();
     }
   }
 
@@ -163,11 +228,11 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
       (async () => {
         // If the user is not signed in, don't auto-sync.
         if (!(await hasAuthToken())) return;
-        setIsSyncing(true);
+        
         syncInProgress.current = true;
         try {
           const res = await doSyncWithBackoff();
-          setLastSyncAt(Date.now());
+          
           if (res.synced > 0) {
             // soft signal only; avoid noisy logging in production
             log.info('Auto-sync completed', { synced: res.synced });
@@ -181,14 +246,25 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
           }
         } finally {
           syncInProgress.current = false;
-          setIsSyncing(false);
         }
       })();
     }
     isOnlinePrev.current = isOnline;
   }, [isOnline]);
 
+  const contextValue: SyncContextType = {
+    syncState: state.syncState,
+    lastSyncAt: state.lastSyncAt,
+    conflictCount: state.conflictCount,
+    lastError: state.lastError,
+    progress: state.progress,
+    manualSync,
+    retrySync,
+    // Legacy compatibility
+    isSyncing: state.syncState !== 'idle' && state.syncState !== 'error' && state.syncState !== 'success',
+  };
+
   return (
-    <SyncContext.Provider value={{ isSyncing, lastSyncAt, manualSync }}>{children}</SyncContext.Provider>
+    <SyncContext.Provider value={contextValue}>{children}</SyncContext.Provider>
   );
 }

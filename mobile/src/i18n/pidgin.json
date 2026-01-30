@@ -45,7 +45,47 @@
     "hoursAgo": "{{count}}h wey don pass",
     "lastSync": "Last sync",
     "pendingCount": "{{count}} dey wait",
-    "allSynced": "All don sync"
+    "allSynced": "All don sync",
+    "state": {
+      "idle": "Ready",
+      "connecting": "Dey connect...",
+      "pushing": "Dey send changes...",
+      "pulling": "Dey receive updates...",
+      "resolving": "Dey fix conflicts...",
+      "error": "Sync fail",
+      "success": "Sync don complete"
+    },
+    "progress": {
+      "of": "{{current}} for {{total}}",
+      "items": "items"
+    },
+    "error": {
+      "retryable": "Tap make e try again",
+      "notRetryable": "You need fix am yourself",
+      "offline": "Check your connection",
+      "unauthorized": "You need sign in"
+    },
+    "retry": "Try Sync Again",
+    "offlineTitle": "You Dey Offline",
+    "offlineBody": "Sync need internet connection. Your changes don save for phone.",
+    "signInRequiredTitle": "You Need Sign In",
+    "signInRequiredBody": "Sync need make you sign in. Your changes don save for phone.",
+    "syncCompleteTitle": "Sync Don Complete",
+    "syncCompleteBody": "{{count}} invoice don sync well well.",
+    "syncCompleteBody_plural": "{{count}} invoices don sync well well.",
+    "syncScheduledTitle": "Sync Go Happen Later",
+    "syncScheduledBody": "{{count}} invoice go sync later.",
+    "syncScheduledBody_plural": "{{count}} invoices go sync later.",
+    "syncErrorTitle": "Sync Get Wahala",
+    "syncErrorBody": "{{count}} invoice no fit sync. Check your connection make you try again.",
+    "syncErrorBody_plural": "{{count}} invoices no fit sync. Check your connection make you try again.",
+    "conflictsTitle": "Conflicts Don Show",
+    "conflictsBody": "{{count}} invoice get conflicts wey need fixing.",
+    "conflictsBody_plural": "{{count}} invoices get conflicts wey need fixing.",
+    "syncFailedTitle": "Sync No Work",
+    "syncFailedBody": "We no fit sync your data. Abeg try again later.",
+    "syncFailedAfterReconnectBody": "{{count}} invoice no fit sync after we connect back.",
+    "syncFailedAfterReconnectBody_plural": "{{count}} invoices no fit sync after we connect back."
   },
   "network": {
     "noConnection": "Network No Dey",

@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -8,8 +8,11 @@ import './src/i18n';
 import { initDB } from './src/services/database';
 import { initSentry, addBreadcrumb } from './src/services/sentry';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
+import SplashScreen from './src/screens/SplashScreen';
 import { NetworkProvider } from './src/contexts/NetworkContext';
 import { SyncProvider } from './src/contexts/SyncContext';
+import { AuthProvider, useAuth } from './src/contexts/AuthContext';
+import { FeatureFlagProvider } from './src/contexts/FeatureFlagContext';
 import { LoadingProvider } from './src/contexts/LoadingContext';
 import { OnboardingProvider, useOnboarding } from './src/contexts/OnboardingContext';
 import LoadingOverlay from './src/components/LoadingOverlay';
@@ -27,6 +30,16 @@ initSentry();
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
+
+function BootRouter() {
+  const { isHydrated } = useAuth();
+
+  if (!isHydrated) {
+    return null;
+  }
+
+  return <AppNavigator />;
+}
 
 function AppNavigator() {
   const { isOnboardingComplete } = useOnboarding();
@@ -79,6 +92,8 @@ function TabNavigator() {
 }
 
 export default function App() {
+  const [booted, setBooted] = useState(false);
+
   useEffect(() => {
     addBreadcrumb({
       category: 'lifecycle',
@@ -88,31 +103,39 @@ export default function App() {
     void initDB().catch(() => undefined);
   }, []);
 
+  if (!booted) {
+    return <SplashScreen onFinish={() => setBooted(true)} />;
+  }
+
   return (
     <ErrorBoundary>
       <NetworkProvider>
         <SyncProvider>
-          <LoadingProvider>
-            <OnboardingProvider>
-              <NavigationContainer
-                onStateChange={(state) => {
-                  const currentRoute = state?.routes[state.index]?.name;
-                  if (currentRoute) {
-                    addBreadcrumb({
-                      category: 'navigation',
-                      message: `Navigated to ${currentRoute}`,
-                      level: 'info',
-                    });
-                  }
-                }}
-              >
-                <StatusBar style="dark" />
-                <NetworkStatus />
-                <LoadingOverlay />
-                <AppNavigator />
-              </NavigationContainer>
-            </OnboardingProvider>
-          </LoadingProvider>
+          <AuthProvider>
+            <FeatureFlagProvider>
+              <LoadingProvider>
+                <OnboardingProvider>
+                  <NavigationContainer
+                    onStateChange={(state) => {
+                      const currentRoute = state?.routes[state.index]?.name;
+                      if (currentRoute) {
+                        addBreadcrumb({
+                          category: 'navigation',
+                          message: `Navigated to ${currentRoute}`,
+                          level: 'info',
+                        });
+                      }
+                    }}
+                  >
+                    <StatusBar style="dark" />
+                    <NetworkStatus />
+                    <LoadingOverlay />
+                    <BootRouter />
+                  </NavigationContainer>
+                </OnboardingProvider>
+              </LoadingProvider>
+            </FeatureFlagProvider>
+          </AuthProvider>
         </SyncProvider>
       </NetworkProvider>
     </ErrorBoundary>

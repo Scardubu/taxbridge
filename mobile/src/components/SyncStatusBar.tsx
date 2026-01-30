@@ -22,9 +22,11 @@ interface SyncStatusBarProps {
 function SyncStatusBar({ pendingCount = 0, onSyncPress }: SyncStatusBarProps) {
   const { t } = useTranslation();
   const { isOnline } = useNetwork();
-  const { isSyncing, lastSyncAt } = useSyncContext();
+  const { syncState, lastSyncAt, lastError, progress, conflictCount } = useSyncContext();
   const pulseOpacity = useSharedValue(1);
   const spinRotation = useSharedValue(0);
+
+  const isSyncing = syncState !== 'idle' && syncState !== 'error' && syncState !== 'success';
 
   useEffect(() => {
     if (isSyncing) {
@@ -74,15 +76,75 @@ function SyncStatusBar({ pendingCount = 0, onSyncPress }: SyncStatusBarProps) {
   };
 
   const getStatusConfig = () => {
-    if (isSyncing) {
+    // Error state
+    if (syncState === 'error' && lastError) {
       return {
-        icon: '🔄',
-        text: t('network.syncing'),
+        icon: '❌',
+        text: lastError.message,
+        subtext: lastError.retryable ? t('sync.error.retryable') : t('sync.error.notRetryable'),
+        bgColor: colors.errorBg,
+        textColor: colors.errorDark,
+        borderColor: colors.errorBorder,
+      };
+    }
+
+    // Conflict state
+    if (syncState === 'resolving' || conflictCount > 0) {
+      return {
+        icon: '⚠️',
+        text: t('sync.state.resolving'),
+        subtext: t('sync.conflictsBody', { count: conflictCount }),
+        bgColor: colors.warningBg,
+        textColor: colors.warningDark,
+        borderColor: colors.warningBorder,
+      };
+    }
+
+    // Active sync states with progress
+    if (syncState === 'connecting') {
+      return {
+        icon: '🔌',
+        text: t('sync.state.connecting'),
         bgColor: colors.infoBg,
         textColor: colors.infoDark,
         borderColor: colors.infoBorder,
       };
     }
+
+    if (syncState === 'pushing' && progress) {
+      return {
+        icon: '⬆️',
+        text: t('sync.state.pushing'),
+        subtext: t('sync.progress.of', { current: progress.current, total: progress.total }),
+        bgColor: colors.infoBg,
+        textColor: colors.infoDark,
+        borderColor: colors.infoBorder,
+      };
+    }
+
+    if (syncState === 'pulling' && progress) {
+      return {
+        icon: '⬇️',
+        text: t('sync.state.pulling'),
+        subtext: t('sync.progress.of', { current: progress.current, total: progress.total }),
+        bgColor: colors.infoBg,
+        textColor: colors.infoDark,
+        borderColor: colors.infoBorder,
+      };
+    }
+
+    // Success state (brief)
+    if (syncState === 'success') {
+      return {
+        icon: '✅',
+        text: t('sync.state.success'),
+        bgColor: colors.successBg,
+        textColor: colors.successDark,
+        borderColor: colors.successBorder,
+      };
+    }
+
+    // Offline
     if (!isOnline) {
       return {
         icon: '📵',
@@ -92,6 +154,8 @@ function SyncStatusBar({ pendingCount = 0, onSyncPress }: SyncStatusBarProps) {
         borderColor: colors.warningBorder,
       };
     }
+
+    // Pending changes
     if (pendingCount > 0) {
       return {
         icon: '⏳',
@@ -121,9 +185,14 @@ function SyncStatusBar({ pendingCount = 0, onSyncPress }: SyncStatusBarProps) {
           ) : (
             <Text style={styles.icon}>{config.icon}</Text>
           )}
-          <View>
+          <View style={styles.textSection}>
             <Text style={[styles.statusText, { color: config.textColor }]}>{config.text}</Text>
-            <Text style={styles.lastSync}>{t('sync.lastSync')}: {formatLastSync()}</Text>
+            {config.subtext && (
+              <Text style={[styles.subtextStyle, { color: config.textColor }]}>{config.subtext}</Text>
+            )}
+            {syncState === 'idle' && (
+              <Text style={styles.lastSync}>{t('sync.lastSync')}: {formatLastSync()}</Text>
+            )}
           </View>
         </View>
         
@@ -162,6 +231,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm + 2,
+    flex: 1,
+  },
+  textSection: {
+    flex: 1,
   },
   icon: {
     fontSize: 18,
@@ -169,6 +242,11 @@ const styles = StyleSheet.create({
   statusText: {
     fontSize: typography.size.sm,
     fontWeight: typography.weight.bold,
+  },
+  subtextStyle: {
+    fontSize: 11,
+    opacity: 0.8,
+    marginTop: 2,
   },
   lastSync: {
     fontSize: 11,

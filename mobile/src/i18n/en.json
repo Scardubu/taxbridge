@@ -45,7 +45,47 @@
     "hoursAgo": "{{count}}h ago",
     "lastSync": "Last sync",
     "pendingCount": "{{count}} pending",
-    "allSynced": "All synced"
+    "allSynced": "All synced",
+    "state": {
+      "idle": "Ready",
+      "connecting": "Connecting...",
+      "pushing": "Sending changes...",
+      "pulling": "Receiving updates...",
+      "resolving": "Resolving conflicts...",
+      "error": "Sync failed",
+      "success": "Sync complete"
+    },
+    "progress": {
+      "of": "{{current}} of {{total}}",
+      "items": "items"
+    },
+    "error": {
+      "retryable": "Tap to retry sync",
+      "notRetryable": "Manual intervention required",
+      "offline": "Check your connection",
+      "unauthorized": "Sign in required"
+    },
+    "retry": "Retry Sync",
+    "offlineTitle": "You're Offline",
+    "offlineBody": "Sync requires an internet connection. Your changes are saved locally.",
+    "signInRequiredTitle": "Sign In Required",
+    "signInRequiredBody": "Sync requires you to be signed in. Your changes are saved locally.",
+    "syncCompleteTitle": "Sync Complete",
+    "syncCompleteBody": "{{count}} invoice synced successfully.",
+    "syncCompleteBody_plural": "{{count}} invoices synced successfully.",
+    "syncScheduledTitle": "Sync Scheduled",
+    "syncScheduledBody": "{{count}} invoice will be synced later.",
+    "syncScheduledBody_plural": "{{count}} invoices will be synced later.",
+    "syncErrorTitle": "Sync Issues",
+    "syncErrorBody": "{{count}} invoice failed to sync. Check your connection and try again.",
+    "syncErrorBody_plural": "{{count}} invoices failed to sync. Check your connection and try again.",
+    "conflictsTitle": "Conflicts Detected",
+    "conflictsBody": "{{count}} invoice has conflicts that need resolution.",
+    "conflictsBody_plural": "{{count}} invoices have conflicts that need resolution.",
+    "syncFailedTitle": "Sync Failed",
+    "syncFailedBody": "Could not sync your data. Please try again later.",
+    "syncFailedAfterReconnectBody": "{{count}} invoice failed to sync after reconnecting.",
+    "syncFailedAfterReconnectBody_plural": "{{count}} invoices failed to sync after reconnecting."
   },
   "network": {
     "offline": "Offline",

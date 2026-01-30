@@ -1,5 +1,5 @@
 import React, { createContext, useContext } from 'react';
-import { getFeatureFlags, FeatureFlags } from '../services/featureFlags';
+import { getFeatureFlags, FeatureFlags } from '../services/featureFlag';
 
 const FeatureFlagContext = createContext<FeatureFlags | null>(null);
 
