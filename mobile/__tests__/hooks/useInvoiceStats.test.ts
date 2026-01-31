@@ -1,8 +1,8 @@
 // __tests__/hooks/useInvoiceStats.test.ts
-import { renderHook, waitFor } from '@testing-library/react-hooks';
-import { useInvoiceStats } from '../hooks/useAppHooks';
+import { renderHook, waitFor } from '@testing-library/react-native';
+import { useInvoiceStats } from '../../src/hooks/useAppHooks';
 
-jest.mock('../services/database');
+jest.mock('../../src/services/database');
 
 describe('useInvoiceStats', () => {
   it('should load and calculate stats correctly', async () => {
@@ -11,7 +11,7 @@ describe('useInvoiceStats', () => {
       { id: '2', synced: 0, items: '[{"quantity":1,"unitPrice":50}]', createdAt: Date.now() },
     ];
     
-    require('../services/database').getInvoices.mockResolvedValue(mockInvoices);
+    require('../../src/services/database').getInvoices.mockResolvedValue(mockInvoices);
 
     const { result } = renderHook(() => useInvoiceStats());
 

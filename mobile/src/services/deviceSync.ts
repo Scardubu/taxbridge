@@ -8,7 +8,7 @@ import { createLogger } from '../utils/logger';
 import { getPendingInvoices } from './database';
 import { checkConsent } from './api';
 import type { InvoiceItem } from '../types/invoice';
-import jwt from 'jwt-decode';
+import { jwtDecode } from 'jwt-decode';
 
 const log = createLogger('device-sync');
 
@@ -32,7 +32,7 @@ export async function getDeviceId(): Promise<string> {
   const token = await getAccessToken();
   if (token) {
     try {
-      const decoded = jwt<{ userId?: string }>(token);
+      const decoded = jwtDecode<{ userId?: string }>(token);
       if (decoded.userId) {
         const hasConsent = await checkConsent(decoded.userId, 'device_tracking');
         if (!hasConsent) {

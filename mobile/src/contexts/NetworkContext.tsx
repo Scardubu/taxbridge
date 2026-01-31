@@ -43,6 +43,7 @@ export function NetworkProvider({ children }: NetworkProviderProps) {
 
   useEffect(() => {
     let mounted = true;
+    const isTestEnv = process.env.NODE_ENV === 'test';
 
     // helper to perform a short fetch with timeout
     async function checkReachable(timeout = 3000) {
@@ -91,6 +92,13 @@ export function NetworkProvider({ children }: NetworkProviderProps) {
       setNetworkState((prev) => ({ ...prev, isOnline: true, isConnected: true }));
     const handleBrowserOffline = () =>
       setNetworkState((prev) => ({ ...prev, isOnline: false, isConnected: false }));
+
+    if (isTestEnv) {
+      return () => {
+        mounted = false;
+        unsubscribe();
+      };
+    }
 
     if (isWeb) {
       if (typeof window !== 'undefined') {

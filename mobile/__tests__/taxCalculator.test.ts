@@ -200,20 +200,20 @@ describe('Tax Calculator - Nigeria Tax Act 2025', () => {
     it('should return exempt for turnover below ₦80M', () => {
       const result = checkVATThreshold(50_000_000);
       expect(result.requiresRegistration).toBe(false);
-      expect(result.status).toBe('Exempt from registration');
+      expect(result.statusCode).toBe('exempt');
       expect(result.percentageOfThreshold).toBe(50);
     });
 
     it('should return approaching for turnover at 80-99%', () => {
       const result = checkVATThreshold(85_000_000);
       expect(result.requiresRegistration).toBe(false);
-      expect(result.status).toBe('Approaching threshold');
+      expect(result.statusCode).toBe('approaching');
     });
 
     it('should return mandatory for turnover at ₦100M', () => {
       const result = checkVATThreshold(100_000_000);
       expect(result.requiresRegistration).toBe(true);
-      expect(result.status).toBe('Registration mandatory');
+      expect(result.statusCode).toBe('mandatory');
     });
 
     it('should return mandatory for turnover above ₦100M', () => {
@@ -238,7 +238,7 @@ describe('Tax Calculator - Nigeria Tax Act 2025', () => {
     it('should return 0% for small companies (≤₦50M)', () => {
       const result = checkCITRate(30_000_000);
       expect(result.rate).toBe(0);
-      expect(result.description).toContain('Small company');
+      expect(result.descriptionCode).toBe('small');
     });
 
     it('should return 0% at exactly ₦50M', () => {
@@ -249,7 +249,7 @@ describe('Tax Calculator - Nigeria Tax Act 2025', () => {
     it('should return 20% for medium companies (₦50M-₦100M)', () => {
       const result = checkCITRate(75_000_000);
       expect(result.rate).toBe(0.20);
-      expect(result.description).toContain('Medium company');
+      expect(result.descriptionCode).toBe('medium');
     });
 
     it('should return 20% at exactly ₦100M', () => {
@@ -260,7 +260,7 @@ describe('Tax Calculator - Nigeria Tax Act 2025', () => {
     it('should return 30% for large companies (>₦100M)', () => {
       const result = checkCITRate(150_000_000);
       expect(result.rate).toBe(0.30);
-      expect(result.description).toContain('Standard CIT');
+      expect(result.descriptionCode).toBe('large');
     });
 
     it('should handle zero turnover', () => {
@@ -378,7 +378,7 @@ describe('Tax Calculator - Nigeria Tax Act 2025', () => {
       const cit = checkCITRate(turnover);
 
       // Approaching VAT threshold
-      expect(vat.status).toBe('Approaching threshold');
+      expect(vat.statusCode).toBe('approaching');
 
       // Medium company CIT rate
       expect(cit.rate).toBe(0.20);

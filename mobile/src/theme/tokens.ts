@@ -253,16 +253,20 @@ export const colors = {
   surfaceSecondary: surfaceColors.surfaceSecondary,
   surfaceSlate: surfaceColors.surfaceSlate,
   surfaceDark: surfaceColors.surfaceDark,
+  surfaceOverlay: surfaceColors.surfaceOverlay,
 
   // Borders
   border: borderColors.border,
   borderSubtle: borderColors.borderSubtle,
   borderTransparent: borderColors.borderTransparent,
+  borderStrong: borderColors.borderStrong,
 
   // Text
   textPrimary: textColors.textPrimary,
   textSecondary: textColors.textSecondary,
+  textTertiary: textColors.textTertiary,
   textMuted: textColors.textMuted,
+  textDisabled: textColors.textDisabled,
   textOnPrimary: textColors.textOnPrimary,
   textOnPrimaryStrong: textColors.textOnPrimaryStrong,
   textOnPrimaryMuted: textColors.textOnPrimaryMuted,
@@ -286,6 +290,7 @@ export const colors = {
   // Status: Error
   error: semanticColors.error,
   errorDark: semanticColors.errorDark,
+  errorLight: semanticColors.errorLight,
   errorBg: semanticColors.errorBg,
   errorBgSubtle: semanticColors.errorBgSubtle,
   errorBorder: semanticColors.errorBorder,
@@ -304,6 +309,7 @@ export const colors = {
   // Status: Neutral
   neutralDark: semanticColors.neutralDark,
   neutralBg: semanticColors.neutralBg,
+  neutralLight: semanticColors.neutralLight,
 
   // Tip colors
   tipBg: specializedColors.tipBg,
@@ -329,6 +335,7 @@ export const colors = {
   overlayLightStrong: overlayColors.overlayLightStrong,
   overlayLightSubtle: overlayColors.overlayLightSubtle,
   overlayDark: overlayColors.overlayDark,
+  overlayDarkStrong: overlayColors.overlayDark,
   overlayMedium: overlayColors.overlayMedium,
 
   // Header gradients (Living Bridge)
@@ -337,6 +344,11 @@ export const colors = {
   headerGradientEnd: gradientColors.headerGradientEnd,
   headerArcStroke: gradientColors.headerArcStroke,
   headerGridStroke: gradientColors.headerGridStroke,
+
+  // Indigo aliases
+  indigo: brandColors.indigo,
+  indigoBg: brandColors.indigoBg,
+  indigoBorder: brandColors.indigoBorder,
 
   // Shadows
   shadowPrimary: specializedColors.shadowPrimary,
@@ -457,6 +469,24 @@ export const typography = {
     normal: 1.5,
     relaxed: 1.625,
     loose: 2,
+  },
+  caption: {
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  body: {
+    fontSize: 16,
+    lineHeight: 24,
+  },
+  bodyBold: {
+    fontSize: 16,
+    lineHeight: 24,
+    fontWeight: '600' as const,
+  },
+  h3: {
+    fontSize: 28,
+    lineHeight: 36,
+    fontWeight: '700' as const,
   },
 } as const;
 

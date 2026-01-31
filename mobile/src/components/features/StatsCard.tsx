@@ -1,9 +1,9 @@
 // mobile/src/components/features/StatsCard.tsx
 import React from 'react';
-import { View, Text, StyleSheet, ViewStyle } from 'react-native';
+import { View, Text, StyleSheet, ViewStyle, StyleProp } from 'react-native';
 import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';
-import { spacing, colors, typography } from '../../theme';
+import { spacing, colors, typography } from '../../theme/tokens';
 
 interface StatsCardProps {
   icon: string;
@@ -19,7 +19,7 @@ interface StatsCardProps {
   };
   backgroundColor?: string;
   textColor?: string;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
 }
 
 export const StatsCard: React.FC<StatsCardProps> = ({
@@ -28,19 +28,19 @@ export const StatsCard: React.FC<StatsCardProps> = ({
   value,
   badge,
   trend,
-  backgroundColor = colors.neutral[0],
-  textColor = colors.text.primary,
+  backgroundColor = colors.surfaceMuted,
+  textColor = colors.textPrimary,
   style,
 }) => {
   return (
     <Card
       variant="elevated"
       padding="lg"
-      style={[styles.container, { backgroundColor }, style] as ViewStyle}
+      style={[styles.container, { backgroundColor }, style]}
     >
       <Text style={styles.icon}>{icon}</Text>
       
-      <Text style={[styles.label, { color: textColor === colors.neutral[0] ? colors.accent[500] : colors.text.tertiary }]}>
+      <Text style={[styles.label, { color: textColor === colors.surfaceMuted ? colors.primary : colors.textMuted }]}>
         {label}
       </Text>
       
@@ -78,8 +78,8 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   label: {
-    fontSize: typography.fontSize.xs,
-    fontWeight: typography.fontWeight.semiBold,
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.semibold,
     letterSpacing: 0.5,
     marginBottom: spacing.xs,
   },
@@ -89,22 +89,22 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   value: {
-    fontSize: typography.fontSize.xxxl,
-    fontWeight: typography.fontWeight.bold,
-    lineHeight: typography.fontSize.xxxl * 1.2,
+    fontSize: typography.size.xxxl,
+    fontWeight: typography.weight.bold,
+    lineHeight: typography.size.xxxl * 1.2,
   },
   trend: {
     marginLeft: spacing.sm,
   },
   trendText: {
-    fontSize: typography.fontSize.sm,
-    fontWeight: typography.fontWeight.semiBold,
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.semibold,
   },
   trendPositive: {
-    color: colors.success[500],
+    color: colors.success,
   },
   trendNegative: {
-    color: colors.error[500],
+    color: colors.error,
   },
   badgeContainer: {
     marginTop: 'auto',

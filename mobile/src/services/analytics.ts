@@ -95,6 +95,7 @@ const generateId = (): string => {
 let currentSessionId = generateId();
 let eventQueue: AnalyticsEvent[] = [];
 let flushTimer: NodeJS.Timeout | null = null;
+const isTestEnv = process.env.NODE_ENV === 'test';
 
 // ============================================================================
 // Core Analytics Functions
@@ -110,6 +111,10 @@ export async function trackEvent(
   value?: number,
   metadata?: Record<string, string | number | boolean>
 ): Promise<void> {
+  if (isTestEnv) {
+    return;
+  }
+
   const event: AnalyticsEvent = {
     id: generateId(),
     category,

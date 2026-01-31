@@ -42,6 +42,8 @@ describe('PaymentScreen E2E Tests', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    (api.post as jest.Mock).mockReset();
+    (api.get as jest.Mock).mockReset();
     jest.spyOn(Alert, 'alert').mockImplementation(() => {});
   });
 
@@ -102,7 +104,7 @@ describe('PaymentScreen E2E Tests', () => {
     test('validates form inputs before submission', async () => {
       const { getByText } = render(<PaymentScreen route={mockRoute} />);
 
-      const generateButton = getByText('Generate Payment Code (RRR)');
+      const generateButton = getByText('payment.generateRRR');
       await act(async () => {
         fireEvent.press(generateButton);
       });
@@ -110,8 +112,8 @@ describe('PaymentScreen E2E Tests', () => {
       // Should show validation error
       await waitFor(() => {
         expect(Alert.alert).toHaveBeenCalledWith(
-          'Validation Error',
-          'Please enter payer name'
+          'payment.validationError',
+          'payment.enterPayerName'
         );
       });
 
@@ -124,9 +126,9 @@ describe('PaymentScreen E2E Tests', () => {
         <PaymentScreen route={mockRoute} />
       );
 
-      const nameInput = getByPlaceholderText('e.g., John Doe');
-      const emailInput = getByPlaceholderText('e.g., john@example.com');
-      const phoneInput = getByPlaceholderText('e.g., 08012345678');
+      const nameInput = getByPlaceholderText('payment.payerNamePlaceholder');
+      const emailInput = getByPlaceholderText('payment.payerEmailPlaceholder');
+      const phoneInput = getByPlaceholderText('payment.payerPhonePlaceholder');
 
       await act(async () => {
         fireEvent.changeText(nameInput, 'John Doe');
@@ -134,15 +136,15 @@ describe('PaymentScreen E2E Tests', () => {
         fireEvent.changeText(phoneInput, '08012345678');
       });
 
-      const generateButton = getByText('Generate Payment Code (RRR)');
+      const generateButton = getByText('payment.generateRRR');
       await act(async () => {
         fireEvent.press(generateButton);
       });
 
       await waitFor(() => {
         expect(Alert.alert).toHaveBeenCalledWith(
-          'Validation Error',
-          'Please enter valid email'
+          'payment.validationError',
+          'payment.enterValidEmail'
         );
       });
     });
@@ -152,9 +154,9 @@ describe('PaymentScreen E2E Tests', () => {
         <PaymentScreen route={mockRoute} />
       );
 
-      const nameInput = getByPlaceholderText('e.g., John Doe');
-      const emailInput = getByPlaceholderText('e.g., john@example.com');
-      const phoneInput = getByPlaceholderText('e.g., 08012345678');
+      const nameInput = getByPlaceholderText('payment.payerNamePlaceholder');
+      const emailInput = getByPlaceholderText('payment.payerEmailPlaceholder');
+      const phoneInput = getByPlaceholderText('payment.payerPhonePlaceholder');
 
       await act(async () => {
         fireEvent.changeText(nameInput, 'John Doe');
@@ -162,15 +164,15 @@ describe('PaymentScreen E2E Tests', () => {
         fireEvent.changeText(phoneInput, '0801234'); // Too short
       });
 
-      const generateButton = getByText('Generate Payment Code (RRR)');
+      const generateButton = getByText('payment.generateRRR');
       await act(async () => {
         fireEvent.press(generateButton);
       });
 
       await waitFor(() => {
         expect(Alert.alert).toHaveBeenCalledWith(
-          'Validation Error',
-          'Please enter valid phone number'
+          'payment.validationError',
+          'payment.enterValidPhone'
         );
       });
     });
@@ -184,9 +186,9 @@ describe('PaymentScreen E2E Tests', () => {
         <PaymentScreen route={mockRoute} />
       );
 
-      const nameInput = getByPlaceholderText('e.g., John Doe');
-      const emailInput = getByPlaceholderText('e.g., john@example.com');
-      const phoneInput = getByPlaceholderText('e.g., 08012345678');
+      const nameInput = getByPlaceholderText('payment.payerNamePlaceholder');
+      const emailInput = getByPlaceholderText('payment.payerEmailPlaceholder');
+      const phoneInput = getByPlaceholderText('payment.payerPhonePlaceholder');
 
       await act(async () => {
         fireEvent.changeText(nameInput, 'John Doe');
@@ -194,14 +196,14 @@ describe('PaymentScreen E2E Tests', () => {
         fireEvent.changeText(phoneInput, '08012345678');
       });
 
-      const generateButton = getByText('Generate Payment Code (RRR)');
+      const generateButton = getByText('payment.generateRRR');
       await act(async () => {
         fireEvent.press(generateButton);
       });
 
       await waitFor(() => {
         expect(Alert.alert).toHaveBeenCalledWith(
-          'Error',
+          'payment.error',
           'Invoice must be NRS-stamped before payment'
         );
       });
@@ -214,9 +216,9 @@ describe('PaymentScreen E2E Tests', () => {
         <PaymentScreen route={mockRoute} />
       );
 
-      const nameInput = getByPlaceholderText('e.g., John Doe');
-      const emailInput = getByPlaceholderText('e.g., john@example.com');
-      const phoneInput = getByPlaceholderText('e.g., 08012345678');
+      const nameInput = getByPlaceholderText('payment.payerNamePlaceholder');
+      const emailInput = getByPlaceholderText('payment.payerEmailPlaceholder');
+      const phoneInput = getByPlaceholderText('payment.payerPhonePlaceholder');
 
       await act(async () => {
         fireEvent.changeText(nameInput, 'John Doe');
@@ -224,13 +226,13 @@ describe('PaymentScreen E2E Tests', () => {
         fireEvent.changeText(phoneInput, '08012345678');
       });
 
-      const generateButton = getByText('Generate Payment Code (RRR)');
+      const generateButton = getByText('payment.generateRRR');
       await act(async () => {
         fireEvent.press(generateButton);
       });
 
       await waitFor(() => {
-        expect(Alert.alert).toHaveBeenCalledWith('Error', 'Network error');
+        expect(Alert.alert).toHaveBeenCalledWith('payment.error', 'Network error');
       });
     });
   });
@@ -254,9 +256,9 @@ describe('PaymentScreen E2E Tests', () => {
       );
 
       // Generate RRR first
-      const nameInput = getByPlaceholderText('e.g., John Doe');
-      const emailInput = getByPlaceholderText('e.g., john@example.com');
-      const phoneInput = getByPlaceholderText('e.g., 08012345678');
+      const nameInput = getByPlaceholderText('payment.payerNamePlaceholder');
+      const emailInput = getByPlaceholderText('payment.payerEmailPlaceholder');
+      const phoneInput = getByPlaceholderText('payment.payerPhonePlaceholder');
 
       await act(async () => {
         fireEvent.changeText(nameInput, 'John Doe');
@@ -264,7 +266,7 @@ describe('PaymentScreen E2E Tests', () => {
         fireEvent.changeText(phoneInput, '08012345678');
       });
 
-      const generateButton = getByText('Generate Payment Code (RRR)');
+      const generateButton = getByText('payment.generateRRR');
       await act(async () => {
         fireEvent.press(generateButton);
       });
@@ -272,19 +274,19 @@ describe('PaymentScreen E2E Tests', () => {
       // Wait for success alert and RRR to be set
       await waitFor(() => {
         expect(Alert.alert).toHaveBeenCalledWith(
-          'Payment Ready',
-          expect.stringContaining('RRR-123456789'),
+          'payment.paymentReady',
+          'payment.paymentReadyDesc',
           expect.any(Array)
         );
       });
 
       // After RRR is generated, "Check Payment Status" button should appear
       await waitFor(() => {
-        const statusButton = getByText('Check Payment Status');
+        const statusButton = getByText('payment.checkStatus');
         expect(statusButton).toBeTruthy();
       });
       
-      const statusButton = getByText('Check Payment Status');
+      const statusButton = getByText('payment.checkStatus');
       await act(async () => {
         fireEvent.press(statusButton);
       });
@@ -321,20 +323,20 @@ describe('PaymentScreen E2E Tests', () => {
 
       // Generate RRR first to show status button
       await act(async () => {
-        fireEvent.changeText(getByPlaceholderText('e.g., John Doe'), 'John Doe');
-        fireEvent.changeText(getByPlaceholderText('e.g., john@example.com'), 'john@example.com');
-        fireEvent.changeText(getByPlaceholderText('e.g., 08012345678'), '08012345678');
+        fireEvent.changeText(getByPlaceholderText('payment.payerNamePlaceholder'), 'John Doe');
+        fireEvent.changeText(getByPlaceholderText('payment.payerEmailPlaceholder'), 'john@example.com');
+        fireEvent.changeText(getByPlaceholderText('payment.payerPhonePlaceholder'), '08012345678');
       });
       
       await act(async () => {
-        fireEvent.press(getByText('Generate Payment Code (RRR)'));
+        fireEvent.press(getByText('payment.generateRRR'));
       });
       
       await waitFor(() => {
         expect(Alert.alert).toHaveBeenCalled();
       });
 
-      const statusButton = getByText('Check Payment Status');
+      const statusButton = getByText('payment.checkStatus');
       await act(async () => {
         fireEvent.press(statusButton);
       });
@@ -362,21 +364,21 @@ describe('PaymentScreen E2E Tests', () => {
 
       // Generate RRR first to show status button
       await act(async () => {
-        fireEvent.changeText(getByPlaceholderText('e.g., John Doe'), 'John Doe');
-        fireEvent.changeText(getByPlaceholderText('e.g., john@example.com'), 'john@example.com');
-        fireEvent.changeText(getByPlaceholderText('e.g., 08012345678'), '08012345678');
+        fireEvent.changeText(getByPlaceholderText('payment.payerNamePlaceholder'), 'John Doe');
+        fireEvent.changeText(getByPlaceholderText('payment.payerEmailPlaceholder'), 'john@example.com');
+        fireEvent.changeText(getByPlaceholderText('payment.payerPhonePlaceholder'), '08012345678');
       });
       
       await act(async () => {
-        fireEvent.press(getByText('Generate Payment Code (RRR)'));
+        fireEvent.press(getByText('payment.generateRRR'));
       });
       
       // Wait for the component to update with RRR
       await waitFor(() => {
-        expect(getByText('Check Payment Status')).toBeTruthy();
+        expect(getByText('payment.checkStatus')).toBeTruthy();
       }, { timeout: 3000 });
 
-      const statusButton = getByText('Check Payment Status');
+      const statusButton = getByText('payment.checkStatus');
       await act(async () => {
         fireEvent.press(statusButton);
       });
@@ -411,9 +413,9 @@ describe('PaymentScreen E2E Tests', () => {
         <PaymentScreen route={mockRoute} />
       );
 
-      const nameInput = getByPlaceholderText('e.g., John Doe');
-      const emailInput = getByPlaceholderText('e.g., john@example.com');
-      const phoneInput = getByPlaceholderText('e.g., 08012345678');
+      const nameInput = getByPlaceholderText('payment.payerNamePlaceholder');
+      const emailInput = getByPlaceholderText('payment.payerEmailPlaceholder');
+      const phoneInput = getByPlaceholderText('payment.payerPhonePlaceholder');
 
       await act(async () => {
         fireEvent.changeText(nameInput, 'John Doe');
@@ -421,7 +423,7 @@ describe('PaymentScreen E2E Tests', () => {
         fireEvent.changeText(phoneInput, '08012345678');
       });
 
-      const generateButton = getByText('Generate Payment Code (RRR)');
+      const generateButton = getByText('payment.generateRRR');
       
       // Verify button exists before pressing
       expect(generateButton).toBeTruthy();
@@ -447,9 +449,9 @@ describe('PaymentScreen E2E Tests', () => {
         <PaymentScreen route={mockRoute} />
       );
 
-      const nameInput = getByPlaceholderText('e.g., John Doe');
-      const emailInput = getByPlaceholderText('e.g., john@example.com');
-      const phoneInput = getByPlaceholderText('e.g., 08012345678');
+      const nameInput = getByPlaceholderText('payment.payerNamePlaceholder');
+      const emailInput = getByPlaceholderText('payment.payerEmailPlaceholder');
+      const phoneInput = getByPlaceholderText('payment.payerPhonePlaceholder');
 
       await act(async () => {
         fireEvent.changeText(nameInput, 'John Doe');
@@ -457,7 +459,7 @@ describe('PaymentScreen E2E Tests', () => {
         fireEvent.changeText(phoneInput, '08012345678');
       });
 
-      const generateButton = getByText('Generate Payment Code (RRR)');
+      const generateButton = getByText('payment.generateRRR');
       await act(async () => {
         fireEvent.press(generateButton);
       });
@@ -520,16 +522,16 @@ describe('PaymentScreen E2E Tests', () => {
         <PaymentScreen route={mockRoute} />
       );
 
-      expect(getByPlaceholderText('e.g., John Doe')).toBeTruthy();
-      expect(getByPlaceholderText('e.g., john@example.com')).toBeTruthy();
-      expect(getByPlaceholderText('e.g., 08012345678')).toBeTruthy();
+      expect(getByPlaceholderText('payment.payerNamePlaceholder')).toBeTruthy();
+      expect(getByPlaceholderText('payment.payerEmailPlaceholder')).toBeTruthy();
+      expect(getByPlaceholderText('payment.payerPhonePlaceholder')).toBeTruthy();
     });
 
     test('buttons have descriptive text', () => {
       const { getByText } = render(<PaymentScreen route={mockRoute} />);
 
       // Initial state only shows Generate button
-      expect(getByText('Generate Payment Code (RRR)')).toBeTruthy();
+      expect(getByText('payment.generateRRR')).toBeTruthy();
     });
   });
 });

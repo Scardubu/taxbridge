@@ -329,28 +329,29 @@ function SyncQueueViewer({
 }: SyncQueueViewerProps) {
   const { t } = useTranslation();
   const { syncState, progress, conflictCount, retrySync } = useSync();
+  const progressPercent = progress && progress.total > 0 ? (progress.current / progress.total) * 100 : 0;
   
   const handleRetryItem = useCallback((itemId: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    trackEvent('sync_retry_item', { itemId });
+    trackEvent('sync', 'retry_item', itemId);
     onRetryItem?.(itemId);
   }, [onRetryItem]);
 
   const handleRetryAll = useCallback(() => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-    trackEvent('sync_retry_all', { itemCount: items.filter(i => i.status === 'error').length });
+    trackEvent('sync', 'retry_all', undefined, undefined, { itemCount: items.filter(i => i.status === 'error').length });
     onRetryAll?.() || retrySync();
   }, [items, onRetryAll, retrySync]);
 
   const handleResolveConflict = useCallback((itemId: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    trackEvent('sync_resolve_conflict', { itemId });
+    trackEvent('sync', 'resolve_conflict', itemId);
     onResolveConflict?.(itemId);
   }, [onResolveConflict]);
 
   const handleDiscardItem = useCallback((itemId: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    trackEvent('sync_discard_item', { itemId });
+    trackEvent('sync', 'discard_item', itemId);
     onDiscardItem?.(itemId);
   }, [onDiscardItem]);
 
@@ -412,7 +413,7 @@ function SyncQueueViewer({
           {/* Progress Bar */}
           {isSyncing && (
             <View style={styles.progressSection}>
-              <SyncProgressBar progress={progress} isActive={isSyncing} />
+              <SyncProgressBar progress={progressPercent} isActive={isSyncing} />
             </View>
           )}
 

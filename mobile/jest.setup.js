@@ -76,6 +76,12 @@ jest.mock('react-native', () => {
       addEventListener: jest.fn(),
       removeEventListener: jest.fn(),
     },
+    useWindowDimensions: () => ({
+      width: 375,
+      height: 812,
+      scale: 2,
+      fontScale: 1,
+    }),
     PixelRatio: {
       get: () => 2,
       getFontScale: () => 1,
@@ -106,6 +112,11 @@ jest.mock('react-native', () => {
       addListener: jest.fn(() => ({ remove: jest.fn() })),
       removeListener: jest.fn(),
     },
+    BackHandler: {
+      addEventListener: jest.fn(() => ({ remove: jest.fn() })),
+      removeEventListener: jest.fn(),
+      exitApp: jest.fn(),
+    },
     Linking: {
       openURL: jest.fn(),
       canOpenURL: jest.fn(() => Promise.resolve(true)),
@@ -129,6 +140,28 @@ jest.mock('react-native', () => {
     },
   };
 });
+
+// Mock expo-haptics to avoid native module access in tests
+jest.mock('expo-haptics', () => ({
+  impactAsync: jest.fn(),
+  notificationAsync: jest.fn(),
+  selectionAsync: jest.fn(),
+  ImpactFeedbackStyle: {
+    Light: 'Light',
+    Medium: 'Medium',
+    Heavy: 'Heavy',
+  },
+  NotificationFeedbackType: {
+    Success: 'Success',
+    Warning: 'Warning',
+    Error: 'Error',
+  },
+}));
+
+jest.mock('expo-sharing', () => ({
+  shareAsync: jest.fn().mockResolvedValue(undefined),
+  isAvailableAsync: jest.fn().mockResolvedValue(false),
+}));
 
 // Mock AsyncStorage globally for all tests
 jest.mock('@react-native-async-storage/async-storage', () => {

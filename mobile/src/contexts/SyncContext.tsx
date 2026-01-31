@@ -61,6 +61,11 @@ export function useSyncContext() {
   return ctx;
 }
 
+// Backward-compatible alias used by UI components
+export function useSync() {
+  return useSyncContext();
+}
+
 // Feature flag check
 function isDeviceSyncEnabled(): boolean {
   return String(process.env.EXPO_PUBLIC_FEATURE_DEVICE_SYNC || 'false').toLowerCase() === 'true';

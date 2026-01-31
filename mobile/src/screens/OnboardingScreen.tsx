@@ -149,7 +149,7 @@ function OnboardingScreen(props: OnboardingScreenProps = {}) {
   const stepTransitionValue = useSharedValue(0);
   const hasRestoredRef = useRef(false);
   const isMountedRef = useRef(true);
-  const autoSaveTimerRef = useRef<NodeJS.Timeout>();
+  const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Memoize active steps to prevent recalculation
   const activeSteps = useMemo(() => {
@@ -193,6 +193,12 @@ function OnboardingScreen(props: OnboardingScreenProps = {}) {
       errors.push(t('onboarding.errors.invalidStep'));
       setValidationErrors(errors);
       return false;
+    }
+
+    // Profile step uses local validation inside the step component
+    if (currentStep.id === 'profile') {
+      setValidationErrors([]);
+      return true;
     }
 
     // Check required profile fields
@@ -345,14 +351,33 @@ function OnboardingScreen(props: OnboardingScreenProps = {}) {
     // Dismiss keyboard
     Keyboard.dismiss();
 
-    // Validate before proceeding
+    // Allow profile updates to flush before validation (avoids stale context state)
+    if (currentStep?.id === 'profile') {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+
+    // Validate before proceeding (retry once after profile update)
     if (!validateCurrentStep()) {
-      Alert.alert(
-        t('onboarding.validation.title'),
-        validationErrors.join('\n'),
-        [{ text: t('common.ok') }]
-      );
-      return;
+      if (currentStep?.id === 'profile') {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        if (validateCurrentStep()) {
+          // fall through
+        } else {
+          Alert.alert(
+            t('onboarding.validation.title'),
+            validationErrors.join('\n'),
+            [{ text: t('common.ok') }]
+          );
+          return;
+        }
+      } else {
+        Alert.alert(
+          t('onboarding.validation.title'),
+          validationErrors.join('\n'),
+          [{ text: t('common.ok') }]
+        );
+        return;
+      }
     }
 
     if (isTransitioning) return;
@@ -391,9 +416,15 @@ function OnboardingScreen(props: OnboardingScreenProps = {}) {
       if (currentStepIndex < activeSteps.length - 1) {
         setCurrentStepIndex(currentStepIndex + 1);
         stepTransitionValue.value = 0;
+        if (isMountedRef.current) {
+          setIsTransitioning(false);
+        }
       } else {
         await completeOnboarding(latestProgress);
         navigation?.replace('MainTabs');
+        if (isMountedRef.current) {
+          setIsTransitioning(false);
+        }
       }
     } catch (error) {
       console.error('Error progressing onboarding:', error);
@@ -740,7 +771,6 @@ const styles = StyleSheet.create({
     height: 10,
     borderRadius: 5,
     backgroundColor: colors.borderSubtle,
-    transition: 'all 0.3s ease',
   },
   stepDotActive: {
     width: 24,

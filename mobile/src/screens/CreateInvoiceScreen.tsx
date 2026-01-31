@@ -776,6 +776,7 @@ function CreateInvoiceScreen(props: any) {
                   style={[styles.input, errors.description && touched.description && styles.inputError]}
                   returnKeyType="next"
                   onSubmitEditing={() => quantityRef.current?.focus()}
+                  accessibilityLabel={t('create.description')}
                 />
                 {errors.description && touched.description && (
                   <Text style={styles.errorText}>{errors.description}</Text>
@@ -793,6 +794,7 @@ function CreateInvoiceScreen(props: any) {
                       style={[styles.input, errors.quantity && touched.quantity && styles.inputError]}
                       returnKeyType="next"
                       onSubmitEditing={() => unitPriceRef.current?.focus()}
+                      accessibilityLabel={t('create.quantity')}
                     />
                     {errors.quantity && touched.quantity && (
                       <Text style={styles.errorText}>{errors.quantity}</Text>
@@ -809,6 +811,7 @@ function CreateInvoiceScreen(props: any) {
                       style={[styles.input, errors.unitPrice && touched.unitPrice && styles.inputError]}
                       returnKeyType="done"
                       onSubmitEditing={addItem}
+                      accessibilityLabel={t('create.unitPrice')}
                     />
                     {errors.unitPrice && touched.unitPrice && (
                       <Text style={styles.errorText}>{errors.unitPrice}</Text>

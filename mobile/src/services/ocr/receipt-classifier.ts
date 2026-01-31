@@ -87,7 +87,7 @@ export async function classifyReceipt(imageUri: string): Promise<OCRResult> {
 
     // Read image as base64 (required for ML processing)
     const base64Image = await FileSystem.readAsStringAsync(imageUri, {
-      encoding: FileSystem.EncodingType.Base64,
+      encoding: 'base64',
     });
 
     // Run OCR + Classification

@@ -8,6 +8,16 @@ jest.mock('../../services/authTokens', () => ({
   getAccessToken: jest.fn().mockResolvedValue('test-access-token')
 }));
 
+jest.mock('../DeviceContext', () => ({
+  useDevice: () => ({
+    canSync: true,
+    isSuspended: false,
+    deviceState: 'ACTIVE',
+    suspensionReason: null,
+  }),
+  DeviceProvider: ({ children }: any) => children,
+}));
+
 // Provide a mock NetworkContext module with a setter so tests can update it safely
 jest.mock('../NetworkContext', () => {
   let current = { isOnline: false, isConnected: false, connectionType: null, forceCheck: async () => true };

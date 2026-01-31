@@ -312,7 +312,7 @@ function GlobalSearch({
     try {
       const searchResults = await onSearch(searchQuery, searchCategory);
       setResults(searchResults);
-      trackEvent('search_performed', { query: searchQuery, category: searchCategory, resultCount: searchResults.length });
+      trackEvent('search', 'performed', searchQuery, undefined, { category: searchCategory, resultCount: searchResults.length });
     } catch (error) {
       console.error('Search error:', error);
       setResults([]);
@@ -347,7 +347,7 @@ function GlobalSearch({
     saveRecentSearch(query);
     Keyboard.dismiss();
     onSelectResult(result);
-    trackEvent('search_result_selected', { resultType: result.type, resultId: result.id });
+    trackEvent('search', 'result_selected', result.id, undefined, { resultType: result.type });
   }, [query, onSelectResult]);
 
   const handleRecentPress = useCallback((recentQuery: string) => {

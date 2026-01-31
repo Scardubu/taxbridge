@@ -18,6 +18,11 @@ jest.mock('../services/config', () => ({
   setApiBaseUrl: jest.fn().mockResolvedValue(undefined),
 }));
 
+jest.mock('../contexts/FeatureFlagContext', () => ({
+  useFeatureFlag: () => false,
+  FeatureFlagProvider: ({ children }: any) => children,
+}));
+
 // Mock AnimatedButton to a simple pressable for testing
 jest.mock('../components/AnimatedButton', () => {
   // eslint-disable-next-line @typescript-eslint/no-var-requires

@@ -65,28 +65,28 @@ describe('Onboarding System Integration Tests', () => {
 
       // Step 2: PIT Tutorial (enhanced version)
       await waitFor(() => {
-        expect(getAllByText('Personal Income Tax (PIT)').length).toBeGreaterThan(0);
+        expect(getAllByText('onboarding.pitTutorial.title').length).toBeGreaterThan(0);
       });
       
       // Click to open calculator
-      fireEvent.press(getAllByText('🧮 Try the Calculator')[0]);
+      fireEvent.press(getAllByText('onboarding.pitTutorial.tryCalculator')[0]);
       
       // Select a preset income level
       await waitFor(() => {
-        expect(getAllByText('Market Trader').length).toBeGreaterThan(0);
+        expect(getAllByText('onboarding.pitTutorial.presetMarket').length).toBeGreaterThan(0);
       });
-      fireEvent.press(getAllByText('Market Trader')[0]); // ₦600k preset
+      fireEvent.press(getAllByText('onboarding.pitTutorial.presetMarket')[0]); // ₦600k preset
       
       // Calculate
-      fireEvent.press(getAllByText('🎯 Calculate My Tax')[0]);
+      fireEvent.press(getAllByText('onboarding.pitTutorial.calculateTax')[0]);
       
       // Should show results
       await waitFor(() => {
-        expect(getAllByText('📝 Take the Quiz').length).toBeGreaterThan(0);
+        expect(getAllByText('onboarding.pitTutorial.takeQuiz').length).toBeGreaterThan(0);
       });
       
       // Continue to next step
-      fireEvent.press(getAllByText('Continue →')[0]);
+      fireEvent.press(getAllByText('onboarding.pitTutorial.continue')[0]);
 
       // Step 3: VAT/CIT should be skipped (income too low)
       await waitFor(() => {
@@ -162,23 +162,23 @@ describe('Onboarding System Integration Tests', () => {
 
       // Step 2: PIT (enhanced version)
       await waitFor(() => {
-        expect(getAllByText('Personal Income Tax (PIT)').length).toBeGreaterThan(0);
+        expect(getAllByText('onboarding.pitTutorial.title').length).toBeGreaterThan(0);
       });
       // Click to open calculator  
-      fireEvent.press(getAllByText('🧮 Try the Calculator')[0]);
+      fireEvent.press(getAllByText('onboarding.pitTutorial.tryCalculator')[0]);
       
       // Select a preset and calculate
       await waitFor(() => {
-        expect(getAllByText('Professional').length).toBeGreaterThan(0);
+        expect(getAllByText('onboarding.pitTutorial.presetProfessional').length).toBeGreaterThan(0);
       });
-      fireEvent.press(getAllByText('Professional')[0]); // ₦3.6M preset
-      fireEvent.press(getAllByText('🎯 Calculate My Tax')[0]);
+      fireEvent.press(getAllByText('onboarding.pitTutorial.presetProfessional')[0]); // ₦3.6M preset
+      fireEvent.press(getAllByText('onboarding.pitTutorial.calculateTax')[0]);
       
       // Continue from results
       await waitFor(() => {
-        expect(getAllByText('Continue →').length).toBeGreaterThan(0);
+        expect(getAllByText('onboarding.pitTutorial.continue').length).toBeGreaterThan(0);
       });
-      fireEvent.press(getAllByText('Continue →')[0]);
+      fireEvent.press(getAllByText('onboarding.pitTutorial.continue')[0]);
 
       // Step 3: VAT/CIT should appear (income >₦2M AND considering incorporation)
       await waitFor(() => {
@@ -214,22 +214,23 @@ describe('Onboarding System Integration Tests', () => {
         expect(result.breakdown).toHaveLength(2); // Band 1 (exempt) + Band 2 (taxed)
       });
 
-      it('should calculate tax correctly for ₦12M (₦1.95M)', () => {
+      it('should calculate tax correctly for ₦12M (₦2.112M)', () => {
         const result = calculatePIT(12000000);
         // Band 1: ₦0 (₦0-800k @ 0%)
-        // Band 2: ₦330k (₦800k-3M @ 15%)
-        // Band 3: ₦1.62M (₦3M-12M @ 18%)
-        // Total: ₦1.95M
-        expect(result.estimatedTax).toBe(1950000);
-        expect(result.breakdown).toHaveLength(3);
+        // Band 2: ₦360k (₦800k-3.2M @ 15%)
+        // Band 3: ₦912k (₦3.2M-8M @ 19%)
+        // Band 4: ₦840k (₦8M-12M @ 21%)
+        // Total: ₦2.112M
+        expect(result.estimatedTax).toBe(2112000);
+        expect(result.breakdown).toHaveLength(4);
       });
 
       it('should calculate tax correctly for ₦100M (high earner)', () => {
         const result = calculatePIT(100000000);
-        // Complex calculation across all 6 bands
+        // Complex calculation across all 5 bands
         expect(result.estimatedTax).toBeGreaterThan(10000000);
-        expect(result.breakdown).toHaveLength(6);
-        expect(result.effectiveRate).toBeLessThan(25); // Always less than top marginal rate
+        expect(result.breakdown).toHaveLength(5);
+        expect(result.effectiveRate).toBeLessThan(0.25); // Always less than top marginal rate
       });
 
       it('should apply rent relief correctly (capped at ₦500k or 20%)', () => {

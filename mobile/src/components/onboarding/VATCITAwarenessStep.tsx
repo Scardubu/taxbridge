@@ -27,6 +27,19 @@ export default function VATCITAwarenessStep({ onNext, onSkip }: Props) {
   const turnover = profile.annualTurnover || 0;
   const vatStatus = checkVATThreshold(turnover);
   const citRate = checkCITRate(turnover);
+  const vatStatusText = vatStatus.statusCode === 'mandatory'
+    ? t('onboarding.vatcit.mandatoryAt')
+    : vatStatus.statusCode === 'approaching'
+    ? t('onboarding.vatcit.alert')
+    : t('onboarding.vatcit.vatThresholdDesc');
+  const vatDisclaimerText = vatStatus.disclaimerCode === 'mandatory'
+    ? t('onboarding.vatcit.mandatoryAt')
+    : t('onboarding.vatcit.alertAction');
+  const citRateDescription = citRate.descriptionCode === 'small'
+    ? `${t('onboarding.vatcit.citSmall')} • ${t('onboarding.vatcit.citSmallRate')}`
+    : citRate.descriptionCode === 'medium'
+    ? `${t('onboarding.vatcit.citMedium')} • ${t('onboarding.vatcit.citMediumRate')}`
+    : `${t('onboarding.vatcit.citLarge')} • ${t('onboarding.vatcit.citLargeRate')}`;
 
   const handleQuizAnswer = (type: 'vat' | 'cit', answer: string) => {
     if (type === 'vat') {
@@ -135,13 +148,13 @@ export default function VATCITAwarenessStep({ onNext, onSkip }: Props) {
                   vatStatus.requiresRegistration ? styles.statusTextError : styles.statusTextSuccess,
                 ]}
               >
-                {vatStatus.status}
+                {vatStatusText}
               </Text>
             </View>
 
             {/* Disclaimer */}
             <Text style={styles.disclaimerText}>
-               ℹ️ {vatStatus.disclaimer}
+               ℹ️ {vatDisclaimerText}
             </Text>
 
             {/* Explanation */}
@@ -278,7 +291,7 @@ export default function VATCITAwarenessStep({ onNext, onSkip }: Props) {
                 <Text style={styles.statusCardText}>
                   {t('onboarding.vatcit.citRate')}: {citRate.rate * 100}%
                 </Text>
-                <Text style={styles.statusCardDescription}>{citRate.description}</Text>
+                <Text style={styles.statusCardDescription}>{citRateDescription}</Text>
               </View>
             )}
 

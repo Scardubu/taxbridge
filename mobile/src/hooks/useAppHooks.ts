@@ -14,8 +14,7 @@ interface Invoice {
   id: string;
   synced: 0 | 1;
   items: string;
-  createdAt: number;
-  updatedAt: number;
+  createdAt: string;
 }
 
 interface InvoiceItem {
@@ -342,7 +341,8 @@ export const useInvoiceExport = () => {
       
       // Save to file
       const fileName = `taxbridge_invoices_${Date.now()}.csv`;
-      const fileUri = `${FileSystem.documentDirectory}${fileName}`;
+      const baseDir = (FileSystem as any).documentDirectory || (FileSystem as any).cacheDirectory || '';
+      const fileUri = `${baseDir}${fileName}`;
       await FileSystem.writeAsStringAsync(fileUri, csv);
       
       // Share file

@@ -359,7 +359,7 @@ export default async function adminSyncRoutes(app: FastifyInstance) {
       const ResolutionSchema = z.object({
         conflictId: z.string().uuid(),
         resolution: z.enum(['local_wins', 'server_wins', 'merged']),
-        mergedData: z.record(z.unknown()).optional(),
+        mergedData: z.record(z.string(), z.unknown()).optional(),
         adminReason: z.string().min(10, 'Admin reason must be at least 10 characters'),
         adminUserId: z.string().min(1, 'Admin user ID required')
       });
@@ -443,9 +443,9 @@ export default async function adminSyncRoutes(app: FastifyInstance) {
             action: 'CONFLICT_RESOLVE',
             targetType: 'conflict',
             targetId: body.conflictId,
-            performedBy: body.adminUserId,
-            reason: body.adminReason,
+            adminId: body.adminUserId,
             metadata: {
+              reason: body.adminReason,
               conflictId: body.conflictId,
               invoiceId: conflict.invoiceId,
               deviceId: conflict.device.deviceId,
@@ -453,7 +453,7 @@ export default async function adminSyncRoutes(app: FastifyInstance) {
               userName: conflict.device.user.name,
               resolution: body.resolution,
               status: resolutionStatus,
-              localVersion: conflict.clientVersion,
+              localVersion: conflict.localVersion,
               serverVersion: conflict.serverVersion,
               localData: conflict.localData,
               serverData: conflict.serverData,
