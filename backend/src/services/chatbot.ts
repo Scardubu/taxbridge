@@ -6,6 +6,7 @@ import { remitaAdapter } from '../integrations/remita/adapter';
 import { generateUBL } from '../lib/ubl/generator';
 import { validateUblXml } from '../lib/ubl/validate';
 import { createLogger } from '../lib/logger';
+import { VAT_RATE } from '../lib/constants';
 
 const logger = createLogger('chatbot-service');
 
@@ -227,7 +228,7 @@ export class TaxChatbot {
 
       // Generate UBL XML
       const subtotal = sampleInvoice.items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
-      const vat = subtotal * 0.075; // 7.5% VAT
+      const vat = subtotal * VAT_RATE; // Nigeria VAT rate from constants
       const total = subtotal + vat;
       
       const invoiceData = {

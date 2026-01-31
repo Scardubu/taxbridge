@@ -1,0 +1,217 @@
+/**
+ * TaxBridge Backend Constants
+ * Centralized constants for tax calculations, compliance, and business logic
+ * 
+ * @module constants
+ * @description Single source of truth for all configurable values
+ */
+
+// =============================================================================
+// TAX RATES (Nigeria Tax Act 2025)
+// =============================================================================
+
+/**
+ * VAT (Value Added Tax) Rate
+ * @const {number} VAT_RATE - Standard VAT rate in Nigeria (7.5%)
+ * @see Nigeria Tax Act 2025, Section 46
+ */
+export const VAT_RATE = 0.075;
+
+/**
+ * VAT Rate as Percentage (for display)
+ * @const {number} VAT_RATE_PERCENT - 7.5%
+ */
+export const VAT_RATE_PERCENT = 7.5;
+
+/**
+ * CIT (Companies Income Tax) Rates
+ * @see Nigeria Tax Act 2025, Section 40
+ */
+export const CIT_RATES = {
+  /** Small company rate (turnover ≤ ₦50M) */
+  SMALL: 0.20,
+  /** Standard rate (turnover > ₦50M) */
+  STANDARD: 0.30,
+  /** Exemption threshold */
+  EXEMPTION_THRESHOLD: 50_000_000,
+} as const;
+
+/**
+ * VAT Registration Threshold
+ * @const {number} VAT_THRESHOLD - ₦100M annual turnover
+ * @see Nigeria Tax Act 2025, Section 80
+ */
+export const VAT_THRESHOLD = 100_000_000;
+
+// =============================================================================
+// CURRENCY & LOCALIZATION
+// =============================================================================
+
+/**
+ * Nigerian Naira ISO Currency Code
+ * @const {string} CURRENCY_CODE - ISO 4217 code for Nigeria
+ */
+export const CURRENCY_CODE = 'NGN';
+
+/**
+ * Nigerian Country Code
+ * @const {string} COUNTRY_CODE - ISO 3166-1 alpha-2 code
+ */
+export const COUNTRY_CODE = 'NG';
+
+// =============================================================================
+// UBL & PEPPOL COMPLIANCE
+// =============================================================================
+
+/**
+ * UBL Version
+ * @const {string} UBL_VERSION - UBL 2.1 specification
+ */
+export const UBL_VERSION = '2.1';
+
+/**
+ * Peppol BIS Billing 3.0 CustomizationID
+ * @const {string} PEPPOL_CUSTOMIZATION_ID
+ */
+export const PEPPOL_CUSTOMIZATION_ID =
+  'urn:cen.eu:en16931:2017#compliant#urn:fdc:peppol.eu:2017:poacc:billing:3.0';
+
+/**
+ * Peppol BIS Billing Profile ID
+ * @const {string} PEPPOL_PROFILE_ID
+ */
+export const PEPPOL_PROFILE_ID = 'urn:fdc:peppol.eu:2017:poacc:billing:01:1.0';
+
+/**
+ * Invoice Type Code (Commercial Invoice)
+ * @const {string} INVOICE_TYPE_CODE - UNCL 1001 code 380
+ */
+export const INVOICE_TYPE_CODE = '380';
+
+/**
+ * Tax Category Code (Standard Rate)
+ * @const {string} TAX_CATEGORY_STANDARD
+ */
+export const TAX_CATEGORY_STANDARD = 'S';
+
+/**
+ * Tax Scheme ID
+ * @const {string} TAX_SCHEME_VAT
+ */
+export const TAX_SCHEME_VAT = 'VAT';
+
+/**
+ * Unit Code (Unit)
+ * @const {string} UNIT_CODE - UN/ECE Recommendation 20 code C62
+ */
+export const UNIT_CODE = 'C62';
+
+// =============================================================================
+// BUSINESS LOGIC CONSTANTS
+// =============================================================================
+
+/**
+ * Default customer name for cash sales
+ * @const {string} DEFAULT_CASH_CUSTOMER
+ */
+export const DEFAULT_CASH_CUSTOMER = 'Cash Customer';
+
+/**
+ * NRS Mock Reference Prefix
+ * @const {string} NRS_MOCK_PREFIX - Used in development/staging
+ */
+export const NRS_MOCK_PREFIX = 'NRS-MOCK';
+
+/**
+ * Invoice ID Prefix
+ * @const {string} INVOICE_ID_PREFIX
+ */
+export const INVOICE_ID_PREFIX = 'INV';
+
+// =============================================================================
+// VALIDATION THRESHOLDS
+// =============================================================================
+
+/**
+ * Maximum invoice line items
+ * @const {number} MAX_INVOICE_LINES
+ */
+export const MAX_INVOICE_LINES = 1000;
+
+/**
+ * Maximum invoice amount (₦100M for anti-fraud)
+ * @const {number} MAX_INVOICE_AMOUNT
+ */
+export const MAX_INVOICE_AMOUNT = 100_000_000;
+
+/**
+ * Minimum invoice amount (₦1)
+ * @const {number} MIN_INVOICE_AMOUNT
+ */
+export const MIN_INVOICE_AMOUNT = 1;
+
+// =============================================================================
+// TIMEOUT & RETRY SETTINGS
+// =============================================================================
+
+/**
+ * Default API timeout (30 seconds)
+ * @const {number} DEFAULT_API_TIMEOUT
+ */
+export const DEFAULT_API_TIMEOUT = 30000;
+
+/**
+ * Queue job retry attempts
+ * @const {number} DEFAULT_RETRY_ATTEMPTS
+ */
+export const DEFAULT_RETRY_ATTEMPTS = 3;
+
+/**
+ * Queue job retry backoff (exponential)
+ * @const {number} DEFAULT_RETRY_BACKOFF
+ */
+export const DEFAULT_RETRY_BACKOFF = 1000;
+
+// =============================================================================
+// FEATURE FLAGS
+// =============================================================================
+
+/**
+ * Feature flag names
+ */
+export const FEATURE_FLAGS = {
+  DEVICE_SYNC: 'FEATURE_DEVICE_SYNC',
+  OCR_ENABLED: 'FEATURE_OCR',
+  USSD_ENABLED: 'FEATURE_USSD',
+  SMS_ENABLED: 'FEATURE_SMS',
+  CHATBOT_ENABLED: 'FEATURE_CHATBOT',
+} as const;
+
+// =============================================================================
+// HTTP STATUS CODES (commonly used)
+// =============================================================================
+
+/**
+ * HTTP Status Codes
+ */
+export const HTTP_STATUS = {
+  OK: 200,
+  CREATED: 201,
+  NO_CONTENT: 204,
+  BAD_REQUEST: 400,
+  UNAUTHORIZED: 401,
+  FORBIDDEN: 403,
+  NOT_FOUND: 404,
+  CONFLICT: 409,
+  UNPROCESSABLE_ENTITY: 422,
+  TOO_MANY_REQUESTS: 429,
+  INTERNAL_SERVER_ERROR: 500,
+  SERVICE_UNAVAILABLE: 503,
+} as const;
+
+// =============================================================================
+// TYPE EXPORTS (for type safety)
+// =============================================================================
+
+export type FeatureFlagName = keyof typeof FEATURE_FLAGS;
+export type HTTPStatusCode = typeof HTTP_STATUS[keyof typeof HTTP_STATUS];

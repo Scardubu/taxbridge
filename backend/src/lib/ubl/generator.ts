@@ -1,4 +1,16 @@
 import { create } from 'xmlbuilder2';
+import {
+  VAT_RATE_PERCENT,
+  CURRENCY_CODE,
+  UBL_VERSION,
+  PEPPOL_CUSTOMIZATION_ID,
+  PEPPOL_PROFILE_ID,
+  INVOICE_TYPE_CODE,
+  TAX_CATEGORY_STANDARD,
+  TAX_SCHEME_VAT,
+  UNIT_CODE,
+  DEFAULT_CASH_CUSTOMER,
+} from '../constants';
 
 export interface InvoiceItem {
   description: string;
@@ -26,13 +38,13 @@ export function generateUBL(invoice: InvoiceData): string {
       'xmlns:cbc': 'urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2'
     })
     .ele('cbc:UBLVersionID')
-    .txt('2.1')
+    .txt(UBL_VERSION)
     .up()
     .ele('cbc:CustomizationID')
-    .txt('urn:cen.eu:en16931:2017#compliant#urn:fdc:peppol.eu:2017:poacc:billing:3.0')
+    .txt(PEPPOL_CUSTOMIZATION_ID)
     .up()
     .ele('cbc:ProfileID')
-    .txt('urn:fdc:peppol.eu:2017:poacc:billing:01:1.0')
+    .txt(PEPPOL_PROFILE_ID)
     .up()
     .ele('cbc:ID')
     .txt(invoice.id)
@@ -41,10 +53,10 @@ export function generateUBL(invoice: InvoiceData): string {
     .txt(invoice.issueDate)
     .up()
     .ele('cbc:InvoiceTypeCode')
-    .txt('380')
+    .txt(INVOICE_TYPE_CODE)
     .up()
     .ele('cbc:DocumentCurrencyCode')
-    .txt('NGN')
+    .txt(CURRENCY_CODE)
     .up();
 
   doc
@@ -56,24 +68,24 @@ export function generateUBL(invoice: InvoiceData): string {
     .up()
     .ele('cac:TaxScheme')
     .ele('cbc:ID')
-    .txt('VAT')
-    .up()
-    .up()
-    .up()
-    .ele('cac:PartyLegalEntity')
-    .ele('cbc:RegistrationName')
-    .txt(invoice.supplierName)
-    .up()
-    .up()
-    .up()
-    .up();
+      .txt(TAX_SCHEME_VAT)
+      .up()
+      .up()
+      .up()
+      .ele('cac:PartyLegalEntity')
+      .ele('cbc:RegistrationName')
+      .txt(invoice.supplierName)
+      .up()
+      .up()
+      .up()
+      .up();
 
   doc
     .ele('cac:AccountingCustomerParty')
     .ele('cac:Party')
     .ele('cac:PartyLegalEntity')
     .ele('cbc:RegistrationName')
-    .txt(invoice.customerName || 'Cash Customer')
+    .txt(invoice.customerName || DEFAULT_CASH_CUSTOMER)
     .up()
     .up()
     .up()
@@ -85,10 +97,10 @@ export function generateUBL(invoice: InvoiceData): string {
       .ele('cbc:ID')
       .txt((index + 1).toString())
       .up()
-      .ele('cbc:InvoicedQuantity', { unitCode: 'C62' })
+      .ele('cbc:InvoicedQuantity', { unitCode: UNIT_CODE })
       .txt(String(item.quantity))
       .up()
-      .ele('cbc:LineExtensionAmount', { currencyID: 'NGN' })
+      .ele('cbc:LineExtensionAmount', { currencyID: CURRENCY_CODE })
       .txt((item.quantity * item.unitPrice).toFixed(2))
       .up()
       .ele('cac:Item')
@@ -97,7 +109,7 @@ export function generateUBL(invoice: InvoiceData): string {
       .up()
       .up()
       .ele('cac:Price')
-      .ele('cbc:PriceAmount', { currencyID: 'NGN' })
+      .ele('cbc:PriceAmount', { currencyID: CURRENCY_CODE })
       .txt(item.unitPrice.toFixed(2))
       .up()
       .up()
@@ -106,26 +118,26 @@ export function generateUBL(invoice: InvoiceData): string {
 
   doc
     .ele('cac:TaxTotal')
-    .ele('cbc:TaxAmount', { currencyID: 'NGN' })
+    .ele('cbc:TaxAmount', { currencyID: CURRENCY_CODE })
     .txt(invoice.vat.toFixed(2))
     .up()
     .ele('cac:TaxSubtotal')
-    .ele('cbc:TaxableAmount', { currencyID: 'NGN' })
+    .ele('cbc:TaxableAmount', { currencyID: CURRENCY_CODE })
     .txt(invoice.subtotal.toFixed(2))
     .up()
-    .ele('cbc:TaxAmount', { currencyID: 'NGN' })
+    .ele('cbc:TaxAmount', { currencyID: CURRENCY_CODE })
     .txt(invoice.vat.toFixed(2))
     .up()
     .ele('cac:TaxCategory')
     .ele('cbc:ID')
-    .txt('S')
+    .txt(TAX_CATEGORY_STANDARD)
     .up()
     .ele('cbc:Percent')
-    .txt('7.5')
+    .txt(String(VAT_RATE_PERCENT))
     .up()
     .ele('cac:TaxScheme')
     .ele('cbc:ID')
-    .txt('VAT')
+    .txt(TAX_SCHEME_VAT)
     .up()
     .up()
     .up()
@@ -135,18 +147,16 @@ export function generateUBL(invoice: InvoiceData): string {
 
   doc
     .ele('cac:LegalMonetaryTotal')
-    .ele('cbc:LineExtensionAmount', { currencyID: 'NGN' })
+    .ele('cbc:LineExtensionAmount', { currencyID: CURRENCY_CODE })
     .txt(invoice.subtotal.toFixed(2))
     .up()
-    .ele('cbc:TaxExclusiveAmount', { currencyID: 'NGN' })
+    .ele('cbc:TaxExclusiveAmount', { currencyID: CURRENCY_CODE })
     .txt(invoice.subtotal.toFixed(2))
     .up()
-    .ele('cbc:TaxInclusiveAmount', { currencyID: 'NGN' })
+    .ele('cbc:TaxInclusiveAmount', { currencyID: CURRENCY_CODE })
     .txt(invoice.total.toFixed(2))
     .up()
-    .ele('cbc:PayableAmount', { currencyID: 'NGN' })
-    .txt(invoice.total.toFixed(2))
-    .up()
+    .ele('cbc:PayableAmount', { currencyID: CURRENCY_CODE })
     .up();
 
   return doc.end({ prettyPrint: true });

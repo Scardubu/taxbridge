@@ -7,6 +7,7 @@ import { generateUBL, InvoiceData } from '../lib/ubl/generator';
 import { analyzeMandatoryFields } from '../lib/ubl/mandatoryFields';
 import { validateUblXml } from '../lib/ubl/validate';
 import { metrics } from '../services/metrics';
+import { VAT_RATE } from '../lib/constants';
 
 let initialized = false;
 
@@ -195,7 +196,7 @@ export async function validateSampleUBL(): Promise<UblValidationSnapshot> {
       { description: 'Health Check Item', quantity: 1, unitPrice: 10000 }
     ];
     const subtotal = items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
-    const vat = +(subtotal * 0.075).toFixed(2);
+    const vat = +(subtotal * VAT_RATE).toFixed(2);
     const total = +(subtotal + vat).toFixed(2);
 
     const invoice: InvoiceData = {
