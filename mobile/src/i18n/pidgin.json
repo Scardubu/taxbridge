@@ -112,6 +112,9 @@
     "customerOptional": "Add customer info (no wahala if you no add)",
     "customerInfo": "Customer Information",
     "customerPlaceholder": "e.g. Aisha Mohammed",
+    "customerTinLabel": "Customer TIN (No Be Compulsory)",
+    "customerTinPlaceholder": "e.g. 12345678-0001",
+    "customerTinAccessibility": "Customer Tax Identification Number",
     "tipWalkIn": "Leave am blank for customer wey dey pass. You fit add am later.",
     "backButton": "← Back",
     "itemsAdded": "Items Wey You Add",
@@ -499,7 +502,16 @@
     "verifyMfa": "Verify MFA",
     "signIn": "Sign in",
     "createAccount": "Create account",
-    "verifyPhone": "Verify phone"
+    "verifyPhone": "Verify phone",
+    "fullNameLabel": "Full name",
+    "fullNamePlaceholder": "e.g. Amina Yusuf",
+    "phoneLabel": "Phone number",
+    "phonePlaceholder": "08012345678",
+    "passwordLabel": "Password",
+    "passwordPlaceholder": "••••••••",
+    "otpLabel": "OTP",
+    "otpPlaceholder": "123456",
+    "authenticatorCodeLabel": "Authenticator code"
   },
   "common": {
     "taxbridgeLogo": "TaxBridge logo",

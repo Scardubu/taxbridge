@@ -110,6 +110,17 @@ export const validationRules = {
       return null;
     },
   },
+  customerTIN: {
+    required: false,
+    minLength: 10,
+    maxLength: 20,
+    custom: (value: string) => {
+      if (value && value.trim() && !/^[A-Z0-9-]+$/.test(value.trim())) {
+        return 'TIN should only contain letters, numbers, and hyphens';
+      }
+      return null;
+    },
+  },
   description: {
     required: true,
     minLength: 2,

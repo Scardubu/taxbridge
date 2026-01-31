@@ -40,7 +40,7 @@ export async function syncPendingInvoices(): Promise<{ synced: number; failed: n
 
       try {
         const result = await createInvoice(
-          { customerName: inv.customerName ?? undefined, items },
+          { customerName: inv.customerName ?? undefined, customerTIN: inv.customerTIN ?? undefined, customerEndpointId: inv.customerEndpointId ?? undefined, items },
           { idempotencyKey: inv.id }
         );
 

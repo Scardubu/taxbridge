@@ -236,6 +236,7 @@ export class TaxChatbot {
         issueDate: sampleInvoice.issueDate,
         supplierTIN: sampleInvoice.supplierTin,
         supplierName: sampleInvoice.supplierName,
+        customerTIN: sampleInvoice.customerTin,
         customerName: sampleInvoice.customerName,
         items: sampleInvoice.items,
         subtotal,

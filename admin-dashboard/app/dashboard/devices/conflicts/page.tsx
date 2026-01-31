@@ -136,8 +136,8 @@ export default function ConflictsPage() {
         setAdminReason('');
         setAdminUserId('');
       }, 2000);
-    } catch (error: any) {
-      setResolutionError(error.message || 'Failed to resolve conflict');
+    } catch (error: unknown) {
+      setResolutionError(error instanceof Error ? error.message : 'Failed to resolve conflict');
     } finally {
       setIsResolving(false);
     }
@@ -377,7 +377,7 @@ export default function ConflictsPage() {
                 </Label>
                 <Select 
                   value={resolutionStrategy} 
-                  onValueChange={(val) => setResolutionStrategy(val as any)}
+                  onValueChange={(val) => setResolutionStrategy(val as typeof resolutionStrategy)}
                 >
                   <SelectTrigger id="resolution-strategy">
                     <SelectValue />
@@ -390,7 +390,7 @@ export default function ConflictsPage() {
                       {t('conflicts.resolve.strategy.localWins')}
                     </SelectItem>
                     <SelectItem value="merged" disabled>
-                      {t('conflicts.resolve.strategy.merged')} (Coming Soon)
+                      {t('conflicts.resolve.strategy.merged')} ({t('conflicts.resolve.mergedComingSoon')})
                     </SelectItem>
                   </SelectContent>
                 </Select>
@@ -415,7 +415,7 @@ export default function ConflictsPage() {
                     id="admin-user-id"
                     value={adminUserId}
                     onChange={(e) => setAdminUserId(e.target.value)}
-                    placeholder="admin@taxbridge.ng"
+                    placeholder={t('conflicts.resolve.adminUserIdPlaceholder')}
                     className="mt-1"
                     disabled={isResolving}
                   />

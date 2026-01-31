@@ -105,6 +105,8 @@ export async function initDB(): Promise<void> {
       id TEXT PRIMARY KEY,
       server_id TEXT,
       customer_name TEXT,
+      customer_tin TEXT,
+      customer_endpoint_id TEXT,
       status TEXT,
       subtotal REAL,
       vat REAL,
@@ -156,6 +158,8 @@ export async function initDB(): Promise<void> {
 export async function saveInvoice(input: {
   id: string;
   customerName?: string;
+  customerTIN?: string;
+  customerEndpointId?: string;
   status: InvoiceStatus;
   subtotal: number;
   vat: number;
@@ -169,13 +173,15 @@ export async function saveInvoice(input: {
   if (nativeExec) {
     await nativeExec(
       `INSERT INTO invoices (
-      id, server_id, customer_name, status, subtotal, vat, total, items, created_at, synced
+      id, server_id, customer_name, customer_tin, customer_endpoint_id, status, subtotal, vat, total, items, created_at, synced
       , attempts, next_retry
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
       [
         input.id,
         null,
         input.customerName ?? null,
+        input.customerTIN ?? null,
+        input.customerEndpointId ?? null,
         input.status,
         input.subtotal,
         input.vat,
@@ -193,6 +199,8 @@ export async function saveInvoice(input: {
       id: input.id,
       serverId: null,
       customerName: input.customerName ?? null,
+      customerTIN: input.customerTIN ?? null,
+      customerEndpointId: input.customerEndpointId ?? null,
       status: input.status,
       subtotal: input.subtotal,
       vat: input.vat,
@@ -215,6 +223,8 @@ export async function getInvoices(): Promise<LocalInvoiceRow[]> {
       id: r.id,
       serverId: r.server_id ?? r.serverId ?? null,
       customerName: r.customer_name ?? r.customerName ?? null,
+      customerTIN: r.customer_tin ?? r.customerTIN ?? null,
+      customerEndpointId: r.customer_endpoint_id ?? r.customerEndpointId ?? null,
       status: r.status,
       subtotal: r.subtotal,
       vat: r.vat,
@@ -241,6 +251,8 @@ export async function getPendingInvoices(): Promise<LocalInvoiceRow[]> {
       id: r.id,
       serverId: r.server_id ?? r.serverId ?? null,
       customerName: r.customer_name ?? r.customerName ?? null,
+      customerTIN: r.customer_tin ?? r.customerTIN ?? null,
+      customerEndpointId: r.customer_endpoint_id ?? r.customerEndpointId ?? null,
       status: r.status,
       subtotal: r.subtotal,
       vat: r.vat,

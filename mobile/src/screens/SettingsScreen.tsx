@@ -818,58 +818,58 @@ function SettingsScreen() {
 
                   {authMode === 'register' && (
                     <>
-                      <Text style={styles.label}>Full name</Text>
+                      <Text style={styles.label}>{t('auth.fullNameLabel')}</Text>
                       <TextInput
                         style={styles.input}
                         value={authName}
                         onChangeText={setAuthName}
-                        placeholder="e.g. Amina Yusuf"
+                        placeholder={t('auth.fullNamePlaceholder')}
                         placeholderTextColor={colors.disabled}
                         autoCapitalize="words"
                         accessible={true}
-                        accessibilityLabel="Full name"
+                        accessibilityLabel={t('auth.fullNameLabel')}
                       />
                     </>
                   )}
 
-                  <Text style={styles.label}>Phone number</Text>
+                  <Text style={styles.label}>{t('auth.phoneLabel')}</Text>
                   <TextInput
                     ref={phoneInputRef}
                     style={styles.input}
                     value={authPhone}
                     onChangeText={setAuthPhone}
-                    placeholder="08012345678"
+                    placeholder={t('auth.phonePlaceholder')}
                     placeholderTextColor={colors.disabled}
                     keyboardType="phone-pad"
                     autoCapitalize="none"
                     autoCorrect={false}
                     accessible={true}
-                    accessibilityLabel="Phone number"
+                    accessibilityLabel={t('auth.phoneLabel')}
                   />
 
-                  <Text style={styles.label}>Password</Text>
+                  <Text style={styles.label}>{t('auth.passwordLabel')}</Text>
                   <TextInput
                     ref={passwordInputRef}
                     style={styles.input}
                     value={authPassword}
                     onChangeText={setAuthPassword}
-                    placeholder="••••••••"
+                    placeholder={t('auth.passwordPlaceholder')}
                     placeholderTextColor={colors.disabled}
                     secureTextEntry
                     autoCapitalize="none"
                     autoCorrect={false}
                     accessible={true}
-                    accessibilityLabel="Password"
+                    accessibilityLabel={t('auth.passwordLabel')}
                   />
 
                   {mfaToken && (
                     <>
-                      <Text style={styles.label}>Authenticator code</Text>
+                      <Text style={styles.label}>{t('auth.authenticatorCodeLabel')}</Text>
                       <TextInput
                         style={styles.input}
                         value={totpCode}
                         onChangeText={setTotpCode}
-                        placeholder="123456"
+                        placeholder={t('auth.otpPlaceholder')}
                         placeholderTextColor={colors.disabled}
                         keyboardType="number-pad"
                         autoCapitalize="none"
@@ -901,12 +901,12 @@ function SettingsScreen() {
 
                   {authMode === 'register' && registerUserId && (
                     <>
-                      <Text style={styles.label}>OTP</Text>
+                      <Text style={styles.label}>{t('auth.otpLabel')}</Text>
                       <TextInput
                         style={styles.input}
                         value={authOtp}
                         onChangeText={setAuthOtp}
-                        placeholder="123456"
+                        placeholder={t('auth.otpPlaceholder')}
                         placeholderTextColor={colors.disabled}
                         keyboardType="number-pad"
                         autoCapitalize="none"

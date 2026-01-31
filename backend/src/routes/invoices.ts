@@ -6,6 +6,8 @@ import jwt from 'jsonwebtoken';
 import { computeRequestHash, isIdempotencyExpired } from '../lib/idempotency';
 import { getInvoiceSyncQueue } from '../queue/client';
 import { AuthenticationError } from '../lib/errors';
+import { calculateInvoiceTotals } from '../utils/taxCalculator';
+import { validateUblXml } from '../lib/ubl/validate';
 
 export default async function invoicesRoutes(app: FastifyInstance, opts: { prisma: PrismaClient }) {
   const prisma = opts.prisma;
@@ -61,6 +63,8 @@ export default async function invoicesRoutes(app: FastifyInstance, opts: { prism
 
   const InvoiceBodySchema = z.object({
     customerName: z.string().optional(),
+    customerTIN: z.string().optional(),
+    customerEndpointId: z.string().optional(),
     items: z.array(
       z.object({
         description: z.string(),
@@ -84,6 +88,7 @@ export default async function invoicesRoutes(app: FastifyInstance, opts: { prism
         id: z.string(),
         status: z.string(),
         customerName: z.string().nullable().optional(),
+        customerTIN: z.string().nullable().optional(),
         total: z.string().optional(),
         createdAt: z.string().optional()
       })
@@ -96,10 +101,22 @@ export default async function invoicesRoutes(app: FastifyInstance, opts: { prism
     status: z.string()
   });
 
+  const UblValidationRequestSchema = z.object({
+    ublXml: z.string().min(1)
+  });
+
+  const UblValidationResponseSchema = z.object({
+    valid: z.boolean(),
+    errors: z.array(z.string()).optional(),
+    warnings: z.array(z.string()).optional()
+  });
+
   const InvoiceDetailSchema = z.object({
     id: z.string(),
     userId: z.string(),
     customerName: z.string().nullable(),
+    customerTIN: z.string().nullable().optional(),
+    customerEndpointId: z.string().nullable().optional(),
     status: z.string(),
     subtotal: z.string(),
     vat: z.string(),
@@ -156,7 +173,7 @@ export default async function invoicesRoutes(app: FastifyInstance, opts: { prism
         }
       }
 
-      const { customerName, items } = req.body as z.infer<typeof InvoiceBodySchema>;
+      const { customerName, customerTIN, customerEndpointId, items } = req.body as z.infer<typeof InvoiceBodySchema>;
 
       const resolvedUserId = resolveUserIdFromRequest(req);
       const userId =
@@ -166,17 +183,17 @@ export default async function invoicesRoutes(app: FastifyInstance, opts: { prism
         throw new AuthenticationError();
       }
 
-      const subtotalNumber = items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
-      const vatNumber = subtotalNumber * 0.075;
-      const totalNumber = subtotalNumber + vatNumber;
+      const totals = calculateInvoiceTotals(items);
 
       const invoice = await prisma.invoice.create({
         data: {
           userId,
           customerName,
-          subtotal: subtotalNumber.toFixed(2),
-          vat: vatNumber.toFixed(2),
-          total: totalNumber.toFixed(2),
+          customerTIN,
+          customerEndpointId,
+          subtotal: totals.subtotal.toFixed(2),
+          vat: totals.vat.toFixed(2),
+          total: totals.total.toFixed(2),
           items,
           status: 'queued'
         }
@@ -214,6 +231,28 @@ export default async function invoicesRoutes(app: FastifyInstance, opts: { prism
       }
 
       return reply.status(201).send(responseBody);
+    }
+  );
+
+  app.post(
+    '/api/v1/invoices/validate-ubl',
+    {
+      schema: {
+        body: UblValidationRequestSchema,
+        response: {
+          200: UblValidationResponseSchema
+        }
+      }
+    },
+    async (req, reply) => {
+      const { ublXml } = req.body as z.infer<typeof UblValidationRequestSchema>;
+      const validation = validateUblXml(ublXml);
+
+      return reply.status(200).send({
+        valid: validation.ok,
+        errors: validation.errors,
+        warnings: validation.warnings
+      });
     }
   );
 
@@ -255,6 +294,7 @@ export default async function invoicesRoutes(app: FastifyInstance, opts: { prism
         id: inv.id,
         status: inv.status,
         customerName: inv.customerName,
+        customerTIN: inv.customerTIN,
         total: inv.total.toString(),
         createdAt: inv.createdAt.toISOString()
       }));
@@ -295,6 +335,8 @@ export default async function invoicesRoutes(app: FastifyInstance, opts: { prism
           id: invoice.id,
           userId: invoice.userId,
           customerName: invoice.customerName,
+          customerTIN: invoice.customerTIN,
+          customerEndpointId: invoice.customerEndpointId,
           status: invoice.status,
           subtotal: invoice.subtotal.toString(),
           vat: invoice.vat.toString(),
@@ -336,18 +378,16 @@ export default async function invoicesRoutes(app: FastifyInstance, opts: { prism
 
       const { customerName, items } = req.body as z.infer<typeof InvoiceBodySchema>;
 
-      const subtotalNumber = items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
-      const vatNumber = subtotalNumber * 0.075;
-      const totalNumber = subtotalNumber + vatNumber;
+      const totals = calculateInvoiceTotals(items);
 
       const updated = await prisma.invoice.update({
         where: { id },
         data: {
           customerName,
           items,
-          subtotal: subtotalNumber.toFixed(2),
-          vat: vatNumber.toFixed(2),
-          total: totalNumber.toFixed(2),
+          subtotal: totals.subtotal.toFixed(2),
+          vat: totals.vat.toFixed(2),
+          total: totals.total.toFixed(2),
           status: 'queued',
           ublXml: null,
           nrsReference: null,

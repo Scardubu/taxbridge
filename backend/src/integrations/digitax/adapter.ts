@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { validateUblXml } from '../../lib/ubl/validate';
 
 export class DigiTaxError extends Error {
   retriable: boolean;
@@ -28,6 +29,11 @@ export async function submitToDigiTax(
 {
   const { invoiceId, ublXml } = args;
   const { apiUrl, apiKey, hmacSecret, mockMode } = config;
+
+  const validation = validateUblXml(ublXml);
+  if (!validation.ok) {
+    throw new DigiTaxError(`UBL validation failed: ${validation.error}`, false);
+  }
 
   // Mock mode for local development / sandbox
   const useMock = mockMode ?? true;

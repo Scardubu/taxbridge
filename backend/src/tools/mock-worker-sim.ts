@@ -10,6 +10,7 @@ async function run() {
     issueDate: new Date().toISOString().slice(0, 10),
     supplierTIN: 'TEST-TIN-12345',
     supplierName: 'TaxBridge Merchant',
+    customerTIN: 'CUST-TIN-67890',
     customerName: 'Sim Customer',
     items: [
       { description: 'Rice', quantity: 2, unitPrice: 2000 },

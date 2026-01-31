@@ -20,6 +20,8 @@ interface Invoice {
   id: string;
   userId: string;
   customerName: string | null;
+  customerTIN?: string | null;
+  customerEndpointId?: string | null;
   status: 'queued' | 'processing' | 'stamped' | 'failed';
   subtotal: number;
   vat: number;
@@ -311,6 +313,7 @@ export default function InvoicesPage() {
                   <div className="space-y-2 text-sm">
                     <div><strong>{t('invoices.table.id')}:</strong> {selectedInvoice.id}</div>
                     <div><strong>{t('invoices.dialog.customer')}:</strong> {selectedInvoice.customerName || t('common.na')}</div>
+                    <div><strong>Customer TIN:</strong> {selectedInvoice.customerTIN || t('common.na')}</div>
                     <div><strong>{t('invoices.dialog.status')}:</strong> 
                       <Badge variant={getStatusVariant(selectedInvoice.status)} className="ml-2">
                         {selectedInvoice.status}

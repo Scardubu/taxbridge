@@ -8,6 +8,7 @@ describe('mock worker flow', () => {
       issueDate: new Date().toISOString().slice(0, 10),
       supplierTIN: 'TESTTIN',
       supplierName: 'Test',
+      customerTIN: 'CUSTTIN',
       customerName: 'Cust',
       items: [ { description: 'A', quantity: 1, unitPrice: 100 } ],
       subtotal: 100,

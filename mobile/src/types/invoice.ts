@@ -10,6 +10,8 @@ export type LocalInvoiceRow = {
   id: string;
   serverId: string | null;
   customerName: string | null;
+  customerTIN: string | null;
+  customerEndpointId: string | null;
   status: InvoiceStatus;
   subtotal: number;
   vat: number;
@@ -23,5 +25,7 @@ export type LocalInvoiceRow = {
 
 export type NewInvoiceInput = {
   customerName?: string;
+  customerTIN?: string;
+  customerEndpointId?: string;
   items: InvoiceItem[];
 };

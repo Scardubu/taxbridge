@@ -94,6 +94,8 @@ export const invoiceSyncWorker = new Worker(
         supplierTIN: merchantTin,
         supplierName: invoice.user.name,
         customerName: invoice.customerName ?? undefined,
+        customerTIN: invoice.customerTIN ?? undefined,
+        customerEndpointId: invoice.customerEndpointId ?? undefined,
         items: rawItems,
         subtotal: Number(invoice.subtotal),
         vat: Number(invoice.vat),
@@ -101,11 +103,9 @@ export const invoiceSyncWorker = new Worker(
       });
 
       const xsdPath = process.env.UBL_XSD_PATH;
-      if (xsdPath) {
-        const validation = validateUblXml(ublXml, xsdPath);
-        if (!validation.ok) {
-          throw new Error(validation.error);
-        }
+      const validation = validateUblXml(ublXml, xsdPath);
+      if (!validation.ok) {
+        throw new Error(validation.error || 'UBL validation failed');
       }
 
       const mockMode = String(process.env.DIGITAX_MOCK_MODE || 'true').toLowerCase() !== 'false';

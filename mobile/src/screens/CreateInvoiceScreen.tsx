@@ -317,12 +317,14 @@ function CreateInvoiceScreen(props: any) {
   const { values, errors, touched, setValue, setTouchedField, validateAll, resetForm } = useFormValidation(
     {
       customerName: '',
+      customerTIN: '',
       description: '',
       quantity: '1',
       unitPrice: '0',
     },
     {
       customerName: validationRules.customerName,
+      customerTIN: validationRules.customerTIN,
       description: validationRules.description,
       quantity: validationRules.quantity,
       unitPrice: validationRules.unitPrice,
@@ -604,6 +606,7 @@ function CreateInvoiceScreen(props: any) {
       await saveInvoice({
         id,
         customerName: values.customerName.trim() || undefined,
+        customerTIN: values.customerTIN.trim() || undefined,
         status: 'queued',
         subtotal: totals.subtotal,
         vat: totals.vat,
@@ -723,6 +726,24 @@ function CreateInvoiceScreen(props: any) {
                 />
                 {errors.customerName && touched.customerName && (
                   <Text style={styles.errorText}>{errors.customerName}</Text>
+                )}
+
+                <Text style={styles.label}>{t('create.customerTinLabel')}</Text>
+                <TextInput
+                  value={values.customerTIN}
+                  onChangeText={(text) => setValue('customerTIN', text)}
+                  onBlur={() => setTouchedField('customerTIN')}
+                  placeholder={t('create.customerTinPlaceholder')}
+                  placeholderTextColor={colors.textMuted}
+                  style={[styles.input, errors.customerTIN && touched.customerTIN && styles.inputError]}
+                  returnKeyType="next"
+                  onSubmitEditing={goToNextStep}
+                  autoCapitalize="characters"
+                  accessible={true}
+                  accessibilityLabel={t('create.customerTinAccessibility')}
+                />
+                {errors.customerTIN && touched.customerTIN && (
+                  <Text style={styles.errorText}>{errors.customerTIN}</Text>
                 )}
 
                 <View style={styles.tipBox}>

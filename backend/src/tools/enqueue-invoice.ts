@@ -1,6 +1,7 @@
 import dotenv from 'dotenv';
 import { prisma } from '../lib/prisma';
 import { getInvoiceSyncQueue } from '../queue/client';
+import { calculateInvoiceTotals } from '../utils/taxCalculator';
 
 dotenv.config();
 
@@ -21,18 +22,16 @@ async function run() {
     { description: 'Beans', quantity: 1, unitPrice: 1500 }
   ];
 
-  const subtotal = items.reduce((s, it) => s + it.quantity * it.unitPrice, 0);
-  const vat = Math.round(subtotal * 0.075 * 100) / 100; // 7.5% example
-  const total = subtotal + vat;
+  const totals = calculateInvoiceTotals(items);
 
   const invoice = await prisma.invoice.create({
     data: {
       userId: user.id,
       customerName: 'Test Customer',
       items: items as any,
-      subtotal: subtotal as any,
-      vat: vat as any,
-      total: total as any,
+      subtotal: totals.subtotal as any,
+      vat: totals.vat as any,
+      total: totals.total as any,
       status: 'queued'
     }
   });

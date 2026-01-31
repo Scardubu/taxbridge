@@ -47,20 +47,22 @@ model User {
 }
 
 model Invoice {
-  id           String   @id @default(uuid()) @db.Uuid
-  userId       String   @map("user_id") @db.Uuid
-  customerName String?  @map("customer_name")
-  status       String   @default("queued") // queued, processing, stamped, failed
-  subtotal     Decimal  @db.Decimal(12, 2)
-  vat          Decimal  @db.Decimal(12, 2)
-  total        Decimal  @db.Decimal(12, 2)
-  items        Json
-  ublXml       String?  @map("ubl_xml") @db.Text
-  nrsReference String?  @map("nrs_reference")
-  qrCode       String?  @map("qr_code") @db.Text
-  version      Int      @default(1) // For conflict detection
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  id                 String   @id @default(uuid()) @db.Uuid
+  userId             String   @map("user_id") @db.Uuid
+  customerName       String?  @map("customer_name")
+  customerTIN        String?  @map("customer_tin")
+  customerEndpointId String?  @map("customer_endpoint_id")
+  status             String   @default("queued") // queued, processing, stamped, failed
+  subtotal           Decimal  @db.Decimal(12, 2)
+  vat                Decimal  @db.Decimal(12, 2)
+  total              Decimal  @db.Decimal(12, 2)
+  items              Json
+  ublXml             String?  @map("ubl_xml") @db.Text
+  nrsReference       String?  @map("nrs_reference")
+  qrCode             String?  @map("qr_code") @db.Text
+  version            Int      @default(1) // For conflict detection
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
 
   user         User     @relation(fields: [userId], references: [id])
 

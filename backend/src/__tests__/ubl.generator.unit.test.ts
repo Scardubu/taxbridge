@@ -9,6 +9,7 @@ describe('UBL Generator (Peppol BIS Billing 3.0)', () => {
     issueDate: '2026-01-15',
     supplierTIN: '12345678-0001',
     supplierName: 'Test Supplier Ltd',
+    customerTIN: '98765432-0002',
     customerName: 'Test Customer Ltd',
     items: [
       {
@@ -51,6 +52,9 @@ describe('UBL Generator (Peppol BIS Billing 3.0)', () => {
     const xml = generateUBL(validInvoice);
     
     expect(xml).toContain('<cac:AccountingSupplierParty>');
+    expect(xml).toContain('<cbc:EndpointID schemeID="0199">12345678-0001</cbc:EndpointID>');
+    expect(xml).toContain('<cac:PartyIdentification>');
+    expect(xml).toContain('<cbc:ID schemeID="TIN">12345678-0001</cbc:ID>');
     expect(xml).toContain('<cac:PartyTaxScheme>');
     expect(xml).toContain('<cbc:CompanyID>12345678-0001</cbc:CompanyID>');
     expect(xml).toContain('<cac:TaxScheme>');
@@ -62,6 +66,8 @@ describe('UBL Generator (Peppol BIS Billing 3.0)', () => {
     const xml = generateUBL(validInvoice);
     
     expect(xml).toContain('<cac:AccountingCustomerParty>');
+    expect(xml).toContain('<cbc:EndpointID schemeID="0199">98765432-0002</cbc:EndpointID>');
+    expect(xml).toContain('<cbc:ID schemeID="TIN">98765432-0002</cbc:ID>');
     expect(xml).toContain('<cbc:RegistrationName>Test Customer Ltd</cbc:RegistrationName>');
   });
 

@@ -336,7 +336,7 @@ export default function DevicesPage() {
               <Input
                 value={forceSyncReason}
                 onChange={(e) => setForceSyncReason(e.target.value)}
-                placeholder="Admin-initiated sync for debugging"
+                placeholder={t('devices.forceSync.reasonPlaceholder')}
                 className="mt-1"
               />
             </div>
@@ -349,7 +349,7 @@ export default function DevicesPage() {
               {isSyncing ? (
                 <>
                   <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                  Syncing...
+                  {t('devices.forceSync.syncing')}
                 </>
               ) : (
                 t('common.confirm')

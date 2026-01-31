@@ -5,6 +5,8 @@ import {
   UBL_VERSION,
   PEPPOL_CUSTOMIZATION_ID,
   PEPPOL_PROFILE_ID,
+  PEPPOL_ENDPOINT_SCHEME,
+  PARTY_ID_SCHEME_TIN,
   INVOICE_TYPE_CODE,
   TAX_CATEGORY_STANDARD,
   TAX_SCHEME_VAT,
@@ -27,12 +29,14 @@ export interface InvoiceData {
   supplierCity?: string;
   supplierPostalCode?: string;
   supplierCountry?: string;
+  supplierEndpointId?: string;
   customerName?: string;
   customerTIN?: string;
   customerStreet?: string;
   customerCity?: string;
   customerPostalCode?: string;
   customerCountry?: string;
+  customerEndpointId?: string;
   items: InvoiceItem[];
   subtotal: number;
   vat: number;
@@ -71,6 +75,14 @@ export function generateUBL(invoice: InvoiceData): string {
   doc
     .ele('cac:AccountingSupplierParty')
     .ele('cac:Party')
+    .ele('cbc:EndpointID', { schemeID: PEPPOL_ENDPOINT_SCHEME })
+    .txt(invoice.supplierEndpointId || invoice.supplierTIN)
+    .up()
+    .ele('cac:PartyIdentification')
+    .ele('cbc:ID', { schemeID: PARTY_ID_SCHEME_TIN })
+    .txt(invoice.supplierTIN)
+    .up()
+    .up()
     .ele('cac:PartyTaxScheme')
     .ele('cbc:CompanyID')
     .txt(invoice.supplierTIN)
@@ -108,6 +120,14 @@ export function generateUBL(invoice: InvoiceData): string {
   doc
     .ele('cac:AccountingCustomerParty')
     .ele('cac:Party')
+    .ele('cbc:EndpointID', { schemeID: PEPPOL_ENDPOINT_SCHEME })
+    .txt(invoice.customerEndpointId || invoice.customerTIN || 'N/A')
+    .up()
+    .ele('cac:PartyIdentification')
+    .ele('cbc:ID', { schemeID: PARTY_ID_SCHEME_TIN })
+    .txt(invoice.customerTIN || 'N/A')
+    .up()
+    .up()
     .ele('cac:PartyTaxScheme')
     .ele('cbc:CompanyID')
     .txt(invoice.customerTIN || 'N/A')

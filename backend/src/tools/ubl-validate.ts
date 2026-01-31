@@ -7,9 +7,8 @@
 
 import { generateUBL, InvoiceData } from '../lib/ubl/generator';
 import { createLogger } from '../lib/logger';
-import fs from 'fs';
-import path from 'path';
 import { analyzeMandatoryFields, PEPPOL_MANDATORY_FIELDS } from '../lib/ubl/mandatoryFields';
+import { PARTY_ID_SCHEME_TIN, PEPPOL_ENDPOINT_SCHEME } from '../lib/constants';
 
 const log = createLogger('ubl-validate');
 
@@ -44,16 +43,36 @@ function validateUBLStructure(xml: string): ValidationResult {
     }
   }
 
-  // Check for Peppol profile
+  // Check for Peppol profile/customization
   const peppolProfileRegex = /<cbc:ProfileID>urn:fdc:peppol\.eu:2017:poacc:billing:01:1\.0<\/cbc:ProfileID>/;
+  const peppolCustomizationRegex = /<cbc:CustomizationID>urn:cen\.eu:en16931:2017#compliant#urn:fdc:peppol\.eu:2017:poacc:billing:3\.0<\/cbc:CustomizationID>/;
   if (!peppolProfileRegex.test(xml)) {
-    result.warnings.push('Missing Peppol BIS Billing 3.0 ProfileID');
+    result.errors.push('Missing Peppol BIS Billing 3.0 ProfileID');
+    result.valid = false;
+  }
+  if (!peppolCustomizationRegex.test(xml)) {
+    result.errors.push('Missing Peppol BIS Billing 3.0 CustomizationID');
+    result.valid = false;
   }
 
   const analysis = analyzeMandatoryFields(xml);
   result.presentFields = analysis.presentFields;
   result.missingFields = analysis.missingFields;
   if (analysis.missingFields.length > 0) {
+    result.valid = false;
+  }
+
+  const endpointRegex = new RegExp(`<cbc:EndpointID\\s+schemeID="${PEPPOL_ENDPOINT_SCHEME}">([^<]+)<\\/cbc:EndpointID>`, 'i');
+  const endpointMatches = xml.match(new RegExp(endpointRegex.source, 'gi')) || [];
+  if (endpointMatches.length < 2) {
+    result.errors.push('Missing EndpointID with ISO 6523 scheme for supplier/customer');
+    result.valid = false;
+  }
+
+  const partyIdRegex = new RegExp(`<cbc:ID\\s+schemeID="${PARTY_ID_SCHEME_TIN}">([^<]+)<\\/cbc:ID>`, 'i');
+  const partyIdMatches = xml.match(new RegExp(partyIdRegex.source, 'gi')) || [];
+  if (partyIdMatches.length < 2) {
+    result.errors.push('Missing PartyIdentification cbc:ID with schemeID="TIN" for supplier/customer');
     result.valid = false;
   }
 
@@ -89,6 +108,7 @@ async function main() {
       issueDate: new Date().toISOString().split('T')[0],
       supplierTIN: '1234567890',
       supplierName: 'Test Supplier Ltd',
+      customerTIN: '9876543210',
       customerName: 'Test Customer Ltd',
       items: sampleItems,
       subtotal,

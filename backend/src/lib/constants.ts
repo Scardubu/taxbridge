@@ -83,6 +83,18 @@ export const PEPPOL_CUSTOMIZATION_ID =
 export const PEPPOL_PROFILE_ID = 'urn:fdc:peppol.eu:2017:poacc:billing:01:1.0';
 
 /**
+ * Peppol Endpoint ID scheme (ISO 6523)
+ * @const {string} PEPPOL_ENDPOINT_SCHEME - 0199 (GS1)
+ */
+export const PEPPOL_ENDPOINT_SCHEME = '0199';
+
+/**
+ * Party Identification scheme for Nigeria TIN
+ * @const {string} PARTY_ID_SCHEME_TIN
+ */
+export const PARTY_ID_SCHEME_TIN = 'TIN';
+
+/**
  * Invoice Type Code (Commercial Invoice)
  * @const {string} INVOICE_TYPE_CODE - UNCL 1001 code 380
  */
