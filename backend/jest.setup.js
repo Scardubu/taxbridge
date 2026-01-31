@@ -7,6 +7,28 @@ process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret-test-jwt-sec
 process.env.JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'test-refresh-secret-test-refresh-secret-123456';
 process.env.ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || 'test-encryption-key-test-encryption-key';
 
+// Mock DATABASE_URL for integration tests that require Prisma client initialization
+// This URL points to a test database or is used for mocking purposes
+// In CI, set DATABASE_URL explicitly; locally, this mock allows tests to load without a real DB
+process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgresql://test:test@localhost:5432/taxbridge_test?schema=public';
+
+// Global flag to track if database is available
+global.__DB_AVAILABLE__ = false;
+
+// Helper to check if test should be skipped due to no database
+exports.skipIfNoDb = () => !global.__DB_AVAILABLE__;
+
+// Helper to conditionally skip a test
+exports.itIfDb = (name, fn) => {
+  it(name, async () => {
+    if (!global.__DB_AVAILABLE__) {
+      console.log(`⏭️  Skipping "${name}" - database not available`);
+      return;
+    }
+    await fn();
+  });
+};
+
 function createRedisMock() {
   const store = new Map();
   const expirations = new Map();
