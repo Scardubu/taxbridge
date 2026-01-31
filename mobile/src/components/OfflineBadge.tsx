@@ -1,9 +1,9 @@
-import React from 'react';
+import { memo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { colors, spacing, typography, radii } from '../theme/tokens';
 
-export default function OfflineBadge({ online }: { online: boolean }) {
+const OfflineBadge = memo(function OfflineBadge({ online }: { online: boolean }) {
   const { t } = useTranslation();
   
   if (online) return null;
@@ -14,7 +14,9 @@ export default function OfflineBadge({ online }: { online: boolean }) {
       <Text style={styles.text}>{t('network.offlineMode')}</Text>
     </View>
   );
-}
+});
+
+export default OfflineBadge;
 
 const styles = StyleSheet.create({
   wrap: {

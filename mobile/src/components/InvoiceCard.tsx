@@ -1,4 +1,4 @@
-import React from 'react';
+import { memo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -10,7 +10,7 @@ import type { LocalInvoiceRow } from '../types/invoice';
 import AnimatedStatusBadge from './AnimatedStatusBadge';
 import { colors, radii, spacing, typography, shadows } from '../theme/tokens';
 
-export default function InvoiceCard(props: { invoice: LocalInvoiceRow; onPress?: () => void }) {
+const InvoiceCard = memo(function InvoiceCard(props: { invoice: LocalInvoiceRow; onPress?: () => void }) {
   const inv = props.invoice;
   const scale = useSharedValue(1);
 
@@ -63,7 +63,9 @@ export default function InvoiceCard(props: { invoice: LocalInvoiceRow; onPress?:
       </Pressable>
     </Animated.View>
   );
-}
+});
+
+export default InvoiceCard;
 
 const styles = StyleSheet.create({
   card: {

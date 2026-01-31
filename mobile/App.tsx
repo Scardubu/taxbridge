@@ -27,6 +27,7 @@ import SettingsScreen from './src/screens/SettingsScreen';
 import PaymentScreen from './src/screens/PaymentScreen';
 import OnboardingScreen from './src/screens/OnboardingScreen';
 import { colors, spacing, typography } from './src/theme/tokens';
+import { screenTransitions } from './src/navigation/transitions';
 
 // Initialize Sentry early
 initSentry();
@@ -49,19 +50,19 @@ function AppNavigator() {
 
   if (!isOnboardingComplete) {
     return (
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Navigator screenOptions={{ headerShown: false, ...screenTransitions.slideFromRight }}>
         <Stack.Screen name="Onboarding" component={OnboardingScreen} />
       </Stack.Navigator>
     );
   }
 
   return (
-    <Stack.Navigator screenOptions={{ headerShown: false }}>
+    <Stack.Navigator screenOptions={{ headerShown: false, ...screenTransitions.slideFromRight }}>
       <Stack.Screen name="MainTabs" component={TabNavigator} />
       <Stack.Screen
         name="Payment"
         component={PaymentScreen}
-        options={{ animation: 'slide_from_right' }}
+        options={screenTransitions.slideFromRight}
       />
     </Stack.Navigator>
   );

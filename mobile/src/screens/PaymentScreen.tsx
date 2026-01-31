@@ -7,7 +7,7 @@ import { api } from '../services/api';
 import { LoadingContext } from '../contexts/LoadingContext';
 import { useNetwork } from '../contexts/NetworkContext';
 import { getAccessToken } from '../services/authTokens';
-import { colors } from '../theme/tokens';
+import { colors, spacing, radii, typography } from '../theme/tokens';
 
 type PaymentRouteParams = {
   Payment: {
@@ -421,168 +421,167 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.surfaceMuted,
-    padding: 16
+    padding: spacing.lg,
   },
   header: {
-    marginBottom: 24,
-    paddingTop: 12
+    marginBottom: spacing.xl,
+    paddingTop: spacing.md,
   },
   title: {
-    fontSize: 28,
-    fontWeight: '700',
+    ...typography.h1,
     color: colors.textPrimary,
-    marginBottom: 4
+    marginBottom: spacing.xs,
   },
   subtitle: {
-    fontSize: 16,
+    ...typography.body,
     color: colors.textMuted,
-    fontWeight: '500'
+    fontWeight: typography.weight.medium,
   },
   invoiceInfo: {
     backgroundColor: colors.surface,
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 24,
+    padding: spacing.lg,
+    borderRadius: radii.lg,
+    marginBottom: spacing.xl,
     borderWidth: 1,
-    borderColor: colors.borderSubtle
+    borderColor: colors.borderSubtle,
   },
   label: {
-    fontSize: 12,
+    ...typography.caption,
     color: colors.textMuted,
-    fontWeight: '600',
-    marginTop: 12,
-    marginBottom: 4,
-    textTransform: 'uppercase'
+    fontWeight: typography.weight.semibold,
+    marginTop: spacing.md,
+    marginBottom: spacing.xs,
+    textTransform: 'uppercase',
   },
   value: {
-    fontSize: 16,
+    ...typography.body,
     color: colors.textSecondary,
-    fontWeight: '600'
+    fontWeight: typography.weight.semibold,
   },
   amountValue: {
-    fontSize: 24,
+    ...typography.h2,
     color: colors.primary,
-    fontWeight: '700',
-    marginTop: 8
+    fontWeight: typography.weight.bold,
+    marginTop: spacing.sm,
   },
   formSection: {
     backgroundColor: colors.surface,
-    padding: 16,
-    borderRadius: 12,
+    padding: spacing.lg,
+    borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.borderSubtle
+    borderColor: colors.borderSubtle,
   },
   formTitle: {
-    fontSize: 16,
-    fontWeight: '700',
+    ...typography.body,
+    fontWeight: typography.weight.bold,
     color: colors.textSecondary,
-    marginBottom: 16
+    marginBottom: spacing.lg,
   },
   inputGroup: {
-    marginBottom: 16
+    marginBottom: spacing.lg,
   },
   inputLabel: {
-    fontSize: 14,
-    fontWeight: '600',
+    ...typography.bodySmall,
+    fontWeight: typography.weight.semibold,
     color: colors.textSecondary,
-    marginBottom: 8
+    marginBottom: spacing.sm,
   },
   input: {
     backgroundColor: colors.surfaceSecondary,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 14,
-    color: colors.textSecondary
+    borderRadius: radii.md,
+    padding: spacing.md,
+    ...typography.bodySmall,
+    color: colors.textSecondary,
   },
   button: {
-    padding: 14,
-    borderRadius: 8,
+    padding: spacing.md,
+    borderRadius: radii.md,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 8
+    marginTop: spacing.sm,
+    minHeight: 48,
   },
   primaryButton: {
-    backgroundColor: colors.primary
+    backgroundColor: colors.primary,
   },
   secondaryButton: {
     borderWidth: 1,
     borderColor: colors.border,
-    padding: 12,
-    borderRadius: 8,
+    padding: spacing.md,
+    borderRadius: radii.md,
     alignItems: 'center',
-    marginTop: 12
+    marginTop: spacing.md,
+    minHeight: 48,
   },
   buttonText: {
     color: colors.textOnPrimary,
-    fontSize: 16,
-    fontWeight: '600'
+    ...typography.body,
+    fontWeight: typography.weight.semibold,
   },
   secondaryButtonText: {
     color: colors.primary,
-    fontSize: 14,
-    fontWeight: '600'
+    ...typography.bodySmall,
+    fontWeight: typography.weight.semibold,
   },
   buttonDisabled: {
-    opacity: 0.6
+    opacity: 0.6,
   },
   disclaimer: {
-    fontSize: 12,
+    ...typography.caption,
     color: colors.textMuted,
-    marginTop: 16,
+    marginTop: spacing.lg,
     fontStyle: 'italic',
-    lineHeight: 18
   },
   successSection: {
     backgroundColor: colors.surface,
-    padding: 16,
-    borderRadius: 12,
+    padding: spacing.lg,
+    borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: colors.borderSubtle
+    borderColor: colors.borderSubtle,
   },
   rrrBox: {
     backgroundColor: colors.primaryLight,
-    padding: 16,
-    borderRadius: 10,
+    padding: spacing.lg,
+    borderRadius: radii.md,
     borderWidth: 1,
     borderColor: colors.primary,
-    marginBottom: 16
+    marginBottom: spacing.lg,
   },
   rrrLabel: {
-    fontSize: 12,
+    ...typography.caption,
     color: colors.textMuted,
-    fontWeight: '600',
-    marginBottom: 8,
-    textTransform: 'uppercase'
+    fontWeight: typography.weight.semibold,
+    marginBottom: spacing.sm,
+    textTransform: 'uppercase',
   },
   rrrValue: {
     fontSize: 20,
-    fontWeight: '700',
+    fontWeight: typography.weight.bold,
     color: colors.primary,
-    marginBottom: 4,
-    fontFamily: 'monospace'
+    marginBottom: spacing.xs,
+    fontFamily: 'monospace',
   },
   rrrHint: {
-    fontSize: 12,
-    color: colors.textMuted
+    ...typography.caption,
+    color: colors.textMuted,
   },
   instructionsBox: {
     backgroundColor: colors.surfaceMuted,
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 16
+    padding: spacing.md,
+    borderRadius: radii.md,
+    marginBottom: spacing.lg,
   },
   instructionsTitle: {
-    fontSize: 14,
-    fontWeight: '700',
+    ...typography.bodySmall,
+    fontWeight: typography.weight.bold,
     color: colors.textSecondary,
-    marginBottom: 8
+    marginBottom: spacing.sm,
   },
   instructionStep: {
-    fontSize: 13,
+    ...typography.caption,
     color: colors.textSecondary,
-    marginBottom: 6,
-    lineHeight: 18
-  }
+    marginBottom: spacing.xs,
+  },
 });

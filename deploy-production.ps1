@@ -24,12 +24,12 @@ $BLUE = "Cyan"
 
 function Write-Status {
     param([string]$Message)
-    Write-Host "✓ $Message" -ForegroundColor $GREEN
+    Write-Host "[OK] $Message" -ForegroundColor $GREEN
 }
 
 function Write-Error-Custom {
     param([string]$Message)
-    Write-Host "✗ $Message" -ForegroundColor $RED
+    Write-Host "[ERROR] $Message" -ForegroundColor $RED
 }
 
 function Write-Warning-Custom {
@@ -39,13 +39,13 @@ function Write-Warning-Custom {
 
 function Write-Section {
     param([string]$Message)
-    Write-Host "`n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor $BLUE
+    Write-Host "`n================================================" -ForegroundColor $BLUE
     Write-Host $Message -ForegroundColor $BLUE
-    Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`n" -ForegroundColor $BLUE
+    Write-Host "================================================`n" -ForegroundColor $BLUE
 }
 
 # Header
-Write-Host "`n🚀 TaxBridge Production Deployment`n" -ForegroundColor $BLUE
+Write-Host "`n=== TaxBridge Production Deployment ===`n" -ForegroundColor $BLUE
 Write-Host "Environment: $Environment" -ForegroundColor $YELLOW
 Write-Host "Date: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')`n"
 
@@ -127,7 +127,7 @@ if (-not $SkipTests) {
     Pop-Location
     Write-Status "Admin dashboard tests passed"
 } else {
-    Write-Warning-Custom "Skipping tests (--SkipTests flag)"
+    Write-Warning-Custom "Skipping tests (SkipTests flag)"
 }
 
 # 3. Database Backup
@@ -317,9 +317,9 @@ foreach ($check in $checks) {
 # 10. Deployment Summary
 Write-Section "10. Deployment Summary"
 
-Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-Write-Host "✅ DEPLOYMENT COMPLETE" -ForegroundColor $GREEN
-Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+Write-Host "================================================"
+Write-Host "[SUCCESS] DEPLOYMENT COMPLETE" -ForegroundColor $GREEN
+Write-Host "================================================"
 Write-Host ""
 Write-Host "Environment:      $Environment" -ForegroundColor $YELLOW
 Write-Host "Backend API:      $apiUrl"
@@ -328,9 +328,9 @@ Write-Host "Deployment Time:  $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
 Write-Host ""
 
 # Next steps
-Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+Write-Host "================================================"
 Write-Host "NEXT STEPS" -ForegroundColor $BLUE
-Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+Write-Host "================================================"
 Write-Host ""
 Write-Host "1. Monitor Grafana dashboard: https://grafana.taxbridge.ng"
 Write-Host "2. Check Sentry for errors: https://sentry.io/taxbridge"
@@ -346,7 +346,7 @@ if ($Environment -eq "production") {
 }
 
 Write-Host ""
-Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+Write-Host "================================================"
 Write-Host ""
 
 # Create deployment log
@@ -369,4 +369,4 @@ Status: SUCCESS
 $deploymentLog | Out-File $logFile
 Write-Host "Deployment log saved: $logFile" -ForegroundColor $GREEN
 
-Write-Host "`n🎉 Deployment complete! Happy launching! 🚀`n" -ForegroundColor $GREEN
+Write-Host "`n[SUCCESS] Deployment complete! Happy launching!`n" -ForegroundColor $GREEN

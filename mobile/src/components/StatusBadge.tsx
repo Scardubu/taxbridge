@@ -1,9 +1,10 @@
+import { memo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import type { InvoiceStatus } from '../types/invoice';
 import { colors, radii, spacing, typography } from '../theme/tokens';
 
-export default function StatusBadge(props: { status: InvoiceStatus }) {
+const StatusBadge = memo(function StatusBadge(props: { status: InvoiceStatus }) {
   const color =
     props.status === 'stamped'
       ? colors.successDark
@@ -27,7 +28,9 @@ export default function StatusBadge(props: { status: InvoiceStatus }) {
       <Text style={[styles.text, { color }]}>{props.status.toUpperCase()}</Text>
     </View>
   );
-}
+});
+
+export default StatusBadge;
 
 const styles = StyleSheet.create({
   badge: {

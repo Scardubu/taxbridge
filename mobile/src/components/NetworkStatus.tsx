@@ -1,12 +1,11 @@
-import React from 'react';
+import { memo, useContext, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useNetwork } from '../contexts/NetworkContext';
-import { useContext, useRef, useEffect } from 'react';
 import { SyncContext } from '../contexts/SyncContext';
 import { colors, spacing, typography, radii } from '../theme/tokens';
 
-export default function NetworkStatus() {
+const NetworkStatus = memo(function NetworkStatus() {
   const { t } = useTranslation();
   const { isConnected, isOnline } = useNetwork();
   const syncCtx = useContext(SyncContext);
@@ -86,3 +85,5 @@ const styles = StyleSheet.create({
     fontWeight: typography.weight.medium as any,
   },
 });
+
+export default NetworkStatus;

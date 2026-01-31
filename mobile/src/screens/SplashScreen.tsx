@@ -22,11 +22,13 @@ import {
   StatusBar,
   Animated,
   Dimensions,
+  Platform,
 } from 'react-native';
 
 // 🔌 Boot services (existing or to be added)
 import { warmUpSyncEngine } from '../sync/syncEngine';
 import { hydrateFeatureFlags } from '../services/featureFlags';
+import { colors } from '../theme/tokens';
 
 const { width, height } = Dimensions.get('window');
 const LOGO_SIZE = Math.min(width, height) * 0.42;
@@ -51,7 +53,7 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
       Animated.timing(opacity, {
         toValue: 1,
         duration: 550,
-        useNativeDriver: true,
+        useNativeDriver: Platform.OS !== 'web',
       }).start();
 
       // 2️⃣ Parallel warm-ups (never serial)
@@ -89,7 +91,7 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      <StatusBar barStyle="dark-content" backgroundColor={colors.surface} />
 
       <Animated.View style={[styles.logoWrapper, { opacity }]}>
         <Image
@@ -105,7 +107,7 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
     justifyContent: 'center',
     alignItems: 'center',
   },
