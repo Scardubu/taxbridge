@@ -69,9 +69,6 @@
   "quickActions": {
     "title": "Sharp Actions",
     "create": "Make",
-    "bracketBreakdownTitle": "Your Tax Breakdown",
-    "bracketBreakdownSubtitle": "See how your tax dey spread across different levels",
-    "rateLabel": "{{rate}}% tax rate"
     "createSublabel": "New Invoice",
     "scan": "Scan",
     "scanSublabel": "Receipt",
@@ -828,7 +825,6 @@
     "vatRegistered": "VAT Registered",
     "syncActive": "Sync Dey Work",
     "offlineMode": "Offline Mode",
-    "quickActions": "Quick Actions",
     "businessOverview": "Business Overview",
     "thisMonth": "This Month",
     "revenue": "Revenue",
