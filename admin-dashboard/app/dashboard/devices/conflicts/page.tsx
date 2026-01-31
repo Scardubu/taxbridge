@@ -95,6 +95,7 @@ export default function ConflictsPage() {
           <CardContent className="pt-6">
             <div className="flex flex-wrap gap-4">
               <select
+                title="Resolution Filter"
                 value={resolutionFilter}
                 onChange={(e) => {
                   setResolutionFilter(e.target.value);

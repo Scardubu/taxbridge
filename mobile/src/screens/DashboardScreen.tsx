@@ -299,7 +299,10 @@ function DashboardScreen(props: any) {
   const loadData = useCallback(async () => {
     try {
       const rows = await getInvoices();
-      setInvoices(rows as Invoice[]);
+      setInvoices(rows.map(row => ({
+        ...row,
+        createdAt: new Date(row.createdAt).getTime(),
+      })) as Invoice[]);
     } catch (err) {
       if (__DEV__) console.error('Failed to load dashboard data:', err);
     } finally {

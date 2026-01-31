@@ -207,7 +207,7 @@ function HomeScreen(props: any) {
   const [error, setError] = useState<Error | null>(null);
 
   // Refs for debouncing
-  const refreshTimeoutRef = useRef<NodeJS.Timeout>();
+  const refreshTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
   // Memoized stats calculation
   const stats = useMemo(() => calculateInvoiceStats(invoices), [invoices]);
@@ -217,7 +217,7 @@ function HomeScreen(props: any) {
     try {
       setError(null);
       const rows = await getInvoices();
-      setInvoices(rows as Invoice[]);
+      setInvoices(rows as unknown as Invoice[]);
     } catch (err) {
       if (__DEV__) {
         console.error('Failed to load invoices:', err);

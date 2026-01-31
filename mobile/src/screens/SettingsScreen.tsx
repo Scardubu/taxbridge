@@ -119,7 +119,6 @@ const SectionHeader = memo(({ icon, title, expanded, onPress }: SectionHeaderPro
       <Text 
         style={styles.sectionTitle}
         accessibilityRole="header"
-        accessibilityLevel={2}
       >
         {title}
       </Text>
@@ -216,7 +215,7 @@ function SettingsScreen() {
 
   const loadStorageStats = useCallback(async () => {
     try {
-      const invoices = await getInvoices() as Invoice[];
+      const invoices = (await getInvoices()).map(inv => ({ ...inv, createdAt: new Date(inv.createdAt).getTime() })) as Invoice[];
       const synced = invoices.filter(inv => inv.synced === 1).length;
       const pending = invoices.filter(inv => inv.synced === 0).length;
       setStorageStats({ total: invoices.length, synced, pending });
@@ -498,7 +497,7 @@ function SettingsScreen() {
     setIsExporting(true);
     
     try {
-      const invoices = await getInvoices() as Invoice[];
+      const invoices = (await getInvoices()).map(inv => ({ ...inv, createdAt: new Date(inv.createdAt).getTime() })) as Invoice[];
       
       // Generate CSV
       const headers = 'Date,Amount,Status\n';
@@ -514,7 +513,7 @@ function SettingsScreen() {
       
       // Save to file
       const fileName = `taxbridge_invoices_${Date.now()}.csv`;
-      const fileUri = `${FileSystem.documentDirectory}${fileName}`;
+      const fileUri = `${(FileSystem as any).documentDirectory}${fileName}`;
       await FileSystem.writeAsStringAsync(fileUri, csv);
       
       // Share file

@@ -884,6 +884,10 @@ taxbridge_component_status{component="sms"} ${serverMetrics.componentStatus.sms 
   await app.register(authRoutes);
   await app.register(privacyRoutes);
   await app.register(syncRoutes);
+  
+  // Phase 3: Feature flags endpoint for mobile app
+  const featureFlagsModule = await import('./routes/feature-flags');
+  await app.register(featureFlagsModule.default);
 
   // Optionally start background payment worker in the same process when explicitly enabled.
   if (String(process.env.START_PAYMENT_WORKER || '').toLowerCase() === 'true') {
