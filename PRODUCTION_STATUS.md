@@ -6,6 +6,55 @@
 
 ---
 
+## v5.0.6 UI/UX Polish (January 31, 2026)
+
+### Design System Enhancements
+- ✅ Extended `tokens.ts` with 12 NTA-specific semantic colors (ntaExemption, ntaAlert, ntaCompliance, etc.)
+- ✅ Standardized spacing, typography, and color usage across components
+- ✅ Enhanced shadows and border radius tokens
+
+### New Component Library (`mobile/src/components/ui/`)
+- ✅ **Button** - 5 variants (primary, secondary, outline, ghost, danger), 3 sizes, loading state, icon support
+- ✅ **Text** - Semantic typography (h1-h4, body, caption, pidgin, currency)
+- ✅ **Card** - Enhanced with NTA variants and animation support
+- ✅ **PressableScale** - Animated pressable with spring physics
+- ✅ **OptimizedImage** - Lazy loading image component
+- ✅ **VirtualizedList** - Performance-optimized list rendering
+
+### NTA-Specific Components (`mobile/src/components/nta/`)
+- ✅ **CurrencyDisplay** - Nigerian Naira formatting with animations
+- ✅ **TaxBracketVisualizer** - Animated PIT tax bracket visualization
+
+### Animation & Micro-interactions
+- ✅ Navigation transitions (slide, modal, fade)
+- ✅ Spring physics for button interactions
+- ✅ Haptic feedback utilities (`useHapticFeedback` hook)
+
+### Accessibility & i18n
+- ✅ Accessibility utilities (`announceForScreenReader`, `isScreenReaderEnabled`)
+- ✅ Navigation labels localized (English + Nigerian Pidgin)
+- ✅ Tax bracket visualization strings added
+- ✅ Fixed JSON syntax errors in i18n files
+
+### Performance Optimization
+- ✅ Memoization utilities (`memoizeOne`, `createMemoizedSelector`)
+- ✅ Component-level memoization with React.memo
+- ✅ Virtualized list for large datasets
+
+### Quality Assurance Scripts
+- ✅ `check:ui-consistency` - Scans for inline styles and hardcoded values
+- ✅ `check:accessibility` - Validates accessibility labels and touch targets
+- ✅ `check:post-deploy` - Health metric threshold checks
+- ✅ Visual regression test for DashboardScreen
+
+### Git Workflow
+- ✅ Feature branch: `feature/ui-polish-v5.0.6`
+- ✅ 27 files changed (25 created/modified + 2 i18n fixes)
+- ✅ 1,082 insertions, proper commit messages
+- ✅ All commits pushed to remote
+
+---
+
 ## Final Integration Complete
 
 ### i18n Compliance (Phase C)
