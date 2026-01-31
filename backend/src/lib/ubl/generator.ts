@@ -23,7 +23,16 @@ export interface InvoiceData {
   issueDate: string;
   supplierTIN: string;
   supplierName: string;
+  supplierStreet?: string;
+  supplierCity?: string;
+  supplierPostalCode?: string;
+  supplierCountry?: string;
   customerName?: string;
+  customerTIN?: string;
+  customerStreet?: string;
+  customerCity?: string;
+  customerPostalCode?: string;
+  customerCountry?: string;
   items: InvoiceItem[];
   subtotal: number;
   vat: number;
@@ -68,24 +77,66 @@ export function generateUBL(invoice: InvoiceData): string {
     .up()
     .ele('cac:TaxScheme')
     .ele('cbc:ID')
-      .txt(TAX_SCHEME_VAT)
-      .up()
-      .up()
-      .up()
-      .ele('cac:PartyLegalEntity')
-      .ele('cbc:RegistrationName')
-      .txt(invoice.supplierName)
-      .up()
-      .up()
-      .up()
-      .up();
+    .txt(TAX_SCHEME_VAT)
+    .up()
+    .up()
+    .up()
+    .ele('cac:PartyLegalEntity')
+    .ele('cbc:RegistrationName')
+    .txt(invoice.supplierName)
+    .up()
+    .up()
+    .ele('cac:PostalAddress')
+    .ele('cbc:StreetName')
+    .txt(invoice.supplierStreet || '123 Default Street')
+    .up()
+    .ele('cbc:CityName')
+    .txt(invoice.supplierCity || 'Lagos')
+    .up()
+    .ele('cbc:PostalZone')
+    .txt(invoice.supplierPostalCode || '100001')
+    .up()
+    .ele('cac:Country')
+    .ele('cbc:IdentificationCode')
+    .txt(invoice.supplierCountry || 'NG')
+    .up()
+    .up()
+    .up()
+    .up()
+    .up();
 
   doc
     .ele('cac:AccountingCustomerParty')
     .ele('cac:Party')
+    .ele('cac:PartyTaxScheme')
+    .ele('cbc:CompanyID')
+    .txt(invoice.customerTIN || 'N/A')
+    .up()
+    .ele('cac:TaxScheme')
+    .ele('cbc:ID')
+    .txt(TAX_SCHEME_VAT)
+    .up()
+    .up()
+    .up()
     .ele('cac:PartyLegalEntity')
     .ele('cbc:RegistrationName')
     .txt(invoice.customerName || DEFAULT_CASH_CUSTOMER)
+    .up()
+    .up()
+    .ele('cac:PostalAddress')
+    .ele('cbc:StreetName')
+    .txt(invoice.customerStreet || 'N/A')
+    .up()
+    .ele('cbc:CityName')
+    .txt(invoice.customerCity || 'N/A')
+    .up()
+    .ele('cbc:PostalZone')
+    .txt(invoice.customerPostalCode || 'N/A')
+    .up()
+    .ele('cac:Country')
+    .ele('cbc:IdentificationCode')
+    .txt(invoice.customerCountry || 'NG')
+    .up()
     .up()
     .up()
     .up()
