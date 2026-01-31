@@ -9,6 +9,7 @@ import {
   ScrollView, 
   Dimensions,
   ActivityIndicator,
+  Modal,
 } from 'react-native';
 import Animated, { FadeInDown, FadeInUp, FadeIn } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
@@ -17,10 +18,14 @@ import * as Haptics from 'expo-haptics';
 import { getInvoices } from '../services/database';
 import { useNetwork } from '../contexts/NetworkContext';
 import { useSyncContext } from '../contexts/SyncContext';
+import { useFeatureFlag } from '../contexts/FeatureFlagContext';
 import SyncStatusBar from '../components/SyncStatusBar';
 import QuickActionRail from '../components/QuickActionRail';
 import InsightsCarousel from '../components/InsightsCarousel';
 import { LivingBridgeHeader } from '../components/header';
+import FloatingActionButton from '../components/FloatingActionButton';
+import GlobalSearch from '../components/GlobalSearch';
+import SyncQueueViewer from '../components/SyncQueueViewer';
 import { colors, radii, spacing, typography, shadows } from '../theme/tokens';
 
 const { width } = Dimensions.get('window');
@@ -199,12 +204,15 @@ function HomeScreen(props: any) {
   const { t } = useTranslation();
   const { isOnline } = useNetwork();
   const { manualSync, lastSyncAt } = useSyncContext();
+  const receiptsScannerEnabled = useFeatureFlag('receiptsScanner');
 
   // State
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<Error | null>(null);
+  const [isSearchVisible, setIsSearchVisible] = useState(false);
+  const [isSyncQueueVisible, setIsSyncQueueVisible] = useState(false);
 
   // Refs for debouncing
   const refreshTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
@@ -295,6 +303,56 @@ function HomeScreen(props: any) {
     props.navigation.navigate('Settings');
   }, [props.navigation]);
 
+  // Search handlers
+  const handleOpenSearch = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setIsSearchVisible(true);
+  }, []);
+
+  const handleCloseSearch = useCallback(() => {
+    setIsSearchVisible(false);
+  }, []);
+
+  const handleSearchResult = useCallback((result: { type: string; id: string }) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setIsSearchVisible(false);
+    // Navigate based on result type
+    switch (result.type) {
+      case 'invoice':
+        props.navigation.navigate('Invoices', { highlightId: result.id });
+        break;
+      case 'customer':
+        props.navigation.navigate('Invoices', { customerId: result.id });
+        break;
+      case 'transaction':
+        props.navigation.navigate('Invoices', { transactionId: result.id });
+        break;
+      default:
+        props.navigation.navigate('Invoices');
+    }
+  }, [props.navigation]);
+
+  // Sync Queue handlers
+  const handleOpenSyncQueue = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setIsSyncQueueVisible(true);
+  }, []);
+
+  const handleCloseSyncQueue = useCallback(() => {
+    setIsSyncQueueVisible(false);
+  }, []);
+
+  const handleRetrySync = useCallback(async (itemId?: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    try {
+      await manualSync();
+      await loadData();
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (err) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    }
+  }, [manualSync, loadData]);
+
   const handleSync = useCallback(async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     try {
@@ -364,6 +422,19 @@ function HomeScreen(props: any) {
         showMetricChip={false}
       />
 
+      {/* Search Bar Trigger */}
+      <Animated.View entering={FadeInDown.duration(300).delay(100)}>
+        <Pressable
+          style={styles.searchTrigger}
+          onPress={handleOpenSearch}
+          accessibilityRole="button"
+          accessibilityLabel={t('home.searchPlaceholder')}
+        >
+          <Text style={styles.searchIcon}>🔍</Text>
+          <Text style={styles.searchPlaceholder}>{t('home.searchPlaceholder')}</Text>
+        </Pressable>
+      </Animated.View>
+
       <ScrollView 
         style={styles.scroll}
         contentContainerStyle={styles.container}
@@ -396,6 +467,17 @@ function HomeScreen(props: any) {
                     pendingCount={stats.pendingCount} 
                     onSyncPress={handleSync}
                   />
+                  {stats.pendingCount > 0 && (
+                    <Pressable
+                      style={styles.viewQueueButton}
+                      onPress={handleOpenSyncQueue}
+                      accessibilityRole="button"
+                      accessibilityLabel={t('sync.viewQueue')}
+                    >
+                      <Text style={styles.viewQueueIcon}>📋</Text>
+                      <Text style={styles.viewQueueText}>{t('sync.viewQueue')}</Text>
+                    </Pressable>
+                  )}
                 </Animated.View>
 
                 {/* Stats Cards */}
@@ -408,6 +490,7 @@ function HomeScreen(props: any) {
                     onScanReceipt={handleScanReceipt}
                     onViewInvoices={handleViewInvoices}
                     onTaxCalculator={handleTaxCalculator}
+                    showScanAction={receiptsScannerEnabled}
                   />
                 </Animated.View>
 
@@ -450,6 +533,53 @@ function HomeScreen(props: any) {
           </>
         )}
       </ScrollView>
+
+      {/* Floating Action Button for quick actions */}
+      <FloatingActionButton
+        onCreateInvoice={handleCreateInvoice}
+        onScanReceipt={receiptsScannerEnabled ? handleScanReceipt : undefined}
+        onViewInvoices={handleViewInvoices}
+        onTaxCalculator={handleTaxCalculator}
+        showScanAction={receiptsScannerEnabled}
+        position="bottom-right"
+      />
+
+      {/* Global Search Modal */}
+      <Modal
+        visible={isSearchVisible}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={handleCloseSearch}
+      >
+        <SafeAreaView style={styles.searchModalContainer}>
+          <View style={styles.searchModalHeader}>
+            <Pressable 
+              onPress={handleCloseSearch}
+              style={styles.searchCloseButton}
+              accessibilityLabel={t('common.close')}
+              accessibilityRole="button"
+            >
+              <Text style={styles.searchCloseText}>✕</Text>
+            </Pressable>
+            <Text style={styles.searchModalTitle}>{t('home.searchTitle')}</Text>
+            <View style={styles.searchCloseButton} />
+          </View>
+          <GlobalSearch
+            onSelectResult={handleSearchResult}
+            autoFocus={true}
+            showFilters={true}
+            placeholder={t('home.searchPlaceholder')}
+          />
+        </SafeAreaView>
+      </Modal>
+
+      {/* Sync Queue Viewer Modal */}
+      <SyncQueueViewer
+        visible={isSyncQueueVisible}
+        onClose={handleCloseSyncQueue}
+        onRetryItem={handleRetrySync}
+        onRetryAll={handleRetrySync}
+      />
     </SafeAreaView>
   );
 }
@@ -464,6 +594,80 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.surfaceSlate },
   scroll: { flex: 1 },
   container: { paddingBottom: spacing.xxl + spacing.sm },
+
+  // Search Trigger
+  searchTrigger: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    marginHorizontal: spacing.lg,
+    marginVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm + spacing.xs,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    gap: spacing.sm,
+  },
+  searchIcon: {
+    fontSize: typography.size.md,
+  },
+  searchPlaceholder: {
+    flex: 1,
+    fontSize: typography.size.sm,
+    color: colors.textMuted,
+  },
+
+  // Search Modal
+  searchModalContainer: {
+    flex: 1,
+    backgroundColor: colors.surfaceSlate,
+  },
+  searchModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderSubtle,
+    backgroundColor: colors.surface,
+  },
+  searchCloseButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  searchCloseText: {
+    fontSize: typography.size.lg,
+    color: colors.textSecondary,
+    fontWeight: typography.weight.semibold,
+  },
+  searchModalTitle: {
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.bold,
+    color: colors.textPrimary,
+  },
+
+  // View Queue Button
+  viewQueueButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: spacing.sm,
+    paddingVertical: spacing.xs,
+    gap: spacing.xs,
+  },
+  viewQueueIcon: {
+    fontSize: typography.size.sm,
+  },
+  viewQueueText: {
+    fontSize: typography.size.xs,
+    color: colors.primary,
+    fontWeight: typography.weight.semibold,
+    textDecorationLine: 'underline',
+  },
   
   // Stats
   statsRow: { 

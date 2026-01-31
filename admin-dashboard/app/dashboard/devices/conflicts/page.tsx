@@ -7,6 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import {
   Table,
   TableBody,
@@ -23,15 +26,30 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useAdminI18n } from '@/lib/i18n';
-import { fetchConflicts, type Conflict } from '@/lib/api/devices';
-import { AlertCircle, FileText, Smartphone, RefreshCw } from 'lucide-react';
+import { fetchConflicts, resolveConflict, type Conflict } from '@/lib/api/devices';
+import { AlertCircle, FileText, Smartphone, RefreshCw, CheckCircle2, AlertTriangle } from 'lucide-react';
 
 export default function ConflictsPage() {
   const { t } = useAdminI18n();
   const [page, setPage] = useState(1);
   const [resolutionFilter, setResolutionFilter] = useState<string>('unresolved');
   const [selectedConflict, setSelectedConflict] = useState<Conflict | null>(null);
+  
+  // Resolution flow state
+  const [resolutionStrategy, setResolutionStrategy] = useState<'local_wins' | 'server_wins' | 'merged'>('server_wins');
+  const [adminReason, setAdminReason] = useState('');
+  const [adminUserId, setAdminUserId] = useState('');
+  const [isResolving, setIsResolving] = useState(false);
+  const [resolutionError, setResolutionError] = useState<string | null>(null);
+  const [resolutionSuccess, setResolutionSuccess] = useState(false);
 
   const { data: conflictsData, error: conflictsError, mutate } = useSWR(
     ['conflicts', page, resolutionFilter],
@@ -79,6 +97,67 @@ export default function ConflictsPage() {
         })}
       </div>
     );
+  };
+
+  const handleResolveConflict = async () => {
+    if (!selectedConflict) return;
+    
+    if (!adminUserId.trim()) {
+      setResolutionError('Admin User ID is required');
+      return;
+    }
+    
+    if (adminReason.trim().length < 10) {
+      setResolutionError('Admin reason must be at least 10 characters');
+      return;
+    }
+    
+    setIsResolving(true);
+    setResolutionError(null);
+    
+    try {
+      await resolveConflict({
+        conflictId: selectedConflict.id,
+        resolution: resolutionStrategy,
+        adminReason: adminReason.trim(),
+        adminUserId: adminUserId.trim(),
+        // For merged resolution, we'd need a UI to build mergedData
+        // For now, Phase 6 focuses on local_wins/server_wins
+        mergedData: undefined
+      });
+      
+      setResolutionSuccess(true);
+      
+      // Refresh conflicts list after successful resolution
+      setTimeout(() => {
+        mutate();
+        setSelectedConflict(null);
+        setResolutionSuccess(false);
+        setAdminReason('');
+        setAdminUserId('');
+      }, 2000);
+    } catch (error: any) {
+      setResolutionError(error.message || 'Failed to resolve conflict');
+    } finally {
+      setIsResolving(false);
+    }
+  };
+
+  const handleOpenResolutionDialog = (conflict: Conflict) => {
+    setSelectedConflict(conflict);
+    setResolutionStrategy('server_wins');
+    setAdminReason('');
+    setAdminUserId('');
+    setResolutionError(null);
+    setResolutionSuccess(false);
+  };
+
+  const handleCloseResolutionDialog = () => {
+    if (!isResolving) {
+      setSelectedConflict(null);
+      setResolutionError(null);
+      setResolutionSuccess(false);
+    }
   };
 
   return (
@@ -205,9 +284,10 @@ export default function ConflictsPage() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => setSelectedConflict(conflict)}
+                            onClick={() => handleOpenResolutionDialog(conflict)}
+                            disabled={!!conflict.resolution}
                           >
-                            {t('conflicts.action.viewDiff')}
+                            {conflict.resolution ? t('conflicts.action.resolved') : t('conflicts.action.resolve')}
                           </Button>
                         </TableCell>
                       </TableRow>
@@ -247,31 +327,147 @@ export default function ConflictsPage() {
         </Card>
       </div>
 
-      {/* Diff Viewer Dialog */}
-      <Dialog open={!!selectedConflict} onOpenChange={(open) => !open && setSelectedConflict(null)}>
-        <DialogContent className="max-w-3xl">
+      {/* Conflict Resolution Dialog */}
+      <Dialog open={!!selectedConflict} onOpenChange={(open) => !open && handleCloseResolutionDialog()}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{t('conflicts.action.viewDiff')}</DialogTitle>
+            <DialogTitle>{t('conflicts.resolve.title')}</DialogTitle>
             <DialogDescription>
               {selectedConflict && `${selectedConflict.invoice.customerName} - ${selectedConflict.entity}`}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto">
-            {selectedConflict && (
-              <>
-                <div className="grid grid-cols-3 gap-2 text-sm font-medium border-b pb-2 sticky top-0 bg-white">
-                  <div className="text-slate-700">Field</div>
-                  <div className="text-orange-600">Local (v{selectedConflict.clientVersion})</div>
-                  <div className="text-blue-600">Server (v{selectedConflict.serverVersion})</div>
+
+          {resolutionSuccess && (
+            <Alert className="bg-green-50 border-green-200">
+              <CheckCircle2 className="h-4 w-4 text-green-600" />
+              <AlertDescription className="text-green-800">
+                {t('conflicts.resolve.success')}
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {resolutionError && (
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>{resolutionError}</AlertDescription>
+            </Alert>
+          )}
+
+          {selectedConflict && !resolutionSuccess && (
+            <div className="space-y-6 py-4">
+              {/* Field-Level Diff */}
+              <div>
+                <h3 className="text-sm font-semibold mb-3">{t('conflicts.resolve.diffTitle')}</h3>
+                <div className="border rounded-lg p-4 bg-slate-50">
+                  <div className="grid grid-cols-3 gap-2 text-xs font-medium border-b pb-2 mb-2 sticky top-0 bg-slate-50">
+                    <div className="text-slate-700">{t('conflicts.resolve.field')}</div>
+                    <div className="text-orange-600">{t('conflicts.resolve.localData')} (v{selectedConflict.clientVersion})</div>
+                    <div className="text-blue-600">{t('conflicts.resolve.serverData')} (v{selectedConflict.serverVersion})</div>
+                  </div>
+                  <div className="max-h-64 overflow-y-auto">
+                    {renderDiff(selectedConflict.localData, selectedConflict.serverData)}
+                  </div>
                 </div>
-                {renderDiff(selectedConflict.localData, selectedConflict.serverData)}
+              </div>
+
+              {/* Resolution Strategy */}
+              <div>
+                <Label htmlFor="resolution-strategy" className="text-sm font-semibold mb-2 block">
+                  {t('conflicts.resolve.strategyLabel')}
+                </Label>
+                <Select 
+                  value={resolutionStrategy} 
+                  onValueChange={(val) => setResolutionStrategy(val as any)}
+                >
+                  <SelectTrigger id="resolution-strategy">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="server_wins">
+                      {t('conflicts.resolve.strategy.serverWins')}
+                    </SelectItem>
+                    <SelectItem value="local_wins">
+                      {t('conflicts.resolve.strategy.localWins')}
+                    </SelectItem>
+                    <SelectItem value="merged" disabled>
+                      {t('conflicts.resolve.strategy.merged')} (Coming Soon)
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-slate-600 mt-1">
+                  {resolutionStrategy === 'server_wins' && t('conflicts.resolve.strategy.serverWinsDesc')}
+                  {resolutionStrategy === 'local_wins' && t('conflicts.resolve.strategy.localWinsDesc')}
+                  {resolutionStrategy === 'merged' && t('conflicts.resolve.strategy.mergedDesc')}
+                </p>
+              </div>
+
+              {/* Admin Confirmation */}
+              <div className="space-y-4 border-t pt-4">
+                <h3 className="text-sm font-semibold text-slate-900">
+                  {t('conflicts.resolve.confirmationTitle')}
+                </h3>
+                
+                <div>
+                  <Label htmlFor="admin-user-id" className="text-sm">
+                    {t('conflicts.resolve.adminUserId')} *
+                  </Label>
+                  <Input
+                    id="admin-user-id"
+                    value={adminUserId}
+                    onChange={(e) => setAdminUserId(e.target.value)}
+                    placeholder="admin@taxbridge.ng"
+                    className="mt-1"
+                    disabled={isResolving}
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="admin-reason" className="text-sm">
+                    {t('conflicts.resolve.adminReason')} * (min 10 characters)
+                  </Label>
+                  <Textarea
+                    id="admin-reason"
+                    value={adminReason}
+                    onChange={(e) => setAdminReason(e.target.value)}
+                    placeholder={t('conflicts.resolve.adminReasonPlaceholder')}
+                    className="mt-1"
+                    rows={3}
+                    disabled={isResolving}
+                  />
+                  <p className="text-xs text-slate-500 mt-1">
+                    {adminReason.length}/10 characters minimum
+                  </p>
+                </div>
+
+                <Alert className="bg-amber-50 border-amber-200">
+                  <AlertTriangle className="h-4 w-4 text-amber-600" />
+                  <AlertDescription className="text-amber-900 text-sm">
+                    {t('conflicts.resolve.warning')}
+                  </AlertDescription>
+                </Alert>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            {!resolutionSuccess && (
+              <>
+                <Button 
+                  variant="outline" 
+                  onClick={handleCloseResolutionDialog}
+                  disabled={isResolving}
+                >
+                  {t('common.cancel')}
+                </Button>
+                <Button 
+                  onClick={handleResolveConflict}
+                  disabled={isResolving || adminReason.trim().length < 10 || !adminUserId.trim()}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  {isResolving ? t('conflicts.resolve.resolving') : t('conflicts.resolve.confirm')}
+                </Button>
               </>
             )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setSelectedConflict(null)}>
-              {t('common.close')}
-            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useRef, useReducer } from 
 import { Alert } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useNetwork } from './NetworkContext';
+import { useDevice } from './DeviceContext';
 import { syncPendingInvoices } from '../services/sync';
 import { performFullSync, listConflicts, collectLocalChanges } from '../services/deviceSync';
 import { getAccessToken } from '../services/authTokens';
@@ -14,18 +15,40 @@ import {
   type SyncProgress
 } from '../sync/syncReducer';
 
+/**
+ * Sync Context
+ * 
+ * Phase 4: Device + Sync State Machine Formalization
+ * 
+ * Provides access to sync state machine.
+ * 
+ * Rules:
+ *  - All state transitions via reducer dispatch (syncReducer)
+ *  - NO direct state mutations from components
+ *  - manualSync() and retrySync() are action dispatchers (emit events)
+ *  - State snapshot is read-only
+ * 
+ * Integration:
+ *  - Uses DeviceContext to check if device can sync
+ *  - Dispatches DEVICE_SYNC_SUCCESS to device reducer on successful sync
+ */
+
 const log = createLogger('sync-context');
 
 type SyncResult = { synced: number; failed: number; deferred: number; conflicts?: number };
 
 interface SyncContextType {
+  // Read-only state snapshot
   syncState: SyncState;
   lastSyncAt: number | null;
   conflictCount: number;
   lastError: SyncError | null;
   progress: SyncProgress | null;
+  
+  // Action dispatchers (emit events to reducer)
   manualSync: () => Promise<SyncResult>;
   retrySync: () => Promise<void>;
+  
   // Legacy compatibility
   isSyncing: boolean;
 }
@@ -45,6 +68,7 @@ function isDeviceSyncEnabled(): boolean {
 
 export function SyncProvider({ children }: { children: React.ReactNode }) {
   const { isOnline, forceCheck } = useNetwork();
+  const device = useDevice();
   const { t } = useTranslation();
   const [state, dispatch] = useReducer(syncReducer, initialSyncState);
   const isOnlinePrev = useRef<boolean | null>(null);
@@ -53,6 +77,21 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
   async function hasAuthToken(): Promise<boolean> {
     const token = await getAccessToken();
     return Boolean(token);
+  }
+  
+  /**
+   * Check if device is allowed to sync
+   * Phase 4: Checks device state (REGISTERED or ACTIVE)
+   */
+  function canDeviceSync(): boolean {
+    if (!device.canSync) {
+      log.warn('Device cannot sync', { 
+        deviceState: device.deviceState,
+        reason: device.suspensionReason 
+      });
+      return false;
+    }
+    return true;
   }
 
   async function doSyncWithBackoff(maxAttempts = 3): Promise<SyncResult> {
@@ -156,6 +195,22 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function manualSync() {
+    // Phase 4: Check device state first
+    if (!canDeviceSync()) {
+      if (device.isSuspended) {
+        Alert.alert(
+          t('sync.deviceSuspendedTitle'),
+          t('sync.deviceSuspendedBody', { reason: device.suspensionReason })
+        );
+      } else {
+        Alert.alert(
+          t('sync.deviceNotRegisteredTitle'),
+          t('sync.deviceNotRegisteredBody')
+        );
+      }
+      return { synced: 0, failed: 0, deferred: 0, conflicts: 0 };
+    }
+    
     if (!isOnline) {
       Alert.alert(t('sync.offlineTitle'), t('sync.offlineBody'));
       return { synced: 0, failed: 0, deferred: 0, conflicts: 0 };

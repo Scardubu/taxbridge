@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, TextInput, TouchableOpacity, Alert, ActivityIndicator, StyleSheet } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
+import * as Haptics from 'expo-haptics';
 import { api } from '../services/api';
 import { LoadingContext } from '../contexts/LoadingContext';
 import { useNetwork } from '../contexts/NetworkContext';
@@ -66,18 +67,29 @@ export default function PaymentScreen({ route: propRoute }: PaymentScreenProps =
   const [loading, setLocalLoading] = useState(false);
   const [rrr, setRrr] = useState<string | null>(null);
   const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
+  
+  // Focus management refs
+  const nameInputRef = useRef<TextInput>(null);
+  const emailInputRef = useRef<TextInput>(null);
+  const phoneInputRef = useRef<TextInput>(null);
 
   const validateInputs = (): boolean => {
     if (!payerName.trim()) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Alert.alert(t('payment.validationError'), t('payment.enterPayerName'));
+      nameInputRef.current?.focus();
       return false;
     }
     if (!payerEmail.trim() || !payerEmail.includes('@')) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Alert.alert(t('payment.validationError'), t('payment.enterValidEmail'));
+      emailInputRef.current?.focus();
       return false;
     }
     if (!payerPhone.trim() || payerPhone.length < 10) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Alert.alert(t('payment.validationError'), t('payment.enterValidPhone'));
+      phoneInputRef.current?.focus();
       return false;
     }
     return true;
@@ -87,9 +99,12 @@ export default function PaymentScreen({ route: propRoute }: PaymentScreenProps =
     if (!validateInputs()) return;
 
     if (!isOnline) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
       Alert.alert(t('alerts.offline'), t('payment.offlineRRR'));
       return;
     }
+    
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
     const token = await getAccessToken();
     if (!token) {
@@ -138,6 +153,7 @@ export default function PaymentScreen({ route: propRoute }: PaymentScreenProps =
       setRrr(generatedRRR);
       setPaymentUrl(url);
 
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       Alert.alert(
         t('payment.paymentReady'),
         t('payment.paymentReadyDesc', { rrr: generatedRRR, amount: amount.toFixed(2) }),
@@ -172,6 +188,7 @@ export default function PaymentScreen({ route: propRoute }: PaymentScreenProps =
       );
     } catch (error: any) {
       if (!isMountedRef.current) return;
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       const rawMessage = error?.message || 'Failed to generate RRR';
       const cleanMessage = typeof rawMessage === 'string' ? rawMessage.replace(/^API error\s+\d{3}:\s*/i, '') : String(rawMessage);
       Alert.alert(t('payment.error'), cleanMessage);
@@ -187,9 +204,12 @@ export default function PaymentScreen({ route: propRoute }: PaymentScreenProps =
     if (!invoice.id) return;
 
     if (!isOnline) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
       Alert.alert(t('alerts.offline'), t('payment.offlineStatus'));
       return;
     }
+    
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
     const token = await getAccessToken();
     if (!token) {
@@ -223,8 +243,11 @@ export default function PaymentScreen({ route: propRoute }: PaymentScreenProps =
       if (!isMountedRef.current) return;
       
       const { status } = response;
-
-      Alert.alert(
+      Haptics.notificationAsync(
+        status === 'paid' 
+          ? Haptics.NotificationFeedbackType.Success 
+          : Haptics.NotificationFeedbackType.Warning
+      );      Alert.alert(
         'Payment Status',
         `Current status: ${status.toUpperCase()}\n\nIf you've completed payment on Remita, the status will update shortly.`,
         [{ text: 'OK' }]
@@ -237,6 +260,7 @@ export default function PaymentScreen({ route: propRoute }: PaymentScreenProps =
       }
     } catch (error: any) {
       if (!isMountedRef.current) return;
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       const rawMessage = error?.message || 'Failed to check status';
       const cleanMessage = typeof rawMessage === 'string' ? rawMessage.replace(/^API error\s+\d{3}:\s*/i, '') : String(rawMessage);
       Alert.alert('Error', cleanMessage);
@@ -277,18 +301,24 @@ export default function PaymentScreen({ route: propRoute }: PaymentScreenProps =
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>{t('payment.payerName')} *</Text>
             <TextInput
+              ref={nameInputRef}
               style={styles.input}
               placeholder={t('payment.payerNamePlaceholder')}
               value={payerName}
               onChangeText={setPayerName}
               editable={!loading}
               placeholderTextColor={colors.textMuted}
+              returnKeyType="next"
+              onSubmitEditing={() => emailInputRef.current?.focus()}
+              accessibilityLabel={t('payment.payerName')}
+              accessibilityHint={t('payment.payerNamePlaceholder')}
             />
           </View>
 
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>{t('payment.payerEmail')} *</Text>
             <TextInput
+              ref={emailInputRef}
               style={styles.input}
               placeholder={t('payment.payerEmailPlaceholder')}
               value={payerEmail}
@@ -297,12 +327,17 @@ export default function PaymentScreen({ route: propRoute }: PaymentScreenProps =
               editable={!loading}
               placeholderTextColor={colors.textMuted}
               autoCapitalize="none"
+              returnKeyType="next"
+              onSubmitEditing={() => phoneInputRef.current?.focus()}
+              accessibilityLabel={t('payment.payerEmail')}
+              accessibilityHint={t('payment.payerEmailPlaceholder')}
             />
           </View>
 
           <View style={styles.inputGroup}>
             <Text style={styles.inputLabel}>{t('payment.payerPhone')} *</Text>
             <TextInput
+              ref={phoneInputRef}
               style={styles.input}
               placeholder={t('payment.payerPhonePlaceholder')}
               value={payerPhone}
@@ -310,6 +345,10 @@ export default function PaymentScreen({ route: propRoute }: PaymentScreenProps =
               keyboardType="phone-pad"
               editable={!loading}
               placeholderTextColor={colors.textMuted}
+              returnKeyType="done"
+              onSubmitEditing={handleGenerateRRR}
+              accessibilityLabel={t('payment.payerPhone')}
+              accessibilityHint={t('payment.payerPhonePlaceholder')}
             />
           </View>
 
@@ -317,6 +356,10 @@ export default function PaymentScreen({ route: propRoute }: PaymentScreenProps =
             style={[styles.button, styles.primaryButton, loading && styles.buttonDisabled]}
             onPress={handleGenerateRRR}
             disabled={loading}
+            accessibilityRole="button"
+            accessibilityLabel={t('payment.generateRRR')}
+            accessibilityState={{ disabled: loading, busy: loading }}
+            accessibilityHint={t('payment.rrrDisclaimer')}
           >
             {loading ? (
               <ActivityIndicator color={colors.textOnPrimary} />

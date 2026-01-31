@@ -24,6 +24,7 @@ interface QuickActionRailProps {
   onScanReceipt?: () => void;
   onViewInvoices?: () => void;
   onTaxCalculator?: () => void;
+  showScanAction?: boolean;
 }
 
 function ActionButton({ action, onPress }: { action: QuickAction; onPress: () => void }) {
@@ -66,43 +67,52 @@ function QuickActionRail({
   onScanReceipt,
   onViewInvoices,
   onTaxCalculator,
+  showScanAction = true,
 }: QuickActionRailProps) {
   const { t } = useTranslation();
 
-  const actions: QuickAction[] = useMemo(() => ([
-    {
-      id: 'create',
-      icon: '📄',
-      label: t('quickActions.create'),
-      sublabel: t('quickActions.createSublabel'),
-      color: colors.primary,
-      bgColor: colors.primaryLight,
-    },
-    {
-      id: 'scan',
-      icon: '📷',
-      label: t('quickActions.scan'),
-      sublabel: t('quickActions.scanSublabel'),
-      color: colors.actionGreen,
-      bgColor: colors.actionGreenBg,
-    },
-    {
-      id: 'invoices',
-      icon: '📋',
-      label: t('quickActions.invoices'),
-      sublabel: t('quickActions.invoicesSublabel'),
-      color: colors.actionPurple,
-      bgColor: colors.actionPurpleBg,
-    },
-    {
-      id: 'calculator',
-      icon: '🧮',
-      label: t('quickActions.tax'),
-      sublabel: t('quickActions.taxSublabel'),
-      color: colors.actionOrange,
-      bgColor: colors.actionOrangeBg,
-    },
-  ]), [t]);
+  const actions: QuickAction[] = useMemo(() => {
+    const baseActions: QuickAction[] = [
+      {
+        id: 'create',
+        icon: '📄',
+        label: t('quickActions.create'),
+        sublabel: t('quickActions.createSublabel'),
+        color: colors.primary,
+        bgColor: colors.primaryLight,
+      },
+      {
+        id: 'scan',
+        icon: '📷',
+        label: t('quickActions.scan'),
+        sublabel: t('quickActions.scanSublabel'),
+        color: colors.actionGreen,
+        bgColor: colors.actionGreenBg,
+      },
+      {
+        id: 'invoices',
+        icon: '📋',
+        label: t('quickActions.invoices'),
+        sublabel: t('quickActions.invoicesSublabel'),
+        color: colors.actionPurple,
+        bgColor: colors.actionPurpleBg,
+      },
+      {
+        id: 'calculator',
+        icon: '🧮',
+        label: t('quickActions.tax'),
+        sublabel: t('quickActions.taxSublabel'),
+        color: colors.actionOrange,
+        bgColor: colors.actionOrangeBg,
+      },
+    ];
+
+    if (!showScanAction) {
+      return baseActions.filter((action) => action.id !== 'scan');
+    }
+
+    return baseActions;
+  }, [showScanAction, t]);
 
   const handleAction = useCallback((actionId: string) => {
     switch (actionId) {

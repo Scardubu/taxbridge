@@ -349,6 +349,151 @@ export default async function adminSyncRoutes(app: FastifyInstance) {
     }
   });
 
+  // POST /api/admin/conflicts/resolve - Admin-only conflict resolution
+  app.post('/api/admin/conflicts/resolve', async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!isDeviceSyncEnabled()) {
+      return reply.status(404).send({ error: 'Device sync feature is disabled' });
+    }
+
+    try {
+      const ResolutionSchema = z.object({
+        conflictId: z.string().uuid(),
+        resolution: z.enum(['local_wins', 'server_wins', 'merged']),
+        mergedData: z.record(z.unknown()).optional(),
+        adminReason: z.string().min(10, 'Admin reason must be at least 10 characters'),
+        adminUserId: z.string().min(1, 'Admin user ID required')
+      });
+
+      const body = ResolutionSchema.parse(request.body);
+
+      // Find conflict with full context
+      const conflict = await prisma.conflict.findUnique({
+        where: { id: body.conflictId },
+        include: {
+          device: {
+            include: {
+              user: {
+                select: { id: true, name: true, email: true }
+              }
+            }
+          },
+          invoice: true
+        }
+      });
+
+      if (!conflict) {
+        return reply.status(404).send({ error: 'Conflict not found' });
+      }
+
+      if (conflict.resolution) {
+        return reply.status(400).send({ error: 'Conflict already resolved' });
+      }
+
+      // Determine final data based on resolution strategy
+      let finalData: any;
+      let resolutionStatus: string;
+
+      if (body.resolution === 'local_wins') {
+        finalData = conflict.localData;
+        resolutionStatus = 'RESOLVED_CLIENT';
+      } else if (body.resolution === 'server_wins') {
+        finalData = conflict.serverData;
+        resolutionStatus = 'RESOLVED_SERVER';
+      } else if (body.resolution === 'merged' && body.mergedData) {
+        // Validate merged data has required fields
+        const requiredFields = ['subtotal', 'vat', 'total'];
+        const missingFields = requiredFields.filter(f => !(f in body.mergedData!));
+        
+        if (missingFields.length > 0) {
+          return reply.status(400).send({ 
+            error: `Merged data missing required fields: ${missingFields.join(', ')}` 
+          });
+        }
+        
+        finalData = body.mergedData;
+        resolutionStatus = 'RESOLVED_MANUAL';
+      } else {
+        return reply.status(400).send({ error: 'Invalid resolution or missing mergedData' });
+      }
+
+      // Transaction: Update invoice, mark conflict resolved, create admin action audit
+      const result = await prisma.$transaction(async (tx) => {
+        // Update invoice with resolved data
+        const updatedInvoice = await tx.invoice.update({
+          where: { id: conflict.invoiceId },
+          data: {
+            ...finalData,
+            version: { increment: 1 }
+          }
+        });
+
+        // Mark conflict as resolved
+        const resolvedConflict = await tx.conflict.update({
+          where: { id: body.conflictId },
+          data: {
+            resolution: body.resolution,
+            status: resolutionStatus,
+            resolvedAt: new Date()
+          }
+        });
+
+        // Create admin action audit record
+        const adminAction = await tx.adminAction.create({
+          data: {
+            action: 'CONFLICT_RESOLVE',
+            targetType: 'conflict',
+            targetId: body.conflictId,
+            performedBy: body.adminUserId,
+            reason: body.adminReason,
+            metadata: {
+              conflictId: body.conflictId,
+              invoiceId: conflict.invoiceId,
+              deviceId: conflict.device.deviceId,
+              userId: conflict.device.userId,
+              userName: conflict.device.user.name,
+              resolution: body.resolution,
+              status: resolutionStatus,
+              localVersion: conflict.clientVersion,
+              serverVersion: conflict.serverVersion,
+              localData: conflict.localData,
+              serverData: conflict.serverData,
+              finalData: finalData
+            }
+          }
+        });
+
+        return { updatedInvoice, resolvedConflict, adminAction };
+      });
+
+      log.info('Admin conflict resolution', {
+        conflictId: body.conflictId,
+        resolution: body.resolution,
+        adminUserId: body.adminUserId,
+        deviceId: conflict.device.deviceId,
+        userId: conflict.device.userId
+      });
+
+      return reply.send({
+        success: true,
+        message: 'Conflict resolved successfully',
+        invoiceId: result.updatedInvoice.id,
+        invoiceVersion: result.updatedInvoice.version,
+        auditId: result.adminAction.id
+      });
+    } catch (error: any) {
+      log.error('Admin conflict resolution error', { error: error.message, stack: error.stack });
+      
+      if (error.name === 'ZodError') {
+        return reply.status(400).send({ 
+          error: 'Validation failed', 
+          details: error.errors 
+        });
+      }
+      
+      return reply.status(500).send({ error: 'Internal server error' });
+    }
+  });
+
   // GET /api/admin/sync/stats - Get sync statistics
   app.get('/api/admin/sync/stats', async (request: FastifyRequest, reply: FastifyReply) => {
     if (!isDeviceSyncEnabled()) {

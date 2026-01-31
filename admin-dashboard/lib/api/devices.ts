@@ -196,3 +196,26 @@ export async function forceDeviceSync(deviceId: string, reason?: string): Promis
     body: JSON.stringify({ deviceId, reason }),
   });
 }
+
+export async function resolveConflict(params: {
+  conflictId: string;
+  resolution: 'local_wins' | 'server_wins' | 'merged';
+  mergedData?: Record<string, unknown>;
+  adminReason: string;
+  adminUserId: string;
+}): Promise<{
+  success: boolean;
+  message: string;
+  invoiceId: string;
+  invoiceVersion: number;
+  auditId: string;
+}> {
+  return fetchJson(`${API_BASE}/api/admin/conflicts/resolve`, {
+    method: 'POST',
+    headers: {
+      'X-Admin-API-Key': ADMIN_API_KEY,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(params),
+  });
+}

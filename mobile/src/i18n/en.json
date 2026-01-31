@@ -25,7 +25,9 @@
     "weekendVibes": "Weekend Vibes",
     "lunchTime": "Lunch Time",
     "afternoonHustle": "Afternoon Hustle",
-    "mainContent": "Home screen main content"
+    "mainContent": "Home screen main content",
+    "searchPlaceholder": "Search invoices, customers...",
+    "searchTitle": "Search"
   },
   "quickActions": {
     "title": "Quick Actions",
@@ -85,7 +87,8 @@
     "syncFailedTitle": "Sync Failed",
     "syncFailedBody": "Could not sync your data. Please try again later.",
     "syncFailedAfterReconnectBody": "{{count}} invoice failed to sync after reconnecting.",
-    "syncFailedAfterReconnectBody_plural": "{{count}} invoices failed to sync after reconnecting."
+    "syncFailedAfterReconnectBody_plural": "{{count}} invoices failed to sync after reconnecting.",
+    "viewQueue": "View sync queue"
   },
   "network": {
     "offline": "Offline",
@@ -617,6 +620,10 @@
     "offlineBody": "Cannot sync while offline.",
     "signInRequiredTitle": "Sign in required",
     "signInRequiredBody": "Please sign in in Settings > Account & Sync to sync invoices.",
+    "deviceSuspendedTitle": "Device Suspended",
+    "deviceSuspendedBody": "Your device has been suspended. Reason: {{reason}}. Please contact support.",
+    "deviceNotRegisteredTitle": "Device Not Registered",
+    "deviceNotRegisteredBody": "Your device needs to be registered before syncing. Please sign in and try again.",
     "syncCompleteTitle": "Sync Complete",
     "syncCompleteBody_one": "Synced {{count}} invoice",
     "syncCompleteBody_other": "Synced {{count}} invoices",
@@ -851,5 +858,141 @@
     "nhisDescription": "Health insurance premiums reduce your tax burden",
     "lifeInsurance": "Life Insurance",
     "lifeInsuranceDescription": "Life insurance premiums are tax-deductible"
+  },
+  "quickStart": {
+    "personalizeTitle": "Let's personalize your experience",
+    "personalizeSubtitle": "This helps us show you relevant tax guidance",
+    "businessTypeQ": "What type of business do you run?",
+    "soleProp": "Sole Proprietor",
+    "registered": "Registered Company",
+    "considering": "Considering Registration",
+    "sectorQ": "What sector are you in?",
+    "retail": "Retail/Trading",
+    "services": "Services",
+    "manufacturing": "Manufacturing",
+    "tech": "Tech/Digital",
+    "other": "Other",
+    "taxExperienceQ": "How familiar are you with Nigerian taxes?",
+    "taxExperienceNone": "New to taxes",
+    "taxExperienceBasic": "Basic knowledge",
+    "taxExperienceExperienced": "Experienced"
+  },
+  "taxBasics": {
+    "title": "Tax Essentials for You",
+    "subtitle": "Key things you need to know based on your profile",
+    "soleProp1Title": "Personal Income Tax (PIT)",
+    "soleProp1Desc": "As a sole proprietor, you pay PIT on your business profits. Income below ₦800,000/year is tax-free!",
+    "soleProp2Title": "Record Keeping",
+    "soleProp2Desc": "Keep receipts and invoices for at least 6 years. TaxBridge stores them safely offline.",
+    "soleProp3Title": "VAT Threshold",
+    "soleProp3Desc": "Register for VAT when turnover exceeds ₦100M. We'll track this for you.",
+    "registered1Title": "Company Income Tax (CIT)",
+    "registered1Desc": "Registered companies pay CIT: 0% (≤₦50M), 20% (₦50-100M), or 30% (>₦100M) turnover.",
+    "registered2Title": "VAT Collection",
+    "registered2Desc": "If VAT-registered, charge 7.5% on eligible goods/services and remit to FIRS.",
+    "registered3Title": "e-Invoicing Compliance",
+    "registered3Desc": "Use NRS-compliant invoices. TaxBridge generates them automatically!",
+    "default1Title": "Getting Started",
+    "default1Desc": "Start by creating invoices to track your income and build compliance habits.",
+    "default2Title": "Tax-Free Threshold",
+    "default2Desc": "Income below ₦800,000/year is exempt from personal income tax.",
+    "default3Title": "Plan Ahead",
+    "default3Desc": "Consider registering your business to unlock more tax benefits."
+  },
+  "quiz": {
+    "title": "Quick Tax Knowledge Check",
+    "questionOf": "Question {{current}} of {{total}}",
+    "score": "Score",
+    "correct": "Correct! 🎉",
+    "incorrect": "Not quite. The correct answer is highlighted.",
+    "pitThreshold": "What is the PIT-free income threshold in Nigeria?",
+    "pitThresholdA": "₦500,000 per year",
+    "pitThresholdB": "₦800,000 per year",
+    "pitThresholdC": "₦1,000,000 per year",
+    "vatRegistration": "When must you register for VAT?",
+    "vatRegistrationA": "When turnover exceeds ₦50M",
+    "vatRegistrationB": "When turnover exceeds ₦100M",
+    "vatRegistrationC": "When you start any business",
+    "invoiceRequirement": "What is required on all business invoices?",
+    "invoiceRequirementA": "Business name, TIN, date, and items",
+    "invoiceRequirementB": "Only the total amount",
+    "invoiceRequirementC": "Customer signature"
+  },
+  "summary": {
+    "title": "You're All Set!",
+    "scoreExcellent": "Excellent! You've mastered the basics.",
+    "scoreGood": "Good job! You're ready to get started.",
+    "scoreLearn": "Keep learning as you go. TaxBridge is here to help!",
+    "businessType": "Business Type",
+    "sector": "Sector",
+    "quizScore": "Quiz Score",
+    "getStarted": "Start Creating Invoices",
+    "remindLater": "Remind Me Later"
+  },
+  "search": {
+    "placeholder": "Search invoices, customers...",
+    "noResults": "No results found",
+    "tryDifferent": "Try a different search term",
+    "recentSearches": "Recent Searches",
+    "clearRecent": "Clear"
+  },
+  "wizard": {
+    "step": "Step {{current}} of {{total}}",
+    "back": "Back",
+    "next": "Next",
+    "finish": "Finish",
+    "skipStep": "Skip this step",
+    "invoiceWizard": {
+      "title": "Create Your First Invoice",
+      "step1Title": "Add Customer",
+      "step1Desc": "Enter customer details or skip for walk-in",
+      "step2Title": "Add Items",
+      "step2Desc": "List products or services",
+      "step3Title": "Review & Save",
+      "step3Desc": "Confirm and save your invoice"
+    }
+  },
+  "fab": {
+    "createInvoice": "New Invoice",
+    "scanReceipt": "Scan Receipt",
+    "viewInvoices": "View Invoices",
+    "taxCalculator": "Tax Calculator"
+  },
+  "syncQueue": {
+    "title": "Sync Queue",
+    "pending": "{{count}} items pending sync",
+    "processing": "Processing...",
+    "empty": "All synced!",
+    "viewDetails": "View Details",
+    "retryAll": "Retry All",
+    "itemType": {
+      "invoice": "Invoice",
+      "receipt": "Receipt",
+      "customer": "Customer"
+    },
+    "status": {
+      "queued": "Waiting",
+      "syncing": "Syncing",
+      "failed": "Failed",
+      "success": "Synced"
+    }
+  },
+  "feedback": {
+    "title": "How's TaxBridge working for you?",
+    "subtitle": "Your feedback helps us improve",
+    "rateExperience": "Rate your experience",
+    "whatWorking": "What's working well?",
+    "whatImprove": "What can we improve?",
+    "submit": "Submit Feedback",
+    "thankYou": "Thank you for your feedback!",
+    "later": "Maybe Later"
+  },
+  "tour": {
+    "welcome": "Welcome to TaxBridge!",
+    "dashboardTip": "This is your dashboard. View stats and quick actions here.",
+    "invoicesTip": "Create and manage your invoices here.",
+    "syncTip": "Your data syncs automatically when online.",
+    "gotIt": "Got it!",
+    "skip": "Skip Tour"
   }
 }

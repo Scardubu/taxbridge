@@ -15,8 +15,10 @@ import * as Haptics from 'expo-haptics';
 import { useTranslation } from 'react-i18next';
 import { useNetwork } from '../contexts/NetworkContext';
 import { useSyncContext } from '../contexts/SyncContext';
+import { useFeatureFlag } from '../contexts/FeatureFlagContext';
 import { getInvoices } from '../services/database';
 import { calculatePIT, getTaxOptimization, formatNaira, formatPercentage } from '../services/tax/engine';
+import { calculatePIT as calculateLegacyPIT } from '../services/taxCalculator';
 import { colors, spacing, radii, typography, shadows } from '../theme/tokens';
 
 const { width } = Dimensions.get('window');
@@ -178,8 +180,36 @@ interface TaxInsightsCardProps {
 
 const TaxInsightsCard = memo(({ annualRevenue, onViewDetails }: TaxInsightsCardProps) => {
   const { t } = useTranslation();
-  const pitCalc = useMemo(() => calculatePIT(annualRevenue), [annualRevenue]);
-  const optimization = useMemo(() => getTaxOptimization(annualRevenue, 'sole-prop'), [annualRevenue]);
+  const taxEngineV2Enabled = useFeatureFlag('taxEngineV2');
+
+  const pitCalc = useMemo(() => {
+    if (taxEngineV2Enabled) {
+      return calculatePIT(annualRevenue);
+    }
+
+    const legacy = calculateLegacyPIT({
+      annualGrossIncome: annualRevenue,
+      annualRent: 0,
+      pensionContributions: 0,
+      nhfContributions: 0,
+      nhisContributions: 0,
+      lifeInsurance: 0,
+      housingLoanInterest: 0,
+    });
+
+    return {
+      totalTax: legacy.estimatedTax,
+      effectiveRate: legacy.effectiveRate / 100,
+      takeHome: legacy.grossIncome - legacy.estimatedTax,
+    };
+  }, [annualRevenue, taxEngineV2Enabled]);
+
+  const optimization = useMemo(() => {
+    if (!taxEngineV2Enabled) {
+      return { currentTax: pitCalc.totalTax, potentialSavings: 0, recommendations: [] };
+    }
+    return getTaxOptimization(annualRevenue, 'sole-prop');
+  }, [annualRevenue, pitCalc.totalTax, taxEngineV2Enabled]);
 
   return (
     <Animated.View entering={FadeInDown.duration(300).delay(400)} style={styles.taxInsightsCard}>
@@ -280,6 +310,7 @@ function DashboardScreen(props: any) {
   const { t } = useTranslation();
   const { isOnline } = useNetwork();
   const { manualSync, lastSyncAt } = useSyncContext();
+  const receiptsScannerEnabled = useFeatureFlag('receiptsScanner');
 
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -432,13 +463,15 @@ function DashboardScreen(props: any) {
               onPress={handleCreateInvoice}
               delay={250}
             />
-            <QuickAction
-              icon="📷"
-              label={t('quickActions.scan')}
-              sublabel={t('quickActions.scanSublabel')}
-              onPress={handleScanReceipt}
-              delay={300}
-            />
+            {receiptsScannerEnabled && (
+              <QuickAction
+                icon="📷"
+                label={t('quickActions.scan')}
+                sublabel={t('quickActions.scanSublabel')}
+                onPress={handleScanReceipt}
+                delay={300}
+              />
+            )}
             <QuickAction
               icon="📋"
               label={t('quickActions.invoices')}

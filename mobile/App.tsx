@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -10,6 +11,7 @@ import { initSentry, addBreadcrumb } from './src/services/sentry';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 import SplashScreen from './src/screens/SplashScreen';
 import { NetworkProvider } from './src/contexts/NetworkContext';
+import { DeviceProvider } from './src/contexts/DeviceContext';
 import { SyncProvider } from './src/contexts/SyncContext';
 import { AuthProvider, useAuth } from './src/contexts/AuthContext';
 import { FeatureFlagProvider } from './src/contexts/FeatureFlagContext';
@@ -83,16 +85,65 @@ function TabNavigator() {
         },
       }}
     >
-      <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="Create" component={CreateInvoiceScreen} />
-      <Tab.Screen name="Invoices" component={InvoicesScreen} />
-      <Tab.Screen name="Settings" component={SettingsScreen} />
+      <Tab.Screen 
+        name="Home" 
+        component={HomeScreen}
+        options={{
+          tabBarLabel: 'Home',
+          tabBarIcon: ({ color, size }) => (
+            <View style={{ alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{ fontSize: size, color }}>🏠</Text>
+            </View>
+          ),
+          tabBarAccessibilityLabel: 'Home tab',
+        }}
+      />
+      <Tab.Screen 
+        name="Create" 
+        component={CreateInvoiceScreen}
+        options={{
+          tabBarLabel: 'Create',
+          tabBarIcon: ({ color, size }) => (
+            <View style={{ alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{ fontSize: size, color }}>➕</Text>
+            </View>
+          ),
+          tabBarAccessibilityLabel: 'Create invoice tab',
+        }}
+      />
+      <Tab.Screen 
+        name="Invoices" 
+        component={InvoicesScreen}
+        options={{
+          tabBarLabel: 'Invoices',
+          tabBarIcon: ({ color, size }) => (
+            <View style={{ alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{ fontSize: size, color }}>📄</Text>
+            </View>
+          ),
+          tabBarAccessibilityLabel: 'Invoices list tab',
+        }}
+      />
+      <Tab.Screen 
+        name="Settings" 
+        component={SettingsScreen}
+        options={{
+          tabBarLabel: 'Settings',
+          tabBarIcon: ({ color, size }) => (
+            <View style={{ alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{ fontSize: size, color }}>⚙️</Text>
+            </View>
+          ),
+          tabBarAccessibilityLabel: 'Settings tab',
+        }}
+      />
     </Tab.Navigator>
   );
 }
 
 export default function App() {
   const [booted, setBooted] = useState(false);
+  const [bootData, setBootData] = useState<{ deviceInfo: any; persistedState: any } | null>(null);
 
   useEffect(() => {
     addBreadcrumb({
@@ -104,30 +155,37 @@ export default function App() {
   }, []);
 
   if (!booted) {
-    return <SplashScreen onFinish={() => setBooted(true)} />;
+    return <SplashScreen onFinish={(data) => {
+      setBootData(data || null);
+      setBooted(true);
+    }} />;
   }
 
   return (
     <ErrorBoundary>
       <NetworkProvider>
-        <SyncProvider>
-          <AuthProvider>
-            <FeatureFlagProvider>
-              <LoadingProvider>
-                <OnboardingProvider>
-                  <NavigationContainer
-                    onStateChange={(state) => {
-                      const currentRoute = state?.routes[state.index]?.name;
-                      if (currentRoute) {
-                        addBreadcrumb({
-                          category: 'navigation',
-                          message: `Navigated to ${currentRoute}`,
-                          level: 'info',
-                        });
-                      }
-                    }}
-                  >
-                    <StatusBar style="dark" />
+        <DeviceProvider 
+          initialDeviceInfo={bootData?.deviceInfo}
+          initialPersistedState={bootData?.persistedState}
+        >
+          <SyncProvider>
+            <AuthProvider>
+              <FeatureFlagProvider>
+                <LoadingProvider>
+                  <OnboardingProvider>
+                    <NavigationContainer
+                      onStateChange={(state) => {
+                        const currentRoute = state?.routes[state.index]?.name;
+                        if (currentRoute) {
+                          addBreadcrumb({
+                            category: 'navigation',
+                            message: `Navigated to ${currentRoute}`,
+                            level: 'info',
+                          });
+                        }
+                      }}
+                    >
+                      <StatusBar style="dark" />
                     <NetworkStatus />
                     <LoadingOverlay />
                     <BootRouter />
@@ -137,7 +195,8 @@ export default function App() {
             </FeatureFlagProvider>
           </AuthProvider>
         </SyncProvider>
-      </NetworkProvider>
-    </ErrorBoundary>
+      </DeviceProvider>
+    </NetworkProvider>
+  </ErrorBoundary>
   );
 }

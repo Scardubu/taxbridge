@@ -3,6 +3,7 @@ import { FlatList, RefreshControl, SafeAreaView, StyleSheet, Text, View, Pressab
 import Animated, { FadeIn, FadeInDown, FadeInUp } from 'react-native-reanimated';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
+import * as Haptics from 'expo-haptics';
 
 import InvoiceCard from '../components/InvoiceCard';
 import SwipeableInvoiceCard from '../components/SwipeableInvoiceCard';
@@ -56,16 +57,21 @@ function InvoicesScreen() {
   }, [load]);
 
   const handleSync = useCallback(async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     const res = await manualSync();
     // refresh list regardless
     await load();
 
     if (res.synced === 0 && res.failed === 0 && res.deferred === 0) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
       Alert.alert(t('invoices.sync'), t('invoices.noSyncPending'));
+    } else {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
   }, [manualSync, load, t]);
 
   const handleRetry = useCallback(async (id: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     Alert.alert(t('invoices.retrySync'), `${t('invoices.retrySync')} #${id.slice(-6).toUpperCase()}...`);
 
     // Clear backoff metadata so it retries immediately.
@@ -74,9 +80,11 @@ function InvoicesScreen() {
 
     await manualSync();
     await load();
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   }, [manualSync, load, t]);
 
   const handleShare = useCallback((invoice: LocalInvoiceRow) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     Alert.alert(
       t('invoices.shareInvoice'),
       `${t('invoices.shareInvoice')} #${invoice.id.slice(-6).toUpperCase()} - ${invoice.customerName || 'Walk-in'}\n${t('invoices.totalLabel')}: ₦${Number(invoice.total).toFixed(2)}`,
@@ -88,6 +96,7 @@ function InvoicesScreen() {
   }, [t]);
 
   const handleDelete = useCallback((id: string) => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     // Implementation would call a delete function from database service
     Alert.alert(t('invoices.deleted'), t('invoices.removedFromLocal', { id: id.slice(-6).toUpperCase() }));
     load();
@@ -146,7 +155,9 @@ function InvoicesScreen() {
               onPress={handleSync}
               disabled={isSyncing || !online}
               accessibilityRole="button"
-              accessibilityState={{ disabled: isSyncing || !online }}
+              accessibilityLabel={t('invoices.sync')}
+              accessibilityHint={isSyncing ? t('invoices.syncing') : !online ? t('alerts.offline') : `${pendingCount} ${t('invoices.filterPending')}`}
+              accessibilityState={{ disabled: isSyncing || !online, busy: isSyncing }}
             >
               <Text style={styles.syncButtonText}>
                 {isSyncing ? t('invoices.syncing') + '...' : t('invoices.syncPending', { count: pendingCount })}

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import useSWR from 'swr';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -92,6 +93,13 @@ export default function DevicesPage() {
           <h1 className="text-3xl font-bold tracking-tight">{t('devices.title')}</h1>
           <p className="text-slate-600 mt-2">{t('devices.subtitle')}</p>
         </div>
+        <div className="flex items-center gap-2">
+          <Button asChild variant="outline" size="sm">
+            <Link href="/dashboard/devices/diagnostics">
+              {t('devices.diagnostics.cta')}
+            </Link>
+          </Button>
+        </div>
 
         {/* Stats Cards */}
         {statsData && (
@@ -154,15 +162,19 @@ export default function DevicesPage() {
         <Card>
           <CardContent className="pt-6">
             <div className="flex flex-wrap gap-4">
-              <select
-                value={platform}
-                onChange={(e) => setPlatform(e.target.value)}
-                className="px-3 py-2 border rounded-md text-sm"
-              >
-                <option value="">{t('devices.filter.all')}</option>
-                <option value="android">{t('devices.filter.android')}</option>
-                <option value="ios">{t('devices.filter.ios')}</option>
-              </select>
+              <div>
+                <label htmlFor="platform-select" className="text-sm font-medium">{t('devices.filter.platform')}</label>
+                <select
+                  id="platform-select"
+                  value={platform}
+                  onChange={(e) => setPlatform(e.target.value)}
+                  className="px-3 py-2 border rounded-md text-sm"
+                >
+                  <option value="">{t('devices.filter.all')}</option>
+                  <option value="android">{t('devices.filter.android')}</option>
+                  <option value="ios">{t('devices.filter.ios')}</option>
+                </select>
+              </div>
 
               <label className="flex items-center gap-2 text-sm">
                 <input

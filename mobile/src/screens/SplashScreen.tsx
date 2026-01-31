@@ -26,13 +26,13 @@ import {
 
 // 🔌 Boot services (existing or to be added)
 import { warmUpSyncEngine } from '../sync/syncEngine';
-import { hydrateFeatureFlags } from '../services/featureFlag';
+import { hydrateFeatureFlags } from '../services/featureFlags';
 
 const { width, height } = Dimensions.get('window');
 const LOGO_SIZE = Math.min(width, height) * 0.42;
 
 interface SplashScreenProps {
-  onFinish: () => void;
+  onFinish: (bootData?: { deviceInfo: any; persistedState: any }) => void;
   minDurationMs?: number;
 }
 
@@ -55,10 +55,16 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
       }).start();
 
       // 2️⃣ Parallel warm-ups (never serial)
-      await Promise.allSettled([
+      const [syncEngineResult] = await Promise.allSettled([
         warmUpSyncEngine(),
         hydrateFeatureFlags(),
       ]);
+      
+      // Extract device info and persisted state
+      let bootData: { deviceInfo: any; persistedState: any } | undefined;
+      if (syncEngineResult.status === 'fulfilled') {
+        bootData = syncEngineResult.value;
+      }
 
       // 3️⃣ Enforce minimum splash duration
       const elapsed = Date.now() - startedAt.current;
@@ -68,9 +74,9 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
         await new Promise(res => setTimeout(res, remaining));
       }
 
-      // 4️⃣ Safe exit
+      // 4️⃣ Safe exit with boot data
       if (mounted) {
-        onFinish();
+        onFinish(bootData);
       }
     };
 

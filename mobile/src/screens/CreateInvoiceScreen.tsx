@@ -24,6 +24,7 @@ import { useFormValidation, validationRules, showValidationError } from '../util
 import AnimatedButton from '../components/AnimatedButton';
 import { useLoading } from '../contexts/LoadingContext';
 import { useFeatureFlag } from '../contexts/FeatureFlagContext';
+import { useNetwork } from '../contexts/NetworkContext';
 import { generateUuid } from '../utils/uuid';
 import { colors, spacing, radii, typography, shadows } from '../theme/tokens';
 
@@ -285,7 +286,9 @@ TotalsSummary.displayName = 'TotalsSummary';
 function CreateInvoiceScreen(props: any) {
   const { t } = useTranslation();
   const { setLoading, setLoadingMessage } = useLoading();
-  const ocrEnabled = useFeatureFlag('ocrScanner');
+  const { isOnline } = useNetwork();
+  const receiptsScannerEnabled = useFeatureFlag('receiptsScanner');
+  const offlineInvoicesEnabled = useFeatureFlag('offlineInvoices');
 
   // Refs
   const customerNameRef = useRef<TextInput>(null);
@@ -330,7 +333,7 @@ function CreateInvoiceScreen(props: any) {
   const [items, setItems] = useState<InvoiceItem[]>([]);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
 
-  // Camera state (only when OCR enabled)
+  // Camera state (only when receipt scanner enabled)
   const [showCamera, setShowCamera] = useState(false);
   const [cameraFacing, setCameraFacing] = useState<CameraFacing>('back');
   const [ocrLoading, setOcrLoading] = useState(false);
@@ -547,7 +550,7 @@ function CreateInvoiceScreen(props: any) {
   // ============================================================================
 
   const openScanMenu = useCallback(async () => {
-    if (!ocrEnabled) return;
+    if (!receiptsScannerEnabled) return;
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     
@@ -574,13 +577,18 @@ function CreateInvoiceScreen(props: any) {
         },
       ]
     );
-  }, [t]);
+  }, [receiptsScannerEnabled, t]);
 
   // ============================================================================
   // Save Invoice
   // ============================================================================
 
   const save = useCallback(async () => {
+    if (!offlineInvoicesEnabled && !isOnline) {
+      Alert.alert(t('sync.offlineTitle'), t('sync.offlineBody'));
+      return;
+    }
+
     if (!items.length) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       showValidationError(t('alerts.noItems'), t('alerts.addItemToInvoice'));
@@ -650,7 +658,7 @@ function CreateInvoiceScreen(props: any) {
       setLoading(false);
       setLoadingMessage('');
     }
-  }, [items, values.customerName, totals, resetForm, setLoading, setLoadingMessage, t, props.navigation]);
+  }, [items, values.customerName, totals, resetForm, setLoading, setLoadingMessage, t, props.navigation, offlineInvoicesEnabled, isOnline]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -826,7 +834,7 @@ function CreateInvoiceScreen(props: any) {
                       style={styles.cancelButton}
                     />
                   )}
-                  {ocrEnabled && editingIndex === null && (
+                  {receiptsScannerEnabled && editingIndex === null && (
                     <AnimatedButton 
                       title={t('common.scan')}
                       onPress={openScanMenu}
@@ -939,7 +947,7 @@ function CreateInvoiceScreen(props: any) {
       </KeyboardAvoidingView>
 
       {/* Camera Modal (Lazy Loaded) */}
-      {ocrEnabled && showCamera && (
+      {receiptsScannerEnabled && showCamera && (
         <Suspense fallback={<ActivityIndicator size="large" color={colors.primary} />}>
           <CameraModal
             visible={showCamera}

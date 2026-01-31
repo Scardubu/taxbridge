@@ -11,8 +11,8 @@
     "scheme": "taxbridge",
     "splash": {
       "image": "./assets/splash-icon.png",
-      "resizeMode": "cover",
-      "backgroundColor": "#0B5FFF"
+      "resizeMode": "contain",
+      "backgroundColor": "#FFFFFF"
     },
     "assetBundlePatterns": ["**/*"],
     "primaryColor": "#0B5FFF",
@@ -27,14 +27,14 @@
       },
       "splash": {
         "image": "./assets/splash-icon.png",
-        "resizeMode": "cover",
-        "backgroundColor": "#0B5FFF"
+        "resizeMode": "contain",
+        "backgroundColor": "#FFFFFF"
       }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#0B5FFF"
+        "backgroundColor": "#FFFFFF"
       },
       "package": "ng.taxbridge.app",
       "permissions": [

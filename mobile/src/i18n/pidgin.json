@@ -25,7 +25,9 @@
     "weekendVibes": "Weekend Vibes",
     "lunchTime": "Lunch Time",
     "afternoonHustle": "Afternoon Hustle",
-    "mainContent": "Home screen main thing"
+    "mainContent": "Home screen main thing",
+    "searchPlaceholder": "Find invoices, customers...",
+    "searchTitle": "Search"
   },
   "quickActions": {
     "title": "Sharp Actions",
@@ -85,7 +87,8 @@
     "syncFailedTitle": "Sync No Work",
     "syncFailedBody": "We no fit sync your data. Abeg try again later.",
     "syncFailedAfterReconnectBody": "{{count}} invoice no fit sync after we connect back.",
-    "syncFailedAfterReconnectBody_plural": "{{count}} invoices no fit sync after we connect back."
+    "syncFailedAfterReconnectBody_plural": "{{count}} invoices no fit sync after we connect back.",
+    "viewQueue": "See sync queue"
   },
   "network": {
     "noConnection": "Network No Dey",
@@ -604,7 +607,11 @@
     "syncFailedAfterReconnectBody_other": "{{count}} invoices no fit sync after network don return",
     "conflictsTitle": "Sync Wahala Dey",
     "conflictsBody_one": "{{count}} conflict dey. Abeg resolve am manually.",
-    "conflictsBody_other": "{{count}} conflicts dey. Abeg resolve dem manually."
+    "conflictsBody_other": "{{count}} conflicts dey. Abeg resolve dem manually.",
+    "deviceSuspendedTitle": "Dem Don Suspend Your Phone",
+    "deviceSuspendedBody": "Dem don suspend your phone. Why: {{reason}}. Abeg call support.",
+    "deviceNotRegisteredTitle": "Phone Never Register",
+    "deviceNotRegisteredBody": "Your phone need register before sync fit work. Sign in try again."
   },
   "ocrWarnings": {
     "lowConfidence": "Confidence low: {{percent}}%",
