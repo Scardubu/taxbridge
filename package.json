@@ -20,7 +20,7 @@
   "scripts": {
     "lint": "yarn workspaces run lint",
     "test": "yarn workspaces run test",
-    "build": "yarn workspaces run build"
+    "build": "yarn workspace @taxbridge/contracts build && yarn workspace @taxbridge/backend build && yarn workspace admin-dashboard build"
   },
   "devDependencies": {
     "typescript": "~5.9.2"
