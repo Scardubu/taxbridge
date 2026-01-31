@@ -2,7 +2,7 @@
   "expo": {
     "name": "TaxBridge",
     "slug": "taxbridge",
-    "version": "5.0.6",
+    "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -14,15 +14,13 @@
       "resizeMode": "contain",
       "backgroundColor": "#FFFFFF"
     },
-    "assetBundlePatterns": [
-      "**/*"
-    ],
-    "primaryColor": "#0B5FFF",
+    "assetBundlePatterns": ["**/*"],
+    "primaryColor": "#FFFFFF",
     "description": "Nigeria's first offline-first, NRS-compliant e-invoicing platform. Create tax-compliant invoices anywhere, sync later. Built for Nigerian SMEs.",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "ng.taxbridge.app",
-      "buildNumber": "5.0.6",
+      "buildNumber": "1",
       "infoPlist": {
         "NSCameraUsageDescription": "TaxBridge needs camera access to scan receipts and invoices for OCR processing.",
         "NSPhotoLibraryUsageDescription": "TaxBridge needs photo library access to import receipt images for tax documentation."
@@ -44,15 +42,14 @@
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE",
         "android.permission.INTERNET",
-        "android.permission.ACCESS_NETWORK_STATE",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.ACCESS_NETWORK_STATE"
       ],
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "splash": {
         "image": "./assets/splash-icon.png",
         "resizeMode": "cover",
-        "backgroundColor": "#0B5FFF"
+        "backgroundColor": "#FFFFFF"
       }
     },
     "web": {
@@ -76,16 +73,16 @@
           "image": "./assets/splash-icon.png",
           "imageWidth": 200,
           "resizeMode": "cover",
-          "backgroundColor": "#0B5FFF"
+          "backgroundColor": "#FFFFFF"
         }
       ]
     ],
     "extra": {
       "eas": {
-        "projectId": "ab92bfbb-8bf0-44c7-848f-76e717be26b7"
+        "projectId": "fb2a2641-40b4-4741-bf52-b544d90ef1ba"
       }
     },
-    "owner": "scartony357",
+    "owner": "scardubu",
     "runtimeVersion": {
       "policy": "appVersion"
     },

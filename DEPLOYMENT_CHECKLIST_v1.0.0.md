@@ -1,4 +1,4 @@
-# TaxBridge v5.0.6 - Final Deployment Checklist
+# TaxBridge v1.0.0 - Final Deployment Checklist
 
 **Release Date:** January 31, 2026  
 **Build Target:** Android APK (Preview/Internal Distribution)  
