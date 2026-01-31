@@ -29,9 +29,49 @@
     "searchPlaceholder": "Find invoices, customers...",
     "searchTitle": "Search"
   },
+  "navigation": {
+    "home": "Home",
+    "create": "Make",
+    "invoices": "Invoices",
+    "settings": "Settings",
+    "homeTab": "Home tab",
+    "createTab": "Make invoice tab",
+    "invoicesTab": "Invoice list tab",
+    "settingsTab": "Settings tab"
+  },
+  "accessibility": {
+    "nav": {
+      "back": "Go back",
+      "close": "Close",
+      "menu": "Open menu"
+    },
+    "action": {
+      "scan": "Scan receipt or invoice",
+      "calculate": "Calculate your tax",
+      "pay": "Make a payment"
+    },
+    "nta": {
+      "exemption": "Tax exemption don apply - you save money",
+      "standard": "Standard tax rate dey apply",
+      "alert": "Tax warning - check am well"
+    },
+    "pidgin": {
+      "scan": "Snap your document",
+      "calculate": "Count your tax",
+      "pay": "Pay your money"
+    },
+    "hint": {
+      "buttonPrimary": "Double tap make e work",
+      "cardExpandable": "Double tap make e open for more details",
+      "amountEditable": "Double tap make you edit amount"
+    }
+  },
   "quickActions": {
     "title": "Sharp Actions",
     "create": "Make",
+    "bracketBreakdownTitle": "Your Tax Breakdown",
+    "bracketBreakdownSubtitle": "See how your tax dey spread across different levels",
+    "rateLabel": "{{rate}}% tax rate"
     "createSublabel": "New Invoice",
     "scan": "Scan",
     "scanSublabel": "Receipt",

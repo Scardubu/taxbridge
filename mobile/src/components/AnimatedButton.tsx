@@ -6,6 +6,7 @@ import Animated, {
   withSpring,
   interpolateColor,
 } from 'react-native-reanimated';
+import { useTranslation } from 'react-i18next';
 import { colors, radii, spacing, typography } from '../theme/tokens';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
@@ -18,6 +19,8 @@ interface AnimatedButtonProps {
   loading?: boolean;
   style?: StyleProp<ViewStyle>;
   testID?: string;
+  accessibilityLabel?: string;
+  accessibilityHint?: string;
 }
 
 function AnimatedButton({
@@ -28,7 +31,10 @@ function AnimatedButton({
   loading = false,
   style,
   testID,
+  accessibilityLabel,
+  accessibilityHint,
 }: AnimatedButtonProps) {
+  const { t } = useTranslation();
   const pressed = useSharedValue(0);
 
   const animatedStyle = useAnimatedStyle(() => {
@@ -79,9 +85,14 @@ function AnimatedButton({
       disabled={disabled || loading}
       style={[styles.button, animatedStyle, disabled && styles.buttonDisabled, style]}
       testID={testID}
+      accessible={true}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel ?? title}
+      accessibilityHint={accessibilityHint}
+      accessibilityState={{ disabled: disabled || loading }}
     >
       <Animated.Text style={[styles.text, textStyle, disabled && styles.textDisabled]}>
-        {loading ? 'Loading...' : title}
+        {loading ? t('common.loading') : title}
       </Animated.Text>
     </AnimatedPressable>
   );

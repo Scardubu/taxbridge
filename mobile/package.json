@@ -1,12 +1,15 @@
 {
   "name": "mobile",
-  "version": "5.0.3",
+  "version": "5.0.6",
   "main": "index.ts",
   "scripts": {
     "start": "cross-env EXPO_NO_DOCTOR=1 EXPO_OFFLINE=1 expo start --offline",
     "start:online": "cross-env EXPO_NO_DOCTOR=1 expo start",
     "start:no-doctor": "cross-env EXPO_NO_DOCTOR=1 expo start",
     "test": "jest",
+    "check:ui-consistency": "node scripts/ui-consistency-check.js",
+    "check:accessibility": "node scripts/accessibility-audit.js",
+    "check:post-deploy": "node scripts/post-deployment-check.js",
     "build": "echo 'Mobile: No build needed (Expo builds via EAS)' && exit 0",
     "android": "expo run:android",
     "ios": "expo run:ios",

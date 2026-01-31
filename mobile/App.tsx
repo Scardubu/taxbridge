@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { useTranslation } from 'react-i18next';
 
 import './src/i18n';
 import { initDB } from './src/services/database';
@@ -67,6 +68,7 @@ function AppNavigator() {
 }
 
 function TabNavigator() {
+  const { t } = useTranslation();
   return (
     <Tab.Navigator
       screenOptions={{
@@ -89,52 +91,52 @@ function TabNavigator() {
         name="Home" 
         component={HomeScreen}
         options={{
-          tabBarLabel: 'Home',
+          tabBarLabel: t('navigation.home'),
           tabBarIcon: ({ color, size }) => (
             <View style={{ alignItems: 'center', justifyContent: 'center' }}>
               <Text style={{ fontSize: size, color }}>🏠</Text>
             </View>
           ),
-          tabBarAccessibilityLabel: 'Home tab',
+          tabBarAccessibilityLabel: t('navigation.homeTab'),
         }}
       />
       <Tab.Screen 
         name="Create" 
         component={CreateInvoiceScreen}
         options={{
-          tabBarLabel: 'Create',
+          tabBarLabel: t('navigation.create'),
           tabBarIcon: ({ color, size }) => (
             <View style={{ alignItems: 'center', justifyContent: 'center' }}>
               <Text style={{ fontSize: size, color }}>➕</Text>
             </View>
           ),
-          tabBarAccessibilityLabel: 'Create invoice tab',
+          tabBarAccessibilityLabel: t('navigation.createTab'),
         }}
       />
       <Tab.Screen 
         name="Invoices" 
         component={InvoicesScreen}
         options={{
-          tabBarLabel: 'Invoices',
+          tabBarLabel: t('navigation.invoices'),
           tabBarIcon: ({ color, size }) => (
             <View style={{ alignItems: 'center', justifyContent: 'center' }}>
               <Text style={{ fontSize: size, color }}>📄</Text>
             </View>
           ),
-          tabBarAccessibilityLabel: 'Invoices list tab',
+          tabBarAccessibilityLabel: t('navigation.invoicesTab'),
         }}
       />
       <Tab.Screen 
         name="Settings" 
         component={SettingsScreen}
         options={{
-          tabBarLabel: 'Settings',
+          tabBarLabel: t('navigation.settings'),
           tabBarIcon: ({ color, size }) => (
             <View style={{ alignItems: 'center', justifyContent: 'center' }}>
               <Text style={{ fontSize: size, color }}>⚙️</Text>
             </View>
           ),
-          tabBarAccessibilityLabel: 'Settings tab',
+          tabBarAccessibilityLabel: t('navigation.settingsTab'),
         }}
       />
     </Tab.Navigator>

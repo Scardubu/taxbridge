@@ -554,6 +554,43 @@
     "stamped": "Stamped",
     "unknown": "Unknown"
   },
+  "navigation": {
+    "home": "Home",
+    "create": "Create",
+    "invoices": "Invoices",
+    "settings": "Settings",
+    "homeTab": "Home tab",
+    "createTab": "Create invoice tab",
+    "invoicesTab": "Invoices list tab",
+    "settingsTab": "Settings tab"
+  },
+  "accessibility": {
+    "nav": {
+      "back": "Go back",
+      "close": "Close",
+      "menu": "Open menu"
+    },
+    "action": {
+      "scan": "Scan receipt or invoice",
+      "calculate": "Calculate your tax",
+      "pay": "Make a payment"
+    },
+    "nta": {
+      "exemption": "Tax exemption applied - you save money",
+      "standard": "Standard tax rate applies",
+      "alert": "Tax warning - review required"
+    },
+    "pidgin": {
+      "scan": "Snap your document",
+      "calculate": "Count your tax",
+      "pay": "Pay your money"
+    },
+    "hint": {
+      "buttonPrimary": "Double tap to activate",
+      "cardExpandable": "Double tap to expand for more details",
+      "amountEditable": "Double tap to edit amount"
+    }
+  },
   "tutorial": {
     "grossIncome": "Gross Income",
     "rentRelief": "Rent Relief",
@@ -869,7 +906,10 @@
     "nhisContribution": "NHIS Contribution",
     "nhisDescription": "Health insurance premiums reduce your tax burden",
     "lifeInsurance": "Life Insurance",
-    "lifeInsuranceDescription": "Life insurance premiums are tax-deductible"
+    "lifeInsuranceDescription": "Life insurance premiums are tax-deductible",
+    "bracketBreakdownTitle": "Your Tax Breakdown",
+    "bracketBreakdownSubtitle": "See how your tax is spread across different levels",
+    "rateLabel": "{{rate}}% tax rate"
   },
   "quickStart": {
     "personalizeTitle": "Let's personalize your experience",

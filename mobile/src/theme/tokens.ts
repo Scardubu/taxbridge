@@ -223,6 +223,25 @@ export const specializedColors = {
 } as const;
 
 // ============================================================================
+// NTA SEMANTIC COLORS (Tax-specific)
+// ============================================================================
+
+export const ntaColors = {
+  exemption: '#10B981',
+  exemptionLight: '#D1FAE5',
+  standard: '#3B82F6',
+  standardLight: '#DBEAFE',
+  alert: '#F59E0B',
+  alertLight: '#FEF3C7',
+  surcharge: '#EF4444',
+  surchargeLight: '#FEE2E2',
+  compliance: '#06B6D4',
+  complianceLight: '#CFFAFE',
+  success: '#22C55E',
+  successLight: '#DCFCE7',
+} as const;
+
+// ============================================================================
 // CONSOLIDATED COLORS EXPORT (Backward Compatible)
 // ============================================================================
 
@@ -315,6 +334,20 @@ export const colors = {
   tipBg: specializedColors.tipBg,
   tipBorder: specializedColors.tipBorder,
   tipText: specializedColors.tipText,
+
+  // NTA semantic colors
+  ntaExemption: ntaColors.exemption,
+  ntaExemptionLight: ntaColors.exemptionLight,
+  ntaStandard: ntaColors.standard,
+  ntaStandardLight: ntaColors.standardLight,
+  ntaAlert: ntaColors.alert,
+  ntaAlertLight: ntaColors.alertLight,
+  ntaSurcharge: ntaColors.surcharge,
+  ntaSurchargeLight: ntaColors.surchargeLight,
+  ntaCompliance: ntaColors.compliance,
+  ntaComplianceLight: ntaColors.complianceLight,
+  ntaSuccess: ntaColors.success,
+  ntaSuccessLight: ntaColors.successLight,
 
   // Action colors (Quick Actions)
   actionGreen: actionColors.actionGreen,
