@@ -8,6 +8,7 @@
 
 const { getDefaultConfig } = require('expo/metro-config');
 const path = require('path');
+const fs = require('fs');
 
 // Get workspace root (one level up from mobile/)
 const workspaceRoot = path.resolve(__dirname, '..');
@@ -16,11 +17,8 @@ const projectRoot = __dirname;
 const config = getDefaultConfig(projectRoot);
 
 // Watch only necessary folders to avoid Windows file watcher timeout
-// Don't watch workspace root - watch only what we need
-config.watchFolders = [
-  projectRoot, // mobile folder
-  path.resolve(workspaceRoot, 'shared'), // shared components if they exist
-];
+// Only watch the mobile project root (don't watch entire workspace)
+config.watchFolders = [projectRoot];
 
 // Increase file watcher timeout
 config.watchman = {
@@ -29,15 +27,21 @@ config.watchman = {
 };
 
 // Force single React resolution (critical for hooks)
-config.resolver.extraNodeModules = {
-  react: path.resolve(workspaceRoot, 'node_modules/react'),
-  'react-dom': path.resolve(workspaceRoot, 'node_modules/react-dom'),
-  'react-native': path.resolve(workspaceRoot, 'node_modules/react-native'),
-  'react-native-web': path.resolve(workspaceRoot, 'node_modules/react-native-web'),
-  'react-i18next': path.resolve(workspaceRoot, 'node_modules/react-i18next'),
-  'i18next': path.resolve(workspaceRoot, 'node_modules/i18next'),
-  'use-sync-external-store': path.resolve(workspaceRoot, 'node_modules/use-sync-external-store'),
-};
+// Point to workspace root node_modules for shared dependencies
+config.resolver.extraNodeModules = new Proxy(
+  {},
+  {
+    get: (target, name) => {
+      // Check if module exists in workspace root first
+      const workspaceModule = path.join(workspaceRoot, 'node_modules', name);
+      if (require('fs').existsSync(workspaceModule)) {
+        return workspaceModule;
+      }
+      // Fallback to project node_modules
+      return path.join(projectRoot, 'node_modules', name);
+    },
+  }
+);
 
 // Block nested React instances
 config.resolver.blockList = [
