@@ -735,10 +735,10 @@ export default function ChatbotScreen({
       'send': '→',
     };
     
-    return (
-      <Text style={{ fontSize: size, color }}>
-        {iconMap[name] || '•'}
-      </Text>
+    return ( 
+      <Text style={[styles.iconFallback, { fontSize: size, color }]}>
+        {iconMap[name] || '•'} 
+      </Text> 
     );
   };
 
@@ -946,6 +946,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.surfaceMuted,
+  },
+  iconFallback: {
+    fontSize: typography.size.md,
+    color: colors.textPrimary,
   },
   header: {
     flexDirection: 'row',

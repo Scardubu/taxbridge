@@ -54,7 +54,7 @@ const NetworkStatus = memo(function NetworkStatus() {
       </Text>
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {

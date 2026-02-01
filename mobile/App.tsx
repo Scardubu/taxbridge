@@ -4,9 +4,9 @@ import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { useTranslation } from 'react-i18next';
+import { I18nextProvider, useTranslation } from 'react-i18next';
 
-import './src/i18n';
+import i18n from './src/i18n';
 import { initDB } from './src/services/database';
 import { initSentry, addBreadcrumb } from './src/services/sentry';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
@@ -85,6 +85,10 @@ function TabNavigator() {
         tabBarLabelStyle: {
           fontSize: typography.size.xs,
           fontWeight: typography.weight.semibold,
+          maxWidth: 70,
+        },
+        tabBarItemStyle: {
+          flex: 1,
         },
       }}
     >
@@ -165,41 +169,43 @@ export default function App() {
   }
 
   return (
-    <ErrorBoundary>
-      <NetworkProvider>
-        <DeviceProvider 
-          initialDeviceInfo={bootData?.deviceInfo}
-          initialPersistedState={bootData?.persistedState}
-        >
-          <SyncProvider>
-            <AuthProvider>
-              <FeatureFlagProvider>
-                <LoadingProvider>
-                  <OnboardingProvider>
-                    <NavigationContainer
-                      onStateChange={(state) => {
-                        const currentRoute = state?.routes[state.index]?.name;
-                        if (currentRoute) {
-                          addBreadcrumb({
-                            category: 'navigation',
-                            message: `Navigated to ${currentRoute}`,
-                            level: 'info',
-                          });
-                        }
-                      }}
-                    >
-                      <StatusBar style="dark" />
-                    <NetworkStatus />
-                    <LoadingOverlay />
-                    <BootRouter />
-                  </NavigationContainer>
-                </OnboardingProvider>
-              </LoadingProvider>
-            </FeatureFlagProvider>
-          </AuthProvider>
-        </SyncProvider>
-      </DeviceProvider>
-    </NetworkProvider>
-  </ErrorBoundary>
+    <I18nextProvider i18n={i18n}>
+      <ErrorBoundary>
+        <NetworkProvider>
+          <DeviceProvider 
+            initialDeviceInfo={bootData?.deviceInfo}
+            initialPersistedState={bootData?.persistedState}
+          >
+            <SyncProvider>
+              <AuthProvider>
+                <FeatureFlagProvider>
+                  <LoadingProvider>
+                    <OnboardingProvider>
+                      <NavigationContainer
+                        onStateChange={(state) => {
+                          const currentRoute = state?.routes[state.index]?.name;
+                          if (currentRoute) {
+                            addBreadcrumb({
+                              category: 'navigation',
+                              message: `Navigated to ${currentRoute}`,
+                              level: 'info',
+                            });
+                          }
+                        }}
+                      >
+                        <StatusBar style="dark" />
+                      <NetworkStatus />
+                      <LoadingOverlay />
+                      <BootRouter />
+                    </NavigationContainer>
+                  </OnboardingProvider>
+                </LoadingProvider>
+              </FeatureFlagProvider>
+            </AuthProvider>
+          </SyncProvider>
+        </DeviceProvider>
+      </NetworkProvider>
+    </ErrorBoundary>
+    </I18nextProvider>
   );
 }

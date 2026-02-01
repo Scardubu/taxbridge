@@ -770,14 +770,14 @@ function SettingsScreen() {
                       title={t('settings.syncNow')}
                       onPress={() => void manualSync()}
                       loading={isAuthSubmitting}
-                      style={{ flex: 1 }}
+                      style={styles.rowButton}
                     />
                     <AnimatedButton
                       title={t('settings.logout')}
                       onPress={() => void handleLogout()}
                       variant="secondary"
                       loading={isAuthSubmitting}
-                      style={{ flex: 1 }}
+                      style={styles.rowButton}
                     />
                   </View>
                 </View>
@@ -1144,6 +1144,9 @@ const styles = StyleSheet.create({
   
   // Language Options
   row: { flexDirection: 'row', gap: spacing.md },
+  rowButton: {
+    flex: 1,
+  },
   option: {
     flex: 1,
     flexDirection: 'row',

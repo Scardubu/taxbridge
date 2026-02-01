@@ -521,6 +521,24 @@ export const typography = {
     lineHeight: 36,
     fontWeight: '700' as const,
   },
+  h2: {
+    fontSize: 32,
+    lineHeight: 40,
+    fontWeight: '700' as const,
+  },
+  h1: {
+    fontSize: 40,
+    lineHeight: 48,
+    fontWeight: '700' as const,
+  },
+  bodySmall: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  bodyLarge: {
+    fontSize: 18,
+    lineHeight: 28,
+  },
 } as const;
 
 // ============================================================================

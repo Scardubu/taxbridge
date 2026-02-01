@@ -14,7 +14,25 @@ module.exports = function (api) {
   }
 
   return {
-    presets: ['babel-preset-expo'],
+    presets: [
+      [
+        'babel-preset-expo',
+        {
+          // Disable React Fast Refresh if react-refresh is not available
+          disableImportExportTransform: false,
+          lazyImports: true,
+          // Try to disable react-refresh plugin
+          native: {
+            disableImportExportTransform: false,
+          },
+        },
+      ],
+    ],
     plugins,
+    env: {
+      production: {
+        plugins: ['transform-remove-console'],
+      },
+    },
   };
 };

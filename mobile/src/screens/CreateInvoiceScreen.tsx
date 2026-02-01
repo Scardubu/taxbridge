@@ -300,6 +300,14 @@ function CreateInvoiceScreen(props: any) {
   // Wizard state
   const [currentStep, setCurrentStep] = useState<WizardStep>('customer');
   const stepProgress = useSharedValue(0);
+  const [shouldOpenScan, setShouldOpenScan] = useState(false);
+
+  // Handle openScan parameter from navigation
+  useEffect(() => {
+    if (props?.route?.params?.openScan === true && receiptsScannerEnabled) {
+      setShouldOpenScan(true);
+    }
+  }, [props?.route?.params?.openScan, receiptsScannerEnabled]);
 
   const steps: StepInfo[] = useMemo(() => [
     { key: 'customer', label: t('create.stepCustomer'), icon: '👤' },
@@ -580,6 +588,18 @@ function CreateInvoiceScreen(props: any) {
       ]
     );
   }, [receiptsScannerEnabled, t]);
+
+  // Open scan menu if requested via navigation parameter
+  useEffect(() => {
+    if (shouldOpenScan && receiptsScannerEnabled) {
+      // Delay slightly to ensure component is fully mounted
+      const timer = setTimeout(() => {
+        openScanMenu();
+        setShouldOpenScan(false); // Reset after opening
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [shouldOpenScan, receiptsScannerEnabled, openScanMenu]);
 
   // ============================================================================
   // Save Invoice

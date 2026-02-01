@@ -62,7 +62,6 @@ function InsightCard({
     scale.value = 0.98;
     pressed.value = 1;
   };
-
   const handlePressOut = () => {
     scale.value = 1;
     pressed.value = 0;
@@ -82,7 +81,7 @@ function InsightCard({
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
         onPress={onAction}
-        style={{ flex: 1 }}
+        style={styles.pressable}
       >
         <Animated.View style={[styles.card, cardStyle, { borderColor: colors.border }]}>
           {/* Header */}
@@ -154,6 +153,9 @@ const styles = StyleSheet.create({
   },
   metricContainer: {
     alignItems: 'flex-end',
+  },
+  pressable: {
+    flex: 1,
   },
   metric: {
     fontSize: typography.size.xl,

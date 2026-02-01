@@ -318,6 +318,7 @@ const styles = StyleSheet.create({
   actionButtonContainer: {
     position: 'absolute',
     bottom: 0,
+    right: 0,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
@@ -328,11 +329,13 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
     borderRadius: radii.sm,
     ...shadows.sm,
+    maxWidth: 120,
   },
   actionLabel: {
     ...typography.caption,
     color: colors.textPrimary,
     fontWeight: '500',
+    textAlign: 'right',
   },
   miniButton: {
     width: MINI_FAB_SIZE,

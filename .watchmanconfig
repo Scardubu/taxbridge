@@ -1,0 +1,16 @@
+{
+  "ignore_dirs": [
+    "node_modules",
+    "backend/node_modules",
+    "admin-dashboard/node_modules",
+    ".git",
+    "dist",
+    "build",
+    ".expo",
+    ".next",
+    "coverage",
+    "docs/archive"
+  ],
+  "watch_timeout_ms": 60000,
+  "root_files": [".git", ".hg"]
+}
