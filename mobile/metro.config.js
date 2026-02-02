@@ -17,13 +17,15 @@ const projectRoot = __dirname;
 const config = getDefaultConfig(projectRoot);
 
 // Watch only necessary folders to avoid Windows file watcher timeout
-// Only watch the mobile project root (don't watch entire workspace)
-config.watchFolders = [projectRoot];
+// Include workspace root node_modules for hoisted dependencies (React)
+config.watchFolders = [
+  projectRoot,
+  path.join(workspaceRoot, 'node_modules'),
+];
 
-// Increase file watcher timeout
+// Disable watchman on Windows to avoid watch mode startup failures
 config.watchman = {
-  enabled: true,
-  watch_timeout_ms: 60000, // Increase from default 30000
+  enabled: false,
 };
 
 // Force single React resolution (critical for hooks)
@@ -43,13 +45,8 @@ config.resolver.extraNodeModules = new Proxy(
   }
 );
 
-// Block nested React instances
+// Block nested React instances (but allow direct project/node_modules)
 config.resolver.blockList = [
-  // Prevent mobile/node_modules/react
-  new RegExp(`${path.resolve(projectRoot, 'node_modules/react')}/.*`),
-  new RegExp(`${path.resolve(projectRoot, 'node_modules/react-dom')}/.*`),
-  new RegExp(`${path.resolve(projectRoot, 'node_modules/react-i18next')}/.*`),
-  new RegExp(`${path.resolve(projectRoot, 'node_modules/i18next')}/.*`),
   // Prevent nested use-sync-external-store (causes React context issues)
   /node_modules\/.*\/node_modules\/react\/.*/,
   /node_modules\/.*\/node_modules\/react-dom\/.*/,
