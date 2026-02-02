@@ -1,0 +1,38 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`DashboardScreen visual tests renders with default state 1`] = `
+<SafeAreaView
+  style={
+    {
+      "backgroundColor": "#F8FAFC",
+      "flex": 1,
+    }
+  }
+>
+  <View
+    style={
+      {
+        "alignItems": "center",
+        "flex": 1,
+        "gap": 12,
+        "justifyContent": "center",
+      }
+    }
+  >
+    <ActivityIndicator
+      color="#0B5FFF"
+      size="large"
+    />
+    <Text
+      style={
+        {
+          "color": "#667085",
+          "fontSize": 16,
+        }
+      }
+    >
+      common.loading
+    </Text>
+  </View>
+</SafeAreaView>
+`;

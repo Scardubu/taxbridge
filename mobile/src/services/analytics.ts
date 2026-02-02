@@ -410,6 +410,19 @@ export async function getAllEvents(): Promise<AnalyticsEvent[]> {
 }
 
 /**
+ * Retrieve stored analytics events
+ */
+export async function getAnalyticsData(): Promise<AnalyticsEvent[]> {
+  try {
+    const data = await AsyncStorage.getItem(STORAGE_KEYS.EVENTS);
+    return data ? JSON.parse(data) : [];
+  } catch (error) {
+    log.error('Failed to retrieve analytics data', error);
+    return [];
+  }
+}
+
+/**
  * Clear all analytics data
  */
 export async function clearAnalytics(): Promise<void> {

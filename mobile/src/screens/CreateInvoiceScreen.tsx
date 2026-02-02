@@ -20,6 +20,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import type { InvoiceItem } from '../types/invoice';
 import { saveInvoice } from '../services/database';
+import { trackEvent, trackInvoiceCreated } from '../services/analytics';
 import { useFormValidation, validationRules, showValidationError } from '../utils/validation';
 import AnimatedButton from '../components/AnimatedButton';
 import { useLoading } from '../contexts/LoadingContext';
@@ -563,6 +564,7 @@ function CreateInvoiceScreen(props: any) {
     if (!receiptsScannerEnabled) return;
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    void trackEvent('invoice', 'scan_menu_opened');
     
     // In production, this would import and use the OCR service
     Alert.alert(
@@ -635,6 +637,8 @@ function CreateInvoiceScreen(props: any) {
         createdAt: new Date().toISOString(),
         synced: 0
       });
+
+      void trackInvoiceCreated(items.length, totals.total, !isOnline);
 
       // Clear draft on successful save
       await AsyncStorage.removeItem(INVOICE_CONSTANTS.DRAFT_KEY);

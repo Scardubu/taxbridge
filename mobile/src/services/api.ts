@@ -2,6 +2,7 @@ import type { NewInvoiceInput } from '../types/invoice';
 
 import { getApiBaseUrl, setApiBaseUrl } from './config';
 import { clearAuthTokens, getAccessToken, getRefreshToken, setAuthTokens } from './authTokens';
+import { trackApiCall } from './sentry';
 
 export type CreateInvoiceResponse = {
   invoiceId: string;
@@ -117,6 +118,7 @@ function getRetryDelayMs(attempt: number, baseDelayMs: number): number {
 async function requestJson(method: string, path: string, body?: any, options: RequestOptions = {}) {
   const baseUrl = await getApiBaseUrl();
   const url = `${baseUrl}/api/v1${path.startsWith('/') ? path : `/${path}`}`;
+  const startTime = Date.now();
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -152,6 +154,7 @@ async function requestJson(method: string, path: string, body?: any, options: Re
         attempt += 1;
         continue;
       }
+      trackApiCall(path, method, Date.now() - startTime, 0, 'network_error');
       throw err;
     }
 
@@ -164,6 +167,7 @@ async function requestJson(method: string, path: string, body?: any, options: Re
     }
 
     if (res.ok) {
+      trackApiCall(path, method, Date.now() - startTime, res.status);
       return res.json();
     }
 
@@ -175,6 +179,7 @@ async function requestJson(method: string, path: string, body?: any, options: Re
     }
 
     const detail = await parseErrorBody(res);
+    trackApiCall(path, method, Date.now() - startTime, res.status, 'http_error');
     throw new ApiError(res.status, `API error ${res.status}: ${detail}`, retryAfterMs);
   }
 }

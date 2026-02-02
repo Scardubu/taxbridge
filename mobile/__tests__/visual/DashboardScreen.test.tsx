@@ -1,5 +1,5 @@
 import React from 'react';
-import { render } from '@testing-library/react-native';
+import { render, waitFor } from '@testing-library/react-native';
 import DashboardScreen from '../../src/screens/DashboardScreen';
 
 const mockNavigation = {
@@ -24,8 +24,14 @@ jest.mock('../../src/services/database', () => ({
 }));
 
 describe('DashboardScreen visual tests', () => {
-  it('renders with default state', () => {
+  it('renders with default state', async () => {
     const { toJSON } = render(<DashboardScreen navigation={mockNavigation} />);
+    
+    // Wait for async data loading to complete
+    await waitFor(() => {
+      expect(toJSON()).toBeTruthy();
+    });
+    
     expect(toJSON()).toMatchSnapshot();
   });
 });

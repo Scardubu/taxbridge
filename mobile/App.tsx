@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, type NavigationContainerRef } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { I18nextProvider, useTranslation } from 'react-i18next';
@@ -9,6 +9,7 @@ import { I18nextProvider, useTranslation } from 'react-i18next';
 import i18n from './src/i18n';
 import { initDB } from './src/services/database';
 import { initSentry, addBreadcrumb } from './src/services/sentry';
+import { trackNavigation, trackScreenView } from './src/services/analytics';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 import SplashScreen from './src/screens/SplashScreen';
 import { NetworkProvider } from './src/contexts/NetworkContext';
@@ -151,6 +152,8 @@ function TabNavigator() {
 export default function App() {
   const [booted, setBooted] = useState(false);
   const [bootData, setBootData] = useState<{ deviceInfo: any; persistedState: any } | null>(null);
+  const routeNameRef = useRef<string | null>(null);
+  const navigationRef = useRef<NavigationContainerRef<any> | null>(null);
 
   useEffect(() => {
     addBreadcrumb({
@@ -182,9 +185,23 @@ export default function App() {
                   <LoadingProvider>
                     <OnboardingProvider>
                       <NavigationContainer
+                        ref={navigationRef}
+                        onReady={() => {
+                          const currentRoute = navigationRef.current?.getCurrentRoute()?.name || null;
+                          routeNameRef.current = currentRoute;
+                          if (currentRoute) {
+                            void trackScreenView(currentRoute);
+                          }
+                        }}
                         onStateChange={(state) => {
                           const currentRoute = state?.routes[state.index]?.name;
                           if (currentRoute) {
+                            const previousRoute = routeNameRef.current;
+                            if (previousRoute && previousRoute !== currentRoute) {
+                              void trackNavigation(previousRoute, currentRoute, 'button');
+                            }
+                            routeNameRef.current = currentRoute;
+                            void trackScreenView(currentRoute);
                             addBreadcrumb({
                               category: 'navigation',
                               message: `Navigated to ${currentRoute}`,

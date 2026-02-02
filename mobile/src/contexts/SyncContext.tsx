@@ -7,6 +7,7 @@ import { syncPendingInvoices } from '../services/sync';
 import { performFullSync, listConflicts, collectLocalChanges } from '../services/deviceSync';
 import { getAccessToken } from '../services/authTokens';
 import { createLogger } from '../utils/logger';
+import { trackSync } from '../services/analytics';
 import { 
   syncReducer, 
   initialSyncState, 
@@ -231,6 +232,8 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     syncInProgress.current = true;
     try {
       const res = await doSyncWithBackoff();
+      const resultType = res.failed > 0 ? (res.synced > 0 ? 'partial' : 'failed') : 'success';
+      void trackSync('manual', resultType, res.synced);
       
       if (res.synced > 0) {
         Alert.alert(
@@ -259,6 +262,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
       return res;
     } catch (err) {
       log.error('Manual sync failed', { error: err });
+      void trackSync('manual', 'failed', 0);
       dispatch({ 
         type: 'SYNC_ERROR', 
         payload: { 

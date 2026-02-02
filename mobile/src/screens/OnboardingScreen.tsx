@@ -28,6 +28,12 @@ import { useTranslation } from 'react-i18next';
 import { useOnboarding, OnboardingStepId, UserProfile } from '../contexts/OnboardingContext';
 import { useNetwork } from '../contexts/NetworkContext';
 import { addBreadcrumb } from '../services/sentry';
+import {
+  trackOnboardingStart,
+  trackOnboardingStep,
+  trackOnboardingComplete,
+  trackOnboardingDropOff,
+} from '../services/analytics';
 import { LivingBridgeHeader } from '../components/header';
 import { colors, radii, spacing, typography } from '../theme/tokens';
 
@@ -150,6 +156,7 @@ function OnboardingScreen(props: OnboardingScreenProps = {}) {
   const hasRestoredRef = useRef(false);
   const isMountedRef = useRef(true);
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const onboardingStartedRef = useRef(false);
 
   // Memoize active steps to prevent recalculation
   const activeSteps = useMemo(() => {
@@ -263,6 +270,14 @@ function OnboardingScreen(props: OnboardingScreenProps = {}) {
       }
     };
   }, [activeSteps, resolveResumeIndex, autoSaveProgress]);
+
+  useEffect(() => {
+    if (onboardingStartedRef.current) return;
+    onboardingStartedRef.current = true;
+    if (!progress.startedAt) {
+      void trackOnboardingStart();
+    }
+  }, [progress.startedAt]);
 
   /**
    * Update progress animation and tracking
@@ -409,6 +424,8 @@ function OnboardingScreen(props: OnboardingScreenProps = {}) {
         },
       });
 
+      void trackOnboardingStep(currentStep.id, true, false, duration);
+
       const latestProgress = await updateProgress(currentStep.id, true, false);
 
       if (!isMountedRef.current) return;
@@ -421,6 +438,7 @@ function OnboardingScreen(props: OnboardingScreenProps = {}) {
         }
       } else {
         await completeOnboarding(latestProgress);
+        void trackOnboardingComplete();
         navigation?.replace('MainTabs');
         if (isMountedRef.current) {
           setIsTransitioning(false);
@@ -463,6 +481,8 @@ function OnboardingScreen(props: OnboardingScreenProps = {}) {
         },
       });
 
+      void trackOnboardingStep(currentStep.id, false, true, duration);
+
       const latestProgress = await updateProgress(currentStep.id, false, true);
 
       if (!isMountedRef.current) return;
@@ -471,6 +491,7 @@ function OnboardingScreen(props: OnboardingScreenProps = {}) {
         setCurrentStepIndex(currentStepIndex + 1);
       } else {
         await completeOnboarding(latestProgress);
+        void trackOnboardingComplete();
         navigation?.replace('MainTabs');
       }
     } catch (error) {
@@ -518,6 +539,7 @@ function OnboardingScreen(props: OnboardingScreenProps = {}) {
               }
               
               await completeOnboarding(latestProgress);
+              void trackOnboardingComplete();
               navigation?.replace('MainTabs');
             } catch (error) {
               console.error('Error skipping all:', error);
@@ -546,6 +568,10 @@ function OnboardingScreen(props: OnboardingScreenProps = {}) {
       level: 'info',
       data: { currentStepIndex },
     });
+
+    if (currentStep?.id) {
+      void trackOnboardingDropOff(currentStep.id);
+    }
 
     Alert.alert(
       t('onboarding.finishLaterTitle'),
