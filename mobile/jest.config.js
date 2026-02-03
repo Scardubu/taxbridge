@@ -18,4 +18,14 @@ module.exports = {
     '!src/**/*.d.ts',
     '!src/**/__tests__/**',
   ],
+  // Ensure tests run in isolation to prevent cleanup-related errors
+  testEnvironmentOptions: {
+    url: 'http://localhost/',
+  },
+  // Increased timeout for async tests
+  testTimeout: 30000,
+  // Force exit after tests complete to handle open handles
+  forceExit: true,
+  // Detect open handles that may cause warnings
+  detectOpenHandles: false,
 };

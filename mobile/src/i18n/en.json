@@ -838,7 +838,11 @@
     "exportCompleteMsg": "File saved to: {{path}}",
     "clearAllDataTitle": "Clear All Data?",
     "clearAllDataMsg": "This will remove ALL invoices and settings from this device. This cannot be undone.",
-    "clearAll": "Clear All"
+    "clearAll": "Clear All",
+    "storageTitle": "Local Storage",
+    "storageInvoices": "{{count}} invoices",
+    "storageSynced": "Synced ({{count}})",
+    "storagePending": "Pending ({{count}})"
   },
   "dashboard": {
     "title": "Dashboard",

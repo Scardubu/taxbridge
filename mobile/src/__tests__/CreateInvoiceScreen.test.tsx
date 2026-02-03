@@ -23,6 +23,13 @@ jest.mock('../contexts/FeatureFlagContext', () => ({
   FeatureFlagProvider: ({ children }: any) => children,
 }));
 
+// Mock InvoiceWizard to prevent async state updates in tests
+jest.mock('../components/wizards/InvoiceWizard', () => {
+  return function MockInvoiceWizard() {
+    return null;
+  };
+});
+
 // Mock AnimatedButton to a simple pressable for testing
 jest.mock('../components/AnimatedButton', () => {
   // eslint-disable-next-line @typescript-eslint/no-var-requires

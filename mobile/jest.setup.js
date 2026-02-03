@@ -1,6 +1,15 @@
 // Define __DEV__ for React Native compatibility
 global.__DEV__ = true;
 
+// Configure @testing-library/react-native to skip auto-cleanup
+// This prevents "Hooks cannot be defined inside tests" errors
+// when the library is dynamically imported during tests
+require('@testing-library/react-native/dont-cleanup-after-each');
+
+// Manual cleanup function to be called in individual tests if needed
+const { cleanup } = require('@testing-library/react-native');
+global.testingLibraryCleanup = cleanup;
+
 // Mock expo-constants to silence test warnings
 jest.mock('expo-constants', () => ({
   __esModule: true,

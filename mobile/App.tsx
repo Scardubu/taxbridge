@@ -195,19 +195,21 @@ export default function App() {
                         }}
                         onStateChange={(state) => {
                           const currentRoute = state?.routes[state.index]?.name;
-                          if (currentRoute) {
-                            const previousRoute = routeNameRef.current;
-                            if (previousRoute && previousRoute !== currentRoute) {
-                              void trackNavigation(previousRoute, currentRoute, 'button');
-                            }
-                            routeNameRef.current = currentRoute;
-                            void trackScreenView(currentRoute);
-                            addBreadcrumb({
-                              category: 'navigation',
-                              message: `Navigated to ${currentRoute}`,
-                              level: 'info',
-                            });
+                          if (!currentRoute || currentRoute === routeNameRef.current) {
+                            return;
                           }
+
+                          const previousRoute = routeNameRef.current;
+                          if (previousRoute) {
+                            void trackNavigation(previousRoute, currentRoute, 'button');
+                          }
+                          routeNameRef.current = currentRoute;
+                          void trackScreenView(currentRoute);
+                          addBreadcrumb({
+                            category: 'navigation',
+                            message: `Navigated to ${currentRoute}`,
+                            level: 'info',
+                          });
                         }}
                       >
                         <StatusBar style="dark" />

@@ -231,8 +231,9 @@ function FloatingActionButton({
 
   const backdropStyle = useAnimatedStyle(() => ({
     opacity: backdropOpacity.value,
-    pointerEvents: backdropOpacity.value > 0 ? 'auto' : 'none',
   }));
+
+  const backdropPointerEventsStyle = expanded ? styles.backdropActive : styles.backdropInactive;
 
   const containerStyle = position === 'bottom-center' 
     ? styles.containerCenter 
@@ -241,7 +242,7 @@ function FloatingActionButton({
   return (
     <>
       {/* Backdrop */}
-      <Animated.View style={[styles.backdrop, backdropStyle]}>
+      <Animated.View style={[styles.backdrop, backdropPointerEventsStyle, backdropStyle]}>
         <Pressable style={styles.backdropPressable} onPress={closeMenu} />
       </Animated.View>
 
@@ -285,6 +286,12 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0, 0, 0, 0.3)',
     zIndex: 998,
+  },
+  backdropActive: {
+    pointerEvents: 'auto',
+  },
+  backdropInactive: {
+    pointerEvents: 'none',
   },
   backdropPressable: {
     flex: 1,

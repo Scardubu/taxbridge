@@ -1,4 +1,4 @@
-import i18n from 'i18next';
+import i18n, { type InitOptions } from 'i18next';
 import { initReactI18next } from 'react-i18next';
 
 import en from './en.json';
@@ -11,11 +11,10 @@ export type SupportedLanguage = (typeof SUPPORTED_LANGUAGES)[number];
 const resources = {
   en: { translation: en },
   pidgin: { translation: pidgin }
-};
+} as const;
 
-// Initialize i18n synchronously to ensure context is available immediately
-i18n.use(initReactI18next).init({
-  compatibilityJSON: 'v4',
+// Configure i18n options
+const i18nOptions: InitOptions = {
   resources,
   lng: 'en',
   fallbackLng: 'en',
@@ -31,7 +30,7 @@ i18n.use(initReactI18next).init({
   
   // Disable missing key warnings in production
   saveMissing: __DEV__,
-  missingInterpolationHandler: (text, value) => {
+  missingInterpolationHandler: (text: string, value: any) => {
     console.warn(`Missing interpolation: ${text} for value:`, value);
     return text;
   },
@@ -41,13 +40,12 @@ i18n.use(initReactI18next).init({
     useSuspense: false,      // Don't use Suspense for translations
     transEmptyNodeValue: '',  // Value for empty trans nodes
     transSupportBasicHtmlNodes: true,
-    transKeepBasicHtmlNodes: false,
   },
   
   interpolation: {
     escapeValue: false,
     formatSeparator: ',',
-    format: (value: any, format: string) => {
+    format: (value: any, format?: string) => {
       if (format === 'currency') {
         return `₦${Number(value).toLocaleString('en-NG')}`;
       }
@@ -57,7 +55,11 @@ i18n.use(initReactI18next).init({
       return value;
     }
   }
-});
+};
+
+// Initialize i18n synchronously to ensure context is available immediately
+i18n.use(initReactI18next);
+void i18n.init(i18nOptions);
 
 export default i18n;
 

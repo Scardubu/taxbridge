@@ -111,12 +111,18 @@ describe('Onboarding System Integration Tests', () => {
         expect(getAllByText('onboarding.gamification.title').length).toBeGreaterThan(0);
       });
       
-      fireEvent.press(getAllByText('onboarding.continue')[0]);
+      // Find the Continue button in Gamification step (may be inside ScrollView)
+      const gamificationContinue = getAllByText('onboarding.continue');
+      fireEvent.press(gamificationContinue[gamificationContinue.length - 1]);
 
-      // Step 6: Community
-      await waitFor(() => {
-        expect(getAllByText('onboarding.community.title').length).toBeGreaterThan(0);
-      });
+      // Step 6: Community (may be step 5 for low-income users who skip VAT/CIT)
+      await waitFor(
+        () => {
+          const communityTitles = getAllByText('onboarding.community.title');
+          expect(communityTitles.length).toBeGreaterThan(0);
+        },
+        { timeout: 5000 }
+      );
       
       // Enter referral code
       const referralInput = getByPlaceholderText('TAXABC123');

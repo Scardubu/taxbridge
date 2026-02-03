@@ -24,6 +24,7 @@ import Animated, {
   Extrapolation,
   runOnJS,
 } from 'react-native-reanimated';
+import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { useOnboarding, OnboardingStepId, UserProfile } from '../contexts/OnboardingContext';
 import { useNetwork } from '../contexts/NetworkContext';
@@ -141,7 +142,8 @@ interface OnboardingScreenProps {
  * 10. Progress persistence optimization
  */
 function OnboardingScreen(props: OnboardingScreenProps = {}) {
-  const { navigation } = props;
+  const navigationFromHook = useNavigation<any>();
+  const navigation = props.navigation ?? navigationFromHook;
   const { t } = useTranslation();
   const { profile, progress, updateProgress, completeOnboarding } = useOnboarding();
   const { isOnline } = useNetwork();
@@ -321,7 +323,7 @@ function OnboardingScreen(props: OnboardingScreenProps = {}) {
    * Navigate to main app when onboarding is complete
    */
   useEffect(() => {
-    if (progress.completedAt && navigation) {
+    if (progress.completedAt) {
       navigation.replace?.('MainTabs');
     }
   }, [progress.completedAt, navigation]);
@@ -439,7 +441,7 @@ function OnboardingScreen(props: OnboardingScreenProps = {}) {
       } else {
         await completeOnboarding(latestProgress);
         void trackOnboardingComplete();
-        navigation?.replace('MainTabs');
+        navigation.replace?.('MainTabs');
         if (isMountedRef.current) {
           setIsTransitioning(false);
         }
@@ -492,7 +494,7 @@ function OnboardingScreen(props: OnboardingScreenProps = {}) {
       } else {
         await completeOnboarding(latestProgress);
         void trackOnboardingComplete();
-        navigation?.replace('MainTabs');
+        navigation.replace?.('MainTabs');
       }
     } catch (error) {
       console.error('Error skipping step:', error);
@@ -540,7 +542,7 @@ function OnboardingScreen(props: OnboardingScreenProps = {}) {
               
               await completeOnboarding(latestProgress);
               void trackOnboardingComplete();
-              navigation?.replace('MainTabs');
+              navigation.replace?.('MainTabs');
             } catch (error) {
               console.error('Error skipping all:', error);
               
@@ -585,11 +587,11 @@ function OnboardingScreen(props: OnboardingScreenProps = {}) {
               if (currentStep?.id) {
                 await updateProgress(currentStep.id, false, false);
               }
-              navigation?.replace('MainTabs');
+              navigation.replace?.('MainTabs');
             } catch (error) {
               console.error('Error saving progress:', error);
               // Still navigate even if save fails
-              navigation?.replace('MainTabs');
+              navigation.replace?.('MainTabs');
             }
           },
         },

@@ -20,10 +20,14 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
+import { createLogger } from '../utils/logger';
+import { getApiBaseUrl } from './config';
 
 const STORAGE_KEY = 'feature_flags_v1';
 const CACHE_EXPIRY_MS = 3600000; // 1 hour
 const REMOTE_TIMEOUT_MS = 5000;
+
+const log = createLogger('feature-flags');
 
 export type FeatureFlags = {
   receiptsScanner: boolean;
@@ -43,12 +47,18 @@ interface CachedFlags {
  */
 function getEnvironmentDefaults(): Partial<FeatureFlags> {
   const env = Constants.expoConfig?.extra || {};
-  
+
+  const parseEnvFlag = (value: unknown): boolean | undefined => {
+    if (value === 'true' || value === true) return true;
+    if (value === 'false' || value === false) return false;
+    return undefined;
+  };
+
   return {
-    receiptsScanner: env.FEATURE_RECEIPTS_SCANNER === 'true' || env.FEATURE_RECEIPTS_SCANNER === true,
-    taxEngineV2: env.FEATURE_TAX_ENGINE_V2 === 'true' || env.FEATURE_TAX_ENGINE_V2 === true,
-    offlineInvoices: env.FEATURE_OFFLINE_INVOICES === 'true' || env.FEATURE_OFFLINE_INVOICES === true,
-    ocrScanner: env.FEATURE_OCR_SCANNER === 'true' || env.FEATURE_OCR_SCANNER === true,
+    receiptsScanner: parseEnvFlag(env.FEATURE_RECEIPTS_SCANNER),
+    taxEngineV2: parseEnvFlag(env.FEATURE_TAX_ENGINE_V2),
+    offlineInvoices: parseEnvFlag(env.FEATURE_OFFLINE_INVOICES),
+    ocrScanner: parseEnvFlag(env.FEATURE_OCR_SCANNER),
   };
 }
 
@@ -89,7 +99,14 @@ function isCacheValid(cached: CachedFlags): boolean {
  * Safe to fail - returns undefined on error
  */
 async function fetchRemoteFlags(): Promise<Partial<FeatureFlags> | undefined> {
-  const apiUrl = Constants.expoConfig?.extra?.apiUrl || process.env.EXPO_PUBLIC_API_URL;
+  let apiUrl: string | null = null;
+
+  try {
+    apiUrl = await getApiBaseUrl();
+  } catch (error) {
+    log.warn('API base URL unavailable', { error: String(error) });
+    return undefined;
+  }
   
   if (!apiUrl) {
     return undefined;
@@ -110,7 +127,7 @@ async function fetchRemoteFlags(): Promise<Partial<FeatureFlags> | undefined> {
     clearTimeout(timeout);
 
     if (!response.ok) {
-      console.warn('[FeatureFlags] Remote fetch failed:', response.status);
+      log.warn('Remote fetch failed', { status: response.status });
       return undefined;
     }
 
@@ -119,7 +136,7 @@ async function fetchRemoteFlags(): Promise<Partial<FeatureFlags> | undefined> {
   } catch (err) {
     // Network errors, timeouts, aborts are all safe to ignore
     if ((err as Error).name !== 'AbortError') {
-      console.warn('[FeatureFlags] Remote fetch error:', err);
+      log.warn('Remote fetch error', { error: String(err) });
     }
     return undefined;
   }
@@ -158,7 +175,7 @@ export async function hydrateFeatureFlags(): Promise<void> {
     }
   } catch (err) {
     // All failures are silent - flags default to safe values
-    console.warn('[FeatureFlags] Hydration failed (non-fatal):', err);
+    log.warn('Hydration failed (non-fatal)', { error: String(err) });
   }
 }
 

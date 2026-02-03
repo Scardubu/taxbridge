@@ -28,6 +28,7 @@ import { useFeatureFlag } from '../contexts/FeatureFlagContext';
 import { useNetwork } from '../contexts/NetworkContext';
 import { generateUuid } from '../utils/uuid';
 import { colors, spacing, radii, typography, shadows } from '../theme/tokens';
+import InvoiceWizard from '../components/wizards/InvoiceWizard';
 
 // Lazy load heavy components
 const CameraModal = lazy(() => import('../components/CameraModal'));
@@ -700,6 +701,7 @@ function CreateInvoiceScreen(props: any) {
 
   return (
     <SafeAreaView style={styles.safe}>
+      <InvoiceWizard />
       <KeyboardAvoidingView 
         behavior={Platform.select({ ios: 'padding', android: undefined })} 
         style={styles.safe}

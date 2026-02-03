@@ -417,7 +417,7 @@ export async function getAnalyticsData(): Promise<AnalyticsEvent[]> {
     const data = await AsyncStorage.getItem(STORAGE_KEYS.EVENTS);
     return data ? JSON.parse(data) : [];
   } catch (error) {
-    log.error('Failed to retrieve analytics data', error);
+    log.error('Failed to retrieve analytics data', error as Error);
     return [];
   }
 }

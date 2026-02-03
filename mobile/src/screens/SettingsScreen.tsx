@@ -77,19 +77,7 @@ const parseInvoiceItems = (itemsJson: string): InvoiceItem[] => {
   }
 };
 
-const formatLastSync = (lastSyncAt: number | null): string => {
-  if (!lastSyncAt) return 'Never';
-  
-  const diff = Date.now() - lastSyncAt;
-  const minutes = Math.floor(diff / 60000);
-  const hours = Math.floor(diff / 3600000);
-  
-  if (minutes < 1) return 'Just now';
-  if (minutes < 60) return `${minutes} min ago`;
-  if (hours < 24) return `${hours}h ago`;
-  
-  return new Date(lastSyncAt).toLocaleDateString();
-};
+// formatLastSync moved inside component to access t() for i18n
 
 // ============================================================================
 // Section Components
@@ -148,8 +136,8 @@ const StorageMeter = memo(({ stats }: StorageMeterProps) => {
   return (
     <View style={styles.storageMeter}>
       <View style={styles.storageHeader}>
-        <Text style={styles.storageLabel}>Local Storage</Text>
-        <Text style={styles.storageValue}>{stats.total} invoices</Text>
+        <Text style={styles.storageLabel}>{t('settings.storageTitle')}</Text>
+        <Text style={styles.storageValue}>{t('settings.storageInvoices', { count: stats.total })}</Text>
       </View>
       <View style={styles.storageBar}>
         <View 
@@ -159,11 +147,11 @@ const StorageMeter = memo(({ stats }: StorageMeterProps) => {
       <View style={styles.storageLegend}>
         <View style={styles.legendItem}>
           <View style={[styles.legendDot, styles.legendDotSuccess]} />
-          <Text style={styles.legendText}>Synced ({stats.synced})</Text>
+          <Text style={styles.legendText}>{t('settings.storageSynced', { count: stats.synced })}</Text>
         </View>
         <View style={styles.legendItem}>
           <View style={[styles.legendDot, styles.legendDotWarning]} />
-          <Text style={styles.legendText}>Pending ({stats.pending})</Text>
+          <Text style={styles.legendText}>{t('settings.storagePending', { count: stats.pending })}</Text>
         </View>
       </View>
     </View>
@@ -208,6 +196,24 @@ function SettingsScreen() {
   // Refs
   const phoneInputRef = useRef<TextInput>(null);
   const passwordInputRef = useRef<TextInput>(null);
+
+  // ============================================================================
+  // Utility Functions (inside component for i18n access)
+  // ============================================================================
+
+  const formatLastSync = useCallback((timestamp: number | null): string => {
+    if (!timestamp) return t('sync.neverSynced');
+    
+    const diff = Date.now() - timestamp;
+    const minutes = Math.floor(diff / 60000);
+    const hours = Math.floor(diff / 3600000);
+    
+    if (minutes < 1) return t('sync.justNow');
+    if (minutes < 60) return t('sync.minutesAgo', { count: minutes });
+    if (hours < 24) return t('sync.hoursAgo', { count: hours });
+    
+    return new Date(timestamp).toLocaleDateString();
+  }, [t]);
 
   // ============================================================================
   // Data Loading

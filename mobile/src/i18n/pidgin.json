@@ -810,7 +810,11 @@
     "exportCompleteMsg": "File don save for: {{path}}",
     "clearAllDataTitle": "Clear All Data?",
     "clearAllDataMsg": "This go remove ALL invoices and settings from this device. You no fit undo am.",
-    "clearAll": "Clear All"
+    "clearAll": "Clear All",
+    "storageTitle": "Local Storage",
+    "storageInvoices": "{{count}} invoices",
+    "storageSynced": "Don sync ({{count}})",
+    "storagePending": "Pending ({{count}})"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -842,6 +846,22 @@
     "syncNow": "Sync now",
     "sync": "Sync",
     "footerTagline": "Tax no be wahala. Tech for everybody."
+  },
+  "wizard": {
+    "step": "Step {{current}} of {{total}}",
+    "back": "Back",
+    "next": "Next",
+    "finish": "Finish",
+    "skipStep": "Skip this step",
+    "invoiceWizard": {
+      "title": "Make Your First Invoice",
+      "step1Title": "Add Customer",
+      "step1Desc": "Put customer details or skip if na walk-in",
+      "step2Title": "Add Items",
+      "step2Desc": "List your products or services",
+      "step3Title": "Review & Save",
+      "step3Desc": "Check everything and save your invoice"
+    }
   },
   "tax": {
     "grossIncome": "Total Money Wey Enter",
