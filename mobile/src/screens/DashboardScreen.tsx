@@ -8,7 +8,6 @@ import {
   Pressable,
   RefreshControl,
   Dimensions,
-  ActivityIndicator,
 } from 'react-native';
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
@@ -16,6 +15,7 @@ import { useTranslation } from 'react-i18next';
 import { useNetwork } from '../contexts/NetworkContext';
 import { useSyncContext } from '../contexts/SyncContext';
 import { useFeatureFlag } from '../contexts/FeatureFlagContext';
+import { SkeletonLoader } from '../components/ui/SkeletonLoader';
 import { getInvoices } from '../services/database';
 import { calculatePIT, getTaxOptimization, formatNaira, formatPercentage } from '../services/tax/engine';
 import { calculatePIT as calculateLegacyPIT } from '../services/taxCalculator';
@@ -398,8 +398,7 @@ function DashboardScreen(props: any) {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={styles.loadingText}>{t('common.loading')}</Text>
+          <SkeletonLoader type="dashboard" count={3} />
         </View>
       </SafeAreaView>
     );

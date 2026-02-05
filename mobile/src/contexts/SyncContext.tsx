@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useEffect, useRef, useReducer } from 'react';
-import { Alert } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useNetwork } from './NetworkContext';
 import { useDevice } from './DeviceContext';
@@ -8,6 +7,7 @@ import { performFullSync, listConflicts, collectLocalChanges } from '../services
 import { getAccessToken } from '../services/authTokens';
 import { createLogger } from '../utils/logger';
 import { trackSync } from '../services/analytics';
+import { showToast } from '../components/ui/Toast';
 import { 
   syncReducer, 
   initialSyncState, 
@@ -204,26 +204,38 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
     // Phase 4: Check device state first
     if (!canDeviceSync()) {
       if (device.isSuspended) {
-        Alert.alert(
-          t('sync.deviceSuspendedTitle'),
-          t('sync.deviceSuspendedBody', { reason: device.suspensionReason })
-        );
+        showToast({
+          type: 'warning',
+          message: t('sync.deviceSuspendedBody', { reason: device.suspensionReason }),
+          haptic: 'warning',
+          duration: 5000
+        });
       } else {
-        Alert.alert(
-          t('sync.deviceNotRegisteredTitle'),
-          t('sync.deviceNotRegisteredBody')
-        );
+        showToast({
+          type: 'warning',
+          message: t('sync.deviceNotRegisteredBody'),
+          haptic: 'warning',
+          duration: 5000
+        });
       }
       return { synced: 0, failed: 0, deferred: 0, conflicts: 0 };
     }
     
     if (!isOnline) {
-      Alert.alert(t('sync.offlineTitle'), t('sync.offlineBody'));
+      showToast({
+        type: 'warning',
+        message: t('sync.offlineBody'),
+        haptic: 'warning'
+      });
       return { synced: 0, failed: 0, deferred: 0, conflicts: 0 };
     }
 
     if (!(await hasAuthToken())) {
-      Alert.alert(t('sync.signInRequiredTitle'), t('sync.signInRequiredBody'));
+      showToast({
+        type: 'warning',
+        message: t('sync.signInRequiredBody'),
+        haptic: 'warning'
+      });
       return { synced: 0, failed: 0, deferred: 0, conflicts: 0 };
     }
 
@@ -236,28 +248,33 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
       void trackSync('manual', resultType, res.synced);
       
       if (res.synced > 0) {
-        Alert.alert(
-          t('sync.syncCompleteTitle'),
-          t('sync.syncCompleteBody', { count: res.synced }) // i18next handles pluralization
-        );
+        showToast({
+          type: 'success',
+          message: t('sync.syncCompleteBody', { count: res.synced }),
+          haptic: 'success'
+        });
       }
       if (res.deferred > 0 && res.synced === 0 && res.failed === 0) {
-        Alert.alert(
-          t('sync.syncScheduledTitle'),
-          t('sync.syncScheduledBody', { count: res.deferred })
-        );
+        showToast({
+          type: 'info',
+          message: t('sync.syncScheduledBody', { count: res.deferred })
+        });
       }
       if (res.failed > 0) {
-        Alert.alert(
-          t('sync.syncErrorTitle'),
-          t('sync.syncErrorBody', { count: res.failed })
-        );
+        showToast({
+          type: 'error',
+          message: t('sync.syncErrorBody', { count: res.failed }),
+          haptic: 'error',
+          duration: 5000
+        });
       }
       if (res.conflicts && res.conflicts > 0) {
-        Alert.alert(
-          t('sync.conflictsTitle'),
-          t('sync.conflictsBody', { count: res.conflicts })
-        );
+        showToast({
+          type: 'warning',
+          message: t('sync.conflictsBody', { count: res.conflicts }),
+          haptic: 'warning',
+          duration: 5000
+        });
       }
       return res;
     } catch (err) {
@@ -270,7 +287,12 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
           retryable: true 
         } 
       });
-      Alert.alert(t('sync.syncFailedTitle'), t('sync.syncFailedBody'));
+      showToast({
+        type: 'error',
+        message: t('sync.syncFailedBody'),
+        haptic: 'error',
+        duration: 5000
+      });
       return { synced: 0, failed: 0, deferred: 0, conflicts: 0 };
     } finally {
       syncInProgress.current = false;
@@ -303,10 +325,12 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
           }
           if (res.failed > 0) {
             // surface important failures
-            Alert.alert(
-              t('sync.syncErrorTitle'),
-              t('sync.syncFailedAfterReconnectBody', { count: res.failed })
-            );
+            showToast({
+              type: 'error',
+              message: t('sync.syncFailedAfterReconnectBody', { count: res.failed }),
+              haptic: 'error',
+              duration: 5000
+            });
           }
         } finally {
           syncInProgress.current = false;

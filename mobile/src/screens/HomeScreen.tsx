@@ -8,7 +8,6 @@ import {
   RefreshControl, 
   ScrollView, 
   Dimensions,
-  ActivityIndicator,
   Modal,
 } from 'react-native';
 import Animated, { FadeInDown, FadeInUp, FadeIn } from 'react-native-reanimated';
@@ -19,6 +18,7 @@ import { getInvoices } from '../services/database';
 import { useNetwork } from '../contexts/NetworkContext';
 import { useSyncContext } from '../contexts/SyncContext';
 import { useFeatureFlag } from '../contexts/FeatureFlagContext';
+import { SkeletonLoader } from '../components/ui/SkeletonLoader';
 import SyncStatusBar from '../components/SyncStatusBar';
 import QuickActionRail from '../components/QuickActionRail';
 import InsightsCarousel from '../components/InsightsCarousel';
@@ -141,7 +141,7 @@ const LoadingSkeleton = memo(() => (
         <View style={styles.skeletonAction} />
       </View>
 
-      <ActivityIndicator size="large" color={colors.primary} style={styles.loadingIndicator} />
+      <SkeletonLoader type="dashboard" count={1} />
     </Animated.View>
   </>
 ));

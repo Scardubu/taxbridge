@@ -25,6 +25,7 @@ import { getAccessToken } from '../services/authTokens';
 import * as authApi from '../services/authApi';
 import { useFormValidation, validationRules, showValidationError } from '../utils/validation';
 import AnimatedButton from '../components/AnimatedButton';
+import { showToast } from '../components/ui/Toast';
 import { useNetwork } from '../contexts/NetworkContext';
 import { useSyncContext } from '../contexts/SyncContext';
 import { colors, spacing, radii, typography } from '../theme/tokens';
@@ -287,7 +288,11 @@ function SettingsScreen() {
     if (isAuthSubmitting) return;
     
     if (!isOnline) {
-      Alert.alert(t('settings.offline'), t('settings.offlineSignInMsg'));
+      showToast({
+        type: 'warning',
+        message: t('settings.offlineSignInMsg'),
+        haptic: 'warning'
+      });
       return;
     }
     
@@ -309,7 +314,10 @@ function SettingsScreen() {
       
       if ((res as any)?.requiresMfa && (res as any)?.mfaToken) {
         setMfaToken((res as any).mfaToken);
-        Alert.alert(t('settings.mfaRequired'), t('settings.mfaRequiredMsg'));
+        showToast({
+          type: 'info',
+          message: t('settings.mfaRequiredMsg')
+        });
         return;
       }
 
@@ -344,7 +352,11 @@ function SettingsScreen() {
       await authApi.mfaLogin(mfaToken, totpCode.trim());
       await refreshAuthStatus();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert(t('settings.signedIn'), t('settings.signedInMsg'));
+      showToast({
+        type: 'success',
+        message: t('settings.signedInMsg'),
+        haptic: 'success'
+      });
       resetAuthForms();
       
       if (isOnline) {
@@ -382,7 +394,10 @@ function SettingsScreen() {
     try {
       const res = await authApi.register(authPhone.trim(), authName.trim(), authPassword);
       setRegisterUserId(res.userId);
-      Alert.alert(t('settings.verifyPhone'), t('settings.verifyPhoneMsg'));
+      showToast({
+        type: 'info',
+        message: t('settings.verifyPhoneMsg')
+      });
     } catch (error) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       showValidationError(t('settings.signupFailed'), t('settings.signupFailedMsg'));
@@ -406,7 +421,11 @@ function SettingsScreen() {
       await authApi.verifyPhone(registerUserId, authOtp.trim());
       await refreshAuthStatus();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert(t('settings.accountReady'), t('settings.accountReadyMsg'));
+      showToast({
+        type: 'success',
+        message: t('settings.accountReadyMsg'),
+        haptic: 'success'
+      });
       resetAuthForms();
       
       if (isOnline) {
@@ -430,7 +449,10 @@ function SettingsScreen() {
       await authApi.logout();
       await refreshAuthStatus();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert(t('settings.signedOut'), t('settings.signedOutMsg'));
+      showToast({
+        type: 'info',
+        message: t('settings.signedOutMsg')
+      });
       resetAuthForms();
     } catch (error) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -462,7 +484,11 @@ function SettingsScreen() {
     try {
       await setApiBaseUrl(values.apiUrl);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert(t('settings.success'), t('settings.apiUrlUpdated'));
+      showToast({
+        type: 'success',
+        message: t('settings.apiUrlUpdated'),
+        haptic: 'success'
+      });
     } catch (error) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       showValidationError(t('settings.error'), t('settings.failedSaveApiUrl'));
@@ -484,7 +510,11 @@ function SettingsScreen() {
             try {
               const removed = await clearSyncedLocalInvoices(0);
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-              Alert.alert(t('settings.success'), t('settings.removedSyncedMsg', { count: removed }));
+              showToast({
+                type: 'success',
+                message: t('settings.removedSyncedMsg', { count: removed }),
+                haptic: 'success'
+              });
               loadStorageStats();
             } catch (error) {
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -530,7 +560,12 @@ function SettingsScreen() {
         });
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       } else {
-        Alert.alert(t('settings.exportCompleteTitle'), t('settings.exportCompleteMsg', { path: fileUri }));
+        showToast({
+          type: 'success',
+          message: t('settings.exportCompleteMsg', { path: fileUri }),
+          haptic: 'success',
+          duration: 5000
+        });
       }
     } catch (error) {
       console.error('Export failed:', error);

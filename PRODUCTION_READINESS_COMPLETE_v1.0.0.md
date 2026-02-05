@@ -29,6 +29,15 @@ TaxBridge V1.0.0 has successfully completed **ALL** production readiness require
 
 ## Latest Session Improvements (February 3, 2026)
 
+### 0. EAS Build Configuration Fix ✅
+**What Changed:**
+- Fixed EAS project ownership mismatch (`scardubu` → `scartony357`)
+- Removed old project ID: `fb2a2641-40b4-4741-bf52-b544d90ef1ba`
+- Initialized new EAS project: `ab92bfbb-8bf0-44c7-848f-76e717be26b7`
+- Resolved "Entity not authorized" build errors
+
+**Impact:** EAS builds now work correctly with authenticated user account
+
 ### 1. SettingsScreen i18n Hardening ✅
 **What Changed:**
 - Moved `formatLastSync` function inside component to access `t()` hook
@@ -202,15 +211,16 @@ Success Rate: 100%
 
 ## Files Modified (This Session)
 
-### Updated (5)
-1. `mobile/src/screens/SettingsScreen.tsx` - Localized formatLastSync + StorageMeter
-2. `mobile/src/services/featureFlag.ts` - Fixed env flag parsing
-3. `mobile/src/screens/OnboardingScreen.tsx` - Added useNavigation hook
-4. `mobile/src/i18n/en.json` - Added storage-related translations
-5. `mobile/src/i18n/pidgin.json` - Added storage-related translations
+### Updated (6)
+1. `mobile/app.json` - Fixed EAS project ownership and ID
+2. `mobile/src/screens/SettingsScreen.tsx` - Localized formatLastSync + StorageMeter
+3. `mobile/src/services/featureFlag.ts` - Fixed env flag parsing
+4. `mobile/src/screens/OnboardingScreen.tsx` - Added useNavigation hook
+5. `mobile/src/i18n/en.json` - Added storage-related translations
+6. `mobile/src/i18n/pidgin.json` - Added storage-related translations
 
 ### Total Changes
-- 5 files modified
+- 6 files modified
 - 0 TypeScript errors introduced
 - 0 tests broken
 - 100% backward compatible

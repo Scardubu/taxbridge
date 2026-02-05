@@ -19,6 +19,7 @@ import { AuthProvider, useAuth } from './src/contexts/AuthContext';
 import { FeatureFlagProvider } from './src/contexts/FeatureFlagContext';
 import { LoadingProvider } from './src/contexts/LoadingContext';
 import { OnboardingProvider, useOnboarding } from './src/contexts/OnboardingContext';
+import { ToastProvider } from './src/providers/ToastProvider';
 import LoadingOverlay from './src/components/LoadingOverlay';
 import NetworkStatus from './src/components/NetworkStatus';
 import HomeScreen from './src/screens/HomeScreen';
@@ -27,6 +28,7 @@ import InvoicesScreen from './src/screens/InvoicesScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import PaymentScreen from './src/screens/PaymentScreen';
 import OnboardingScreen from './src/screens/OnboardingScreen';
+import TaxGuideScreen from './src/screens/TaxGuideScreen';
 import { colors, spacing, typography } from './src/theme/tokens';
 import { screenTransitions } from './src/navigation/transitions';
 
@@ -63,6 +65,11 @@ function AppNavigator() {
       <Stack.Screen
         name="Payment"
         component={PaymentScreen}
+        options={screenTransitions.slideFromRight}
+      />
+      <Stack.Screen
+        name="TaxGuide"
+        component={TaxGuideScreen}
         options={screenTransitions.slideFromRight}
       />
     </Stack.Navigator>
@@ -184,43 +191,45 @@ export default function App() {
                 <FeatureFlagProvider>
                   <LoadingProvider>
                     <OnboardingProvider>
-                      <NavigationContainer
-                        ref={navigationRef}
-                        onReady={() => {
-                          const currentRoute = navigationRef.current?.getCurrentRoute()?.name || null;
-                          routeNameRef.current = currentRoute;
-                          if (currentRoute) {
-                            void trackScreenView(currentRoute);
-                          }
-                        }}
-                        onStateChange={(state) => {
-                          const currentRoute = state?.routes[state.index]?.name;
-                          if (!currentRoute || currentRoute === routeNameRef.current) {
-                            return;
-                          }
+                      <ToastProvider>
+                        <NavigationContainer
+                          ref={navigationRef}
+                          onReady={() => {
+                            const currentRoute = navigationRef.current?.getCurrentRoute()?.name || null;
+                            routeNameRef.current = currentRoute;
+                            if (currentRoute) {
+                              void trackScreenView(currentRoute);
+                            }
+                          }}
+                          onStateChange={(state) => {
+                            const currentRoute = state?.routes[state.index]?.name;
+                            if (!currentRoute || currentRoute === routeNameRef.current) {
+                              return;
+                            }
 
-                          const previousRoute = routeNameRef.current;
-                          if (previousRoute) {
-                            void trackNavigation(previousRoute, currentRoute, 'button');
-                          }
-                          routeNameRef.current = currentRoute;
-                          void trackScreenView(currentRoute);
-                          addBreadcrumb({
-                            category: 'navigation',
-                            message: `Navigated to ${currentRoute}`,
-                            level: 'info',
-                          });
-                        }}
-                      >
-                        <StatusBar style="dark" />
-                      <NetworkStatus />
-                      <LoadingOverlay />
-                      <BootRouter />
-                    </NavigationContainer>
-                  </OnboardingProvider>
-                </LoadingProvider>
-              </FeatureFlagProvider>
-            </AuthProvider>
+                            const previousRoute = routeNameRef.current;
+                            if (previousRoute) {
+                              void trackNavigation(previousRoute, currentRoute, 'button');
+                            }
+                            routeNameRef.current = currentRoute;
+                            void trackScreenView(currentRoute);
+                            addBreadcrumb({
+                              category: 'navigation',
+                              message: `Navigated to ${currentRoute}`,
+                              level: 'info',
+                            });
+                          }}
+                        >
+                          <StatusBar style="dark" />
+                          <NetworkStatus />
+                          <LoadingOverlay />
+                          <BootRouter />
+                        </NavigationContainer>
+                      </ToastProvider>
+                    </OnboardingProvider>
+                  </LoadingProvider>
+                </FeatureFlagProvider>
+              </AuthProvider>
           </SyncProvider>
         </DeviceProvider>
       </NetworkProvider>

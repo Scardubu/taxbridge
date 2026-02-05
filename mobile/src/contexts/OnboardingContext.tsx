@@ -7,6 +7,8 @@ export interface UserProfile {
   annualIncome: number | null;
   annualTurnover: number | null;
   businessType: 'sole_prop' | 'partnership' | 'considering_incorporation' | 'not_registered' | null;
+  industry: 'retail' | 'services' | 'manufacturing' | 'technology' | 'agriculture' | 'other' | null;
+  vatRegistered: boolean | null;
   completedAt: string | null;
 }
 
@@ -18,7 +20,11 @@ export interface UserPreferences {
 }
 
 export type OnboardingStepId =
+  | 'welcome'
   | 'profile'
+  | 'taxEngine'
+  | 'scanner'
+  // Legacy step IDs for migration compatibility
   | 'pit'
   | 'vatcit'
   | 'firs'
@@ -100,21 +106,23 @@ const LEGACY_STORAGE_KEYS = {
 type StorageKey = keyof typeof STORAGE_KEYS;
 
 const STEP_ID_ORDER: OnboardingStepId[] = [
+  'welcome',
   'profile',
-  'pit',
-  'vatcit',
-  'firs',
-  'gamification',
-  'community',
+  'taxEngine',
+  'scanner',
 ];
 
 const STEP_ID_MAP: Record<number, OnboardingStepId> = {
-  1: 'profile',
-  2: 'pit',
-  3: 'vatcit',
-  4: 'firs',
-  5: 'gamification',
-  6: 'community',
+  1: 'welcome',
+  2: 'profile',
+  3: 'taxEngine',
+  4: 'scanner',
+  // Legacy mappings for migration
+  5: 'pit',
+  6: 'vatcit',
+  7: 'firs',
+  8: 'gamification',
+  9: 'community',
 };
 
 function isStepId(value: unknown): value is OnboardingStepId {
@@ -246,6 +254,8 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     annualIncome: null,
     annualTurnover: null,
     businessType: null,
+    industry: null,
+    vatRegistered: null,
     completedAt: null,
   });
 
@@ -400,6 +410,8 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       annualIncome: null,
       annualTurnover: null,
       businessType: null,
+      industry: null,
+      vatRegistered: null,
       completedAt: null,
     };
 

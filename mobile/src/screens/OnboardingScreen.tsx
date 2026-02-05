@@ -39,12 +39,10 @@ import { LivingBridgeHeader } from '../components/header';
 import { colors, radii, spacing, typography } from '../theme/tokens';
 
 // Step components
+import WelcomeStep from '../components/onboarding/WelcomeStep';
 import ProfileAssessmentStep from '../components/onboarding/ProfileAssessmentStep';
-import PITTutorialStep from '../components/onboarding/PITTutorialStep';
-import VATCITAwarenessStep from '../components/onboarding/VATCITAwarenessStep';
-import FIRSDemoStep from '../components/onboarding/FIRSDemoStep';
-import GamificationStep from '../components/onboarding/GamificationStep';
-import CommunityStep from '../components/onboarding/CommunityStep';
+import TaxEngineDemo from '../components/onboarding/TaxEngineDemo';
+import OCRScannerDemo from '../components/onboarding/OCRScannerDemo';
 
 const APP_ICON = require('../../assets/icon.png');
 
@@ -75,46 +73,24 @@ interface StepProps {
 
 const STEPS: OnboardingStep[] = [
   {
+    id: 'welcome',
+    component: WelcomeStep,
+    canSkip: false,
+  },
+  {
     id: 'profile',
     component: ProfileAssessmentStep,
     canSkip: false,
     requiredFields: ['businessType'],
   },
   {
-    id: 'pit',
-    component: PITTutorialStep,
-    canSkip: false,
-  },
-  {
-    id: 'vatcit',
-    component: VATCITAwarenessStep,
-    canSkip: true,
-    gatingLogic: (profile) => {
-      return (
-        (profile.annualTurnover ?? 0) > 2_000_000 ||
-        profile.businessType === 'considering_incorporation'
-      );
-    },
-  },
-  {
-    id: 'firs',
-    component: FIRSDemoStep,
-    canSkip: true,
-    gatingLogic: (profile) => {
-      return (
-        (profile.annualIncome ?? 0) > 1_000_000 ||
-        profile.incomeSource === 'business'
-      );
-    },
-  },
-  {
-    id: 'gamification',
-    component: GamificationStep,
+    id: 'taxEngine',
+    component: TaxEngineDemo,
     canSkip: true,
   },
   {
-    id: 'community',
-    component: CommunityStep,
+    id: 'scanner',
+    component: OCRScannerDemo,
     canSkip: true,
   },
 ];

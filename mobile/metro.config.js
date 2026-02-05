@@ -24,8 +24,16 @@ config.watchFolders = [
 ];
 
 // Disable watchman on Windows to avoid watch mode startup failures
-config.watchman = {
-  enabled: false,
+// Use polling watcher as fallback to prevent timeout issues
+config.watcher = {
+  watchman: {
+    enabled: false,
+  },
+  healthCheck: {
+    enabled: true,
+    timeout: 60000, // 60 seconds timeout
+    filePrefix: '.metro-health-check',
+  },
 };
 
 // Force single React resolution (critical for hooks)

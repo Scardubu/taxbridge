@@ -14,7 +14,9 @@
       "resizeMode": "contain",
       "backgroundColor": "#FFFFFF"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "primaryColor": "#FFFFFF",
     "description": "Nigeria's first offline-first, NRS-compliant e-invoicing platform. Create tax-compliant invoices anywhere, sync later. Built for Nigerian SMEs.",
     "ios": {
@@ -42,7 +44,8 @@
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE",
         "android.permission.INTERNET",
-        "android.permission.ACCESS_NETWORK_STATE"
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.RECORD_AUDIO"
       ],
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
@@ -77,17 +80,17 @@
         }
       ]
     ],
-    "extra": {
-      "eas": {
-        "projectId": "fb2a2641-40b4-4741-bf52-b544d90ef1ba"
-      }
-    },
-    "owner": "scardubu",
+    "owner": "scartony357",
     "runtimeVersion": {
       "policy": "appVersion"
     },
     "updates": {
-      "url": "https://u.expo.dev/fb2a2641-40b4-4741-bf52-b544d90ef1ba"
+      "enabled": false
+    },
+    "extra": {
+      "eas": {
+        "projectId": "ab92bfbb-8bf0-44c7-848f-76e717be26b7"
+      }
     }
   }
 }

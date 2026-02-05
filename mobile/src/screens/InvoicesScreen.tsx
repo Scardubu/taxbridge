@@ -8,6 +8,8 @@ import * as Haptics from 'expo-haptics';
 import InvoiceCard from '../components/InvoiceCard';
 import SwipeableInvoiceCard from '../components/SwipeableInvoiceCard';
 import SyncStatusBar from '../components/SyncStatusBar';
+import { showToast } from '../components/ui/Toast';
+import { EmptyState } from '../components/ui/EmptyState';
 import type { LocalInvoiceRow } from '../types/invoice';
 import { colors, spacing, radii, typography, shadows } from '../theme/tokens';
 import { getInvoices, setInvoiceRetryMetadata, updateInvoiceStatus } from '../services/database';
@@ -64,7 +66,10 @@ function InvoicesScreen() {
 
     if (res.synced === 0 && res.failed === 0 && res.deferred === 0) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-      Alert.alert(t('invoices.sync'), t('invoices.noSyncPending'));
+      showToast({
+        type: 'info',
+        message: t('invoices.noSyncPending')
+      });
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
@@ -72,7 +77,10 @@ function InvoicesScreen() {
 
   const handleRetry = useCallback(async (id: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    Alert.alert(t('invoices.retrySync'), `${t('invoices.retrySync')} #${id.slice(-6).toUpperCase()}...`);
+    showToast({
+      type: 'info',
+      message: `${t('invoices.retrySync')} #${id.slice(-6).toUpperCase()}...`
+    });
 
     // Clear backoff metadata so it retries immediately.
     await updateInvoiceStatus(id, 'queued');
@@ -98,7 +106,11 @@ function InvoicesScreen() {
   const handleDelete = useCallback((id: string) => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     // Implementation would call a delete function from database service
-    Alert.alert(t('invoices.deleted'), t('invoices.removedFromLocal', { id: id.slice(-6).toUpperCase() }));
+    showToast({
+      type: 'success',
+      message: t('invoices.removedFromLocal', { id: id.slice(-6).toUpperCase() }),
+      haptic: 'success'
+    });
     load();
   }, [load, t]);
 
@@ -225,21 +237,29 @@ function InvoicesScreen() {
           )}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
           ListEmptyComponent={
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyIcon}>{activeFilter === 'failed' ? '✅' : '📄'}</Text>
-              <Text style={styles.emptyTitle}>
-                {activeFilter === 'all' 
+            <EmptyState
+              icon={activeFilter === 'failed' ? 'checkmark-circle-outline' : 'document-outline'}
+              title={
+                activeFilter === 'all' 
                   ? t('invoices.empty')
                   : activeFilter === 'pending'
                   ? t('invoices.noInvoicesPending')
-                  : t('invoices.noInvoicesFilter', { filter: filterOptions.find(f => f.key === activeFilter)?.label || activeFilter })}
-              </Text>
-              <Text style={styles.emptySubtitle}>
-                {activeFilter === 'all'
-                  ? t('invoices.noInvoicesAll').split('.')[1]?.trim() || ''
-                  : ''}
-              </Text>
-            </View>
+                  : activeFilter === 'synced'
+                  ? t('invoices.noInvoicesSynced')
+                  : t('invoices.noInvoicesFailed')
+              }
+              message={
+                activeFilter === 'all'
+                  ? t('home.noInvoicesText')
+                  : ''
+              }
+              action={
+                activeFilter === 'all' ? {
+                  label: t('home.createFirstInvoice'),
+                  onPress: () => {/* Navigate to create invoice */}
+                } : undefined
+              }
+            />
           }
           contentContainerStyle={filteredRows.length ? styles.listContent : styles.emptyContainer}
           showsVerticalScrollIndicator={false}

@@ -10,8 +10,12 @@ import {
   Platform,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import LottieView from 'lottie-react-native';
 import { useOnboarding } from '../../contexts/OnboardingContext';
+import { AnimatedTaxBracket } from './AnimatedTaxBracket';
 import { colors, spacing, radii, typography } from '../../theme/tokens';
+
+const PROFILE_ANIMATION = require('../../../assets/animations/profile.json');
 
 
 interface Props {
@@ -34,6 +38,15 @@ const BUSINESS_TYPES = [
   { value: 'not_registered', emoji: '📋' },
 ];
 
+const INDUSTRIES = [
+  { value: 'retail', emoji: '🛒' },
+  { value: 'services', emoji: '🧰' },
+  { value: 'manufacturing', emoji: '🏭' },
+  { value: 'technology', emoji: '💻' },
+  { value: 'agriculture', emoji: '🌾' },
+  { value: 'other', emoji: '🧾' },
+];
+
 function ProfileAssessmentStep({ onNext }: Props) {
   const { t } = useTranslation();
   const { updateProfile } = useOnboarding();
@@ -42,6 +55,8 @@ function ProfileAssessmentStep({ onNext }: Props) {
   const [annualIncome, setAnnualIncome] = useState('');
   const [annualTurnover, setAnnualTurnover] = useState('');
   const [businessType, setBusinessType] = useState<string | null>(null);
+  const [industry, setIndustry] = useState<string | null>(null);
+  const [vatRegistered, setVatRegistered] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleContinue = useCallback(async () => {
@@ -57,6 +72,8 @@ function ProfileAssessmentStep({ onNext }: Props) {
         annualIncome: income,
         annualTurnover: turnover,
         businessType: businessType as any,
+        industry: industry as any,
+        vatRegistered,
         completedAt: new Date().toISOString(),
       });
 
@@ -83,13 +100,24 @@ function ProfileAssessmentStep({ onNext }: Props) {
   const isValid = useMemo(() => {
     const hasIncome = incomeSource && annualIncome;
     const needsBusinessType = incomeSource === 'business' || incomeSource === 'mixed';
-    return hasIncome && (!needsBusinessType || businessType);
-  }, [incomeSource, annualIncome, businessType]);
+    const needsIndustry = incomeSource === 'business' || incomeSource === 'mixed';
+    return hasIncome && (!needsBusinessType || businessType) && (!needsIndustry || industry);
+  }, [incomeSource, annualIncome, businessType, industry]);
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>{t('onboarding.profile.title')}</Text>
-      <Text style={styles.subtitle}>{t('onboarding.profile.subtitle')}</Text>
+      {/* Animated Header */}
+      <View style={styles.header}>
+        <LottieView
+          source={PROFILE_ANIMATION}
+          autoPlay
+          loop={true}
+          style={styles.headerAnimation}
+          speed={0.8}
+        />
+        <Text style={styles.title}>{t('onboarding.profile.title')}</Text>
+        <Text style={styles.subtitle}>{t('onboarding.profile.subtitle')}</Text>
+      </View>
 
       {/* Income Source */}
       <View style={styles.section}>
@@ -189,6 +217,69 @@ function ProfileAssessmentStep({ onNext }: Props) {
         </View>
       )}
 
+      {/* Industry */}
+      {(incomeSource === 'business' || incomeSource === 'mixed') && (
+        <View style={styles.section}>
+          <Text style={styles.label}>{t('onboarding.profile.industry')}</Text>
+          <View style={styles.optionsGrid}>
+            {INDUSTRIES.map((sector) => (
+              <TouchableOpacity
+                key={sector.value}
+                style={[
+                  styles.optionButton,
+                  industry === sector.value && styles.optionButtonActive,
+                ]}
+                onPress={() => setIndustry(sector.value)}
+                accessibilityRole="button"
+                accessibilityState={{ selected: industry === sector.value }}
+              >
+                <Text style={styles.optionEmoji}>{sector.emoji}</Text>
+                <Text
+                  style={[
+                    styles.optionText,
+                    industry === sector.value && styles.optionTextActive,
+                  ]}
+                >
+                  {t(`onboarding.profile.${sector.value}`)}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          <Text style={styles.hint}>{t('onboarding.profile.industryHint')}</Text>
+        </View>
+      )}
+
+      {/* VAT Registration */}
+      {(incomeSource === 'business' || incomeSource === 'mixed') && (
+        <View style={styles.section}>
+          <Text style={styles.label}>{t('onboarding.profile.vatRegistered')}</Text>
+          <View style={styles.toggleRow}>
+            <TouchableOpacity
+              style={[styles.toggle, vatRegistered && styles.toggleActive]}
+              onPress={() => setVatRegistered((prev) => !prev)}
+              accessibilityRole="switch"
+              accessibilityState={{ checked: vatRegistered }}
+            >
+              <View style={[styles.toggleThumb, vatRegistered && styles.toggleThumbActive]} />
+            </TouchableOpacity>
+            <Text style={styles.toggleValue}>
+              {vatRegistered
+                ? t('onboarding.profile.vatRegisteredYes')
+                : t('onboarding.profile.vatRegisteredNo')}
+            </Text>
+          </View>
+          <Text style={styles.hint}>{t('onboarding.profile.vatRegisteredHint')}</Text>
+        </View>
+      )}
+
+      {(incomeSource === 'business' || incomeSource === 'mixed') && (
+        <AnimatedTaxBracket
+          industry={industry}
+          annualTurnover={annualTurnover ? parseFloat(annualTurnover.replace(/,/g, '')) : null}
+          vatRegistered={vatRegistered}
+        />
+      )}
+
       {/* Continue Button */}
       <TouchableOpacity
         style={[
@@ -216,17 +307,29 @@ const styles = StyleSheet.create({
   container: {
     paddingTop: spacing.xl,
   },
+  header: {
+    alignItems: 'center',
+    marginBottom: spacing.lg,
+  },
+  headerAnimation: {
+    width: 120,
+    height: 120,
+    marginBottom: spacing.md,
+  },
   title: {
     fontSize: typography.size.xxl + 2,
     fontWeight: typography.weight.bold,
     color: colors.textPrimary,
     marginBottom: spacing.sm,
+    textAlign: 'center',
   },
   subtitle: {
     fontSize: typography.size.md,
     color: colors.textMuted,
     marginBottom: spacing.xxl + spacing.sm,
     lineHeight: 24,
+    textAlign: 'center',
+    paddingHorizontal: spacing.md,
   },
   section: {
     marginBottom: spacing.xxl + spacing.xs,
@@ -244,6 +347,35 @@ const styles = StyleSheet.create({
   },
   optionsColumn: {
     gap: spacing.sm,
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  toggle: {
+    width: 52,
+    height: 30,
+    borderRadius: 16,
+    backgroundColor: colors.borderSubtle,
+    padding: 3,
+  },
+  toggleActive: {
+    backgroundColor: colors.primary,
+  },
+  toggleThumb: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: colors.surface,
+  },
+  toggleThumbActive: {
+    alignSelf: 'flex-end',
+  },
+  toggleValue: {
+    fontSize: typography.size.sm,
+    fontWeight: typography.weight.semibold,
+    color: colors.textSecondary,
   },
   optionButton: {
     paddingHorizontal: spacing.md,
