@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -9,6 +9,7 @@ import Animated, {
 import { useTranslation } from 'react-i18next';
 import { useLoading } from '../contexts/LoadingContext';
 import { colors, spacing, radii, typography, shadows } from '../theme/tokens';
+import { SkeletonLoader } from './ui/SkeletonLoader';
 
 export default function LoadingOverlay() {
   const { t } = useTranslation();
@@ -51,7 +52,7 @@ export default function LoadingOverlay() {
   return (
     <Animated.View style={[styles.overlay, animatedStyle]}>
       <Animated.View style={[styles.content, contentStyle]}>
-        <ActivityIndicator size="large" color={colors.primary} />
+        <SkeletonLoader type="inline-lg" count={1} />
         <Text style={styles.message}>
           {loadingMessage || t('common.loading')}
         </Text>

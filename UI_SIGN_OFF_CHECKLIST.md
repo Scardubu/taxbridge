@@ -3,7 +3,7 @@
 **Date:** January 24, 2026  
 **Status:** 🟢 **READY FOR PRODUCTION APPROVAL**  
 **Phase:** Final UI Lockdown (Phase C Complete)
-**Last Updated:** January 24, 2026 (Session 3 - Header Layout Fix & Production Polish)
+**Last Updated:** January 26, 2026 (Session 5 - i18n Hardcoded String Sweep & Button Visibility Fix)
 
 ---
 
@@ -13,7 +13,42 @@ This document serves as the official UI/UX compliance verification for TaxBridge
 
 **Overall Status:** ✅ **APPROVED FOR F6 DEPLOYMENT**
 
-### Latest Update (v5.0.4)
+### Latest Update (v5.0.5)
+
+**i18n Hardcoded String Sweep (Session 5):**
+- ✅ SettingsScreen: Extracted 17 hardcoded strings to i18n (en.json + pidgin.json)
+  - Language & Accessibility, Data & Storage, Network & Sync section titles
+  - Clear Synced Data, Export Your Data, Community section text
+  - All accessibility labels and helper text
+  - Alert.alert community join dialog text
+  - Refer & Earn card content
+- ✅ InsightsCarousel: Extracted 21 hardcoded strings to i18n
+  - All insight card titles, descriptions, action labels, metric labels
+  - Section header and swipe hint
+  - Sync status dynamic text with interpolation
+- ✅ InvoiceCard: Added useTranslation hook, extracted 2 hardcoded strings
+  - "Walk-in customer" fallback → t('create.walkInCustomer')
+  - "Offline" indicator → t('common.offlineMode')
+- ✅ ChatbotScreen: Moved welcome messages from inline Record to i18n
+  - 5 language variants consolidated into single t('chatbot.welcomeMessage')
+- ✅ BrandedHero: Fixed default props to use i18n instead of hardcoded English
+  - title/subtitle defaults now resolve via t('common.taxbridgeName') / t('common.taxbridgeSlogan')
+- ✅ StatusBadge: Added useTranslation hook, status text now i18n-ized
+  - Raw .toUpperCase() enum → t('common.{status}').toUpperCase()
+- ✅ DashboardScreen: Footer version text extracted to i18n
+  - "TaxBridge V5.0.4" → t('settings.appName', { version: '5.0.4' })
+
+**Receipt Scanner Button Visibility Fix:**
+- ✅ Changed scan button variant from "secondary" to "primary" (blue background)
+- ✅ Added minWidth: 100 to prevent excessive compression on small screens
+- ✅ Added accessibilityHint for scan button (t('create.scanReceiptHint'))
+- ✅ common.scan key already includes 📷 camera emoji for visual affordance
+
+**Validation:**
+- ✅ TypeScript compilation: 0 errors across all modified files
+- ✅ All i18n keys added to both en.json and pidgin.json with parity
+
+**Previous Update (v5.0.4):**
 
 **Header Layout Fix:**
 - ✅ Fixed logo and "Welcome back" text overlapping in compact mode

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Image, ImageProps, ActivityIndicator, View, StyleSheet, StyleProp, ViewStyle } from 'react-native';
+import { Image, ImageProps, View, StyleSheet, StyleProp, ViewStyle } from 'react-native';
 import { colors } from '../../theme/tokens';
+import { SkeletonLoader } from './SkeletonLoader';
 
 interface OptimizedImageProps extends ImageProps {
   fallbackSource?: ImageProps['source'];
@@ -31,7 +32,7 @@ export function OptimizedImage({
       />
       {loading && showLoader && (
         <View style={styles.loader}>
-          <ActivityIndicator color={colors.primary} />
+          <SkeletonLoader type="image" count={1} />
         </View>
       )}
     </View>

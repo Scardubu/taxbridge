@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
-  ActivityIndicator,
   Modal,
   Pressable,
   KeyboardAvoidingView,
@@ -21,6 +20,7 @@ import { useTranslation } from 'react-i18next';
 import { colors, spacing, typography, radii } from '../theme/tokens';
 import { useNetwork } from '../contexts/NetworkContext';
 import { addBreadcrumb } from '../services/sentry';
+import { SkeletonLoader } from '../components/ui/SkeletonLoader';
 
 // Optional imports - graceful degradation
 let Icon: React.ComponentType<any> | null = null;
@@ -146,18 +146,8 @@ export default function ChatbotScreen({
    * Get context-aware welcome message based on language
    */
   const getWelcomeMessage = useCallback((): string => {
-    const lang = i18n.language;
-    
-    const welcomeMessages: Record<string, string> = {
-      en: 'Hello! I am TaxBridge AI, your tax assistant. How can I help you today?',
-      pidgin: 'Wetin dey happen! I be TaxBridge AI, your tax helper. How I fit help you?',
-      ig: 'Nnọọ! M bụ TaxBridge AI enyịocha ụtụ isi. Otu m ga-enyere gị aka?',
-      ha: 'Sannu! Ni TaxBridge AI mai tazarar haraji. Yaya zan iya taimaka ka?',
-      yo: 'Ẹ káàbọ̀! Èmi ni TaxBridge AI, olùrànlọ́wọ́ owó orí. Báwo ni mo ṣe lè ran ọ́ lọ́wọ́?',
-    };
-
-    return welcomeMessages[lang] || welcomeMessages.en;
-  }, [i18n.language]);
+    return t('chatbot.welcomeMessage');
+  }, [t]);
 
   /**
    * Initialize voice recognition
@@ -683,11 +673,9 @@ export default function ChatbotScreen({
             </Text>
             
             {isSending && (
-              <ActivityIndicator 
-                size="small" 
-                color={message.isUser ? colors.surface : colors.primary} 
-                style={styles.sendingIndicator}
-              />
+              <View style={styles.sendingIndicator}>
+                <SkeletonLoader type="inline" count={1} />
+              </View>
             )}
             
             {isError && (
@@ -787,7 +775,7 @@ export default function ChatbotScreen({
         {isTyping && (
           <View style={[styles.messageContainer, styles.botMessage]}>
             <View style={styles.typingIndicator}>
-              <ActivityIndicator size="small" color={colors.primary} />
+              <SkeletonLoader type="inline" count={1} />
               <Text style={styles.typingText}>{t('chatbot.typing')}</Text>
             </View>
           </View>

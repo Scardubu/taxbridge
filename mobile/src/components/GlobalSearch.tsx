@@ -26,7 +26,6 @@ import {
   FlatList,
   Keyboard,
   Dimensions,
-  ActivityIndicator,
 } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -41,6 +40,7 @@ import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors, spacing, radii, typography, shadows } from '../theme/tokens';
 import { trackEvent } from '../services/analytics';
+import { SkeletonLoader } from './ui/SkeletonLoader';
 
 const { width } = Dimensions.get('window');
 
@@ -404,7 +404,9 @@ function GlobalSearch({
             accessibilityLabel={t('search.placeholder')}
           />
           {isLoading && (
-            <ActivityIndicator size="small" color={colors.primary} style={styles.loader} />
+            <View style={styles.loader}>
+              <SkeletonLoader type="inline" count={1} />
+            </View>
           )}
           {query.length > 0 && !isLoading && (
             <Pressable

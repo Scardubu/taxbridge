@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Image,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
@@ -221,7 +220,7 @@ export default function OCRScannerDemo({
       </View>
 
       {/* Try Scanning CTA */}
-      {!showExtractedData && onLaunchScanner && (
+      {!showExtractedData && (
         <TouchableOpacity
           style={styles.tryScanButton}
           onPress={handleTryScanning}

@@ -39,6 +39,33 @@
     "invoicesTab": "Invoice list tab",
     "settingsTab": "Settings tab"
   },
+  "insights": {
+    "sectionTitle": "Tips & Gist",
+    "swipeHint": "Swipe →",
+    "readyToSync": "Ready to Sync",
+    "pendingSync": "E Dey Wait Sync",
+    "syncDescription": "{{count}} invoice(s) dey wait to sync when {{condition}}",
+    "syncConditionTap": "you press sync",
+    "syncConditionOnline": "network come",
+    "syncNow": "Sync Now",
+    "viewPending": "See Pending",
+    "pending": "pending",
+    "taxTipTitle": "Tax Tip: ₦800K No Tax",
+    "taxTipDesc": "Money wey no reach ₦800,000 for year no get tax under Nigeria Tax Act 2025. Know your limit!",
+    "learnMore": "Learn More",
+    "stayCompliant": "Stay Correct",
+    "complianceDesc": "Your invoices don ready for NRS. Start e-invoicing when your money pass ₦100M.",
+    "invoices": "invoices",
+    "yourProgress": "Your Progress",
+    "progressDesc": "Finish the tax tutorial to unlock Tax Pro badge and learn how to save more!",
+    "viewAchievements": "See Achievements",
+    "joinSMEs": "Join 2,000+ Business People",
+    "communityDesc": "Connect with traders and business owners wey dey share tax tips for our WhatsApp group.",
+    "joinCommunity": "Join Community",
+    "referEarn": "Refer & Earn",
+    "referDesc": "Invite 3 traders, earn ₦500 each. Dem go get 1 free tax consultation!",
+    "shareCode": "Share Code"
+  },
   "accessibility": {
     "nav": {
       "back": "Go back",
@@ -177,6 +204,7 @@
     "complianceNotice": "Dis invoice go queue for NRS submission through DigiTax when network come.",
     "captureReceipt": "Snap receipt",
     "captureReceiptHint": "Snap receipt picture make we get di invoice info for you",
+    "scanReceiptHint": "Scan receipt or invoice make we fill di item details for you",
     "editingItem": "Dey Edit Item",
     "draftFound": "Draft Dey",
     "draftFoundDesc": "You get invoice wey you never save. You wan restore am?",
@@ -212,6 +240,11 @@
     "useThisData": "Use This Data",
     "retake": "Snap Again",
     "manualEntry": "Enter By Yourself",
+    "placeholders": {
+      "merchant": "Put merchant name",
+      "amount": "0.00",
+      "date": "DD/MM/YYYY"
+    },
     "tipLighting": "💡 Tip: Use good light and put receipt for flat place make e clear well",
     "offlineMode": "Offline OCR (Phone Go Process)",
     "onlineMode": "Better OCR (Cloud Go Process)",
@@ -278,7 +311,15 @@
     "copyDetails": "Copy Details",
     "deleted": "Don Delete",
     "removedFromLocal": "Invoice {{id}} don comot from phone",
-    "noSyncPending": "No invoice dey wait make e sync"
+    "noSyncPending": "No invoice dey wait make e sync",
+    "actionRetry": "Try Again",
+    "actionShare": "Share",
+    "actionDelete": "Delete",
+    "syncFailedTap": "Sync fail - tap make you try again",
+    "pendingSync": "Pending sync",
+    "swipeHint": "← Swipe for actions →",
+    "itemsCount": "{{count}} item",
+    "itemsCount_plural": "{{count}} items"
   },
   "settings": {
     "title": "Settings",
@@ -360,6 +401,28 @@
     "storageInvoices": "{{count}} invoices",
     "storageSynced": "Don sync ({{count}})",
     "storagePending": "Pending ({{count}})",
+    "languageAndAccessibility": "Language & Accessibility",
+    "languageHelperText": "Pick the language wey you prefer for the app",
+    "dataAndStorage": "Data & Storage",
+    "clearSyncedDataTitle": "Clear Synced Data",
+    "clearSyncedDataSubtitle": "Free up local storage",
+    "clearSyncedDataA11y": "Clear synced data to free up local storage",
+    "exporting": "Dey export...",
+    "exportYourData": "Export Your Data",
+    "exportSubtitle": "Download invoices as CSV",
+    "exportA11y": "Export your invoices as CSV",
+    "networkAndSync": "Network & Sync",
+    "apiUrlA11y": "API server URL input",
+    "exportInvoices": "Export Invoices",
+    "exportFailed": "Export no work",
+    "communityTitle": "Community",
+    "joinCommunityTitle": "Join TaxBridge Community",
+    "joinCommunityDesc": "Connect with 2,000+ Nigerian business people wey dey share tax tips and support.",
+    "joinSMEs": "Join 2,000+ Business People",
+    "communitySubtitle": "Tax tips, support & networking",
+    "referEarnTitle": "Refer & Earn",
+    "referEarnDesc": "Invite 3 traders, earn ₦500 each. Dem go get 1 free tax consultation!",
+    "mainContent": "Settings screen main content",
     "appName": "TaxBridge v{{version}}",
     "appTagline": "Make your taxes simple, bridge your future",
     "copyright": "© 2026 TaxBridge. All rights reserved."
@@ -444,6 +507,17 @@
     "validation": {
       "title": "Information Never Complete",
       "message": "Abeg complete all the required things before you continue"
+    },
+    "errors": {
+      "invalidStep": "Onboarding step no correct",
+      "tryAgain": "Abeg try again",
+      "skipAllFailed": "We no fit skip onboarding",
+      "required": {
+        "businessType": "Business type dey required",
+        "incomeSource": "Income source dey required",
+        "annualIncome": "Annual income dey required",
+        "industry": "Industry dey required"
+      }
     },
     "avgSetupValue": "30s",
     "avgSetupLabel": "Avg setup",
@@ -809,6 +883,14 @@
     "paymentReady": "Payment Ready",
     "paymentReadyDesc": "Your RRR: {{rrr}}\nAmount: ₦{{amount}}\n\nMake you go Remita to finish payment.",
     "proceedToPayment": "Proceed to Payment",
+    "viaRemita": "via Remita",
+    "invoiceIdLabel": "Invoice ID",
+    "customerLabel": "Customer",
+    "statusTitle": "Payment Status",
+    "statusMessage": "Current status: {{status}}\n\nIf you don pay for Remita, status go update soon.",
+    "statusFailed": "No fit check status",
+    "generateDifferent": "Generate Another RRR",
+    "generateFailed": "No fit generate RRR",
     "rrrLabel": "Your Payment Code (RRR)",
     "rrrHint": "Keep this code for reference",
     "nextSteps": "Next Steps:",
@@ -825,7 +907,8 @@
     "rrrDisclaimer": "Remita payment links secure and SystemSpecs dey handle am. TaxBridge no dey keep card info."
   },
   "chatbot": {
-    "placeholder": "Ask question about tax, invoice, payment..."
+    "placeholder": "Ask question about tax, invoice, payment...",
+    "welcomeMessage": "Wetin dey happen! I be TaxBridge AI, your tax helper. How I fit help you?"
   },
   "placeholders": {
     "customerName": "e.g. Aisha Mohammed",

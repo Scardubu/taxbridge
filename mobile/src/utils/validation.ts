@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Alert } from 'react-native';
+import { showToast } from '../components/ui/Toast';
 
 interface ValidationRule {
   required?: boolean;
@@ -166,5 +166,10 @@ export const validationRules = {
 };
 
 export function showValidationError(title: string, message: string) {
-  Alert.alert(title, message, [{ text: 'OK', style: 'default' }]);
+  const combinedMessage = title ? `${title}: ${message}` : message;
+  showToast({
+    type: 'error',
+    message: combinedMessage,
+    haptic: 'error',
+  });
 }

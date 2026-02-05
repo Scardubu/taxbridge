@@ -580,8 +580,8 @@ function SettingsScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     
     Alert.alert(
-      'Join TaxBridge Community',
-      'Connect with 2,000+ Nigerian SMEs sharing tax tips and best practices.',
+      t('settings.joinCommunityTitle'),
+      t('settings.joinCommunityDesc'),
       [
         { text: t('settings.cancel'), style: 'cancel' },
         { 
@@ -658,7 +658,7 @@ function SettingsScreen() {
         <Animated.View entering={FadeInDown.duration(300).delay(200)}>
           <SectionHeader
             icon="🌍"
-            title={`${t('settings.language')} & Accessibility`}
+            title={t('settings.languageAndAccessibility')}
             expanded={expandedSection === 'language'}
             onPress={() => toggleSection('language')}
           />
@@ -692,7 +692,7 @@ function SettingsScreen() {
                 </Pressable>
               </View>
               <Text style={styles.helperText}>
-                Choose your preferred language for the app interface
+                {t('settings.languageHelperText')}
               </Text>
             </Animated.View>
           )}
@@ -702,7 +702,7 @@ function SettingsScreen() {
         <Animated.View entering={FadeInDown.duration(300).delay(300)}>
           <SectionHeader
             icon="💾"
-            title="Data & Storage"
+            title={t('settings.dataAndStorage')}
             expanded={expandedSection === 'data'}
             onPress={() => toggleSection('data')}
           />
@@ -717,12 +717,12 @@ function SettingsScreen() {
                   onPress={handleClearSyncedData}
                   accessible={true}
                   accessibilityRole="button"
-                  accessibilityLabel="Clear synced data to free up local storage"
+                  accessibilityLabel={t('settings.clearSyncedDataA11y')}
                 >
                   <Text style={styles.actionIcon}>🗑️</Text>
                   <View>
-                    <Text style={styles.actionTitle}>Clear Synced Data</Text>
-                    <Text style={styles.actionSubtitle}>Free up local storage</Text>
+                    <Text style={styles.actionTitle}>{t('settings.clearSyncedDataTitle')}</Text>
+                    <Text style={styles.actionSubtitle}>{t('settings.clearSyncedDataSubtitle')}</Text>
                   </View>
                 </Pressable>
                 <Pressable 
@@ -731,14 +731,14 @@ function SettingsScreen() {
                   disabled={isExporting}
                   accessible={true}
                   accessibilityRole="button"
-                  accessibilityLabel="Export your invoices as CSV"
+                  accessibilityLabel={t('settings.exportA11y')}
                 >
                   <Text style={styles.actionIcon}>📤</Text>
                   <View>
                     <Text style={styles.actionTitle}>
-                      {isExporting ? 'Exporting...' : 'Export Your Data'}
+                      {isExporting ? t('settings.exporting') : t('settings.exportYourData')}
                     </Text>
-                    <Text style={styles.actionSubtitle}>Download invoices as CSV</Text>
+                    <Text style={styles.actionSubtitle}>{t('settings.exportSubtitle')}</Text>
                   </View>
                 </Pressable>
               </View>
@@ -750,7 +750,7 @@ function SettingsScreen() {
         <Animated.View entering={FadeInDown.duration(300).delay(400)}>
           <SectionHeader
             icon="🔄"
-            title="Network & Sync"
+            title={t('settings.networkAndSync')}
             expanded={expandedSection === 'network'}
             onPress={() => toggleSection('network')}
           />
@@ -768,7 +768,7 @@ function SettingsScreen() {
                 autoCapitalize="none"
                 autoCorrect={false}
                 accessible={true}
-                accessibilityLabel="API URL"
+                accessibilityLabel={t('settings.apiUrlA11y')}
               />
               {errors.apiUrl && touched.apiUrl && (
                 <Text style={styles.errorText}>{errors.apiUrl}</Text>
@@ -970,7 +970,7 @@ function SettingsScreen() {
         <Animated.View entering={FadeInDown.duration(300).delay(500)}>
           <SectionHeader
             icon="👥"
-            title="Community"
+            title={t('settings.communityTitle')}
             expanded={expandedSection === 'community'}
             onPress={() => toggleSection('community')}
           />
@@ -981,8 +981,8 @@ function SettingsScreen() {
                 <View style={styles.communityHeader}>
                   <Text style={styles.communityIcon}>🌉</Text>
                   <View>
-                    <Text style={styles.communityTitle}>Join 2,000+ SMEs</Text>
-                    <Text style={styles.communitySubtitle}>Tax tips, support & networking</Text>
+                    <Text style={styles.communityTitle}>{t('settings.joinSMEs')}</Text>
+                    <Text style={styles.communitySubtitle}>{t('settings.communitySubtitle')}</Text>
                   </View>
                 </View>
                 <Text style={styles.communityArrow}>→</Text>
@@ -991,9 +991,9 @@ function SettingsScreen() {
               <View style={styles.referralCard}>
                 <Text style={styles.referralIcon}>🎁</Text>
                 <View style={styles.referralInfo}>
-                  <Text style={styles.referralTitle}>Refer & Earn</Text>
+                  <Text style={styles.referralTitle}>{t('settings.referEarnTitle')}</Text>
                   <Text style={styles.referralText}>
-                    Invite 3 traders and earn ₦500 each. They get 1 free tax consultation!
+                    {t('settings.referEarnDesc')}
                   </Text>
                 </View>
               </View>

@@ -2,6 +2,7 @@ import * as FileSystem from 'expo-file-system';
 import type { InvoiceItem } from '../types/invoice';
 
 export interface OCRResult {
+  vendor?: string;
   amount?: number;
   date?: string;
   items?: InvoiceItem[];
@@ -95,6 +96,7 @@ export async function extractReceiptData(
       const data = await response.json();
       
       return {
+        vendor: data.vendor,
         amount: data.amount,
         date: data.date,
         items: data.items,

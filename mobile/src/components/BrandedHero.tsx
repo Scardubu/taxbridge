@@ -26,8 +26,8 @@ interface BrandedHeroProps {
 }
 
 function BrandedHero({
-  title = 'TaxBridge',
-  subtitle = 'Simplify Your Taxes, Bridge Your Future',
+  title,
+  subtitle,
   showProgress = false,
   progress = 0,
   showOfflineIndicator = true,
@@ -36,6 +36,8 @@ function BrandedHero({
   logoSource = defaultLogo,
 }: BrandedHeroProps) {
   const { t } = useTranslation();
+  const resolvedTitle = title ?? t('common.taxbridgeName');
+  const resolvedSubtitle = subtitle ?? t('common.taxbridgeSlogan');
   const pulseScale = useSharedValue(1);
 
   React.useEffect(() => {
@@ -93,10 +95,10 @@ function BrandedHero({
         </Animated.View>
 
         {/* Brand Title */}
-        <Text style={[styles.title, isCompact && styles.titleCompact]}>{title}</Text>
+        <Text style={[styles.title, isCompact && styles.titleCompact]}>{resolvedTitle}</Text>
         
         {/* Tagline */}
-        {!isCompact && <Text style={styles.subtitle}>{subtitle}</Text>}
+        {!isCompact && <Text style={styles.subtitle}>{resolvedSubtitle}</Text>}
 
         {/* Progress Ring/Bar */}
         {showProgress && (

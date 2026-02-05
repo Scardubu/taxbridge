@@ -5,12 +5,12 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  ActivityIndicator,
   Image,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { useOnboarding } from '../../contexts/OnboardingContext';
 import { colors, spacing, radii, typography } from '../../theme/tokens';
+import { SkeletonLoader } from '../ui/SkeletonLoader';
 import {
   stampInvoiceMock,
   generateSampleInvoice,
@@ -95,7 +95,7 @@ export default function FIRSDemoStep({ onNext, onSkip }: Props) {
 
           {isLoading && (
             <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color={colors.primary} />
+              <SkeletonLoader type="inline-lg" count={1} />
               <Text style={styles.loadingText}>{t('onboarding.firs.processing')}</Text>
             </View>
           )}

@@ -182,8 +182,9 @@ function LivingBridgeHeader({
   const displayTitle = title ?? t('common.taxbridgeName');
   const displaySubtitle = subtitle ?? t('common.taxbridgeSlogan');
 
-  const headerHeight = isCompact ? 140 : isOnboarding ? 260 : 220;
-  const showBgArc = !isCompact;
+  // Optimized heights: onboarding is more compact (110px) to reduce distraction
+  const headerHeight = isCompact ? 80 : isOnboarding ? 110 : 220;
+  const showBgArc = !isCompact && !isOnboarding; // Hide arc in onboarding for cleaner look
 
   return (
     <View style={[styles.container, { minHeight: headerHeight }]}>
@@ -250,12 +251,12 @@ function LivingBridgeHeader({
         </View>
 
         {/* Brand Section: Logo + Title */}
-        <View style={[styles.brandSection, isCompact && styles.brandSectionCompact]}>
+        <View style={[styles.brandSection, (isCompact || isOnboarding) && styles.brandSectionCompact]}>
           <Animated.View style={[styles.logoContainer, logoAnimatedStyle]}>
-            <View style={[styles.logoCircle, isCompact && styles.logoCircleCompact]}>
+            <View style={[styles.logoCircle, (isCompact || isOnboarding) && styles.logoCircleCompact]}>
               <Image
                 source={logoSource}
-                style={[styles.logoImage, isCompact && styles.logoImageCompact]}
+                style={[styles.logoImage, (isCompact || isOnboarding) && styles.logoImageCompact]}
                 resizeMode="contain"
                 accessible
                 accessibilityRole="image"
@@ -265,10 +266,10 @@ function LivingBridgeHeader({
           </Animated.View>
 
           <View style={styles.brandText}>
-            <Text style={[styles.title, isCompact && styles.titleCompact]}>
+            <Text style={[styles.title, (isCompact || isOnboarding) && styles.titleCompact]}>
               {displayTitle}
             </Text>
-            <Text style={[styles.subtitle, isCompact && styles.subtitleCompact]}>{displaySubtitle}</Text>
+            <Text style={[styles.subtitle, (isCompact || isOnboarding) && styles.subtitleCompact]}>{displaySubtitle}</Text>
           </View>
 
           {/* Metric Chip (right side) */}

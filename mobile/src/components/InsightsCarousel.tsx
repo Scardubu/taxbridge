@@ -45,13 +45,16 @@ function InsightsCarousel({
       cards.push({
         id: 'sync_status',
         type: 'sync_status',
-        title: isOnline ? 'Ready to Sync' : 'Pending Sync',
-        description: `${pendingCount} invoice${pendingCount > 1 ? 's' : ''} waiting to sync when ${isOnline ? 'you tap sync' : 'online'}`,
+        title: isOnline ? t('insights.readyToSync') : t('insights.pendingSync'),
+        description: t('insights.syncDescription', {
+          count: pendingCount,
+          condition: isOnline ? t('insights.syncConditionTap') : t('insights.syncConditionOnline'),
+        }),
         icon: isOnline ? '🔄' : '📵',
         gradient: isOnline ? 'green' : 'orange',
-        actionLabel: isOnline ? 'Sync Now' : 'View Pending',
+        actionLabel: isOnline ? t('insights.syncNow') : t('insights.viewPending'),
         metric: pendingCount.toString(),
-        metricLabel: 'pending',
+        metricLabel: t('insights.pending'),
       });
     }
 
@@ -59,11 +62,11 @@ function InsightsCarousel({
     cards.push({
       id: 'tax_tip_1',
       type: 'tax_tip',
-      title: 'Tax Tip: ₦800K Exemption',
-      description: 'Income below ₦800,000/year is tax-free under Nigeria Tax Act 2025. Know your thresholds!',
+      title: t('insights.taxTipTitle'),
+      description: t('insights.taxTipDesc'),
       icon: '💡',
       gradient: 'blue',
-      actionLabel: 'Learn More',
+      actionLabel: t('insights.learnMore'),
     });
 
     // Compliance Reminder
@@ -71,12 +74,12 @@ function InsightsCarousel({
       cards.push({
         id: 'compliance',
         type: 'compliance_reminder',
-        title: 'Stay Compliant',
-        description: 'Your invoices are NRS-ready. Enable e-invoicing when turnover exceeds ₦100M.',
+        title: t('insights.stayCompliant'),
+        description: t('insights.complianceDesc'),
         icon: '✅',
         gradient: 'green',
         metric: invoiceCount.toString(),
-        metricLabel: 'invoices',
+        metricLabel: t('insights.invoices'),
       });
     }
 
@@ -84,37 +87,37 @@ function InsightsCarousel({
     cards.push({
       id: 'achievement',
       type: 'achievement',
-      title: 'Your Progress',
-      description: 'Complete the tax tutorial to unlock the Tax Pro badge and learn more savings tips!',
+      title: t('insights.yourProgress'),
+      description: t('insights.progressDesc'),
       icon: '🏆',
       gradient: 'purple',
-      actionLabel: 'View Achievements',
+      actionLabel: t('insights.viewAchievements'),
     });
 
     // Community Card
     cards.push({
       id: 'community',
       type: 'community',
-      title: 'Join 2,000+ SMEs',
-      description: 'Connect with traders and business owners sharing tax tips in our WhatsApp community.',
+      title: t('insights.joinSMEs'),
+      description: t('insights.communityDesc'),
       icon: '👥',
       gradient: 'green',
-      actionLabel: 'Join Community',
+      actionLabel: t('insights.joinCommunity'),
     });
 
     // Referral Card
     cards.push({
       id: 'referral',
       type: 'referral',
-      title: 'Refer & Earn',
-      description: 'Invite 3 traders and earn ₦500 each. They get 1 free tax consultation!',
+      title: t('insights.referEarn'),
+      description: t('insights.referDesc'),
       icon: '🎁',
       gradient: 'orange',
-      actionLabel: 'Share Code',
+      actionLabel: t('insights.shareCode'),
     });
 
     return cards;
-  }, [invoiceCount, pendingCount, isOnline]);
+  }, [invoiceCount, pendingCount, isOnline, t]);
 
   const handleAction = useCallback((card: InsightData) => {
     switch (card.type) {
@@ -157,8 +160,8 @@ function InsightsCarousel({
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.sectionTitle}>Insights & Tips</Text>
-        <Text style={styles.swipeHint}>Swipe →</Text>
+        <Text style={styles.sectionTitle}>{t('insights.sectionTitle')}</Text>
+        <Text style={styles.swipeHint}>{t('insights.swipeHint')}</Text>
       </View>
       <FlatList
         data={insights}

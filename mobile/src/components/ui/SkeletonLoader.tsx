@@ -6,13 +6,13 @@ import Animated, {
   FadeIn,
   FadeOut,
 } from 'react-native-reanimated';
-import { colors, spacing, radii } from '../../theme/tokens';
+import { colors, spacing, radii, shadows, sizes } from '../../theme/tokens';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const SKELETON_ANIMATION_DURATION = 1200;
 
 interface SkeletonLoaderProps {
-  type: 'invoice-card' | 'dashboard' | 'list-item';
+  type: 'invoice-card' | 'dashboard' | 'list-item' | 'inline' | 'inline-lg' | 'button' | 'image';
   count?: number;
   animated?: boolean;
 }
@@ -48,10 +48,20 @@ export const SkeletonLoader = memo<SkeletonLoaderProps>(({
         return <DashboardSkeleton style={animated ? animatedStyle : {}} />;
       case 'list-item':
         return <ListItemSkeleton style={animated ? animatedStyle : {}} />;
+      case 'inline':
+        return <InlineSkeleton style={animated ? animatedStyle : {}} />;
+      case 'inline-lg':
+        return <InlineLargeSkeleton style={animated ? animatedStyle : {}} />;
+      case 'button':
+        return <ButtonSkeleton style={animated ? animatedStyle : {}} />;
+      case 'image':
+        return <ImageSkeleton style={animated ? animatedStyle : {}} />;
       default:
         return null;
     }
   };
+
+  const isCompact = type === 'inline' || type === 'inline-lg' || type === 'button' || type === 'image';
 
   return (
     <Animated.View 
@@ -59,11 +69,15 @@ export const SkeletonLoader = memo<SkeletonLoaderProps>(({
       entering={FadeIn}
       exiting={FadeOut}
     >
-      {Array.from({ length: count }).map((_, index) => (
-        <View key={index} style={styles.skeletonWrapper}>
-          {renderSkeleton()}
-        </View>
-      ))}
+      {isCompact ? (
+        renderSkeleton()
+      ) : (
+        Array.from({ length: count }).map((_, index) => (
+          <View key={index} style={styles.skeletonWrapper}>
+            {renderSkeleton()}
+          </View>
+        ))
+      )}
     </Animated.View>
   );
 });
@@ -108,6 +122,22 @@ const ListItemSkeleton = ({ style }: { style?: any }) => (
   </Animated.View>
 );
 
+const InlineSkeleton = ({ style }: { style?: any }) => (
+  <Animated.View style={[styles.inline, style]} />
+);
+
+const InlineLargeSkeleton = ({ style }: { style?: any }) => (
+  <Animated.View style={[styles.inlineLarge, style]} />
+);
+
+const ButtonSkeleton = ({ style }: { style?: any }) => (
+  <Animated.View style={[styles.button, style]} />
+);
+
+const ImageSkeleton = ({ style }: { style?: any }) => (
+  <Animated.View style={[styles.image, style]} />
+);
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -125,11 +155,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     padding: spacing.md,
     borderRadius: radii.lg,
-    shadowColor: colors.textPrimary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    ...shadows.md,
   },
   invoiceHeader: {
     flexDirection: 'row',
@@ -211,5 +237,29 @@ const styles = StyleSheet.create({
   listItemSubtitle: {
     width: '50%',
     height: 14,
+  },
+  inline: {
+    width: sizes.icon.lg,
+    height: sizes.icon.lg,
+    borderRadius: sizes.icon.lg / 2,
+    backgroundColor: colors.surfaceSecondary,
+  },
+  inlineLarge: {
+    width: sizes.icon.xxl,
+    height: sizes.icon.xxl,
+    borderRadius: sizes.icon.xxl / 2,
+    backgroundColor: colors.surfaceSecondary,
+  },
+  button: {
+    width: 72,
+    height: 14,
+    borderRadius: radii.sm,
+    backgroundColor: colors.surfaceSecondary,
+  },
+  image: {
+    width: '100%',
+    height: '100%',
+    borderRadius: radii.md,
+    backgroundColor: colors.surfaceSecondary,
   },
 });

@@ -536,7 +536,7 @@ function DashboardScreen(props: any) {
 
         {/* App Version Footer */}
         <Animated.View entering={FadeIn.duration(300).delay(600)} style={styles.footer}>
-          <Text style={styles.footerText}>TaxBridge V5.0.4</Text>
+          <Text style={styles.footerText}>{t('settings.appName', { version: '5.0.4' })}</Text>
           <Text style={styles.footerSubtext}>{t('dashboard.footerTagline')}</Text>
         </Animated.View>
       </ScrollView>

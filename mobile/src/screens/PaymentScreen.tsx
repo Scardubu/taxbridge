@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, Alert, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, Alert, StyleSheet } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import * as Haptics from 'expo-haptics';
@@ -7,6 +7,8 @@ import { api } from '../services/api';
 import { LoadingContext } from '../contexts/LoadingContext';
 import { useNetwork } from '../contexts/NetworkContext';
 import { getAccessToken } from '../services/authTokens';
+import { showToast } from '../components/ui/Toast';
+import { SkeletonLoader } from '../components/ui/SkeletonLoader';
 import { colors, spacing, radii, typography } from '../theme/tokens';
 
 type PaymentRouteParams = {
@@ -76,19 +78,31 @@ export default function PaymentScreen({ route: propRoute }: PaymentScreenProps =
   const validateInputs = (): boolean => {
     if (!payerName.trim()) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert(t('payment.validationError'), t('payment.enterPayerName'));
+      showToast({
+        type: 'error',
+        message: t('payment.enterPayerName'),
+        haptic: 'error',
+      });
       nameInputRef.current?.focus();
       return false;
     }
     if (!payerEmail.trim() || !payerEmail.includes('@')) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert(t('payment.validationError'), t('payment.enterValidEmail'));
+      showToast({
+        type: 'error',
+        message: t('payment.enterValidEmail'),
+        haptic: 'error',
+      });
       emailInputRef.current?.focus();
       return false;
     }
     if (!payerPhone.trim() || payerPhone.length < 10) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert(t('payment.validationError'), t('payment.enterValidPhone'));
+      showToast({
+        type: 'error',
+        message: t('payment.enterValidPhone'),
+        haptic: 'error',
+      });
       phoneInputRef.current?.focus();
       return false;
     }
@@ -100,7 +114,11 @@ export default function PaymentScreen({ route: propRoute }: PaymentScreenProps =
 
     if (!isOnline) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-      Alert.alert(t('alerts.offline'), t('payment.offlineRRR'));
+      showToast({
+        type: 'warning',
+        message: t('payment.offlineRRR'),
+        haptic: 'warning',
+      });
       return;
     }
     
@@ -176,11 +194,19 @@ export default function PaymentScreen({ route: propRoute }: PaymentScreenProps =
                   if (canOpen) {
                     await Linking.openURL(url);
                   } else {
-                    Alert.alert(t('payment.error'), t('payment.cannotOpenURL'));
+                    showToast({
+                      type: 'error',
+                      message: t('payment.cannotOpenURL'),
+                      haptic: 'error',
+                    });
                   }
                 }
               } catch (err) {
-                Alert.alert(t('payment.error'), t('payment.failedOpenLink'));
+                showToast({
+                  type: 'error',
+                  message: t('payment.failedOpenLink'),
+                  haptic: 'error',
+                });
               }
             }
           }
@@ -189,9 +215,14 @@ export default function PaymentScreen({ route: propRoute }: PaymentScreenProps =
     } catch (error: any) {
       if (!isMountedRef.current) return;
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      const rawMessage = error?.message || 'Failed to generate RRR';
+      const rawMessage = error?.message || t('payment.generateFailed');
       const cleanMessage = typeof rawMessage === 'string' ? rawMessage.replace(/^API error\s+\d{3}:\s*/i, '') : String(rawMessage);
-      Alert.alert(t('payment.error'), cleanMessage);
+      showToast({
+        type: 'error',
+        message: cleanMessage,
+        haptic: 'error',
+        duration: 5000,
+      });
     } finally {
       if (isMountedRef.current) {
         setLocalLoading(false);
@@ -205,7 +236,11 @@ export default function PaymentScreen({ route: propRoute }: PaymentScreenProps =
 
     if (!isOnline) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-      Alert.alert(t('alerts.offline'), t('payment.offlineStatus'));
+      showToast({
+        type: 'warning',
+        message: t('payment.offlineStatus'),
+        haptic: 'warning',
+      });
       return;
     }
     
@@ -247,10 +282,11 @@ export default function PaymentScreen({ route: propRoute }: PaymentScreenProps =
         status === 'paid' 
           ? Haptics.NotificationFeedbackType.Success 
           : Haptics.NotificationFeedbackType.Warning
-      );      Alert.alert(
-        'Payment Status',
-        `Current status: ${status.toUpperCase()}\n\nIf you've completed payment on Remita, the status will update shortly.`,
-        [{ text: 'OK' }]
+      );
+      Alert.alert(
+        t('payment.statusTitle'),
+        t('payment.statusMessage', { status: status.toUpperCase() }),
+        [{ text: t('common.ok') }]
       );
 
       if (status === 'paid') {
@@ -261,9 +297,14 @@ export default function PaymentScreen({ route: propRoute }: PaymentScreenProps =
     } catch (error: any) {
       if (!isMountedRef.current) return;
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      const rawMessage = error?.message || 'Failed to check status';
+      const rawMessage = error?.message || t('payment.statusFailed');
       const cleanMessage = typeof rawMessage === 'string' ? rawMessage.replace(/^API error\s+\d{3}:\s*/i, '') : String(rawMessage);
-      Alert.alert('Error', cleanMessage);
+      showToast({
+        type: 'error',
+        message: cleanMessage,
+        haptic: 'error',
+        duration: 5000,
+      });
     } finally {
       if (isMountedRef.current) {
         setLocalLoading(false);
@@ -276,16 +317,16 @@ export default function PaymentScreen({ route: propRoute }: PaymentScreenProps =
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>{t('payment.title')}</Text>
-        <Text style={styles.subtitle}>via Remita</Text>
+        <Text style={styles.subtitle}>{t('payment.viaRemita')}</Text>
       </View>
 
       <View style={styles.invoiceInfo}>
-        <Text style={styles.label}>Invoice ID</Text>
+        <Text style={styles.label}>{t('payment.invoiceIdLabel')}</Text>
         <Text style={styles.value}>{invoice.id.slice(0, 8).toUpperCase()}</Text>
 
         {invoice.customerName && (
           <>
-            <Text style={styles.label}>Customer</Text>
+            <Text style={styles.label}>{t('payment.customerLabel')}</Text>
             <Text style={styles.value}>{invoice.customerName}</Text>
           </>
         )}
@@ -362,7 +403,7 @@ export default function PaymentScreen({ route: propRoute }: PaymentScreenProps =
             accessibilityHint={t('payment.rrrDisclaimer')}
           >
             {loading ? (
-              <ActivityIndicator color={colors.textOnPrimary} />
+              <SkeletonLoader type="button" count={1} />
             ) : (
               <Text style={styles.buttonText}>{t('payment.generateRRR')}</Text>
             )}
@@ -393,7 +434,7 @@ export default function PaymentScreen({ route: propRoute }: PaymentScreenProps =
             disabled={loading}
           >
             {loading ? (
-              <ActivityIndicator color={colors.textOnPrimary} />
+              <SkeletonLoader type="button" count={1} />
             ) : (
               <Text style={styles.buttonText}>{t('payment.checkStatus')}</Text>
             )}
@@ -409,7 +450,7 @@ export default function PaymentScreen({ route: propRoute }: PaymentScreenProps =
               setPayerPhone('');
             }}
           >
-            <Text style={styles.secondaryButtonText}>Generate Different RRR</Text>
+            <Text style={styles.secondaryButtonText}>{t('payment.generateDifferent')}</Text>
           </TouchableOpacity>
         </View>
       )}

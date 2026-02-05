@@ -1,10 +1,19 @@
 import { memo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
 import type { InvoiceStatus } from '../types/invoice';
 import { colors, radii, spacing, typography } from '../theme/tokens';
 
+const statusI18nKeys: Record<InvoiceStatus, string> = {
+  stamped: 'common.stamped',
+  processing: 'common.processing',
+  failed: 'common.failed',
+  queued: 'common.queued',
+};
+
 const StatusBadge = memo(function StatusBadge(props: { status: InvoiceStatus }) {
+  const { t } = useTranslation();
   const color =
     props.status === 'stamped'
       ? colors.successDark
@@ -25,7 +34,9 @@ const StatusBadge = memo(function StatusBadge(props: { status: InvoiceStatus }) 
 
   return (
     <View style={[styles.badge, { backgroundColor: bg, borderColor: color }]}>
-      <Text style={[styles.text, { color }]}>{props.status.toUpperCase()}</Text>
+      <Text style={[styles.text, { color }]}>
+        {(statusI18nKeys[props.status] ? t(statusI18nKeys[props.status]) : props.status).toUpperCase()}
+      </Text>
     </View>
   );
 });

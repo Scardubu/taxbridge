@@ -2,6 +2,7 @@
 
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useAdminI18n } from '@/lib/i18n';
+import { chartColors } from '@/lib/colors';
 
 interface RemitaTransactionData {
   date: string;
@@ -40,9 +41,9 @@ export function RemitaTransactionChart({ data }: RemitaTransactionChartProps) {
             return [value || 0, label];
           }}
         />
-        <Bar dataKey="successful" stackId="a" fill="#10b981" name={labels.successful} />
-        <Bar dataKey="pending" stackId="a" fill="#f59e0b" name={labels.pending} />
-        <Bar dataKey="failed" stackId="a" fill="#ef4444" name={labels.failed} />
+        <Bar dataKey="successful" stackId="a" fill={chartColors.success} name={labels.successful} />
+        <Bar dataKey="pending" stackId="a" fill={chartColors.warning} name={labels.pending} />
+        <Bar dataKey="failed" stackId="a" fill={chartColors.error} name={labels.failed} />
       </BarChart>
     </ResponsiveContainer>
   );

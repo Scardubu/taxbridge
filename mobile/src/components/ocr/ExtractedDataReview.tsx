@@ -48,7 +48,7 @@ export function ExtractedDataReview({
   // Use overall confidence as fallback for all fields
   const fieldConfidence = extractedData.confidence;
   
-  const [vendor, setVendor] = useState<string>('');
+  const [vendor, setVendor] = useState<string>(extractedData.vendor || '');
   const [amount, setAmount] = useState<string>(
     extractedData.amount?.toString() || ''
   );
@@ -109,7 +109,7 @@ export function ExtractedDataReview({
             value={vendor}
             confidence={fieldConfidence}
             onChangeText={setVendor}
-            placeholder="Enter merchant name"
+            placeholder={t('ocr.placeholders.merchant')}
           />
         )}
 
@@ -119,7 +119,7 @@ export function ExtractedDataReview({
           value={amount}
           confidence={fieldConfidence}
           onChangeText={setAmount}
-          placeholder="0.00"
+          placeholder={t('ocr.placeholders.amount')}
           keyboardType="decimal-pad"
           isLowConfidence={fieldConfidence < 0.7}
         />
@@ -131,7 +131,7 @@ export function ExtractedDataReview({
             value={date}
             confidence={fieldConfidence}
             onChangeText={setDate}
-            placeholder="DD/MM/YYYY"
+            placeholder={t('ocr.placeholders.date')}
             isLowConfidence={fieldConfidence < 0.7}
           />
         )}
@@ -148,7 +148,7 @@ export function ExtractedDataReview({
                   {item.description}
                 </Text>
                 <Text style={styles.itemAmount}>
-                  ₦{item.unitPrice?.toFixed(2) || '0.00'}
+                  ₦{item.unitPrice?.toFixed(2) || t('ocr.placeholders.amount')}
                 </Text>
               </View>
             ))}

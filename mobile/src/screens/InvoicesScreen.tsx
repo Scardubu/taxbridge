@@ -95,7 +95,7 @@ function InvoicesScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     Alert.alert(
       t('invoices.shareInvoice'),
-      `${t('invoices.shareInvoice')} #${invoice.id.slice(-6).toUpperCase()} - ${invoice.customerName || 'Walk-in'}\n${t('invoices.totalLabel')}: ₦${Number(invoice.total).toFixed(2)}`,
+      `${t('invoices.shareInvoice')} #${invoice.id.slice(-6).toUpperCase()} - ${invoice.customerName || t('create.walkInCustomer')}\n${t('invoices.totalLabel')}: ₦${Number(invoice.total).toFixed(2)}`,
       [
         { text: t('settings.cancel'), style: 'cancel' },
         { text: t('invoices.copyDetails'), onPress: () => {/* Could use Clipboard */} },

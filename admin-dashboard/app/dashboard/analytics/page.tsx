@@ -13,6 +13,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { Download, TrendingUp, Users, FileText, CreditCard, AlertTriangle } from 'lucide-react';
 import { FetchError, fetchJson } from '@/lib/fetcher';
 import { useAdminI18n } from '@/lib/i18n';
+import { chartColors } from '@/lib/colors';
 
 interface AnalyticsData {
   overview: {
@@ -147,7 +148,7 @@ export default function AnalyticsPage() {
     );
   }
 
-  const COLORS = ['#10b981', '#f59e0b', '#ef4444', '#3b82f6'];
+  const COLORS = chartColors.palette;
 
   return (
     <DashboardLayout>
@@ -284,7 +285,7 @@ export default function AnalyticsPage() {
                       labelLine={false}
                       label={renderErrorLabel}
                       outerRadius={80}
-                      fill="#8884d8"
+                      fill={chartColors.primary}
                       dataKey="count"
                     >
                       {analytics.duploMetrics.errorBreakdown.map((entry, index) => (
@@ -318,7 +319,7 @@ export default function AnalyticsPage() {
                     <XAxis dataKey="status" />
                     <YAxis />
                     <Tooltip formatter={(value: number | undefined) => [`₦${(value || 0).toLocaleString()}`, 'Amount']} />
-                    <Bar dataKey="amount" fill="#10b981" />
+                    <Bar dataKey="amount" fill={chartColors.success} />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -342,7 +343,7 @@ export default function AnalyticsPage() {
                       labelLine={false}
                       label={renderCustomLabel}
                       outerRadius={80}
-                      fill="#8884d8"
+                      fill={chartColors.primary}
                       dataKey="count"
                     >
                       {analytics.complianceMetrics.exemptionUtilization.map((entry, index) => (
@@ -372,8 +373,8 @@ export default function AnalyticsPage() {
                         name === 'wthAmount' ? t('analytics.chart.wthAmount') : t('analytics.chart.invoiceCount')
                       ]}
                     />
-                    <Line yAxisId="left" type="monotone" dataKey="wthAmount" stroke="#10b981" strokeWidth={2} />
-                    <Line yAxisId="right" type="monotone" dataKey="invoiceCount" stroke="#3b82f6" strokeWidth={2} />
+                    <Line yAxisId="left" type="monotone" dataKey="wthAmount" stroke={chartColors.success} strokeWidth={2} />
+                    <Line yAxisId="right" type="monotone" dataKey="invoiceCount" stroke={chartColors.info} strokeWidth={2} />
                   </LineChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -390,8 +391,8 @@ export default function AnalyticsPage() {
                     <XAxis dataKey="date" />
                     <YAxis />
                     <Tooltip />
-                    <Bar dataKey="compliant" stackId="a" fill="#10b981" name={t('analytics.chart.compliant')} />
-                    <Bar dataKey="nonCompliant" stackId="a" fill="#ef4444" name={t('analytics.chart.nonCompliant')} />
+                    <Bar dataKey="compliant" stackId="a" fill={chartColors.success} name={t('analytics.chart.compliant')} />
+                    <Bar dataKey="nonCompliant" stackId="a" fill={chartColors.error} name={t('analytics.chart.nonCompliant')} />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -412,8 +413,8 @@ export default function AnalyticsPage() {
                     <XAxis dataKey="date" />
                     <YAxis />
                     <Tooltip />
-                    <Bar dataKey="successful" stackId="a" fill="#10b981" name={t('analytics.chart.successful')} />
-                    <Bar dataKey="failed" stackId="a" fill="#ef4444" name={t('analytics.chart.failed')} />
+                    <Bar dataKey="successful" stackId="a" fill={chartColors.success} name={t('analytics.chart.successful')} />
+                    <Bar dataKey="failed" stackId="a" fill={chartColors.error} name={t('analytics.chart.failed')} />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -436,8 +437,8 @@ export default function AnalyticsPage() {
                         name === 'volume' ? 'Volume' : 'Count'
                       ]}
                     />
-                    <Line yAxisId="left" type="monotone" dataKey="volume" stroke="#10b981" strokeWidth={2} />
-                    <Line yAxisId="right" type="monotone" dataKey="count" stroke="#3b82f6" strokeWidth={2} />
+                    <Line yAxisId="left" type="monotone" dataKey="volume" stroke={chartColors.success} strokeWidth={2} />
+                    <Line yAxisId="right" type="monotone" dataKey="count" stroke={chartColors.info} strokeWidth={2} />
                   </LineChart>
                 </ResponsiveContainer>
               </CardContent>

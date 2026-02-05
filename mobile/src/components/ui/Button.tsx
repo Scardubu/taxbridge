@@ -1,9 +1,10 @@
 import React from 'react';
-import { ActivityIndicator, StyleSheet, View, ViewStyle, StyleProp } from 'react-native';
+import { StyleSheet, View, ViewStyle, StyleProp } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { colors, radii, spacing, typography, shadows, sizes } from '../../theme/tokens';
 import { PressableScale } from './PressableScale';
 import { Text } from './Text';
+import { SkeletonLoader } from './SkeletonLoader';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
 export type ButtonSize = 'sm' | 'md' | 'lg';
@@ -60,11 +61,7 @@ export function Button({
       accessibilityState={{ disabled: disabled || loading }}
     >
       {loading ? (
-        <ActivityIndicator
-          color={variant === 'primary' || variant === 'secondary' || variant === 'danger'
-            ? colors.textOnPrimary
-            : colors.primary}
-        />
+        <SkeletonLoader type="button" count={1} />
       ) : (
         <View style={styles.content}>
           {icon && iconPosition === 'left' && <View style={styles.iconLeft}>{icon}</View>}

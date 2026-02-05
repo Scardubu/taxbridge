@@ -2,6 +2,7 @@
 
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useAdminI18n } from '@/lib/i18n';
+import { chartColors } from '@/lib/colors';
 
 interface DuploHealthData {
   timestamp: string;
@@ -43,7 +44,7 @@ export function DuploHealthChart({ data }: DuploHealthChartProps) {
           yAxisId="left"
           type="monotone"
           dataKey="successRate"
-          stroke="#10b981"
+          stroke={chartColors.success}
           strokeWidth={2}
           name={labels.successRate}
         />
@@ -51,7 +52,7 @@ export function DuploHealthChart({ data }: DuploHealthChartProps) {
           yAxisId="right"
           type="monotone"
           dataKey="latency"
-          stroke="#3b82f6"
+          stroke={chartColors.info}
           strokeWidth={2}
           name={labels.latency}
         />

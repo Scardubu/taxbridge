@@ -38,6 +38,10 @@
   "scripts": {
     "lint": "yarn workspaces run lint",
     "test": "yarn workspaces run test",
+    "type-check": "cd mobile && yarn tsc --noEmit && cd ../admin-dashboard && yarn tsc --noEmit && cd ../backend && yarn tsc --noEmit",
+    "type-check:mobile": "cd mobile && yarn tsc --noEmit",
+    "type-check:admin": "cd admin-dashboard && yarn tsc --noEmit",
+    "type-check:backend": "cd backend && yarn tsc --noEmit",
     "build": "yarn workspace @taxbridge/contracts build && yarn workspace @taxbridge/backend build && yarn workspace admin-dashboard build"
   },
   "devDependencies": {

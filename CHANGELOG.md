@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [5.0.5] - 2026-01-26 - i18n Hardcoded String Sweep & Button Visibility Fix 🌐
+
+### Fixed
+
+#### Mobile App - i18n Compliance
+- **SettingsScreen**: Extracted 17 hardcoded English strings to i18n (en.json + pidgin.json)
+  - Section titles: Language & Accessibility, Data & Storage, Network & Sync, Community
+  - Action labels: Clear Synced Data, Export Your Data, Refer & Earn
+  - Alert dialogs: Join TaxBridge Community
+  - Accessibility labels and helper text
+- **InsightsCarousel**: Extracted 21 hardcoded strings to i18n
+  - All insight card titles, descriptions, action labels, metric labels
+  - Sync status dynamic text with interpolation parameters
+- **InvoiceCard**: Added i18n support (2 hardcoded strings)
+  - "Walk-in customer" fallback and "Offline" indicator
+- **ChatbotScreen**: Consolidated 5 inline welcome messages into single i18n key
+- **BrandedHero**: Default props now use i18n instead of hardcoded English
+- **StatusBadge**: Status text now properly i18n-ized via common.* keys
+- **DashboardScreen**: Footer version text extracted to i18n
+
+#### Mobile App - Receipt Scanner Button
+- **Visibility Fix**: Changed scan button variant from "secondary" to "primary"
+  - Blue background makes the button clearly visible alongside the Add Item button
+  - Added `minWidth: 100` to prevent excessive compression
+  - Added `accessibilityHint` for better screen reader support
+
+### Added
+- 50+ new i18n keys in both `en.json` and `pidgin.json`
+- `insights` i18n section with 22 translation keys
+- `chatbot.welcomeMessage` translation key
+- `create.scanReceiptHint` translation key
+- 22 new `settings.*` keys for previously hardcoded SettingsScreen text
+
+### Technical
+- **TypeScript**: 0 errors across all modified files
+- **i18n Parity**: English and Nigerian Pidgin translations maintained
+
+---
+
 ## [5.0.4] - 2026-01-24 - Header Layout Fix & Production Polish ✨
 
 ### Fixed

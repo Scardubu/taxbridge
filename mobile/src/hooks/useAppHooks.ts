@@ -314,12 +314,12 @@ export const useFormFocus = (
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import * as Haptics from 'expo-haptics';
-import { Alert } from 'react-native';
+import { showToast } from '../components/ui/Toast';
 
 export const useInvoiceExport = () => {
   const [isExporting, setIsExporting] = useState(false);
 
-  const exportToCSV = useCallback(async (t: (key: string) => string) => {
+  const exportToCSV = useCallback(async (t: (key: string, params?: Record<string, any>) => string) => {
     if (isExporting) return;
     
     setIsExporting(true);
@@ -353,7 +353,12 @@ export const useInvoiceExport = () => {
         });
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       } else {
-        Alert.alert('Export Complete', `File saved to: ${fileUri}`);
+        showToast({
+          type: 'success',
+          message: t('settings.exportCompleteMsg', { path: fileUri }),
+          haptic: 'success',
+          duration: 5000,
+        });
       }
       
       return { success: true, fileUri };

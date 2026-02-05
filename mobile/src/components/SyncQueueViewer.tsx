@@ -25,7 +25,6 @@ import {
   ScrollView,
   Modal,
   Dimensions,
-  ActivityIndicator,
 } from 'react-native';
 import Animated, {
   useSharedValue,

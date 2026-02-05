@@ -36,7 +36,8 @@ import {
   trackOnboardingDropOff,
 } from '../services/analytics';
 import { LivingBridgeHeader } from '../components/header';
-import { colors, radii, spacing, typography } from '../theme/tokens';
+import { showToast } from '../components/ui/Toast';
+import { colors, radii, shadows, spacing, typography } from '../theme/tokens';
 
 // Step components
 import WelcomeStep from '../components/onboarding/WelcomeStep';
@@ -356,19 +357,19 @@ function OnboardingScreen(props: OnboardingScreenProps = {}) {
         if (validateCurrentStep()) {
           // fall through
         } else {
-          Alert.alert(
-            t('onboarding.validation.title'),
-            validationErrors.join('\n'),
-            [{ text: t('common.ok') }]
-          );
+          showToast({
+            type: 'error',
+            message: validationErrors[0] ?? t('onboarding.errors.tryAgain'),
+            haptic: 'error',
+          });
           return;
         }
       } else {
-        Alert.alert(
-          t('onboarding.validation.title'),
-          validationErrors.join('\n'),
-          [{ text: t('common.ok') }]
-        );
+        showToast({
+          type: 'error',
+          message: validationErrors[0] ?? t('onboarding.errors.tryAgain'),
+          haptic: 'error',
+        });
         return;
       }
     }
@@ -429,11 +430,11 @@ function OnboardingScreen(props: OnboardingScreenProps = {}) {
       
       setIsTransitioning(false);
       
-      Alert.alert(
-        t('onboarding.errors.progressFailed'),
-        t('onboarding.errors.tryAgain'),
-        [{ text: t('common.ok') }]
-      );
+      showToast({
+        type: 'error',
+        message: t('onboarding.errors.tryAgain'),
+        haptic: 'error',
+      });
     }
   };
 
@@ -477,11 +478,11 @@ function OnboardingScreen(props: OnboardingScreenProps = {}) {
       
       if (!isMountedRef.current) return;
       
-      Alert.alert(
-        t('onboarding.errors.skipFailed'),
-        t('onboarding.errors.tryAgain'),
-        [{ text: t('common.ok') }]
-      );
+      showToast({
+        type: 'error',
+        message: t('onboarding.errors.tryAgain'),
+        haptic: 'error',
+      });
     } finally {
       if (isMountedRef.current) {
         setIsTransitioning(false);
@@ -602,10 +603,8 @@ function OnboardingScreen(props: OnboardingScreenProps = {}) {
         isOnline={isOnline}
         showProgress={true}
         progress={(currentStepIndex + 1) / activeSteps.length}
-        showTrustBadges={true}
-        showMetricChip={true}
-        metricValue={t('onboarding.avgSetupValue')}
-        metricLabel={t('onboarding.avgSetupLabel')}
+        showTrustBadges={false}
+        showMetricChip={false}
         showSkip={true}
         onSkip={handleSkipAll}
         showSave={true}
@@ -797,34 +796,14 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
     borderWidth: 1,
     borderColor: colors.borderSubtle,
-    ...Platform.select({
-      ios: {
-        shadowColor: colors.textPrimary,
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-      },
-      android: {
-        elevation: 4,
-      },
-    }),
+    ...shadows.md,
   },
   helperCard: {
     backgroundColor: colors.primary,
     borderRadius: radii.xl,
     padding: spacing.xl,
     gap: 10,
-    ...Platform.select({
-      ios: {
-        shadowColor: colors.primary,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 12,
-      },
-      android: {
-        elevation: 6,
-      },
-    }),
+    ...shadows.primary,
   },
   helperTitle: {
     fontSize: typography.size.md,
@@ -874,17 +853,7 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.borderSubtle,
     gap: spacing.sm,
-    ...Platform.select({
-      ios: {
-        shadowColor: colors.textPrimary,
-        shadowOffset: { width: 0, height: -2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 4,
-      },
-      android: {
-        elevation: 2,
-      },
-    }),
+    ...shadows.header,
   },
   trustText: {
     fontSize: typography.size.xs - 1,

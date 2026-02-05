@@ -1021,9 +1021,10 @@ function CreateInvoiceScreen(props: any) {
                     <AnimatedButton 
                       title={t('common.scan')}
                       onPress={openScanMenu}
-                      variant="secondary"
+                      variant="primary"
                       style={styles.scanButton}
                       testID="button-scanReceipt"
+                      accessibilityHint={t('create.scanReceiptHint')}
                     />
                   )}
                 </View>
@@ -1394,6 +1395,7 @@ const styles = StyleSheet.create({
   },
   scanButton: {
     flex: 1,
+    minWidth: 100,
   },
   
   // Items List

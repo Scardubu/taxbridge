@@ -4,17 +4,20 @@ import {
   Text,
   StyleSheet,
   Pressable,
-  ActivityIndicator,
   Animated,
 } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Haptics from 'expo-haptics';
 import { useTranslation } from 'react-i18next';
+import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radii, typography, shadows } from '../../theme/tokens';
+import { SkeletonLoader } from '../ui/SkeletonLoader';
 
 interface ARCameraViewProps {
   onCapture: (imageUri: string) => void;
   onClose: () => void;
+  facing?: 'front' | 'back';
+  onFlip?: () => void;
 }
 
 /**
@@ -26,7 +29,7 @@ interface ARCameraViewProps {
  * - Auto-capture when receipt is properly aligned
  * - Manual capture fallback
  */
-export function ARCameraView({ onCapture, onClose }: ARCameraViewProps) {
+export function ARCameraView({ onCapture, onClose, facing = 'back', onFlip }: ARCameraViewProps) {
   const { t } = useTranslation();
   const [permission, requestPermission] = useCameraPermissions();
   const [isProcessing, setIsProcessing] = useState(false);
@@ -75,6 +78,7 @@ export function ARCameraView({ onCapture, onClose }: ARCameraViewProps) {
       console.error('Camera capture failed:', error);
     } finally {
       setIsProcessing(false);
+      setIsAligned(false);
     }
   }, [isProcessing, onCapture]);
 
@@ -82,7 +86,7 @@ export function ARCameraView({ onCapture, onClose }: ARCameraViewProps) {
   if (!permission) {
     return (
       <View style={styles.permissionContainer}>
-        <ActivityIndicator size="large" color={colors.primary} />
+        <SkeletonLoader type="inline-lg" count={1} />
       </View>
     );
   }
@@ -107,44 +111,67 @@ export function ARCameraView({ onCapture, onClose }: ARCameraViewProps) {
       <CameraView
         ref={cameraRef}
         style={styles.camera}
-        facing="back"
+        facing={facing}
         enableTorch={false}
       >
         {/* AR Overlay - Alignment Guides */}
         <View style={styles.overlay}>
           {/* Top Bar */}
           <View style={styles.topBar}>
-            <Pressable style={styles.closeButton} onPress={onClose}>
-              <Text style={styles.closeIcon}>✕</Text>
+            <Pressable
+              style={styles.closeButton}
+              onPress={onClose}
+              accessibilityRole="button"
+              accessibilityLabel={t('alerts.closeCamera')}
+            >
+              <Ionicons name="close" size={20} color={colors.textOnPrimary} />
             </Pressable>
             <Text style={styles.instruction}>
               {isAligned ? t('ocr.receiptAligned') : t('ocr.alignReceipt')}
             </Text>
+            {onFlip ? (
+              <Pressable
+                style={styles.flipButton}
+                onPress={onFlip}
+                accessibilityRole="button"
+                accessibilityLabel={t('alerts.flipCamera')}
+              >
+                <Ionicons name="camera-reverse" size={20} color={colors.textOnPrimary} />
+              </Pressable>
+            ) : (
+              <View style={styles.flipSpacer} />
+            )}
           </View>
 
           {/* Center Frame */}
           <View style={styles.centerContainer}>
-            <Animated.View
-              style={[
-                styles.frame,
-                isAligned && styles.frameAligned,
-                { transform: [{ scale: pulseAnim }] },
-              ]}
+            <Pressable
+              onPress={() => setIsAligned(true)}
+              accessibilityRole="button"
+              accessibilityLabel={t('ocr.alignReceipt')}
             >
-              {/* Corner Brackets */}
-              <View style={[styles.corner, styles.cornerTL]} />
-              <View style={[styles.corner, styles.cornerTR]} />
-              <View style={[styles.corner, styles.cornerBL]} />
-              <View style={[styles.corner, styles.cornerBR]} />
+              <Animated.View
+                style={[
+                  styles.frame,
+                  isAligned && styles.frameAligned,
+                  { transform: [{ scale: pulseAnim }] },
+                ]}
+              >
+                {/* Corner Brackets */}
+                <View style={[styles.corner, styles.cornerTL]} />
+                <View style={[styles.corner, styles.cornerTR]} />
+                <View style={[styles.corner, styles.cornerBL]} />
+                <View style={[styles.corner, styles.cornerBR]} />
 
-              {/* Alignment Status */}
-              {isAligned && (
-                <View style={styles.alignedBadge}>
-                  <Text style={styles.alignedIcon}>✓</Text>
-                  <Text style={styles.alignedText}>{t('ocr.readyToScan')}</Text>
-                </View>
-              )}
-            </Animated.View>
+                {/* Alignment Status */}
+                {isAligned && (
+                  <View style={styles.alignedBadge}>
+                    <Ionicons name="checkmark" size={18} color={colors.textOnPrimary} />
+                    <Text style={styles.alignedText}>{t('ocr.readyToScan')}</Text>
+                  </View>
+                )}
+              </Animated.View>
+            </Pressable>
 
             {/* Helper Text */}
             <Text style={styles.helperText}>
@@ -161,7 +188,7 @@ export function ARCameraView({ onCapture, onClose }: ARCameraViewProps) {
                 disabled={isProcessing}
               >
                 {isProcessing ? (
-                  <ActivityIndicator size="large" color={colors.textOnPrimary} />
+                  <SkeletonLoader type="inline-lg" count={1} />
                 ) : (
                   <View style={styles.captureInner} />
                 )}
@@ -243,16 +270,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: spacing.md,
   },
-  closeIcon: {
-    fontSize: typography.size.xl,
-    color: colors.textOnPrimary,
-    fontWeight: typography.weight.bold,
-  },
   instruction: {
     flex: 1,
     fontSize: typography.size.lg,
     fontWeight: typography.weight.bold,
     color: colors.textOnPrimary,
+  },
+  flipButton: {
+    width: spacing.xxl + spacing.xs,
+    height: spacing.xxl + spacing.xs,
+    borderRadius: radii.full,
+    backgroundColor: colors.overlayDark,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  flipSpacer: {
+    width: spacing.xxl + spacing.xs,
+    height: spacing.xxl + spacing.xs,
   },
   
   // Center Frame
@@ -322,11 +356,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     borderRadius: radii.full,
     gap: spacing.sm,
-  },
-  alignedIcon: {
-    fontSize: typography.size.lg,
-    color: colors.textOnPrimary,
-    fontWeight: typography.weight.bold,
   },
   alignedText: {
     fontSize: typography.size.md,

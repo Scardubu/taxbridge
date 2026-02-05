@@ -103,22 +103,6 @@
     "offlineMode": "Offline Mode",
     "syncPending": "Changes pending sync"
   },
-  "tax": {
-    "intelligenceTitle": "Tax Breakdown",
-    "subtotal": "Subtotal",
-    "vat": "VAT",
-    "wht": "Withholding Tax",
-    "total": "Total",
-    "vatExplainer": "7.5% VAT applies to goods and services as per FIRS guidelines",
-    "whtExplainer": "5% withholding tax deducted on professional services",
-    "exemptions": "Tax Exemptions",
-    "learnMore": "Learn More About Nigerian Taxes",
-    "guideTitle": "Nigerian Tax Guide",
-    "vatGuideTitle": "Understanding VAT",
-    "whtGuideTitle": "Withholding Tax Explained",
-    "tinGuideTitle": "Tax Identification Number (TIN)",
-    "nrsGuideTitle": "NRS e-Invoicing"
-  },
   "create": {
     "title": "Create Invoice",
     "customer": "Customer Name",
@@ -154,6 +138,7 @@
     "complianceNotice": "This invoice will be queued for NRS submission via DigiTax when online.",
     "captureReceipt": "Capture receipt",
     "captureReceiptHint": "Take a photo of receipt to extract invoice data automatically",
+    "scanReceiptHint": "Scan a receipt or invoice to auto-fill item details",
     "editingItem": "Editing Item",
     "draftFound": "Draft Found",
     "draftFoundDesc": "You have an unsaved invoice draft. Would you like to restore it?",
@@ -189,6 +174,11 @@
     "useThisData": "Use This Data",
     "retake": "Retake Photo",
     "manualEntry": "Enter Manually Instead",
+    "placeholders": {
+      "merchant": "Enter merchant name",
+      "amount": "0.00",
+      "date": "DD/MM/YYYY"
+    },
     "tipLighting": "💡 Tip: Use good lighting and lay receipt flat for best results",
     "offlineMode": "Offline OCR (On-Device Processing)",
     "onlineMode": "Enhanced OCR (Cloud Processing)",
@@ -255,7 +245,15 @@
     "copyDetails": "Copy Details",
     "deleted": "Deleted",
     "removedFromLocal": "Invoice {{id}} removed from local storage",
-    "noSyncPending": "No pending invoices to sync"
+    "noSyncPending": "No pending invoices to sync",
+    "actionRetry": "Retry",
+    "actionShare": "Share",
+    "actionDelete": "Delete",
+    "syncFailedTap": "Sync failed - tap to retry",
+    "pendingSync": "Pending sync",
+    "swipeHint": "← Swipe for actions →",
+    "itemsCount": "{{count}} item",
+    "itemsCount_plural": "{{count}} items"
   },
   "settings": {
     "title": "Settings",
@@ -337,6 +335,28 @@
     "localFirstStorage": "Local-first storage",
     "offlineArchitecture": "Offline-first architecture",
     "nrsReady": "NRS e-invoicing ready",
+    "languageAndAccessibility": "Language & Accessibility",
+    "languageHelperText": "Choose your preferred language for the app interface",
+    "dataAndStorage": "Data & Storage",
+    "clearSyncedDataTitle": "Clear Synced Data",
+    "clearSyncedDataSubtitle": "Free up local storage",
+    "clearSyncedDataA11y": "Clear synced data to free up local storage",
+    "exporting": "Exporting...",
+    "exportYourData": "Export Your Data",
+    "exportSubtitle": "Download invoices as CSV",
+    "exportA11y": "Export your invoices as CSV",
+    "networkAndSync": "Network & Sync",
+    "apiUrlA11y": "API server URL input",
+    "exportInvoices": "Export Invoices",
+    "exportFailed": "Failed to export data",
+    "communityTitle": "Community",
+    "joinCommunityTitle": "Join TaxBridge Community",
+    "joinCommunityDesc": "Connect with 2,000+ Nigerian SMEs sharing tax tips and best practices.",
+    "joinSMEs": "Join 2,000+ SMEs",
+    "communitySubtitle": "Tax tips, support & networking",
+    "referEarnTitle": "Refer & Earn",
+    "referEarnDesc": "Invite 3 traders and earn ₦500 each. They get 1 free tax consultation!",
+    "mainContent": "Settings screen main content",
     "appName": "TaxBridge v{{version}}",
     "appTagline": "Simplify Your Taxes, Bridge Your Future",
     "copyright": "© 2026 TaxBridge. All rights reserved."
@@ -419,6 +439,17 @@
     "validation": {
       "title": "Missing Information",
       "message": "Please complete all required fields before continuing"
+    },
+    "errors": {
+      "invalidStep": "Invalid onboarding step",
+      "tryAgain": "Please try again",
+      "skipAllFailed": "Failed to skip onboarding",
+      "required": {
+        "businessType": "Business type is required",
+        "incomeSource": "Income source is required",
+        "annualIncome": "Annual income is required",
+        "industry": "Industry is required"
+      }
     },
     "avgSetupValue": "30s",
     "avgSetupLabel": "Avg setup",
@@ -763,6 +794,33 @@
     "invoicesTab": "Invoices list tab",
     "settingsTab": "Settings tab"
   },
+  "insights": {
+    "sectionTitle": "Insights & Tips",
+    "swipeHint": "Swipe →",
+    "readyToSync": "Ready to Sync",
+    "pendingSync": "Pending Sync",
+    "syncDescription": "{{count}} invoice(s) waiting to sync when {{condition}}",
+    "syncConditionTap": "you tap sync",
+    "syncConditionOnline": "online",
+    "syncNow": "Sync Now",
+    "viewPending": "View Pending",
+    "pending": "pending",
+    "taxTipTitle": "Tax Tip: ₦800K Exemption",
+    "taxTipDesc": "Income below ₦800,000/year is tax-free under Nigeria Tax Act 2025. Know your thresholds!",
+    "learnMore": "Learn More",
+    "stayCompliant": "Stay Compliant",
+    "complianceDesc": "Your invoices are NRS-ready. Enable e-invoicing when turnover exceeds ₦100M.",
+    "invoices": "invoices",
+    "yourProgress": "Your Progress",
+    "progressDesc": "Complete the tax tutorial to unlock the Tax Pro badge and learn more savings tips!",
+    "viewAchievements": "View Achievements",
+    "joinSMEs": "Join 2,000+ SMEs",
+    "communityDesc": "Connect with traders and business owners sharing tax tips in our WhatsApp community.",
+    "joinCommunity": "Join Community",
+    "referEarn": "Refer & Earn",
+    "referDesc": "Invite 3 traders and earn ₦500 each. They get 1 free tax consultation!",
+    "shareCode": "Share Code"
+  },
   "accessibility": {
     "nav": {
       "back": "Go back",
@@ -805,16 +863,6 @@
     "band3": "₦8M - ₦15M (21%)",
     "band4": "Above ₦15M (25%)"
   },
-  "tax": {
-    "vatStatusMandatory": "Registration mandatory",
-    "vatStatusApproaching": "Approaching threshold",
-    "vatStatusExempt": "Exempt from registration",
-    "vatDisclaimerMandatory": "Consult FIRS for official guidance",
-    "vatDisclaimerEstimate": "Educational estimate - monitor actuals",
-    "citDescSmall": "Small company relief (₦0-50M turnover)",
-    "citDescMedium": "Medium company rate (₦50-100M turnover)",
-    "citDescLarge": "Standard CIT rate (>₦100M turnover)"
-  },
   "payment": {
     "title": "Tax Payment",
     "payerName": "Payer Name",
@@ -835,6 +883,14 @@
     "paymentReady": "Payment Ready",
     "paymentReadyDesc": "Your RRR: {{rrr}}\nAmount: ₦{{amount}}\n\nSecurely proceed to Remita to complete payment.",
     "proceedToPayment": "Proceed to Payment",
+    "viaRemita": "via Remita",
+    "invoiceIdLabel": "Invoice ID",
+    "customerLabel": "Customer",
+    "statusTitle": "Payment Status",
+    "statusMessage": "Current status: {{status}}\n\nIf you've completed payment on Remita, the status will update shortly.",
+    "statusFailed": "Failed to check status",
+    "generateDifferent": "Generate Different RRR",
+    "generateFailed": "Failed to generate RRR",
     "rrrLabel": "Your Payment Code (RRR)",
     "rrrHint": "Keep this code for reference",
     "nextSteps": "Next Steps:",
@@ -851,7 +907,8 @@
     "rrrDisclaimer": "Remita payment links are secure and processed by SystemSpecs Limited. TaxBridge does not store card information."
   },
   "chatbot": {
-    "placeholder": "Ask about taxes, e-invoicing, payments..."
+    "placeholder": "Ask about taxes, e-invoicing, payments...",
+    "welcomeMessage": "Hello! I am TaxBridge AI, your tax assistant. How can I help you today?"
   },
   "placeholders": {
     "customerName": "e.g. Aisha Mohammed",

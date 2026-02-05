@@ -1,5 +1,6 @@
 import { memo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -12,6 +13,7 @@ import { colors, radii, spacing, typography, shadows } from '../theme/tokens';
 
 const InvoiceCard = memo(function InvoiceCard(props: { invoice: LocalInvoiceRow; onPress?: () => void }) {
   const inv = props.invoice;
+  const { t } = useTranslation();
   const scale = useSharedValue(1);
 
   const animatedStyle = useAnimatedStyle(() => {
@@ -47,10 +49,10 @@ const InvoiceCard = memo(function InvoiceCard(props: { invoice: LocalInvoiceRow;
       >
         <View style={styles.row}>
           <View style={styles.titleContainer}>
-            <Text style={styles.title}>{inv.customerName || 'Walk-in customer'}</Text>
+            <Text style={styles.title}>{inv.customerName || t('create.walkInCustomer')}</Text>
             {isOffline && (
               <View style={styles.offlineIndicator}>
-                <Text style={styles.offlineText}>Offline</Text>
+                <Text style={styles.offlineText}>{t('common.offlineMode')}</Text>
               </View>
             )}
           </View>

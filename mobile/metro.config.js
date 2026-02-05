@@ -13,24 +13,25 @@ const fs = require('fs');
 // Get workspace root (one level up from mobile/)
 const workspaceRoot = path.resolve(__dirname, '..');
 const projectRoot = __dirname;
+const isWindows = process.platform === 'win32';
 
 const config = getDefaultConfig(projectRoot);
 
 // Watch only necessary folders to avoid Windows file watcher timeout
-// Include workspace root node_modules for hoisted dependencies (React)
-config.watchFolders = [
-  projectRoot,
-  path.join(workspaceRoot, 'node_modules'),
-];
+// On Windows, avoid watching workspace root node_modules to prevent watcher overflow.
+config.watchFolders = [projectRoot];
+if (!isWindows) {
+  config.watchFolders.push(path.join(workspaceRoot, 'node_modules'));
+}
 
 // Disable watchman on Windows to avoid watch mode startup failures
-// Use polling watcher as fallback to prevent timeout issues
+// Health checks can time out on large repos; disable them on Windows.
 config.watcher = {
   watchman: {
     enabled: false,
   },
   healthCheck: {
-    enabled: true,
+    enabled: !isWindows,
     timeout: 60000, // 60 seconds timeout
     filePrefix: '.metro-health-check',
   },

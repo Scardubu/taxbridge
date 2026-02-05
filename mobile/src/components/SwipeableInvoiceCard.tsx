@@ -1,4 +1,4 @@
-import React, { memo, useRef, useCallback } from 'react';
+import React, { memo, useRef, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, Pressable, Alert, Dimensions } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import Animated, {
@@ -112,6 +112,15 @@ function SwipeableInvoiceCard({
     return `₦${amount.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
   };
 
+  const itemCount = useMemo(() => {
+    if (!inv.items) return 0;
+    try {
+      return JSON.parse(inv.items).length;
+    } catch {
+      return 0;
+    }
+  }, [inv.items]);
+
   return (
     <View style={styles.container}>
       {/* Background Actions */}
@@ -123,7 +132,9 @@ function SwipeableInvoiceCard({
             onPress={canRetry ? handleRetry : handleShare}
           >
             <Text style={styles.actionIcon}>{canRetry ? '🔄' : '📤'}</Text>
-            <Text style={styles.actionText}>{canRetry ? 'Retry' : 'Share'}</Text>
+            <Text style={styles.actionText}>
+              {canRetry ? t('invoices.actionRetry') : t('invoices.actionShare')}
+            </Text>
           </Pressable>
         </Animated.View>
 
@@ -135,7 +146,7 @@ function SwipeableInvoiceCard({
               onPress={handleDelete}
             >
               <Text style={styles.actionIcon}>🗑️</Text>
-              <Text style={styles.actionText}>Delete</Text>
+              <Text style={styles.actionText}>{t('invoices.actionDelete')}</Text>
             </Pressable>
           )}
         </Animated.View>
@@ -153,7 +164,7 @@ function SwipeableInvoiceCard({
           <View style={styles.row}>
             <View style={styles.titleContainer}>
               <Text style={styles.title} numberOfLines={1}>
-                {inv.customerName || 'Walk-in Customer'}
+                {inv.customerName || t('create.walkInCustomer')}
               </Text>
               <Text style={styles.invoiceId}>#{inv.id.slice(-8).toUpperCase()}</Text>
             </View>
@@ -165,7 +176,7 @@ function SwipeableInvoiceCard({
             <View style={styles.syncIndicator}>
               <View style={styles.syncDot} />
               <Text style={styles.syncText}>
-                {isFailed ? 'Sync failed - tap to retry' : 'Pending sync'}
+                {isFailed ? t('invoices.syncFailedTap') : t('invoices.pendingSync')}
               </Text>
             </View>
           )}
@@ -174,9 +185,9 @@ function SwipeableInvoiceCard({
           <View style={styles.row}>
             <View style={styles.metaContainer}>
               <Text style={styles.date}>{formatDate(inv.createdAt)}</Text>
-              {inv.items && (
+              {itemCount > 0 && (
                 <Text style={styles.itemCount}>
-                  {JSON.parse(inv.items).length} item{JSON.parse(inv.items).length > 1 ? 's' : ''}
+                  {t('invoices.itemsCount', { count: itemCount })}
                 </Text>
               )}
             </View>
@@ -185,7 +196,7 @@ function SwipeableInvoiceCard({
 
           {/* Swipe Hint */}
           <View style={styles.swipeHint}>
-            <Text style={styles.swipeHintText}>← Swipe for actions →</Text>
+            <Text style={styles.swipeHintText}>{t('invoices.swipeHint')}</Text>
           </View>
         </Pressable>
       </Animated.View>

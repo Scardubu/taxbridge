@@ -5,9 +5,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   TextInput,
-  ScrollView,
-  KeyboardAvoidingView,
-  Platform,
 } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import LottieView from 'lottie-react-native';
@@ -293,7 +290,7 @@ function ProfileAssessmentStep({ onNext }: Props) {
         accessibilityState={{ disabled: !isValid || isSubmitting }}
       >
         <Text style={styles.continueButtonText}>
-          {isSubmitting ? '...' : t('onboarding.continue')}
+          {isSubmitting ? t('common.loading') : t('onboarding.continue')}
         </Text>
       </TouchableOpacity>
 

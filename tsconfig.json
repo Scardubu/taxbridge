@@ -1,4 +1,11 @@
 {
-  "compilerOptions": {},
-  "extends": "expo/tsconfig.base"
+  "compilerOptions": {
+    "skipLibCheck": true
+  },
+  "files": [],
+  "references": [
+    { "path": "./mobile" },
+    { "path": "./admin-dashboard" },
+    { "path": "./backend" }
+  ]
 }
