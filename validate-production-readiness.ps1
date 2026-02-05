@@ -241,7 +241,7 @@ Test-Step "Production checklist exists" {
 }
 
 Test-Step "Quick deployment guide exists" {
-    Test-Path "DEPLOY_QUICK_REFERENCE.md"
+    Test-Path "docs/reference/DEPLOY_QUICK_REFERENCE.md"
 }
 
 # ============================================

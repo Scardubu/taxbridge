@@ -12,7 +12,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Production](https://img.shields.io/badge/status-ready-brightgreen)](https://taxbridge-api.onrender.com/health/live)
 
-[Documentation](docs/README.md) • [Quick Start](#-quick-start) • [API Reference](#-api-endpoints) • [Integration Checklist](docs/INTEGRATION_CHECKLIST.md) • [Execution Reports](docs/execution/README.md) • [Production Guide](PRODUCTION_FINAL_OCR_INTEGRATION_v1.0.0.md)
+[Documentation](docs/README.md) • [Quick Start](#-quick-start) • [API Reference](#-api-endpoints) • [Integration Checklist](docs/INTEGRATION_CHECKLIST.md) • [Execution Reports](docs/execution/README.md) • [Production Validation](FEBRUARY_2026_PRODUCTION_VALIDATION.md)
 
 </div>
 

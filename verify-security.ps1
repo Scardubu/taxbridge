@@ -86,7 +86,7 @@ Write-Host ""
 Write-Host "[5/5] Verifying Documentation..." -ForegroundColor Yellow
 $docCount = 0
 if (Test-Path "../SECURITY_COMPLETE.md") { $docCount++; Write-Host "   [OK] SECURITY_COMPLETE.md" -ForegroundColor Green }
-if (Test-Path "../SECURITY_DEPLOYMENT_CHECKLIST.md") { $docCount++; Write-Host "   [OK] SECURITY_DEPLOYMENT_CHECKLIST.md" -ForegroundColor Green }
+if (Test-Path "../docs/security/SECURITY_DEPLOYMENT_CHECKLIST.md") { $docCount++; Write-Host "   [OK] SECURITY_DEPLOYMENT_CHECKLIST.md" -ForegroundColor Green }
 if (Test-Path "../docs/SECURITY_ARCHITECTURE.md") { $docCount++; Write-Host "   [OK] SECURITY_ARCHITECTURE.md" -ForegroundColor Green }
 Write-Host ""
 

@@ -33,9 +33,11 @@ if (Test-Path "admin-dashboard/.next") {
 Write-Host ""
 Write-Host "[DOCUMENTATION]" -ForegroundColor Yellow
 $docs = @(
-    "PRODUCTION_FINAL_CHECKLIST.md",
-    "DEPLOY_QUICK_REFERENCE.md",
-    "PRODUCTION_INTEGRATION_SUMMARY.md"
+    "README.md",
+    "CHANGELOG.md",
+    "PRODUCTION_STATUS.md",
+    "FEBRUARY_2026_PRODUCTION_VALIDATION.md",
+    "UI_SIGN_OFF_CHECKLIST.md"
 )
 
 $allDocsExist = $true
@@ -73,7 +75,7 @@ if ($assetCount -eq 8 -and (Test-Path "backend/dist") -and (Test-Path "admin-das
     Write-Host "Next steps:" -ForegroundColor White
     Write-Host "1. Review PRODUCTION_FINAL_CHECKLIST.md" -ForegroundColor White
     Write-Host "2. Configure production environment variables" -ForegroundColor White
-    Write-Host "3. Deploy using DEPLOY_QUICK_REFERENCE.md" -ForegroundColor White
+    Write-Host "3. Deploy using docs/reference/DEPLOY_QUICK_REFERENCE.md" -ForegroundColor White
 } else {
     Write-Host "=== STATUS: PENDING ===" -ForegroundColor Yellow
     Write-Host ""

@@ -253,5 +253,5 @@ Write-Host "Next Steps:" -ForegroundColor Yellow
 Write-Host "1. Run full security test suite: npm run test:security" -ForegroundColor White
 Write-Host "2. Deploy Cloudflare infrastructure for production" -ForegroundColor White
 Write-Host "3. Enable Sentry monitoring with SENTRY_DSN" -ForegroundColor White
-Write-Host "4. Review SECURITY_DEPLOYMENT_CHECKLIST.md for production readiness" -ForegroundColor White
+Write-Host "4. Review docs/security/SECURITY_DEPLOYMENT_CHECKLIST.md for production readiness" -ForegroundColor White
 Write-Host ""
