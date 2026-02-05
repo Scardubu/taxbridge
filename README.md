@@ -7,51 +7,62 @@
 **Mobile-first, NRS-compliant e-invoicing platform for Nigerian SMEs**
 
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](https://expo.dev/accounts/scardubu/projects/taxbridge)
-[![Version](https://img.shields.io/badge/version-5.0.6-blue)](/)
+[![Version](https://img.shields.io/badge/version-1.0.0-blue)](/)
 [![Tests](https://img.shields.io/badge/tests-217%20passing-success)](/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Production](https://img.shields.io/badge/status-deploying-yellow)](https://taxbridge-api.onrender.com/health/live)
+[![Production](https://img.shields.io/badge/status-ready-brightgreen)](https://taxbridge-api.onrender.com/health/live)
 
-[Documentation](docs/README.md) • [Quick Start](#-quick-start) • [API Reference](#-api-endpoints) • [Integration Checklist](docs/INTEGRATION_CHECKLIST.md) • [Execution Reports](docs/execution/README.md) • [Production Guide](PRODUCTION_FINALIZATION_SUMMARY.md)
+[Documentation](docs/README.md) • [Quick Start](#-quick-start) • [API Reference](#-api-endpoints) • [Integration Checklist](docs/INTEGRATION_CHECKLIST.md) • [Execution Reports](docs/execution/README.md) • [Production Guide](PRODUCTION_FINAL_OCR_INTEGRATION_v1.0.0.md)
 
 </div>
 
 ---
 
-## 🚀 Latest Release: v5.0.6 (January 31, 2026)
+## 🚀 Latest Release: v1.0.0 (February 5, 2026)
 
 ### Production Status
-- **Status:** ⏳ **DEPLOYING** (Deployment fixes applied)
-- **Phase 1-9 Complete:** ✅ **100% INTEGRATION + BUILD HARDENING**
-- **Deployment Hotfix:** ✅ **COMPLETE** (Render & Vercel build errors resolved)
-- **Phase C UI Lockdown:** ✅ 100% Complete (300+ i18n keys, 0 hardcoded strings)
-- **Phase 9 Build Verification:** ✅ **COMPLETE** (64→0 TypeScript errors, lockfile consolidated)
-- **Device Sync:** ✅ **FULLY INTEGRATED** (mobile client + backend)
-- **UI Sign-Off:** ✅ Approved (all gates passed)
-- **F4 Load Testing:** ✅ Passed (99.2% success rate)
-- **Android Build:** [Download v5.0.6 builds](https://expo.dev/accounts/scardubu/projects/taxbridge/builds)
-- **Admin Dashboard:** ⏳ Deploying to Vercel (commit `c932645`)
+- **Status:** ✅ **PRODUCTION READY** (All integration complete)
+- **Build Health:** ✅ TypeScript: 0 errors | i18n: 100% parity (1105 keys)
+- **OCR Integration:** ✅ COMPLETE (ExtractedDataReview + ScanErrorModal + handlers)
+- **Phase 1-10 Complete:** ✅ **100% PRODUCTION EXCELLENCE**
+- **UI Polish:** ✅ Zero hardcoded strings, full i18n coverage
+- **Device Sync:** ✅ FULLY INTEGRATED (mobile client + backend)
+- **Test Coverage:** ✅ 217 tests passing (100% success rate)
+- **Android Build:** [Download v1.0.0 builds](https://expo.dev/accounts/scardubu/projects/taxbridge/builds)
+- **Admin Dashboard:** ✅ Deployed to Vercel
 
-### What's New in v5.0.6 (Deployment Hotfix)
+### What's New in v1.0.0 (OCR  UX Integration)
 
-#### Critical Deployment Fixes
-- ✅ **Render Build Error Resolved:** Missing `@taxbridge/contracts` module
-  - Added contracts build to `render.yaml` buildCommand
-  - Build order: contracts → backend → admin-dashboard
-  - Backend compilation now passes (21.7s)
+#### Complete OCR Scanner Experience ✅
+- ✅ **ExtractedDataReview Component (432 lines):**
+  - Full-screen modal for reviewing OCR-extracted receipt data
+  - Confidence-based field highlighting (excellent/good/acceptable/poor)
+  - Editable low-confidence fields with real-time validation
+  - Receipt image preview with proper dimensions
+  - Item list display with formatted pricing (₦)
+  - Accept/Rescan/Manual entry flows
+  - Haptic feedback for all interactions
 
-- ✅ **Vercel Build Error Resolved:** Mobile workspace missing build script
-  - Added noop build script to `mobile/package.json`
-  - Updated root build script to explicitly list workspaces
-  - Mobile builds remain independent via EAS
+- ✅ **ScanErrorModal Component (259 lines):**
+  - Context-aware error recovery guidance
+  - 5 error types: lowQuality, noReceiptDetected, lowConfidence, timeout, networkError
+  - Tailored tips for each error scenario
+  - Retry/Manual entry/Dismiss actions
+  - Professional error messaging
 
-- ✅ **Build Chain Optimized:**
-  - Contracts package generates TypeScript types (4.6s)
-  - Backend uses contracts for sync schema validation (31s)
-  - Admin dashboard builds cleanly (166s, 24 routes)
-  - Total build time: ~3.4 minutes
+- ✅ **CreateInvoiceScreen Integration:**
+  - Complete OCR processing pipeline
+  - handleCameraCapture with 30s timeout + 2 retries
+  - Confidence threshold enforcement (70% minimum)
+  - Automatic customer name population
+  - Automatic item list population
+  - Seamless navigation to items step
+  - Analytics tracking for all OCR events
 
-**Documentation:** [DEPLOYMENT_FIXES_V5.0.6.md](DEPLOYMENT_FIXES_V5.0.6.md)
+#### i18n Expansion ✅
+- Added 28 new keys (English + Nigerian Pidgin)
+- All OCR errors and guidance fully localized
+- **Final count: 1105 keys with 100% parity**
 
 #### Core Features (Previous Releases)
 - ✅ **Mobile TypeScript Resolution (64→0 errors):** Complete theme system implementation

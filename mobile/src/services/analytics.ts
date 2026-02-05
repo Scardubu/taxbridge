@@ -32,7 +32,8 @@ export type EventCategory =
   | 'sync'
   | 'search'
   | 'settings'
-  | 'engagement';
+  | 'engagement'
+  | 'ocr';
 
 export interface AnalyticsEvent {
   id: string;

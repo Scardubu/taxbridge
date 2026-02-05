@@ -9,11 +9,11 @@ import {
   TextInput,
   View,
   Alert,
-  ActivityIndicator,
   Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
+import { useNavigation } from '@react-navigation/native';
 import Animated, { FadeIn, FadeInDown, FadeInRight, useSharedValue, withSpring } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -23,12 +23,19 @@ import { saveInvoice } from '../services/database';
 import { trackEvent, trackInvoiceCreated } from '../services/analytics';
 import { useFormValidation, validationRules, showValidationError } from '../utils/validation';
 import AnimatedButton from '../components/AnimatedButton';
+import { showToast } from '../components/ui/Toast';
+import { SkeletonLoader } from '../components/ui/SkeletonLoader';
+import { TaxIntelligencePanel } from '../components/tax/TaxIntelligencePanel';
 import { useLoading } from '../contexts/LoadingContext';
 import { useFeatureFlag } from '../contexts/FeatureFlagContext';
 import { useNetwork } from '../contexts/NetworkContext';
 import { generateUuid } from '../utils/uuid';
 import { colors, spacing, radii, typography, shadows } from '../theme/tokens';
 import InvoiceWizard from '../components/wizards/InvoiceWizard';
+import { extractReceiptData, type OCRResult } from '../services/ocr';
+import { ExtractedDataReview, type EditedData } from '../components/ocr/ExtractedDataReview';
+import { ScanErrorModal, type ScanErrorType } from '../components/ocr/ScanErrorModal';
+import { getApiBaseUrl } from '../services/config';
 
 // Lazy load heavy components
 const CameraModal = lazy(() => import('../components/CameraModal'));
@@ -287,6 +294,7 @@ TotalsSummary.displayName = 'TotalsSummary';
 
 function CreateInvoiceScreen(props: any) {
   const { t } = useTranslation();
+  const navigation = useNavigation<any>();
   const { setLoading, setLoadingMessage } = useLoading();
   const { isOnline } = useNetwork();
   const receiptsScannerEnabled = useFeatureFlag('receiptsScanner');
@@ -349,6 +357,13 @@ function CreateInvoiceScreen(props: any) {
   const [showCamera, setShowCamera] = useState(false);
   const [cameraFacing, setCameraFacing] = useState<CameraFacing>('back');
   const [ocrLoading, setOcrLoading] = useState(false);
+  
+  // OCR data and modals
+  const [ocrImageUri, setOcrImageUri] = useState<string | null>(null);
+  const [ocrResult, setOcrResult] = useState<OCRResult | null>(null);
+  const [showOcrReview, setShowOcrReview] = useState(false);
+  const [ocrError, setOcrError] = useState<ScanErrorType | null>(null);
+  const [showOcrError, setShowOcrError] = useState(false);
 
   // Memoized totals calculation
   const totals = useMemo(() => calculateTotals(items), [items]);
@@ -457,7 +472,12 @@ function CreateInvoiceScreen(props: any) {
 
     if (items.length >= INVOICE_CONSTANTS.MAX_ITEMS) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-      Alert.alert(t('alerts.tooManyItems'), t('alerts.maxItemsReached'));
+      showToast({
+        type: 'warning',
+        message: t('alerts.maxItemsReached'),
+        haptic: 'warning',
+        duration: 4000
+      });
       return;
     }
 
@@ -605,12 +625,123 @@ function CreateInvoiceScreen(props: any) {
   }, [shouldOpenScan, receiptsScannerEnabled, openScanMenu]);
 
   // ============================================================================
+  // OCR Processing Handlers
+  // ============================================================================
+
+  const handleCameraCapture = useCallback(async (imageUri: string) => {
+    setShowCamera(false);
+    setOcrLoading(true);    
+    setOcrImageUri(imageUri);
+    
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    void trackEvent('ocr', 'capture_started');
+
+    try {
+      const apiBaseUrl = await getApiBaseUrl();
+      const result = await extractReceiptData(imageUri, apiBaseUrl, {
+        timeoutMs: 30000,
+        maxRetries: 2,
+      });
+
+      if (result.confidence < INVOICE_CONSTANTS.OCR_MIN_CONFIDENCE) {
+        // Low confidence - show error modal
+        setOcrError('lowConfidence');
+        setShowOcrError(true);
+        void trackEvent('ocr', 'low_confidence', undefined, result.confidence, { confidence: result.confidence });
+      } else {
+        // Success - show review modal
+        setOcrResult(result);
+        setShowOcrReview(true);
+        void trackEvent('ocr', 'extraction_success', undefined, result.confidence, { confidence: result.confidence });
+      }
+    } catch (error: any) {
+      // Handle errors
+      let errorType: ScanErrorType = 'networkError';
+      
+      if (error.message === 'IMAGE_TOO_LARGE') {
+        errorType = 'lowQuality';
+      } else if (error.name === 'TimeoutError') {
+        errorType = 'timeout';
+      } else if (!isOnline) {
+        errorType = 'networkError';
+      }
+
+      setOcrError(errorType);
+      setShowOcrError(true);
+      void trackEvent('ocr', 'extraction_failed', errorType, undefined, { error: error.message });
+    } finally {
+      setOcrLoading(false);
+    }
+  }, [isOnline]);
+
+  const handleOcrDataAccept = useCallback((editedData: EditedData) => {
+    setShowOcrReview(false);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+    // Populate customer name if provided
+    if (editedData.vendor) {
+      setValue('customerName', editedData.vendor);
+    }
+
+    // Add items if provided
+    if (editedData.items && editedData.items.length > 0) {
+      setItems(prev => [...prev, ...editedData.items!]);
+      showToast({
+        type: 'success',
+        message: t('ocr.itemsFound', { count: editedData.items.length }),
+        haptic: 'success',
+      });
+    }
+
+    // Go to items step
+    setCurrentStep('items');
+    
+    void trackEvent('ocr', 'data_accepted', undefined, editedData.items?.length || 0, {
+      itemsAdded: editedData.items?.length || 0,
+      hasVendor: !!editedData.vendor,
+    });
+  }, [setValue, t]);
+
+  const handleOcrRescan = useCallback(() => {
+    setShowOcrReview(false);
+    setShowOcrError(false);
+    setOcrResult(null);
+    setOcrImageUri(null);
+    
+    // Reopen camera
+    setTimeout(() => setShowCamera(true), 300);
+    
+    void trackEvent('ocr', 'rescan_requested');
+  }, []);
+
+  const handleOcrManualEntry = useCallback(() => {
+    setShowOcrReview(false);
+    setShowOcrError(false);
+    setOcrResult(null);
+    setOcrImageUri(null);
+    
+    // Go to items step for manual entry
+    setCurrentStep('items');
+    
+    void trackEvent('ocr', 'manual_entry_chosen');
+  }, []);
+
+  const handleOcrErrorDismiss = useCallback(() => {
+    setShowOcrError(false);
+    setOcrError(null);
+  }, []);
+
+  // ============================================================================
   // Save Invoice
   // ============================================================================
 
   const save = useCallback(async () => {
     if (!offlineInvoicesEnabled && !isOnline) {
-      Alert.alert(t('sync.offlineTitle'), t('sync.offlineBody'));
+      showToast({
+        type: 'warning',
+        message: t('sync.offlineBody'),
+        haptic: 'warning'
+      });
       return;
     }
 
@@ -665,10 +796,12 @@ function CreateInvoiceScreen(props: any) {
                 try {
                   const db = require('../services/database');
                   const removed = await db.clearSyncedLocalInvoices(7);
-                  Alert.alert(
-                    t('alerts.cleanupComplete'), 
-                    `${t('alerts.removed')} ${removed} ${t('alerts.oldSyncedInvoices')}. ${t('alerts.pleaseRetry')}`
-                  );
+                  showToast({
+                    type: 'success',
+                    message: `${t('alerts.removed')} ${removed} ${t('alerts.oldSyncedInvoices')}. ${t('alerts.pleaseRetry')}`,
+                    haptic: 'success',
+                    duration: 5000
+                  });
                 } catch (e) {
                   showValidationError(t('alerts.cleanupFailed'), t('alerts.cleanupFailedDesc'));
                 }
@@ -978,6 +1111,20 @@ function CreateInvoiceScreen(props: any) {
               {/* Totals Card */}
               <TotalsSummary totals={totals} variant="detailed" />
 
+              {/* Tax Breakdown Intelligence */}
+              <TaxIntelligencePanel
+                breakdown={{
+                  subtotal: totals.subtotal,
+                  vatApplied: {
+                    rate: INVOICE_CONSTANTS.VAT_RATE,
+                    amount: totals.vat,
+                  },
+                  exemptions: [],
+                  total: totals.total
+                }}
+                onLearnMore={() => navigation.navigate('TaxGuide')}
+              />
+
               {/* Compliance Notice */}
               <View style={styles.complianceNotice}>
                 <Text style={styles.complianceIcon}>🏛️</Text>
@@ -998,14 +1145,11 @@ function CreateInvoiceScreen(props: any) {
 
       {/* Camera Modal (Lazy Loaded) */}
       {receiptsScannerEnabled && showCamera && (
-        <Suspense fallback={<ActivityIndicator size="large" color={colors.primary} />}>
+        <Suspense fallback={<SkeletonLoader type="invoice-card" count={1} />}>
           <CameraModal
             visible={showCamera}
             facing={cameraFacing}
-            onCapture={() => {
-              // Handle capture
-              setShowCamera(false);
-            }}
+            onCapture={handleCameraCapture}
             onFlip={() => setCameraFacing(prev => prev === 'back' ? 'front' : 'back')}
             onClose={() => setShowCamera(false)}
           />
@@ -1015,9 +1159,31 @@ function CreateInvoiceScreen(props: any) {
       {/* OCR Loading Indicator */}
       {ocrLoading && (
         <View style={styles.loadingOverlay}>
-          <ActivityIndicator size="large" color={colors.primary} />
+          <SkeletonLoader type="invoice-card" count={1} animated />
           <Text style={styles.loadingText}>{t('alerts.analyzingReceipt')}</Text>
         </View>
+      )}
+
+      {/* OCR Data Review Modal */}
+      {showOcrReview && ocrResult && ocrImageUri && (
+        <ExtractedDataReview
+          imageUri={ocrImageUri}
+          extractedData={ocrResult}
+          onAccept={handleOcrDataAccept}
+          onRescan={handleOcrRescan}
+          onManualEntry={handleOcrManualEntry}
+        />
+      )}
+
+      {/* OCR Error Modal */}
+      {showOcrError && ocrError && (
+        <ScanErrorModal
+          visible={showOcrError}
+          errorType={ocrError}
+          onRetry={handleOcrRescan}
+          onManualEntry={handleOcrManualEntry}
+          onDismiss={handleOcrErrorDismiss}
+        />
       )}
     </SafeAreaView>
   );
