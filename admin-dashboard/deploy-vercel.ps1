@@ -31,7 +31,7 @@ if (-not (Test-Path ".next")) {
     Write-Host "❌ Build not found. Running build first..." -ForegroundColor Red
     Write-Host ""
     
-    $env:NEXT_PUBLIC_API_URL = "https://taxbridge-api.onrender.com"
+    $env:NEXT_PUBLIC_API_URL = "https://taxbridge-api-ker8.onrender.com"
     $env:NEXT_PUBLIC_ENV = "production"
     
     npm run build
@@ -53,14 +53,14 @@ $env:VERCEL_ORG_ID = "your-org-id"  # Replace with actual org ID
 $env:VERCEL_PROJECT_ID = "your-project-id"  # Replace with actual project ID
 
 Write-Host "📋 Deployment Configuration:" -ForegroundColor Cyan
-Write-Host "  API URL: https://taxbridge-api.onrender.com" -ForegroundColor Gray
+Write-Host "  API URL: https://taxbridge-api-ker8.onrender.com" -ForegroundColor Gray
 Write-Host "  Environment: production" -ForegroundColor Gray
 Write-Host "  Build: Next.js 16.1.1 (Turbopack)" -ForegroundColor Gray
 Write-Host "  Routes: 20 (15 static + 7 API)" -ForegroundColor Gray
 Write-Host ""
 
 Write-Host "🔑 Make sure these environment variables are set in Vercel:" -ForegroundColor Yellow
-Write-Host "  NEXT_PUBLIC_API_URL=https://taxbridge-api.onrender.com" -ForegroundColor Gray
+Write-Host "  NEXT_PUBLIC_API_URL=https://taxbridge-api-ker8.onrender.com" -ForegroundColor Gray
 Write-Host "  NEXT_PUBLIC_ENV=production" -ForegroundColor Gray
 Write-Host "  NODE_ENV=production" -ForegroundColor Gray
 Write-Host ""

@@ -60,7 +60,7 @@ export default function DevicesPage() {
       setForceSyncReason('');
       mutateDevices();
     } catch (error) {
-      console.error('Force sync error:', error);
+      if (process.env.NODE_ENV !== 'production') console.error('Force sync error:', error);
     } finally {
       setIsSyncing(false);
     }

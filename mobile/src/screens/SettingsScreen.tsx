@@ -227,7 +227,7 @@ function SettingsScreen() {
       const pending = invoices.filter(inv => inv.synced === 0).length;
       setStorageStats({ total: invoices.length, synced, pending });
     } catch (error) {
-      console.error('Failed to load storage stats:', error);
+      if (__DEV__) console.error('Failed to load storage stats:', error);
       setStorageStats({ total: 0, synced: 0, pending: 0 });
     }
   }, []);
@@ -568,7 +568,7 @@ function SettingsScreen() {
         });
       }
     } catch (error) {
-      console.error('Export failed:', error);
+      if (__DEV__) console.error('Export failed:', error);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       showValidationError(t('error'), t('settings.exportFailed'));
     } finally {

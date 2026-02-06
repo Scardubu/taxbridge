@@ -278,7 +278,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           <div className="flex flex-col md:flex-row justify-between items-center gap-2 text-sm text-slate-500">
             <p>{t('footer.copyright')}</p>
             <div className="flex items-center gap-4">
-              <span>v1.0.0</span>
+              <span>{t('footer.version', { version: process.env.NEXT_PUBLIC_APP_VERSION || '1.0.0' })}</span>
             </div>
           </div>
         </div>

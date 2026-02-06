@@ -3,8 +3,8 @@
   "regions": ["iad1"],
   "env": {
     "NEXT_PUBLIC_APP_URL": "https://admin.taxbridge.ng",
-    "BACKEND_URL": "https://taxbridge-api.onrender.com",
-    "NEXT_PUBLIC_BACKEND_URL": "https://taxbridge-api.onrender.com"
+    "BACKEND_URL": "https://taxbridge-api-ker8.onrender.com",
+    "NEXT_PUBLIC_BACKEND_URL": "https://taxbridge-api-ker8.onrender.com"
   },
   "functions": {
     "app/api/**": {

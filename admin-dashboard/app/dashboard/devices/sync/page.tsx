@@ -80,9 +80,18 @@ export default function SyncMonitorPage() {
 
     const config = variants[status] || { variant: 'secondary' as const };
     
+    const statusKeyMap: Record<string, string> = {
+      synced: 'sync.status.synced',
+      failed: 'sync.status.failed',
+      pending: 'sync.status.pending',
+      processing: 'sync.status.processing',
+      conflict: 'sync.status.conflict',
+    };
+    const labelKey = statusKeyMap[status] || 'sync.status.unknown';
+
     return (
       <Badge variant={config.variant} className={config.className}>
-        {status}
+        {t(labelKey)}
       </Badge>
     );
   };
@@ -113,7 +122,7 @@ export default function SyncMonitorPage() {
               <CardContent>
                 <div className="text-2xl font-bold">{statsData.stats.syncJobs.total}</div>
                 <p className="text-xs text-slate-600 mt-1">
-                  All-time sync operations
+                  {t('sync.stats.allTime')}
                 </p>
               </CardContent>
             </Card>
@@ -126,7 +135,9 @@ export default function SyncMonitorPage() {
               <CardContent>
                 <div className="text-2xl font-bold text-green-600">{statsData.stats.syncJobs.synced}</div>
                 <p className="text-xs text-slate-600 mt-1">
-                  {Math.round((statsData.stats.syncJobs.synced / statsData.stats.syncJobs.total) * 100)}% success rate
+                  {t('sync.stats.successRate', {
+                    rate: Math.round((statsData.stats.syncJobs.synced / statsData.stats.syncJobs.total) * 100)
+                  })}
                 </p>
               </CardContent>
             </Card>
@@ -139,7 +150,9 @@ export default function SyncMonitorPage() {
               <CardContent>
                 <div className="text-2xl font-bold text-red-600">{statsData.stats.syncJobs.failed}</div>
                 <p className="text-xs text-slate-600 mt-1">
-                  {Math.round((statsData.stats.syncJobs.failed / statsData.stats.syncJobs.total) * 100)}% failure rate
+                  {t('sync.stats.failureRate', {
+                    rate: Math.round((statsData.stats.syncJobs.failed / statsData.stats.syncJobs.total) * 100)
+                  })}
                 </p>
               </CardContent>
             </Card>
@@ -152,7 +165,7 @@ export default function SyncMonitorPage() {
               <CardContent>
                 <div className="text-2xl font-bold text-orange-600">{statsData.stats.syncJobs.conflict}</div>
                 <p className="text-xs text-slate-600 mt-1">
-                  Requires manual resolution
+                  {t('sync.stats.requiresResolution')}
                 </p>
               </CardContent>
             </Card>
@@ -240,7 +253,7 @@ export default function SyncMonitorPage() {
                 <div className="grid gap-4 md:grid-cols-2">
                   <Card>
                     <CardHeader>
-                      <CardTitle>Platform Distribution</CardTitle>
+                      <CardTitle>{t('sync.stats.platformDistribution')}</CardTitle>
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-3">
@@ -250,7 +263,9 @@ export default function SyncMonitorPage() {
                               <Badge variant="outline" className="capitalize">{platform.platform}</Badge>
                             </div>
                             <div className="flex items-center gap-4">
-                              <div className="text-sm text-slate-600">{platform.count} devices</div>
+                              <div className="text-sm text-slate-600">
+                                {t('sync.stats.devicesLabel', { count: platform.count })}
+                              </div>
                               <div className="text-sm font-medium">
                                 {Math.round((platform.count / statsData.stats.devices.total) * 100)}%
                               </div>
@@ -263,7 +278,7 @@ export default function SyncMonitorPage() {
 
                   <Card>
                     <CardHeader>
-                      <CardTitle>Recent Activity (24h)</CardTitle>
+                      <CardTitle>{t('sync.stats.recentActivity')}</CardTitle>
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-3">
@@ -273,7 +288,9 @@ export default function SyncMonitorPage() {
                               {getStatusIcon(activity.status)}
                               {getStatusBadge(activity.status)}
                             </div>
-                            <div className="text-sm font-medium">{activity.count} jobs</div>
+                            <div className="text-sm font-medium">
+                              {t('sync.stats.jobsLabel', { count: activity.count })}
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -283,28 +300,28 @@ export default function SyncMonitorPage() {
 
                 <Card>
                   <CardHeader>
-                    <CardTitle>Job Status Breakdown</CardTitle>
+                    <CardTitle>{t('sync.stats.jobStatusBreakdown')}</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="grid gap-4 md:grid-cols-5">
                       <div className="text-center">
-                        <div className="text-sm text-slate-600 mb-2">Pending</div>
+                        <div className="text-sm text-slate-600 mb-2">{t('sync.status.pending')}</div>
                         <div className="text-2xl font-bold text-blue-600">{statsData.stats.syncJobs.pending}</div>
                       </div>
                       <div className="text-center">
-                        <div className="text-sm text-slate-600 mb-2">Processing</div>
+                        <div className="text-sm text-slate-600 mb-2">{t('sync.status.processing')}</div>
                         <div className="text-2xl font-bold text-orange-600">{statsData.stats.syncJobs.processing}</div>
                       </div>
                       <div className="text-center">
-                        <div className="text-sm text-slate-600 mb-2">Synced</div>
+                        <div className="text-sm text-slate-600 mb-2">{t('sync.status.synced')}</div>
                         <div className="text-2xl font-bold text-green-600">{statsData.stats.syncJobs.synced}</div>
                       </div>
                       <div className="text-center">
-                        <div className="text-sm text-slate-600 mb-2">Failed</div>
+                        <div className="text-sm text-slate-600 mb-2">{t('sync.status.failed')}</div>
                         <div className="text-2xl font-bold text-red-600">{statsData.stats.syncJobs.failed}</div>
                       </div>
                       <div className="text-center">
-                        <div className="text-sm text-slate-600 mb-2">Conflicts</div>
+                        <div className="text-sm text-slate-600 mb-2">{t('sync.status.conflict')}</div>
                         <div className="text-2xl font-bold text-yellow-600">{statsData.stats.syncJobs.conflict}</div>
                       </div>
                     </div>

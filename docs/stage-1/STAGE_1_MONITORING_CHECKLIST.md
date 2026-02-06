@@ -82,7 +82,7 @@
 
 ### 2. Render Dashboard
 
-**URL:** https://dashboard.render.com/web/srv-d5np9lre5dus7398efig  
+**URL:** https://dashboard.render.com/web/srv-d62gsicr85hc73a34nc0  
 **Services to Monitor:**
 - `taxbridge-api` (Web Service)
 - `taxbridge-worker` (Background Worker)
@@ -111,7 +111,7 @@
 
 ```powershell
 # Run at 9 AM and 5 PM WAT
-$PROD_URL = "https://taxbridge-api.onrender.com"
+$PROD_URL = "https://taxbridge-api-ker8.onrender.com"
 $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
 
 Write-Host "`n=== TaxBridge Health Check: $timestamp ===" -ForegroundColor Cyan
@@ -528,7 +528,7 @@ param(
     [switch]$Verbose
 )
 
-$PROD_URL = "https://taxbridge-api.onrender.com"
+$PROD_URL = "https://taxbridge-api-ker8.onrender.com"
 $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
 $logDir = "c:\Users\USR\Documents\taxbridge\monitoring"
 $logFile = Join-Path $logDir "health-checks-$(Get-Date -Format 'yyyy-MM-dd').log"
@@ -654,7 +654,7 @@ $(($results | Where-Object { $_.Result -ne 'PASS' } | ForEach-Object { "  - $($_
 
 Please investigate immediately.
 
-Dashboard: https://dashboard.render.com/web/srv-d5np9lre5dus7398efig
+Dashboard: https://dashboard.render.com/web/srv-d62gsicr85hc73a34nc0
 "@
         SmtpServer = "smtp.example.com"  # Configure your SMTP server
         Port = 587

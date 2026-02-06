@@ -55,7 +55,7 @@ postgresql://postgres.[PROJECT_REF]:[PASSWORD]@aws-0-us-west-2.pooler.supabase.c
 
 #### Step 1: Open Render Dashboard
 
-1. **Navigate to:** https://dashboard.render.com/web/srv-d5np9lre5dus7398efig
+1. **Navigate to:** https://dashboard.render.com/web/srv-d62gsicr85hc73a34nc0
 2. **Click:** "Environment" tab in the left sidebar
 
 #### Step 2: Edit DATABASE_URL
@@ -90,7 +90,7 @@ postgresql://postgres.[PROJECT_REF]:[PASSWORD]@aws-0-us-west-2.pooler.supabase.c
 **Run health check:**
 
 ```powershell
-$PROD_URL = "https://taxbridge-api.onrender.com"
+$PROD_URL = "https://taxbridge-api-ker8.onrender.com"
 Invoke-RestMethod -Uri "$PROD_URL/health/db" | ConvertTo-Json
 ```
 
@@ -169,7 +169,7 @@ Host: aws-0-us-west-2.pooler.supabase.com
 
 #### Step 2: Edit DIRECT_URL in Render
 
-1. **Navigate to:** https://dashboard.render.com/web/srv-d5np9lre5dus7398efig
+1. **Navigate to:** https://dashboard.render.com/web/srv-d62gsicr85hc73a34nc0
 2. **Click:** "Environment" tab
 3. **Locate:** `DIRECT_URL` in the environment variables list
 4. **Click:** Edit (pencil icon)
@@ -204,7 +204,7 @@ Host: aws-0-us-west-2.pooler.supabase.com
 
 **Test migration command from Render Shell:**
 
-1. **Go to:** https://dashboard.render.com/web/srv-d5np9lre5dus7398efig
+1. **Go to:** https://dashboard.render.com/web/srv-d62gsicr85hc73a34nc0
 2. **Click:** "Shell" tab
 3. **Run:**
    ```bash

@@ -9,7 +9,7 @@ Write-Host "  TaxBridge Production Validation Suite" -ForegroundColor Cyan
 Write-Host "===================================================" -ForegroundColor Cyan
 Write-Host ""
 
-$backendUrl = "https://taxbridge-api.onrender.com"
+$backendUrl = "https://taxbridge-api-ker8.onrender.com"
 $adminUrl = "https://taxbridge-admin.vercel.app"
 $mobileVersion = "5.0.4"
 

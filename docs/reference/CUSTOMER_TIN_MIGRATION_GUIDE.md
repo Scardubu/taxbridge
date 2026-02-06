@@ -160,7 +160,7 @@ After deployment, verify:
 
 ```bash
 # Backend API
-curl -X POST https://taxbridge-api.onrender.com/api/v1/invoices \
+curl -X POST https://taxbridge-api-ker8.onrender.com/api/v1/invoices \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer $JWT_TOKEN" \
   -d '{"customerName":"Test Corp","customerTIN":"12345678-0001","items":[{"description":"Widget","quantity":1,"unitPrice":100}]}'

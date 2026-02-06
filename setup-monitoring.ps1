@@ -9,7 +9,7 @@ Write-Host "=========================================" -ForegroundColor Cyan
 Write-Host ""
 
 # Production endpoints
-$backendUrl = "https://taxbridge-api.onrender.com"
+$backendUrl = "https://taxbridge-api-ker8.onrender.com"
 $adminUrl = "https://taxbridge-admin.vercel.app"  # Replace with actual URL after deployment
 
 # Health check endpoints

@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { logError } from '@/lib/logger';
+import { useAdminI18n } from '@/lib/i18n';
 
 interface ErrorBoundaryState {
   hasError: boolean;
@@ -13,8 +14,16 @@ interface ErrorBoundaryProps {
   fallback?: React.ComponentType<{ error?: Error; reset: () => void }>;
 }
 
-export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  constructor(props: ErrorBoundaryProps) {
+interface ErrorBoundaryInnerProps extends ErrorBoundaryProps {
+  messages: {
+    title: string;
+    description: string;
+    retry: string;
+  };
+}
+
+class ErrorBoundaryInner extends React.Component<ErrorBoundaryInnerProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryInnerProps) {
     super(props);
     this.state = { hasError: false };
   }
@@ -52,15 +61,13 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4l-9 9-9 4v6m3 0h18" />
               </svg>
             </div>
-            <h2 className="text-2xl font-bold text-slate-900 mb-2">Something went wrong</h2>
-            <p className="text-slate-600 mb-4">
-              {this.state.error?.message || 'An unexpected error occurred'}
-            </p>
+            <h2 className="text-2xl font-bold text-slate-900 mb-2">{this.props.messages.title}</h2>
+            <p className="text-slate-600 mb-4">{this.props.messages.description}</p>
             <button
               onClick={() => this.setState({ hasError: false, error: undefined })}
               className="bg-slate-900 text-white px-4 py-2 rounded-md hover:bg-slate-800 transition-colors"
             >
-              Try again
+              {this.props.messages.retry}
             </button>
           </div>
         </div>
@@ -69,4 +76,18 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
 
     return this.props.children;
   }
+}
+
+export function ErrorBoundary(props: ErrorBoundaryProps) {
+  const { t } = useAdminI18n();
+  return (
+    <ErrorBoundaryInner
+      {...props}
+      messages={{
+        title: t('errorBoundary.title'),
+        description: t('errorBoundary.description'),
+        retry: t('errorBoundary.retry'),
+      }}
+    />
+  );
 }

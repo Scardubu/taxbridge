@@ -44,7 +44,7 @@ export default function ConflictsPage() {
   const [selectedConflict, setSelectedConflict] = useState<Conflict | null>(null);
   
   // Resolution flow state
-  const [resolutionStrategy, setResolutionStrategy] = useState<'local_wins' | 'server_wins' | 'merged'>('server_wins');
+  const [resolutionStrategy, setResolutionStrategy] = useState<'local_wins' | 'server_wins'>('server_wins');
   const [adminReason, setAdminReason] = useState('');
   const [adminUserId, setAdminUserId] = useState('');
   const [isResolving, setIsResolving] = useState(false);
@@ -174,7 +174,7 @@ export default function ConflictsPage() {
           <CardContent className="pt-6">
             <div className="flex flex-wrap gap-4">
               <select
-                title="Resolution Filter"
+                title={t('conflicts.filter.title')}
                 value={resolutionFilter}
                 onChange={(e) => {
                   setResolutionFilter(e.target.value);
@@ -389,15 +389,11 @@ export default function ConflictsPage() {
                     <SelectItem value="local_wins">
                       {t('conflicts.resolve.strategy.localWins')}
                     </SelectItem>
-                    <SelectItem value="merged" disabled>
-                      {t('conflicts.resolve.strategy.merged')} ({t('conflicts.resolve.mergedComingSoon')})
-                    </SelectItem>
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-slate-600 mt-1">
                   {resolutionStrategy === 'server_wins' && t('conflicts.resolve.strategy.serverWinsDesc')}
                   {resolutionStrategy === 'local_wins' && t('conflicts.resolve.strategy.localWinsDesc')}
-                  {resolutionStrategy === 'merged' && t('conflicts.resolve.strategy.mergedDesc')}
                 </p>
               </div>
 

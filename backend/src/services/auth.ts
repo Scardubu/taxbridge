@@ -66,11 +66,20 @@ export class AuthService {
 
   private get secrets() {
     const jwtSecret = process.env.JWT_SECRET;
-    const refreshSecret = process.env.JWT_REFRESH_SECRET;
-    if (!jwtSecret || !refreshSecret) {
-      throw new Error('JWT secrets are not configured');
+    const refreshSecret = process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET;
+    
+    if (!jwtSecret) {
+      throw new Error('JWT_SECRET is not configured');
     }
-    return { jwtSecret, refreshSecret };
+    
+    // Fallback to JWT_SECRET if JWT_REFRESH_SECRET not set (less secure, log warning)
+    const actualRefreshSecret = refreshSecret || jwtSecret;
+    
+    if (!process.env.JWT_REFRESH_SECRET) {
+      console.warn('[AUTH] JWT_REFRESH_SECRET not set - using JWT_SECRET as fallback (less secure, set JWT_REFRESH_SECRET in production)');
+    }
+    
+    return { jwtSecret, refreshSecret: actualRefreshSecret };
   }
 
   async register(phone: string, name: string, password: string) {

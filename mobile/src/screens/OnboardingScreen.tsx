@@ -215,7 +215,7 @@ function OnboardingScreen(props: OnboardingScreenProps = {}) {
         data: { stepId: currentStep.id },
       });
     } catch (error) {
-      console.error('Auto-save failed:', error);
+      if (__DEV__) console.error('Auto-save failed:', error);
     }
   }, [currentStep?.id, updateProgress]);
 

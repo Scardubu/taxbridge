@@ -7,6 +7,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.0.0] - 2026-02-06 - Production Launch 🚀
+
+### 🎉 Production Deployed
+
+TaxBridge V1.0.0 is now live in production with full NRS 2026 compliance.
+
+#### Infrastructure
+- **Backend:** Live at https://taxbridge-api-ker8.onrender.com (Service ID: srv-d62gsicr85hc73a34nc0)
+- **Admin Dashboard:** Deployed to Vercel with 100% i18n coverage
+- **Mobile App:** Production-ready for Play Store submission
+
+### Fixed
+
+#### Admin Dashboard - i18n Completion
+- **Invoices Page:** All hardcoded strings replaced with i18n keys
+  - Customer TIN, Name, Phone, Updated labels in dialog
+  - UBL 3.0 XML analysis section header
+  - Error message for failed invoice loading
+- **Conflicts Page:** Resolution filter title internationalized
+- **ErrorBoundary:** Fixed constructor props type (TS error)
+- **Console Logging:** Production-safeguarded with NODE_ENV checks
+- **Duplicate i18n Keys:** Removed 28 duplicate entries from admin i18n file
+
+#### Mobile App - Console Cleanup
+- **SettingsScreen:** Console statements wrapped in __DEV__ guards
+- **OnboardingScreen:** Auto-save error logging production-safe
+
+### Added
+- 11 new admin i18n keys (English + Nigerian Pidgin)
+  - `invoices.error.loadFailed`
+  - `invoices.dialog.customerTIN`
+  - `invoices.dialog.userName`
+  - `invoices.dialog.userPhone`
+  - `invoices.dialog.userTIN`
+  - `invoices.dialog.updated`
+  - `invoices.ublAnalysis`
+  - `conflicts.filter.title`
+
+### Technical
+- **TypeScript:** 0 errors across admin-dashboard and mobile
+- **i18n Parity:** 1,110+ keys with 100% English ↔ Nigerian Pidgin parity
+- **Build Time:** Admin dashboard TypeScript check in 10.22s (clean)
+- **Compliance:** NRS 2026 / NDPC / Nigeria Tax Act 2025 verified
+
+### Documentation
+- Updated README.md for V1.0.0 production launch
+- Updated service references to new Render service ID
+- Final production validation report complete
+
+---
+
 ## [5.0.5] - 2026-01-26 - i18n Hardcoded String Sweep & Button Visibility Fix 🌐
 
 ### Fixed

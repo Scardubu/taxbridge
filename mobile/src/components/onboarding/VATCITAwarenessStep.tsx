@@ -121,8 +121,8 @@ export default function VATCITAwarenessStep({ onNext, onSkip }: Props) {
                 />
               </View>
               <View style={styles.sliderLabels}>
-                <Text style={styles.sliderLabel}>₦0</Text>
-                <Text style={styles.sliderLabel}>₦100M</Text>
+                <Text style={styles.sliderLabel}>{t('onboarding.vatcit.vatSliderMin')}</Text>
+                <Text style={styles.sliderLabel}>{t('onboarding.vatcit.vatSliderMax')}</Text>
               </View>
               <View
                 style={[
@@ -131,7 +131,9 @@ export default function VATCITAwarenessStep({ onNext, onSkip }: Props) {
                 ]}
               >
                 <View style={styles.markerDot} />
-                <Text style={styles.markerText}>₦{(turnover / 1_000_000).toFixed(1)}M</Text>
+                <Text style={styles.markerText}>
+                  {t('onboarding.vatcit.vatTurnoverMarker', { amount: (turnover / 1_000_000).toFixed(1) })}
+                </Text>
               </View>
             </View>
 
@@ -242,8 +244,8 @@ export default function VATCITAwarenessStep({ onNext, onSkip }: Props) {
                   </View>
                   <View style={styles.flowArrow} />
                   <View style={[styles.flowNode, styles.flowNodeResult, styles.flowNodeSuccessLight]}>
-                    <Text style={styles.flowNodeResultText}>PIT</Text>
-                    <Text style={styles.flowNodeResultSubtext}>0-25%</Text>
+                    <Text style={styles.flowNodeResultText}>{t('onboarding.vatcit.pitLabel')}</Text>
+                    <Text style={styles.flowNodeResultSubtext}>{t('onboarding.vatcit.pitRateRange')}</Text>
                   </View>
                 </View>
                 
@@ -253,8 +255,8 @@ export default function VATCITAwarenessStep({ onNext, onSkip }: Props) {
                   </View>
                   <View style={styles.flowArrow} />
                   <View style={[styles.flowNode, styles.flowNodeResult, styles.flowNodeCautionLight]}>
-                    <Text style={styles.flowNodeResultText}>CIT</Text>
-                    <Text style={styles.flowNodeResultSubtext}>0-30%</Text>
+                    <Text style={styles.flowNodeResultText}>{t('onboarding.vatcit.citLabel')}</Text>
+                    <Text style={styles.flowNodeResultSubtext}>{t('onboarding.vatcit.citRateRange')}</Text>
                   </View>
                 </View>
               </View>
@@ -268,16 +270,16 @@ export default function VATCITAwarenessStep({ onNext, onSkip }: Props) {
                 <Text style={styles.tableCell}>{t('onboarding.vatcit.rate')}</Text>
               </View>
               <View style={[styles.tableRow, styles.tableRowData]}>
-                <Text style={styles.tableCellData}>≤ ₦50M</Text>
-                <Text style={styles.tableCellData}>0%</Text>
+                <Text style={styles.tableCellData}>{t('onboarding.vatcit.citSmall')}</Text>
+                <Text style={styles.tableCellData}>{t('onboarding.vatcit.citSmallRate')}</Text>
               </View>
               <View style={[styles.tableRow, styles.tableRowData]}>
-                <Text style={styles.tableCellData}>₦50-100M</Text>
-                <Text style={styles.tableCellData}>20%</Text>
+                <Text style={styles.tableCellData}>{t('onboarding.vatcit.citMedium')}</Text>
+                <Text style={styles.tableCellData}>{t('onboarding.vatcit.citMediumRate')}</Text>
               </View>
               <View style={[styles.tableRow, styles.tableRowData]}>
-                <Text style={styles.tableCellData}>{'>'} ₦100M</Text>
-                <Text style={styles.tableCellData}>30%</Text>
+                <Text style={styles.tableCellData}>{t('onboarding.vatcit.citLarge')}</Text>
+                <Text style={styles.tableCellData}>{t('onboarding.vatcit.citLargeRate')}</Text>
               </View>
             </View>
 
@@ -286,10 +288,10 @@ export default function VATCITAwarenessStep({ onNext, onSkip }: Props) {
               <View style={styles.statusCard}>
                 <Text style={styles.statusCardTitle}>{t('onboarding.vatcit.yourStatus')}</Text>
                 <Text style={styles.statusCardText}>
-                  {t('onboarding.vatcit.currentTurnover')}: ₦{turnover.toLocaleString()}
+                  {t('onboarding.vatcit.currentTurnover')}: {t('onboarding.vatcit.nairaAmount', { amount: turnover.toLocaleString() })}
                 </Text>
                 <Text style={styles.statusCardText}>
-                  {t('onboarding.vatcit.citRate')}: {citRate.rate * 100}%
+                  {t('onboarding.vatcit.citRate')}: {t('onboarding.vatcit.percent', { value: Math.round(citRate.rate * 100) })}
                 </Text>
                 <Text style={styles.statusCardDescription}>{citRateDescription}</Text>
               </View>
@@ -364,7 +366,7 @@ export default function VATCITAwarenessStep({ onNext, onSkip }: Props) {
         </TouchableOpacity>
       </View>
 
-      <Text style={styles.timeEstimate}>⏱️ {t('onboarding.vatcit.timeEstimate')}</Text>
+      <Text style={styles.timeEstimate}>{t('onboarding.vatcit.timeEstimate')}</Text>
     </ScrollView>
   );
 }

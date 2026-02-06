@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import xml2js from 'xml2js';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useAdminI18n } from '@/lib/i18n';
 
 interface UBLViewerProps {
   xml: string;
@@ -19,33 +20,38 @@ interface FieldValidation {
 
 type ParsedInvoice = Record<string, unknown>;
 
-// UBL 3.0 BIS Billing 3.0 mandatory fields for Nigeria NRS - moved outside component
-const MANDATORY_FIELDS = [
-  { path: 'cbc:ID', description: 'Invoice number' },
-  { path: 'cbc:IssueDate', description: 'Invoice date (YYYY-MM-DD)' },
-  { path: 'cbc:InvoiceTypeCode', description: 'Invoice type code' },
-  { path: 'cbc:ProfileID', description: 'Profile ID (Peppol BIS Billing 3.0)' },
-  { path: 'cbc:DocumentCurrencyCode', description: 'Currency code (NGN)' },
-  { path: 'cac:AccountingSupplierParty/cac:Party/cac:PartyIdentification/cbc:ID', description: 'Supplier TIN' },
-  { path: 'cac:AccountingSupplierParty/cac:Party/cac:PartyName/cbc:Name', description: 'Supplier name' },
-  { path: 'cac:AccountingCustomerParty/cac:Party/cac:PartyIdentification/cbc:ID', description: 'Customer TIN' },
-  { path: 'cac:AccountingCustomerParty/cac:Party/cac:PartyName/cbc:Name', description: 'Customer name' },
-  { path: 'cac:InvoiceLine/cbc:ID', description: 'Line item ID' },
-  { path: 'cac:InvoiceLine/cbc:InvoicedQuantity', description: 'Quantity' },
-  { path: 'cac:InvoiceLine/cbc:LineExtensionAmount', description: 'Line amount' },
-  { path: 'cac:InvoiceLine/cac:Item/cbc:Description', description: 'Item description' },
-  { path: 'cac:InvoiceLine/cac:Price/cbc:PriceAmount', description: 'Unit price' },
-  { path: 'cac:TaxTotal/cbc:TaxAmount', description: 'Total tax amount' },
-  { path: 'cac:LegalMonetaryTotal/cbc:LineExtensionAmount', description: 'Subtotal' },
-  { path: 'cac:LegalMonetaryTotal/cbc:TaxExclusiveAmount', description: 'Tax exclusive amount' },
-  { path: 'cac:LegalMonetaryTotal/cbc:TaxInclusiveAmount', description: 'Total inclusive amount' },
-  { path: 'cac:LegalMonetaryTotal/cbc:PayableAmount', description: 'Amount payable' },
-] as const;
+type MandatoryField = {
+  path: string;
+  description: string;
+};
 
 export function UBLViewer({ xml }: UBLViewerProps) {
+  const { t } = useAdminI18n();
   const [parsed, setParsed] = useState<ParsedInvoice | null>(null);
   const [validation, setValidation] = useState<FieldValidation[]>([]);
   const previousXmlRef = useRef<string>('');
+
+  const mandatoryFields = useMemo<MandatoryField[]>(() => [
+    { path: 'cbc:ID', description: t('ubl.field.invoiceId') },
+    { path: 'cbc:IssueDate', description: t('ubl.field.issueDate') },
+    { path: 'cbc:InvoiceTypeCode', description: t('ubl.field.invoiceTypeCode') },
+    { path: 'cbc:ProfileID', description: t('ubl.field.profileId') },
+    { path: 'cbc:DocumentCurrencyCode', description: t('ubl.field.currencyCode') },
+    { path: 'cac:AccountingSupplierParty/cac:Party/cac:PartyIdentification/cbc:ID', description: t('ubl.field.supplierTin') },
+    { path: 'cac:AccountingSupplierParty/cac:Party/cac:PartyName/cbc:Name', description: t('ubl.field.supplierName') },
+    { path: 'cac:AccountingCustomerParty/cac:Party/cac:PartyIdentification/cbc:ID', description: t('ubl.field.customerTin') },
+    { path: 'cac:AccountingCustomerParty/cac:Party/cac:PartyName/cbc:Name', description: t('ubl.field.customerName') },
+    { path: 'cac:InvoiceLine/cbc:ID', description: t('ubl.field.lineId') },
+    { path: 'cac:InvoiceLine/cbc:InvoicedQuantity', description: t('ubl.field.quantity') },
+    { path: 'cac:InvoiceLine/cbc:LineExtensionAmount', description: t('ubl.field.lineAmount') },
+    { path: 'cac:InvoiceLine/cac:Item/cbc:Description', description: t('ubl.field.itemDescription') },
+    { path: 'cac:InvoiceLine/cac:Price/cbc:PriceAmount', description: t('ubl.field.unitPrice') },
+    { path: 'cac:TaxTotal/cbc:TaxAmount', description: t('ubl.field.totalTaxAmount') },
+    { path: 'cac:LegalMonetaryTotal/cbc:LineExtensionAmount', description: t('ubl.field.subtotal') },
+    { path: 'cac:LegalMonetaryTotal/cbc:TaxExclusiveAmount', description: t('ubl.field.taxExclusiveAmount') },
+    { path: 'cac:LegalMonetaryTotal/cbc:TaxInclusiveAmount', description: t('ubl.field.taxInclusiveAmount') },
+    { path: 'cac:LegalMonetaryTotal/cbc:PayableAmount', description: t('ubl.field.amountPayable') },
+  ], [t]);
 
   const getNestedValue = useCallback((obj: ParsedInvoice | null, path: string): unknown => {
     if (!obj) return null;
@@ -57,7 +63,7 @@ export function UBLViewer({ xml }: UBLViewerProps) {
   }, []);
 
   const validateFields = useCallback((invoiceData: ParsedInvoice): FieldValidation[] => {
-    return MANDATORY_FIELDS.map(field => {
+    return mandatoryFields.map(field => {
       const value = getNestedValue(invoiceData, field.path);
       return {
         field: field.path,
@@ -66,7 +72,7 @@ export function UBLViewer({ xml }: UBLViewerProps) {
         description: field.description
       };
     });
-  }, [getNestedValue]);
+  }, [getNestedValue, mandatoryFields]);
 
   useEffect(() => {
     // Prevent re-parsing the same XML
@@ -113,30 +119,30 @@ export function UBLViewer({ xml }: UBLViewerProps) {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
-            UBL 3.0 Compliance Check
+            {t('ubl.compliance.title')}
             <Badge variant={completionRate === 100 ? 'default' : 'secondary'}>
-              {completionRate.toFixed(1)}% Complete
+              {t('ubl.compliance.complete', { percent: completionRate.toFixed(1) })}
             </Badge>
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="text-sm text-muted-foreground">
-            {presentFields} of {validation.length} mandatory fields present
+            {t('ubl.compliance.summary', { present: presentFields, total: validation.length })}
           </div>
         </CardContent>
       </Card>
 
       <Tabs defaultValue="validation" className="w-full">
         <TabsList>
-          <TabsTrigger value="validation">Field Validation</TabsTrigger>
-          <TabsTrigger value="xml">Raw XML</TabsTrigger>
-          <TabsTrigger value="parsed">Parsed Structure</TabsTrigger>
+          <TabsTrigger value="validation">{t('ubl.tabs.validation')}</TabsTrigger>
+          <TabsTrigger value="xml">{t('ubl.tabs.xml')}</TabsTrigger>
+          <TabsTrigger value="parsed">{t('ubl.tabs.parsed')}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="validation" className="space-y-2">
           <Card>
             <CardHeader>
-              <CardTitle>Mandatory Fields Validation</CardTitle>
+              <CardTitle>{t('ubl.validation.title')}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-2 max-h-64 overflow-y-auto">
@@ -147,12 +153,12 @@ export function UBLViewer({ xml }: UBLViewerProps) {
                       <div className="text-xs text-muted-foreground font-mono">{field.field}</div>
                       {field.value && (
                         <div className="text-xs text-blue-600 mt-1">
-                          Value: {typeof field.value === 'object' ? JSON.stringify(field.value) : field.value}
+                          {t('ubl.validation.valueLabel')} {typeof field.value === 'object' ? JSON.stringify(field.value) : field.value}
                         </div>
                       )}
                     </div>
                     <Badge variant={field.present ? 'default' : 'destructive'}>
-                      {field.present ? '✓ Present' : '✗ Missing'}
+                      {field.present ? t('ubl.validation.present') : t('ubl.validation.missing')}
                     </Badge>
                   </div>
                 ))}

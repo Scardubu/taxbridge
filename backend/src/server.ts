@@ -140,7 +140,7 @@ app.setErrorHandler((error, request, reply) => {
 
 const envSchema = {
   type: 'object',
-  required: ['DATABASE_URL', 'REDIS_URL', 'DIGITAX_API_URL', 'JWT_SECRET', 'JWT_REFRESH_SECRET', 'ENCRYPTION_KEY'],
+  required: ['DATABASE_URL', 'REDIS_URL', 'DIGITAX_API_URL', 'JWT_SECRET', 'ENCRYPTION_KEY'],
   properties: {
     DATABASE_URL: { type: 'string' },
     DATABASE_POOL_MAX: { type: 'string', default: '10' },

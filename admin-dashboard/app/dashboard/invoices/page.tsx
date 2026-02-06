@@ -94,8 +94,8 @@ export default function InvoicesPage() {
     if (!error) return undefined;
     if (error instanceof FetchError) return error.message;
     if (error instanceof Error) return error.message;
-    return 'Failed to load invoices.';
-  }, [error]);
+    return t('invoices.error.loadFailed');
+  }, [error, t]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -313,7 +313,7 @@ export default function InvoicesPage() {
                   <div className="space-y-2 text-sm">
                     <div><strong>{t('invoices.table.id')}:</strong> {selectedInvoice.id}</div>
                     <div><strong>{t('invoices.dialog.customer')}:</strong> {selectedInvoice.customerName || t('common.na')}</div>
-                    <div><strong>Customer TIN:</strong> {selectedInvoice.customerTIN || t('common.na')}</div>
+                    <div><strong>{t('invoices.dialog.customerTIN')}:</strong> {selectedInvoice.customerTIN || t('common.na')}</div>
                     <div><strong>{t('invoices.dialog.status')}:</strong> 
                       <Badge variant={getStatusVariant(selectedInvoice.status)} className="ml-2">
                         {selectedInvoice.status}
@@ -328,12 +328,12 @@ export default function InvoicesPage() {
                 <div>
                   <h3 className="font-semibold mb-2">{t('invoices.table.user')}</h3>
                   <div className="space-y-2 text-sm">
-                    <div><strong>Name:</strong> {selectedInvoice.user.name}</div>
-                    <div><strong>Phone:</strong> {selectedInvoice.user.phone}</div>
-                    <div><strong>TIN:</strong> {selectedInvoice.user.tin || t('common.na')}</div>
+                    <div><strong>{t('invoices.dialog.userName')}:</strong> {selectedInvoice.user.name}</div>
+                    <div><strong>{t('invoices.dialog.userPhone')}:</strong> {selectedInvoice.user.phone}</div>
+                    <div><strong>{t('invoices.dialog.userTIN')}:</strong> {selectedInvoice.user.tin || t('common.na')}</div>
                     <div><strong>{t('invoices.table.nrsReference')}:</strong> {selectedInvoice.nrsReference || t('common.pending')}</div>
                     <div><strong>{t('invoices.table.created')}:</strong> {new Date(selectedInvoice.createdAt).toLocaleString()}</div>
-                    <div><strong>Updated:</strong> {new Date(selectedInvoice.updatedAt).toLocaleString()}</div>
+                    <div><strong>{t('invoices.dialog.updated')}:</strong> {new Date(selectedInvoice.updatedAt).toLocaleString()}</div>
                   </div>
                 </div>
               </div>
@@ -341,7 +341,7 @@ export default function InvoicesPage() {
               {/* UBL XML Section */}
               {selectedInvoice.ublXml && (
                 <div>
-                  <h3 className="font-semibold mb-2">UBL 3.0 XML Analysis</h3>
+                  <h3 className="font-semibold mb-2">{t('invoices.ublAnalysis')}</h3>
                   <UBLViewer xml={selectedInvoice.ublXml} />
                 </div>
               )}

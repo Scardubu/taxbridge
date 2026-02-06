@@ -17,7 +17,7 @@
 | **Build Type** | Android APK (.apk) |
 | **Build ID** | 5e3d0427-3ca9-48b8-adaa-7124715c0469 |
 | **Download URL** | https://expo.dev/accounts/scardubu/projects/taxbridge/builds/5e3d0427-3ca9-48b8-adaa-7124715c0469 |
-| **Backend API** | https://taxbridge-api.onrender.com |
+| **Backend API** | https://taxbridge-api-ker8.onrender.com |
 | **Build Platform** | Expo EAS |
 | **Changes** | i18n fixes, hardcoded strings removed |
 
@@ -379,7 +379,7 @@ The TaxBridge Team
 **Backend Health:**
 ```powershell
 # Run every 6 hours
-$PROD_URL = "https://taxbridge-api.onrender.com"
+$PROD_URL = "https://taxbridge-api-ker8.onrender.com"
 $checks = @("live","ready","db","queues","digitax","remita")
 
 foreach ($check in $checks) {
@@ -393,7 +393,7 @@ foreach ($check in $checks) {
 ```
 
 **Render Logs:**
-- Go to: https://dashboard.render.com/web/srv-d5np9lre5dus7398efig
+- Go to: https://dashboard.render.com/web/srv-d62gsicr85hc73a34nc0
 - Monitor: Events tab for errors
 - Check: Metrics tab for latency spikes
 
@@ -636,7 +636,7 @@ Invoke-WebRequest -Uri "https://expo.dev/artifacts/eas/dHCysRdLUbq4PzoKYvMsfq.aa
 
 ### Check Backend Health
 ```powershell
-Invoke-RestMethod -Uri "https://taxbridge-api.onrender.com/health/ready" | ConvertTo-Json
+Invoke-RestMethod -Uri "https://taxbridge-api-ker8.onrender.com/health/ready" | ConvertTo-Json
 ```
 
 ### Get Play Console Link
