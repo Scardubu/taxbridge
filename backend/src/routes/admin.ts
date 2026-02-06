@@ -66,6 +66,46 @@ export async function adminRoutes(app: FastifyInstance, options: { prisma: Prism
     return Number.isFinite(n) ? n : 0;
   }
 
+  function isMissingPrismaResource(error: unknown): boolean {
+    return (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      (error.code === 'P2021' || error.code === 'P2022')
+    );
+  }
+
+  async function safePrisma<T>(
+    task: () => Promise<T>,
+    fallback: T,
+    warningMessage: string,
+    warnings: string[]
+  ): Promise<T> {
+    try {
+      return await task();
+    } catch (error) {
+      if (isMissingPrismaResource(error)) {
+        app.log.warn({ err: error }, warningMessage);
+        warnings.push(warningMessage);
+        return fallback;
+      }
+      throw error;
+    }
+  }
+
+  async function safeExternal<T>(
+    task: () => Promise<T>,
+    fallback: T,
+    warningMessage: string,
+    warnings: string[]
+  ): Promise<T> {
+    try {
+      return await task();
+    } catch (error) {
+      app.log.warn({ err: error }, warningMessage);
+      warnings.push(warningMessage);
+      return fallback;
+    }
+  }
+
   // Authentication middleware for admin routes
   app.addHook('preHandler', async (request, reply) => {
     await requireAdminApiKey(request, reply);
@@ -78,6 +118,8 @@ export async function adminRoutes(app: FastifyInstance, options: { prisma: Prism
   // Get dashboard statistics
   app.get('/stats', async (request, reply) => {
     try {
+      const warnings: string[] = [];
+
       const [
         totalUsers,
         totalInvoices,
@@ -85,25 +127,40 @@ export async function adminRoutes(app: FastifyInstance, options: { prisma: Prism
         duploHealth,
         remitaHealth
       ] = await Promise.all([
-        prisma.user.count(),
-        prisma.invoice.count(),
-        prisma.payment.count(),
-        duploClient.checkHealth(),
-        remitaClient.checkHealth()
+        safePrisma(() => prisma.user.count(), 0, 'Admin stats: users table unavailable', warnings),
+        safePrisma(() => prisma.invoice.count(), 0, 'Admin stats: invoices table unavailable', warnings),
+        safePrisma(() => prisma.payment.count(), 0, 'Admin stats: payments table unavailable', warnings),
+        safeExternal(
+          () => duploClient.checkHealth(),
+          { status: 'error', latency: null },
+          'Admin stats: Duplo health check failed',
+          warnings
+        ),
+        safeExternal(
+          () => remitaClient.checkHealth(),
+          { status: 'error', latency: null },
+          'Admin stats: Remita health check failed',
+          warnings
+        )
       ]);
 
       // Get Duplo success trend for the last 7 days
       const sevenDaysAgo = new Date();
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-      const duploSuccessTrend = await prisma.invoice.groupBy({
-        by: ['status', 'createdAt'],
-        where: {
-          createdAt: { gte: sevenDaysAgo },
-          status: { in: ['stamped', 'failed'] }
-        },
-        _count: { status: true }
-      });
+      const duploSuccessTrend = await safePrisma(
+        () => prisma.invoice.groupBy({
+          by: ['status', 'createdAt'],
+          where: {
+            createdAt: { gte: sevenDaysAgo },
+            status: { in: ['stamped', 'failed'] }
+          },
+          _count: { status: true }
+        }),
+        [],
+        'Admin stats: duplo trend data unavailable',
+        warnings
+      );
 
       // Format the trend data
       const trendData: TrendDataPoint[] = [];
@@ -129,14 +186,19 @@ export async function adminRoutes(app: FastifyInstance, options: { prisma: Prism
       }
 
       // Get Remita transaction data for the last 7 days
-      const remitaTransactions = await prisma.payment.groupBy({
-        by: ['status', 'createdAt'],
-        where: {
-          createdAt: { gte: sevenDaysAgo }
-        },
-        _count: { status: true },
-        _sum: { amount: true }
-      });
+      const remitaTransactions = await safePrisma(
+        () => prisma.payment.groupBy({
+          by: ['status', 'createdAt'],
+          where: {
+            createdAt: { gte: sevenDaysAgo }
+          },
+          _count: { status: true },
+          _sum: { amount: true }
+        }),
+        [],
+        'Admin stats: remita transaction data unavailable',
+        warnings
+      );
 
       // Format Remita transaction data
       const remitaData: TransactionDataPoint[] = [];
@@ -171,51 +233,88 @@ export async function adminRoutes(app: FastifyInstance, options: { prisma: Prism
         remitaStatus: remitaHealth.status,
         remitaLatency: remitaHealth.latency,
         duploSuccessTrend: trendData,
-        remitaTransactions: remitaData
+        remitaTransactions: remitaData,
+        warnings: warnings.length ? warnings : undefined
       };
     } catch (error) {
       app.log.error({ err: error }, 'Error fetching admin stats');
-      reply.code(500).send({ error: 'Internal server error' });
+      
+      // Tightened error codes
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        return reply.code(503).send({ 
+          error: 'Database unavailable', 
+          code: 'DATABASE_ERROR',
+          details: error.code 
+        });
+      }
+      
+      if (error instanceof Prisma.PrismaClientInitializationError) {
+        return reply.code(503).send({ 
+          error: 'Database connection failed', 
+          code: 'DATABASE_CONNECTION_ERROR' 
+        });
+      }
+      
+      return reply.code(500).send({ 
+        error: 'Internal server error', 
+        code: 'INTERNAL_ERROR' 
+      });
     }
   });
 
   // Launch metrics: NRR/GRR computed from successful payments month-over-month
   app.get('/launch-metrics', async (_request, reply) => {
     try {
+      const warnings: string[] = [];
       const now = new Date();
       const currentWindow = monthWindow(now);
       const prevMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1, 0, 0, 0));
       const previousWindow = monthWindow(prevMonth);
 
       const [currentPayments, previousPayments, failedPayments24h] = await Promise.all([
-        prisma.payment.findMany({
-          where: {
-            createdAt: { gte: currentWindow.start, lt: currentWindow.end },
-            status: 'paid'
-          },
-          select: {
-            amount: true,
-            createdAt: true,
-            invoice: { select: { userId: true } }
-          }
-        }),
-        prisma.payment.findMany({
-          where: {
-            createdAt: { gte: previousWindow.start, lt: previousWindow.end },
-            status: 'paid'
-          },
-          select: {
-            amount: true,
-            createdAt: true,
-            invoice: { select: { userId: true } }
-          }
-        }),
-        prisma.payment.count({
-          where: {
-            createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
-            status: 'failed'
-          }
-        })
+        safePrisma(
+          () => prisma.payment.findMany({
+            where: {
+              createdAt: { gte: currentWindow.start, lt: currentWindow.end },
+              status: 'paid'
+            },
+            select: {
+              amount: true,
+              createdAt: true,
+              invoice: { select: { userId: true } }
+            }
+          }),
+          [],
+          'Launch metrics: current payments unavailable',
+          warnings
+        ),
+        safePrisma(
+          () => prisma.payment.findMany({
+            where: {
+              createdAt: { gte: previousWindow.start, lt: previousWindow.end },
+              status: 'paid'
+            },
+            select: {
+              amount: true,
+              createdAt: true,
+              invoice: { select: { userId: true } }
+            }
+          }),
+          [],
+          'Launch metrics: previous payments unavailable',
+          warnings
+        ),
+        safePrisma(
+          () => prisma.payment.count({
+            where: {
+              createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+              status: 'failed'
+            }
+          }),
+          0,
+          'Launch metrics: failed payment count unavailable',
+          warnings
+        )
       ]);
 
       let activeAlerts: Array<{ severity: string; title: string }> = [];
@@ -295,11 +394,32 @@ export async function adminRoutes(app: FastifyInstance, options: { prisma: Prism
         expansionRevenue,
         contractionRevenue,
         newRevenue,
-        anomalies
+        anomalies,
+        warnings: warnings.length ? warnings : undefined
       });
     } catch (error) {
       app.log.error({ err: error }, 'Error fetching launch metrics');
-      return reply.code(500).send({ error: 'Internal server error' });
+      
+      // Tightened error codes
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        return reply.code(503).send({ 
+          error: 'Database unavailable', 
+          code: 'DATABASE_ERROR',
+          details: error.code 
+        });
+      }
+      
+      if (error instanceof Prisma.PrismaClientInitializationError) {
+        return reply.code(503).send({ 
+          error: 'Database connection failed', 
+          code: 'DATABASE_CONNECTION_ERROR' 
+        });
+      }
+      
+      return reply.code(500).send({ 
+        error: 'Internal server error', 
+        code: 'INTERNAL_ERROR' 
+      });
     }
   });
 
@@ -349,8 +469,28 @@ export async function adminRoutes(app: FastifyInstance, options: { prisma: Prism
         }
       };
     } catch (error) {
-      console.error('Error fetching invoices:', error);
-      reply.code(500).send({ error: 'Internal server error' });
+      app.log.error({ err: error }, 'Error fetching invoices');
+      
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        return reply.code(503).send({ 
+          error: 'Database query failed', 
+          code: 'DATABASE_ERROR',
+          details: error.code 
+        });
+      }
+      
+      if (error instanceof z.ZodError) {
+        return reply.code(400).send({ 
+          error: 'Invalid query parameters', 
+          code: 'VALIDATION_ERROR',
+          details: error.issues 
+        });
+      }
+      
+      return reply.code(500).send({ 
+        error: 'Internal server error', 
+        code: 'INTERNAL_ERROR' 
+      });
     }
   });
 
@@ -407,8 +547,34 @@ export async function adminRoutes(app: FastifyInstance, options: { prisma: Prism
 
       return { success: true, irn: duploResponse.irn };
     } catch (error) {
-      console.error('Error resubmitting invoice:', error);
-      reply.code(500).send({ error: 'Failed to resubmit invoice' });
+      app.log.error({ err: error }, 'Error resubmitting invoice');
+      
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        if (error.code === 'P2025') {
+          return reply.code(404).send({ 
+            error: 'Invoice not found', 
+            code: 'INVOICE_NOT_FOUND' 
+          });
+        }
+        return reply.code(503).send({ 
+          error: 'Database update failed', 
+          code: 'DATABASE_ERROR',
+          details: error.code 
+        });
+      }
+      
+      if (error instanceof Error && error.message.includes('Duplo')) {
+        return reply.code(502).send({ 
+          error: 'Integration service unavailable', 
+          code: 'INTEGRATION_ERROR',
+          details: error.message 
+        });
+      }
+      
+      return reply.code(500).send({ 
+        error: 'Failed to resubmit invoice', 
+        code: 'INTERNAL_ERROR' 
+      });
     }
   });
 
@@ -596,7 +762,19 @@ export async function adminRoutes(app: FastifyInstance, options: { prisma: Prism
       return analyticsData;
     } catch (error) {
       app.log.error({ err: error }, 'Error fetching analytics');
-      reply.code(500).send({ error: 'Internal server error' });
+      
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        return reply.code(503).send({ 
+          error: 'Database analytics query failed', 
+          code: 'DATABASE_ERROR',
+          details: error.code 
+        });
+      }
+      
+      return reply.code(500).send({ 
+        error: 'Internal server error', 
+        code: 'INTERNAL_ERROR' 
+      });
     }
   });
 }

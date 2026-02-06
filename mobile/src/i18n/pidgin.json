@@ -569,6 +569,8 @@
     "trustOffline": "📵 E dey work without internet",
     "continue": "Continue",
     "back": "Go back",
+    "taxBreakdown": "Tax Breakdown",
+    "tapToEdit": "Tap any amount make you edit am and see instant tax calculation",
     "profile": {
       "title": "Make We Start!",
       "subtitle": "Tell us about yourself so we fit show you correct tax guide",
@@ -889,6 +891,7 @@
     "cancel": "Cancel",
     "close": "Close",
     "retry": "Try Again",
+    "skip": "Skip am",
     "queued": "Dey Queue",
     "processing": "Dey Process",
     "completed": "Don Complete",
@@ -1120,6 +1123,11 @@
     "vat": "VAT",
     "wht": "Withholding Tax",
     "total": "Total",
+    "breakdown": {
+      "subtotal": "Subtotal",
+      "vat": "VAT (7.5%)",
+      "total": "Total"
+    },
     "vatExplainer": "7.5% VAT dey apply for goods and services based on FIRS guidelines",
     "whtExplainer": "5% withholding tax wey dem take comot for professional services",
     "exemptions": "Tax Exemptions",

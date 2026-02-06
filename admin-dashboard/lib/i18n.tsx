@@ -162,6 +162,9 @@ const messages: Record<AdminLanguage, Messages> = {
     'dashboard.risk.moments': 'moments ago',
     'dashboard.stats.blockedFallback': 'Admin analytics is disabled or requires authentication.',
     'dashboard.stats.backendNotConfigured': 'Backend URL is not configured for this environment.',
+    'dashboard.warnings.title': 'System Warnings',
+    'dashboard.warnings.body': 'These warnings indicate partial data availability. Core metrics are still being collected.',
+    'dashboard.warnings.dataTitle': 'Data Availability Warnings',
 
     'severity.critical': 'Critical',
     'severity.high': 'High',
@@ -686,6 +689,9 @@ const messages: Record<AdminLanguage, Messages> = {
     'dashboard.risk.moments': 'just now',
     'dashboard.stats.blockedFallback': 'Admin analytics no dey enabled or authentication dey needed.',
     'dashboard.stats.backendNotConfigured': 'Backend URL never set for this environment.',
+    'dashboard.warnings.title': 'System Warnings',
+    'dashboard.warnings.body': 'Dis warnings mean say some data never full. Main metrics still dey collect.',
+    'dashboard.warnings.dataTitle': 'Data Availability Warnings',
 
     'severity.critical': 'Critical',
     'severity.high': 'High',

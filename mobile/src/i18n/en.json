@@ -503,6 +503,8 @@
     "of": "of",
     "continue": "Continue",
     "back": "Back",
+    "taxBreakdown": "Tax Breakdown",
+    "tapToEdit": "Tap any amount to edit and see instant tax recalculation",
     "profile": {
       "title": "Let's Get Started!",
       "subtitle": "Tell us about yourself so we can show you relevant tax guidance",
@@ -823,6 +825,7 @@
     "cancel": "Cancel",
     "close": "Close",
     "retry": "Retry",
+    "skip": "Skip",
     "queued": "Queued",
     "processing": "Processing",
     "completed": "Completed",
@@ -1104,6 +1107,11 @@
     "vat": "VAT",
     "wht": "Withholding Tax",
     "total": "Total",
+    "breakdown": {
+      "subtotal": "Subtotal",
+      "vat": "VAT (7.5%)",
+      "total": "Total"
+    },
     "vatExplainer": "7.5% VAT applies to goods and services as per FIRS guidelines",
     "whtExplainer": "5% withholding tax deducted on professional services",
     "exemptions": "Tax Exemptions",
