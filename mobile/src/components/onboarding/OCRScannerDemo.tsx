@@ -10,11 +10,11 @@ import {
   Image,
 } from 'react-native';
 import Animated, { FadeIn, FadeOut, SlideInRight } from 'react-native-reanimated';
-import { Camera, CameraType, PermissionStatus } from 'expo-camera';
+import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useTranslation } from 'react-i18next';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { colors, radii, spacing, typography } from '../../theme/tokens';
-import { useHapticFeedback } from '../../utils/haptics';
+import { useHapticFeedback } from '../../hooks/useHapticFeedback';
 
 interface Props {
   onNext: () => void;
@@ -36,23 +36,22 @@ const DEMO_RECEIPT_DATA = {
 
 export default function OCRScannerDemo({ onNext, onSkip }: Props) {
   const { t } = useTranslation();
-  const triggerHaptic = useHapticFeedback();
+  const haptics = useHapticFeedback();
 
   const [demoStep, setDemoStep] = useState<DemoStep>('intro');
-  const [permission, setPermission] = useState<PermissionStatus | null>(null);
+  const [permission, requestPermission] = useCameraPermissions();
   const [showDetailedSteps, setShowDetailedSteps] = useState(false);
 
   // Request camera permission
-  const requestPermission = useCallback(async () => {
+  const handleRequestPermission = useCallback(async () => {
     try {
-      const { status } = await Camera.requestCameraPermissionsAsync();
-      setPermission(status);
+      const result = await requestPermission();
       
-      if (status === PermissionStatus.GRANTED) {
-        triggerHaptic('notificationSuccess');
+      if (result.granted) {
+        haptics.success();
         setDemoStep('camera');
       } else {
-        triggerHaptic('notificationError');
+        haptics.error();
         Alert.alert(
           t('onboarding.permissionDenied'),
           t('onboarding.cameraRationale'),
@@ -67,28 +66,28 @@ export default function OCRScannerDemo({ onNext, onSkip }: Props) {
       }
     } catch (error) {
       console.error('Permission request error:', error);
-      triggerHaptic('notificationError');
+      haptics.error();
       setDemoStep('intro');
     }
-  }, [t, triggerHaptic]);
+  }, [t, haptics, requestPermission]);
 
   // Simulate scan process
   const handleScanDemo = useCallback(() => {
-    triggerHaptic('impactMedium');
+    haptics.medium();
     setDemoStep('processing');
     
     // Simulate OCR processing time
     setTimeout(() => {
-      triggerHaptic('notificationSuccess');
+      haptics.success();
       setDemoStep('preview');
     }, 2500);
-  }, [triggerHaptic]);
+  }, [haptics]);
 
   // Skip to preview (for demo without camera)
   const skipToPreview = useCallback(() => {
-    triggerHaptic('impactLight');
+    haptics.light();
     setDemoStep('preview');
-  }, [triggerHaptic]);
+  }, [haptics]);
 
   const flowSteps = [
     {
@@ -101,7 +100,7 @@ export default function OCRScannerDemo({ onNext, onSkip }: Props) {
       step: 2,
       icon: 'scan',
       label: t('onboarding.scanStep2'),
-      color: colors.accent,
+      color: colors.info,
     },
     {
       step: 3,
@@ -156,7 +155,7 @@ export default function OCRScannerDemo({ onNext, onSkip }: Props) {
             accessibilityLabel={t('onboarding.tryScanner')}
             accessibilityRole="button"
           >
-            <Ionicons name="camera" size={24} color={colors.white} />
+            <Ionicons name="camera" size={24} color={colors.surface} />
             <Text style={styles.primaryButtonText}>{t('onboarding.tryScanner')}</Text>
           </TouchableOpacity>
 
@@ -195,7 +194,7 @@ export default function OCRScannerDemo({ onNext, onSkip }: Props) {
           
           <TouchableOpacity
             style={styles.primaryButton}
-            onPress={requestPermission}
+            onPress={handleRequestPermission}
             accessibilityLabel={t('onboarding.grantPermission')}
             accessibilityRole="button"
           >
@@ -219,10 +218,9 @@ export default function OCRScannerDemo({ onNext, onSkip }: Props) {
   if (demoStep === 'camera') {
     return (
       <View style={styles.cameraContainer}>
-        <Camera
+        <CameraView
           style={styles.camera}
-          type={CameraType.back}
-          ratio="16:9"
+          facing="back"
         >
           {/* AR Overlay Guide */}
           <View style={styles.cameraOverlay}>
@@ -246,7 +244,7 @@ export default function OCRScannerDemo({ onNext, onSkip }: Props) {
               accessibilityRole="button"
             >
               <View style={styles.captureButtonInner}>
-                <Ionicons name="camera" size={32} color={colors.white} />
+                <Ionicons name="camera" size={32} color={colors.surface} />
               </View>
             </TouchableOpacity>
 
@@ -256,10 +254,10 @@ export default function OCRScannerDemo({ onNext, onSkip }: Props) {
               accessibilityLabel={t('common.close')}
               accessibilityRole="button"
             >
-              <Ionicons name="close" size={24} color={colors.white} />
+              <Ionicons name="close" size={24} color={colors.surface} />
             </TouchableOpacity>
           </View>
-        </Camera>
+        </CameraView>
       </View>
     );
   }
@@ -342,7 +340,7 @@ export default function OCRScannerDemo({ onNext, onSkip }: Props) {
             accessibilityRole="button"
           >
             <Text style={styles.primaryButtonText}>{t('onboarding.scanFirst')}</Text>
-            <Ionicons name="arrow-forward" size={20} color={colors.white} />
+            <Ionicons name="arrow-forward" size={20} color={colors.surface} />
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -364,7 +362,7 @@ export default function OCRScannerDemo({ onNext, onSkip }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: colors.surface,
   },
   contentContainer: {
     padding: spacing.md,
@@ -372,7 +370,7 @@ const styles = StyleSheet.create({
   },
   centeredContainer: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
     padding: spacing.md,
@@ -392,7 +390,7 @@ const styles = StyleSheet.create({
   },
   title: {
     ...typography.h2,
-    color: colors.text,
+    color: colors.textPrimary,
     textAlign: 'center',
     marginBottom: spacing.xs,
   },
@@ -430,7 +428,7 @@ const styles = StyleSheet.create({
   },
   flowStepLabel: {
     ...typography.body,
-    color: colors.text,
+    color: colors.textPrimary,
   },
   flowConnector: {
     position: 'absolute',
@@ -438,7 +436,7 @@ const styles = StyleSheet.create({
     top: 64,
     width: 2,
     height: 40,
-    backgroundColor: colors.gray300,
+    backgroundColor: colors.borderSubtle,
   },
   demoSection: {
     gap: spacing.md,
@@ -454,22 +452,22 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   primaryButtonText: {
-    ...typography.button,
-    color: colors.white,
+    ...typography.bodyBold,
+    color: colors.surface,
   },
   secondaryButton: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     paddingVertical: spacing.md,
    paddingHorizontal: spacing.lg,
     borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: colors.gray300,
+    borderColor: colors.borderSubtle,
   },
   secondaryButtonText: {
-    ...typography.button,
-    color: colors.text,
+    ...typography.bodyBold,
+    color: colors.textPrimary,
   },
   skipButton: {
     alignItems: 'center',
@@ -480,7 +478,7 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   permissionCard: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderRadius: radii.lg,
     padding: spacing.xl,
     alignItems: 'center',
@@ -489,7 +487,7 @@ const styles = StyleSheet.create({
     maxWidth: 400,
     ...Platform.select({
       ios: {
-        shadowColor: colors.shadow,
+        shadowColor: colors.shadowPrimary,
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.15,
         shadowRadius: 8,
@@ -498,13 +496,13 @@ const styles = StyleSheet.create({
         elevation: 4,
       },
       default: {
-        boxShadow: `0 4px 8px ${colors.shadow}30`,
+        boxShadow: `0 4px 8px ${colors.shadowPrimary}30`,
       },
     }),
   },
   cameraContainer: {
     flex: 1,
-    backgroundColor: colors.black,
+    backgroundColor: colors.surfaceDark,
   },
   camera: {
     flex: 1,
@@ -520,7 +518,7 @@ const styles = StyleSheet.create({
     width: 280,
     height: 400,
     borderWidth: 2,
-    borderColor: colors.white,
+    borderColor: colors.surface,
     borderStyle: 'dashed',
     position: 'relative',
     marginTop: spacing.xxl,
@@ -564,7 +562,7 @@ const styles = StyleSheet.create({
   },
   guidanceText: {
     ...typography.body,
-    color: colors.white,
+    color: colors.surface,
     textAlign: 'center',
   },
   captureButton: {
@@ -595,7 +593,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   processingCard: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderRadius: radii.lg,
     padding: spacing.xxl,
     alignItems: 'center',
@@ -608,7 +606,7 @@ const styles = StyleSheet.create({
   },
   processingTitle: {
     ...typography.h3,
-    color: colors.text,
+    color: colors.textPrimary,
     textAlign: 'center',
   },
   processingSubtitle: {
@@ -621,13 +619,13 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   extractedDataCard: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderRadius: radii.lg,
     padding: spacing.lg,
     marginBottom: spacing.lg,
     ...Platform.select({
       ios: {
-        shadowColor: colors.shadow,
+        shadowColor: colors.shadowPrimary,
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.1,
         shadowRadius: 4,
@@ -636,7 +634,7 @@ const styles = StyleSheet.create({
         elevation: 2,
       },
       default: {
-        boxShadow: `0 2px 4px ${colors.shadow}20`,
+        boxShadow: `0 2px 4px ${colors.shadowPrimary}20`,
       },
     }),
   },
@@ -650,7 +648,7 @@ const styles = StyleSheet.create({
   },
   dataValue: {
     ...typography.body,
-    color: colors.text,
+    color: colors.textPrimary,
     fontWeight: '600',
   },
   amountContainer: {
@@ -671,12 +669,14 @@ const styles = StyleSheet.create({
   },
   divider: {
     height: 1,
-    backgroundColor: colors.gray200,
+    backgroundColor: colors.surfaceSecondary,
     marginVertical: spacing.md,
   },
   itemsTitle: {
-    ...typography.h4,
-    color: colors.text,
+    fontSize: 20,
+    lineHeight: 28,
+    fontWeight: '600' as const,
+    color: colors.textPrimary,
     marginBottom: spacing.sm,
   },
   itemRow: {
@@ -685,16 +685,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: spacing.sm,
     borderBottomWidth: 1,
-    borderBottomColor: colors.gray100,
+    borderBottomColor: colors.surfaceMuted,
   },
   itemName: {
     ...typography.body,
-    color: colors.text,
+    color: colors.textPrimary,
     flex: 1,
   },
   itemPrice: {
     ...typography.body,
-    color: colors.text,
+    color: colors.textPrimary,
     fontWeight: '600',
   },
   actions: {

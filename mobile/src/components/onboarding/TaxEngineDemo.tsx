@@ -12,8 +12,8 @@ import Animated, { FadeIn, FadeOut, SlideInRight } from 'react-native-reanimated
 import { useTranslation } from 'react-i18next';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { colors, radii, spacing, typography } from '../../theme/tokens';
-import { useHapticFeedback } from '../../utils/haptics';
-import { calculateVAT, calculateWHT } from '../../services/tax/engine';
+import { useHapticFeedback } from '../../hooks/useHapticFeedback';
+import { calculateVAT } from '../../services/tax/engine';
 
 interface Props {
   onNext: () => void;
@@ -34,7 +34,7 @@ const INITIAL_DEMO_ITEMS: DemoItem[] = [
 
 export default function TaxEngineDemo({ onNext, onSkip }: Props) {
   const { t } = useTranslation();
-  const triggerHaptic = useHapticFeedback();
+  const haptics = useHapticFeedback();
 
   const [items, setItems] = useState<DemoItem[]>(INITIAL_DEMO_ITEMS);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
@@ -52,16 +52,15 @@ export default function TaxEngineDemo({ onNext, onSkip }: Props) {
       .reduce((sum, item) => sum + item.amount, 0);
 
     const subtotal = taxableAmount + nonTaxableAmount;
-    const vat = calculateVAT(taxableAmount);
-    const wht = calculateWHT(taxableAmount, 'professional_services');
-    const total = subtotal + vat - wht;
+    const vatResult = calculateVAT(taxableAmount);
+    const vatAmount = vatResult.amount;
+    const total = subtotal + vatAmount;
 
     return {
       subtotal,
       taxableAmount,
       nonTaxableAmount,
-      vat: { amount: vat, rate: 7.5 },
-      wht: { amount: wht, rate: 5.0 },
+      vat: { amount: vatAmount, rate: 7.5 },
       total,
     };
   }, [items]);
@@ -79,26 +78,26 @@ export default function TaxEngineDemo({ onNext, onSkip }: Props) {
     
     if (!hasInteracted) {
       setHasInteracted(true);
-      triggerHaptic('impactLight');
+      haptics.light();
     }
-  }, [hasInteracted, triggerHaptic]);
+  }, [hasInteracted, haptics]);
 
   // Toggle taxable status
   const handleToggleTaxable = useCallback((index: number) => {
-    triggerHaptic('impactMedium');
+    haptics.medium();
     setItems(prev => {
       const newItems = [...prev];
       newItems[index] = { ...newItems[index], taxable: !newItems[index].taxable };
       return newItems;
     });
     setHasInteracted(true);
-  }, [triggerHaptic]);
+  }, [haptics]);
 
   // Show explainer modal
   const handleShowExplainer = useCallback((type: string) => {
-    triggerHaptic('impactLight');
+    haptics.light();
     setShowExplainer(type);
-  }, [triggerHaptic]);
+  }, [haptics]);
 
   // Format currency
   const formatCurrency = useCallback((amount: number) => {
@@ -247,7 +246,7 @@ export default function TaxEngineDemo({ onNext, onSkip }: Props) {
               <View style={styles.breakdownBar}>
                 <View style={[styles.breakdownBarFill, { 
                   width: '100%',
-                  backgroundColor: colors.gray200 
+                  backgroundColor: colors.surfaceSecondary 
                 }]} />
               </View>
               <Text style={styles.breakdownAmount}>{formatCurrency(calculations.subtotal)}</Text>
@@ -258,7 +257,7 @@ export default function TaxEngineDemo({ onNext, onSkip }: Props) {
               <View style={styles.breakdownLabel}>
                 <Text style={styles.breakdownLabelText}>{t('tax.breakdown.vat')}</Text>
                 <TouchableOpacity onPress={() => handleShowExplainer('vat')}>
-                  <Ionicons name="information-circle-outline" size={16} color={colors.accent} />
+                  <Ionicons name="information-circle-outline" size={16} color={colors.info} />
                 </TouchableOpacity>
               </View>
               <View style={styles.breakdownBar}>
@@ -275,31 +274,7 @@ export default function TaxEngineDemo({ onNext, onSkip }: Props) {
               </View>
             </View>
 
-            {/* WHT Row */}
-            {calculations.wht.amount > 0 && (
-              <View style={styles.breakdownRow}>
-                <View style={styles.breakdownLabel}>
-                  <Text style={styles.breakdownLabelText}>{t('tax.breakdown.wht')}</Text>
-                  <TouchableOpacity onPress={() => handleShowExplainer('wht')}>
-                    <Ionicons name="information-circle-outline" size={16} color={colors.accent} />
-                  </TouchableOpacity>
-                </View>
-                <View style={styles.breakdownBar}>
-                  <View style={[styles.breakdownBarFill, { 
-                    width: `${(calculations.wht.amount / calculations.subtotal) * 100}%`,
-                    backgroundColor: colors.warning 
-                  }]} />
-                </View>
-                <View style={styles.breakdownAmountWithBadge}>
-                  <Text style={[styles.breakdownAmount, styles.breakdownAmountNegative]}>
-                    -{formatCurrency(calculations.wht.amount)}
-                  </Text>
-                  <View style={[styles.rateBadge, styles.rateBadgeWarning]}>
-                    <Text style={styles.rateBadgeText}>{calculations.wht.rate}%</Text>
-                  </View>
-                </View>
-              </View>
-            )}
+
 
             {/* Non-taxable Items */}
             {calculations.nonTaxableAmount > 0 && (
@@ -346,7 +321,7 @@ export default function TaxEngineDemo({ onNext, onSkip }: Props) {
           onPress={onNext}
         >
           <Text style={styles.nextButtonText}>{t('common.continue')}</Text>
-          <Ionicons name="arrow-forward" size={20} color={colors.white} />
+          <Ionicons name="arrow-forward" size={20} color={colors.surface} />
         </TouchableOpacity>
       </View>
 
@@ -359,7 +334,7 @@ export default function TaxEngineDemo({ onNext, onSkip }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: colors.surface,
   },
   scrollView: {
     flex: 1,
@@ -396,16 +371,18 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   sectionTitle: {
-    ...typography.h4,
+    fontSize: 20,
+    lineHeight: 28,
+    fontWeight: '600' as const,
     color: colors.textPrimary,
     marginBottom: spacing.sm,
   },
   itemCard: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderRadius: radii.lg,
     padding: spacing.md,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.borderSubtle,
   },
   itemHeader: {
     flexDirection: 'row',
@@ -448,7 +425,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingTop: spacing.sm,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
+    borderTopColor: colors.borderSubtle,
   },
   amountText: {
     ...typography.h3,
@@ -463,15 +440,17 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xs,
   },
   breakdownCard: {
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderRadius: radii.lg,
     padding: spacing.md,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.borderSubtle,
     marginTop: spacing.md,
   },
   breakdownTitle: {
-    ...typography.h4,
+    fontSize: 20,
+    lineHeight: 28,
+    fontWeight: '600' as const,
     color: colors.textPrimary,
     marginBottom: spacing.md,
   },
@@ -494,7 +473,7 @@ const styles = StyleSheet.create({
   breakdownBar: {
     flex: 1,
     height: 8,
-    backgroundColor: colors.gray100,
+    backgroundColor: colors.surfaceMuted,
     borderRadius: radii.sm,
     overflow: 'hidden',
   },
@@ -530,7 +509,7 @@ const styles = StyleSheet.create({
   },
   rateBadgeText: {
     ...typography.caption,
-    color: colors.white,
+    color: colors.surface,
     fontSize: 10,
     fontWeight: '700',
   },
@@ -538,7 +517,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
     paddingTop: spacing.sm,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
+    borderTopColor: colors.borderSubtle,
   },
   exemptionButton: {
     flexDirection: 'row',
@@ -558,7 +537,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
     paddingTop: spacing.md,
     borderTopWidth: 2,
-    borderTopColor: colors.border,
+    borderTopColor: colors.borderSubtle,
   },
   totalLabel: {
     ...typography.h3,
@@ -590,12 +569,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: spacing.md,
     padding: spacing.lg,
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     borderTopWidth: 1,
-    borderTopColor: colors.border,
+    borderTopColor: colors.borderSubtle,
     ...Platform.select({
       ios: {
-        shadowColor: colors.black,
+        shadowColor: colors.surfaceDark,
         shadowOffset: { width: 0, height: -2 },
         shadowOpacity: 0.1,
         shadowRadius: 4,
@@ -610,11 +589,11 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.borderSubtle,
     alignItems: 'center',
   },
   skipButtonText: {
-    ...typography.button,
+    ...typography.bodyBold,
     color: colors.textSecondary,
   },
   nextButton: {
@@ -624,15 +603,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: spacing.sm,
     paddingVertical: spacing.md,
-    backgroundColor: colors.gray400,
+    backgroundColor: colors.neutralBg,
     borderRadius: radii.md,
   },
   nextButtonActive: {
     backgroundColor: colors.primary,
   },
   nextButtonText: {
-    ...typography.button,
-    color: colors.white,
+    ...typography.bodyBold,
+    color: colors.surface,
   },
   explainerOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -648,7 +627,7 @@ const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
     width: '80%',
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
     padding: spacing.lg,
   },
   explainerHeader: {
@@ -683,7 +662,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
   },
   explainerCloseButtonText: {
-    ...typography.button,
-    color: colors.white,
+    ...typography.bodyBold,
+    color: colors.surface,
   },
 });
