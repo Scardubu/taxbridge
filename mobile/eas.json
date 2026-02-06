@@ -43,7 +43,8 @@
       "env": {
         "EXPO_PUBLIC_API_URL": "https://taxbridge-api-ker8.onrender.com",
         "EXPO_PUBLIC_ENV": "preview",
-        "NODE_ENV": "production"
+        "NODE_ENV": "production",
+        "EAS_SKIP_AUTO_FINGERPRINT": "1"
       },
       "android": {
         "buildType": "apk"

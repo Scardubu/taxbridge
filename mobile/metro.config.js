@@ -2,38 +2,28 @@
  * Metro configuration for React Native
  * Forces single React instance across monorepo
  * Optimized for Windows file watcher performance
+ * EAS Build compatible
  * 
  * @format
  */
 
 const { getDefaultConfig } = require('expo/metro-config');
 const path = require('path');
-const fs = require('fs');
 
 // Get workspace root (one level up from mobile/)
 const workspaceRoot = path.resolve(__dirname, '..');
 const projectRoot = __dirname;
-const isWindows = process.platform === 'win32';
 
 const config = getDefaultConfig(projectRoot);
 
 // Watch only necessary folders to avoid Windows file watcher timeout
-// On Windows, avoid watching workspace root node_modules to prevent watcher overflow.
+// For EAS builds, always include workspace node_modules
+const isEASBuild = process.env.EAS_BUILD === 'true';
 config.watchFolders = [projectRoot];
-if (!isWindows) {
+
+if (isEASBuild || process.platform !== 'win32') {
   config.watchFolders.push(path.join(workspaceRoot, 'node_modules'));
 }
-
-// Disable watchman on Windows to avoid watch mode startup failures
-// Completely disable health checks to prevent timeout failures
-config.watcher = {
-  watchman: {
-    enabled: false,
-  },
-  healthCheck: {
-    enabled: false, // Disabled completely to prevent startup failures
-  },
-};
 
 // Force single React resolution (critical for hooks)
 // Point to workspace root node_modules for shared dependencies
