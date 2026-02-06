@@ -31,7 +31,7 @@ const i18nOptions: InitOptions = {
   // Disable missing key warnings in production
   saveMissing: __DEV__,
   missingInterpolationHandler: (text: string, value: any) => {
-    console.warn(`Missing interpolation: ${text} for value:`, value);
+    if (__DEV__) console.warn(`Missing interpolation: ${text} for value:`, value);
     return text;
   },
   

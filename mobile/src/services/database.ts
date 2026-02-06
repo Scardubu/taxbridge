@@ -15,24 +15,23 @@ if (Platform.OS !== 'web') {
     // lazy require to avoid web resolution errors
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const SQLite = require('expo-sqlite');
-    nativeDb = SQLite.openDatabase('taxbridge.db');
-    nativeExec = (sql: string, params: (string | number | null)[] = []) =>
-      new Promise((resolve, reject) => {
-        nativeDb.transaction(
-          (tx: any) => {
-            tx.executeSql(
-              sql,
-              params,
-              (_tx: any, res: any) => resolve(res),
-              (_tx: any, err: any) => {
-                reject(err);
-                return true;
-              }
-            );
-          },
-          (err?: any) => reject(err)
-        );
-      });
+    // expo-sqlite v16+ (SDK 54): use openDatabaseSync (legacy openDatabase removed)
+    nativeDb = SQLite.openDatabaseSync('taxbridge.db');
+    // Compatibility wrapper: translates new sync API into the { rows: { _array } }
+    // shape expected by all callers, keeping the async signature for drop-in use.
+    nativeExec = async (sql: string, params: (string | number | null)[] = []) => {
+      const isSelect = sql.trimStart().toUpperCase().startsWith('SELECT');
+      if (isSelect) {
+        const rows = nativeDb.getAllSync(sql, ...params);
+        return { rows: { _array: rows, length: rows.length } };
+      }
+      const result = nativeDb.runSync(sql, ...params);
+      return {
+        rows: { _array: [], length: 0 },
+        insertId: result.lastInsertRowId,
+        rowsAffected: result.changes,
+      };
+    };
   } catch (e) {
     // If expo-sqlite isn't available, fall through to web-like storage.
     nativeExec = null;
@@ -239,6 +238,24 @@ export async function getInvoices(): Promise<LocalInvoiceRow[]> {
   const rows = await readStoredInvoices();
   // copy to avoid mutation; sort by createdAt (fallback storage uses camelCase)
   return [...rows].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+}
+
+export async function getInvoiceStats(): Promise<{ total: number; synced: number; pending: number }> {
+  if (nativeExec) {
+    const res = await nativeExec(
+      'SELECT COUNT(*) as total, SUM(CASE WHEN synced = 1 THEN 1 ELSE 0 END) as synced FROM invoices'
+    );
+    const row = (res.rows as any)?._array?.[0] ?? { total: 0, synced: 0 };
+    const total = Number(row.total) || 0;
+    const synced = Number(row.synced) || 0;
+    const pending = Math.max(0, total - synced);
+    return { total, synced, pending };
+  }
+
+  const rows = await readStoredInvoices();
+  const synced = rows.filter((r) => r.synced === 1).length;
+  const total = rows.length;
+  return { total, synced, pending: Math.max(0, total - synced) };
 }
 
 export async function getPendingInvoices(): Promise<LocalInvoiceRow[]> {

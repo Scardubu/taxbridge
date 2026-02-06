@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import i18n from '../i18n';
 import { showToast } from '../components/ui/Toast';
 
 interface ValidationRule {
@@ -36,19 +37,19 @@ export function useFormValidation<T extends Record<string, any>>(
     }
 
     if (rules.required && trimmed === '') {
-      return 'This field is required';
+      return i18n.t('validation.required');
     }
 
     if (rules.minLength && trimmed.length < rules.minLength) {
-      return `Minimum ${rules.minLength} characters required`;
+      return i18n.t('validation.minLength', { count: rules.minLength });
     }
 
     if (rules.maxLength && trimmed.length > rules.maxLength) {
-      return `Maximum ${rules.maxLength} characters allowed`;
+      return i18n.t('validation.maxLength', { count: rules.maxLength });
     }
 
     if (rules.pattern && !rules.pattern.test(trimmed)) {
-      return 'Invalid format';
+      return i18n.t('validation.invalidFormat');
     }
 
     if (rules.custom) {
@@ -111,7 +112,7 @@ export const validationRules = {
     maxLength: 100,
     custom: (value: string) => {
       if (value && !/^[a-zA-Z\s]+$/.test(value.trim())) {
-        return 'Name should only contain letters and spaces';
+        return i18n.t('validation.nameLettersOnly');
       }
       return null;
     },
@@ -122,7 +123,7 @@ export const validationRules = {
     maxLength: 20,
     custom: (value: string) => {
       if (value && value.trim() && !/^[A-Z0-9-]+$/.test(value.trim())) {
-        return 'TIN should only contain letters, numbers, and hyphens';
+        return i18n.t('validation.tinFormat');
       }
       return null;
     },
@@ -137,10 +138,10 @@ export const validationRules = {
     custom: (value: string) => {
       const num = parseFloat(value);
       if (isNaN(num) || num <= 0) {
-        return 'Quantity must be greater than 0';
+        return i18n.t('validation.quantityMin');
       }
       if (num > 9999) {
-        return 'Quantity cannot exceed 9999';
+        return i18n.t('validation.quantityMax', { max: 9999 });
       }
       return null;
     },
@@ -150,10 +151,10 @@ export const validationRules = {
     custom: (value: string) => {
       const num = parseFloat(value);
       if (isNaN(num) || num <= 0) {
-        return 'Price must be greater than 0';
+        return i18n.t('validation.priceMin');
       }
       if (num > 999999) {
-        return 'Price cannot exceed 999,999';
+        return i18n.t('validation.priceMax', { max: 999999 });
       }
       return null;
     },
@@ -165,7 +166,7 @@ export const validationRules = {
         new URL(value);
         return null;
       } catch {
-        return 'Please enter a valid URL (e.g., http://10.0.2.2:3000)';
+        return i18n.t('validation.invalidUrl', { example: 'http://10.0.2.2:3000' });
       }
     },
   },

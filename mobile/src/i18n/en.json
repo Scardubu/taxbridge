@@ -1313,6 +1313,19 @@
     "recentSearches": "Recent Searches",
     "clearRecent": "Clear"
   },
+  "validation": {
+    "required": "This field is required",
+    "minLength": "Minimum {{count}} characters required",
+    "maxLength": "Maximum {{count}} characters allowed",
+    "invalidFormat": "Invalid format",
+    "nameLettersOnly": "Name should only contain letters and spaces",
+    "tinFormat": "TIN should only contain letters, numbers, and hyphens",
+    "quantityMin": "Quantity must be greater than 0",
+    "quantityMax": "Quantity cannot exceed {{max}}",
+    "priceMin": "Price must be greater than 0",
+    "priceMax": "Price cannot exceed {{max}}",
+    "invalidUrl": "Please enter a valid URL (e.g., {{example}})"
+  },
   "wizard": {
     "step": "Step {{current}} of {{total}}",
     "back": "Back",

@@ -20,7 +20,7 @@ import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 
 import i18n, { type SupportedLanguage } from '../i18n';
-import { getSetting, setSetting, getInvoices, clearSyncedLocalInvoices } from '../services/database';
+import { getSetting, setSetting, getInvoiceStats, getInvoices, clearSyncedLocalInvoices } from '../services/database';
 import { getApiBaseUrl, setApiBaseUrl } from '../services/api';
 import { getAccessToken } from '../services/authTokens';
 import * as authApi from '../services/authApi';
@@ -223,10 +223,8 @@ function SettingsScreen() {
 
   const loadStorageStats = useCallback(async () => {
     try {
-      const invoices = (await getInvoices()).map(inv => ({ ...inv, createdAt: new Date(inv.createdAt).getTime() })) as Invoice[];
-      const synced = invoices.filter(inv => inv.synced === 1).length;
-      const pending = invoices.filter(inv => inv.synced === 0).length;
-      setStorageStats({ total: invoices.length, synced, pending });
+      const stats = await getInvoiceStats();
+      setStorageStats(stats);
     } catch (error) {
       if (__DEV__) console.error('Failed to load storage stats:', error);
       setStorageStats({ total: 0, synced: 0, pending: 0 });

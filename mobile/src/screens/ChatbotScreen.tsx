@@ -27,16 +27,16 @@ let Icon: React.ComponentType<any> | null = null;
 try {
   // @ts-ignore
   Icon = require('react-native-vector-icons/MaterialIcons').default;
-} catch { 
-  console.warn('MaterialIcons not installed - using text fallbacks');
+} catch {
+  if (__DEV__) console.warn('MaterialIcons not installed - using text fallbacks');
 }
 
 let Voice: any | null = null;
 try {
   // @ts-ignore
   Voice = require('@react-native-voice/voice').default;
-} catch { 
-  console.warn('Voice recognition not installed - voice features disabled');
+} catch {
+  if (__DEV__) console.warn('Voice recognition not installed - voice features disabled');
 }
 
 // Types
@@ -196,7 +196,7 @@ export default function ChatbotScreen({
       };
 
       Voice.onSpeechError = (e: { error?: { message?: string } }) => {
-        console.error('Voice error:', e);
+        if (__DEV__) console.error('Voice error:', e);
         
         if (!isMountedRef.current) return;
         
@@ -217,7 +217,7 @@ export default function ChatbotScreen({
 
       setVoiceState(prev => ({ ...prev, isAvailable: true }));
     } catch (error) {
-      console.error('Voice initialization error:', error);
+      if (__DEV__) console.error('Voice initialization error:', error);
       setVoiceState(prev => ({ ...prev, isAvailable: false }));
     }
   }, [t]);
@@ -481,7 +481,7 @@ export default function ChatbotScreen({
         });
 
       } catch (error) {
-        console.error(`Chatbot error (attempt ${retryCount + 1}):`, error);
+        if (__DEV__) console.error(`Chatbot error (attempt ${retryCount + 1}):`, error);
         retryCount++;
 
         if (retryCount < MAX_RETRY_ATTEMPTS) {
@@ -553,7 +553,7 @@ export default function ChatbotScreen({
     try {
       await Voice.start('en-US');
     } catch (error) {
-      console.error('Voice start error:', error);
+      if (__DEV__) console.error('Voice start error:', error);
       setVoiceState(prev => ({
         ...prev,
         error: t('chatbot.voiceStartError'),
@@ -567,7 +567,7 @@ export default function ChatbotScreen({
     try {
       await Voice.stop();
     } catch (error) {
-      console.error('Voice stop error:', error);
+      if (__DEV__) console.error('Voice stop error:', error);
     }
   }, []);
 
@@ -618,7 +618,7 @@ export default function ChatbotScreen({
         break;
 
       default:
-        console.warn('Unknown API action:', action);
+        if (__DEV__) console.warn('Unknown API action:', action);
     }
   }, [navigation, t]);
 

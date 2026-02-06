@@ -83,7 +83,7 @@ export const useInvoiceStats = () => {
       const rows = await getInvoices();
       setInvoices(rows as Invoice[]);
     } catch (err) {
-      console.error('Failed to load invoices:', err);
+      if (__DEV__) console.error('Failed to load invoices:', err);
       setError(err as Error);
       setInvoices([]);
     } finally {
@@ -205,7 +205,7 @@ export const useSmartSync = ({
       timeoutId = setTimeout(() => {
         setIsSyncing(true);
         manualSync()
-          .catch(err => console.error('Auto-sync failed:', err))
+          .catch(err => { if (__DEV__) console.error('Auto-sync failed:', err); })
           .finally(() => setIsSyncing(false));
       }, 3000);
     }

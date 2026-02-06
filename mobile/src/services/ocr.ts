@@ -122,7 +122,7 @@ export async function extractReceiptData(
         }
       } else {
         // Non-retryable error
-        console.error('OCR extraction failed:', error);
+        if (__DEV__) console.error('OCR extraction failed:', error);
         const extractError = new Error('OCR_EXTRACTION_FAILED');
         extractError.name = 'OCRError';
         throw extractError;

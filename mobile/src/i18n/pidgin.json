@@ -1329,6 +1329,19 @@
     "recentSearches": "Recent searches",
     "clearRecent": "Clear"
   },
+  "validation": {
+    "required": "This field dey required",
+    "minLength": "At least {{count}} letters dey needed",
+    "maxLength": "No pass {{count}} letters",
+    "invalidFormat": "Format no correct",
+    "nameLettersOnly": "Name suppose get only letters and space",
+    "tinFormat": "TIN suppose get only letters, numbers, and hyphen",
+    "quantityMin": "Quantity must pass 0",
+    "quantityMax": "Quantity no fit pass {{max}}",
+    "priceMin": "Price must pass 0",
+    "priceMax": "Price no fit pass {{max}}",
+    "invalidUrl": "Put correct URL (e.g., {{example}})"
+  },
   "fab": {
     "createInvoice": "New Invoice",
     "scanReceipt": "Scan Receipt",
