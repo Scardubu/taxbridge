@@ -29,6 +29,7 @@ import {
 import { warmUpSyncEngine } from '../sync/syncEngine';
 import { hydrateFeatureFlags } from '../services/featureFlags';
 import { colors } from '../theme/tokens';
+import i18n from '../i18n';
 
 const { width, height } = Dimensions.get('window');
 const LOGO_SIZE = Math.min(width, height) * 0.42;
@@ -60,6 +61,10 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
       const [syncEngineResult] = await Promise.allSettled([
         warmUpSyncEngine(),
         hydrateFeatureFlags(),
+        // Ensure i18n is fully initialized before proceeding
+        i18n.isInitialized ? Promise.resolve() : new Promise<void>((resolve) => {
+          i18n.on('initialized', () => resolve());
+        }),
       ]);
       
       // Extract device info and persisted state

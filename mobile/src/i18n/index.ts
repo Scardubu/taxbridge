@@ -59,7 +59,11 @@ const i18nOptions: InitOptions = {
 
 // Initialize i18n synchronously to ensure context is available immediately
 i18n.use(initReactI18next);
-void i18n.init(i18nOptions);
+
+// For web compatibility, initialize synchronously
+if (!i18n.isInitialized) {
+  i18n.init(i18nOptions);
+}
 
 export default i18n;
 
