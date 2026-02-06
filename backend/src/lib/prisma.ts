@@ -18,6 +18,33 @@ function coerceNumber(value: string | undefined, fallback: number): number {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
+function describeDatabaseUrlIssues(databaseUrl: string): string[] {
+  const issues: string[] = [];
+  const trimmed = databaseUrl.trim();
+
+  if (trimmed !== databaseUrl) {
+    issues.push('contains leading or trailing whitespace');
+  }
+
+  if ((trimmed.startsWith('"') && trimmed.endsWith('"')) || (trimmed.startsWith("'") && trimmed.endsWith("'"))) {
+    issues.push('wrapped in quotes (remove surrounding quotes in Render env vars)');
+  }
+
+  if (!/^postgres(ql)?:\/\//i.test(trimmed)) {
+    issues.push('missing postgresql:// scheme');
+  }
+
+  if ((trimmed.match(/@/g) || []).length > 1) {
+    issues.push('contains multiple "@" characters (URL-encode password)');
+  }
+
+  if (/\s/.test(trimmed)) {
+    issues.push('contains whitespace (URL-encode special characters)');
+  }
+
+  return issues;
+}
+
 function buildDatasourceUrl(): string {
   const databaseUrl = process.env.DATABASE_POOL_URL ?? process.env.DATABASE_URL;
   if (!databaseUrl) {
@@ -28,7 +55,11 @@ function buildDatasourceUrl(): string {
   try {
     parsedUrl = new URL(databaseUrl);
   } catch (error) {
-    throw new Error(`Invalid database URL provided: ${(error as Error).message}`);
+    const issues = describeDatabaseUrlIssues(databaseUrl);
+    log.error('Invalid DATABASE_URL provided', {
+      issues: issues.length ? issues : ['failed URL parsing (check for URL-encoding issues)']
+    });
+    throw new Error('Invalid database URL provided. Ensure DATABASE_URL is a valid postgresql:// URL and URL-encode special characters.');
   }
 
   const poolMax = coerceNumber(process.env.DATABASE_POOL_MAX ?? process.env.DB_POOL_MAX, DEFAULT_POOL_MAX);

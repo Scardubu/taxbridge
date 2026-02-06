@@ -1,36 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
 
 export default function NotFound() {
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  // During SSR/SSG, render a simple fallback
-  if (!mounted) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <h1 className="text-6xl font-bold text-gray-900">404</h1>
-          <p className="mt-2 text-xl text-gray-600">Page not found</p>
-          <div className="mt-6">
-            <Link
-              href="/dashboard"
-              className="inline-block rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
-            >
-              Go to Dashboard
-            </Link>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // After mounting, use client-side i18n if available
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50">
       <div className="max-w-md text-center">
@@ -43,7 +15,7 @@ export default function NotFound() {
             Page Not Found
           </h2>
           <p className="text-gray-600">
-            The page you're looking for doesn't exist or has been moved.
+            The page you&apos;re looking for doesn&apos;t exist or has been moved.
           </p>
         </div>
 

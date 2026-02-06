@@ -91,7 +91,7 @@ export default function CommunityStep({ onNext, onSkip }: Props) {
         <View style={styles.inputContainer}>
           <TextInput
             style={styles.input}
-            placeholder="TAXABC123"
+            placeholder={t('onboarding.community.codePlaceholder')}
             value={referralCode}
             onChangeText={setReferralCode}
             autoCapitalize="characters"

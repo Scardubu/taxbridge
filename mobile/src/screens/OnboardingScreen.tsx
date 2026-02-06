@@ -424,7 +424,7 @@ function OnboardingScreen(props: OnboardingScreenProps = {}) {
         }
       }
     } catch (error) {
-      console.error('Error progressing onboarding:', error);
+      if (__DEV__) console.error('Error progressing onboarding:', error);
       
       if (!isMountedRef.current) return;
       
@@ -474,7 +474,7 @@ function OnboardingScreen(props: OnboardingScreenProps = {}) {
         navigation.replace?.('MainTabs');
       }
     } catch (error) {
-      console.error('Error skipping step:', error);
+      if (__DEV__) console.error('Error skipping step:', error);
       
       if (!isMountedRef.current) return;
       
@@ -521,7 +521,7 @@ function OnboardingScreen(props: OnboardingScreenProps = {}) {
               void trackOnboardingComplete();
               navigation.replace?.('MainTabs');
             } catch (error) {
-              console.error('Error skipping all:', error);
+              if (__DEV__) console.error('Error skipping all:', error);
               
               if (!isMountedRef.current) return;
               
@@ -566,7 +566,7 @@ function OnboardingScreen(props: OnboardingScreenProps = {}) {
               }
               navigation.replace?.('MainTabs');
             } catch (error) {
-              console.error('Error saving progress:', error);
+              if (__DEV__) console.error('Error saving progress:', error);
               // Still navigate even if save fails
               navigation.replace?.('MainTabs');
             }

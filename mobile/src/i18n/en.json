@@ -758,6 +758,7 @@
       "referralBenefit": "When someone joins with your code, you both get 1 free tax consultation (₦5,000 value!)",
       "enterCode": "Have a Referral Code?",
       "enterCodeDesc": "Enter a code from a friend to unlock your reward",
+      "codePlaceholder": "TAXABC123",
       "apply": "Apply",
       "codeApplied": "Code applied! Reward unlocked.",
       "features": "Community Features",

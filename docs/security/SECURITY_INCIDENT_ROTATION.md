@@ -81,7 +81,7 @@ git log --all --full-history -- .env.production.example | grep -E "(SLACK_WEBHOO
 
 ```bash
 # Set via Render Dashboard or API
-curl -X PATCH https://api.render.com/v1/services/srv-d5kq9tmmcj7s73a55ds0/env-vars \
+curl -X PATCH https://api.render.com/v1/services/srv-d62gsicr85hc73a34nc0/env-vars \
   -H "Authorization: Bearer $RENDER_API_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
