@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -27,19 +27,28 @@ interface DemoItem {
   isEditing?: boolean;
 }
 
-const INITIAL_DEMO_ITEMS: DemoItem[] = [
-  { description: 'Professional Services', amount: 50000, taxable: true },
-  { description: 'Travel Reimbursement', amount: 10000, taxable: false },
-];
-
 export default function TaxEngineDemo({ onNext, onSkip }: Props) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const haptics = useHapticFeedback();
 
-  const [items, setItems] = useState<DemoItem[]>(INITIAL_DEMO_ITEMS);
+  const defaultItems = useMemo<DemoItem[]>(
+    () => [
+      { description: t('onboarding.taxEngine.sampleItem1'), amount: 50000, taxable: true },
+      { description: t('onboarding.taxEngine.sampleItem2'), amount: 10000, taxable: false },
+    ],
+    [t, i18n.language]
+  );
+
+  const [items, setItems] = useState<DemoItem[]>(defaultItems);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [showExplainer, setShowExplainer] = useState<string | null>(null);
   const [hasInteracted, setHasInteracted] = useState(false);
+
+  useEffect(() => {
+    if (!hasInteracted) {
+      setItems(defaultItems);
+    }
+  }, [defaultItems, hasInteracted]);
 
   // Calculate tax breakdown
   const calculations = useMemo(() => {
@@ -110,28 +119,28 @@ export default function TaxEngineDemo({ onNext, onSkip }: Props) {
 
     const explainerContent = {
       vat: {
-        title: t('onboarding.taxExplainerVATTitle'),
+        title: t('onboarding.taxEngine.taxExplainerVATTitle'),
         points: [
-          t('onboarding.taxExplainer1'),
-          'Applied to most goods and services',
-          'Collected at point of sale',
+          t('onboarding.taxEngine.taxExplainer1'),
+          t('onboarding.taxEngine.taxExplainerVatPoint2'),
+          t('onboarding.taxEngine.taxExplainerVatPoint3'),
         ],
       },
       wht: {
-        title: t('onboarding.taxExplainerWHTTitle'),
+        title: t('onboarding.taxEngine.taxExplainerWHTTitle'),
         points: [
-          t('onboarding.taxExplainer2'),
-          'Deducted at source by payer',
-          'Applicable to professional services, rent, etc.',
+          t('onboarding.taxEngine.taxExplainer2'),
+          t('onboarding.taxEngine.taxExplainerWhtPoint2'),
+          t('onboarding.taxEngine.taxExplainerWhtPoint3'),
         ],
       },
       exempt: {
-        title: t('onboarding.taxExplainerExemptTitle'),
+        title: t('onboarding.taxEngine.taxExplainerExemptTitle'),
         points: [
-          t('onboarding.taxExplainer3'),
-          'Travel reimbursements (actual expenses)',
-          'Medical expenses',
-          'Basic food items',
+          t('onboarding.taxEngine.taxExplainer3'),
+          t('onboarding.taxEngine.taxExplainerExemptPoint2'),
+          t('onboarding.taxEngine.taxExplainerExemptPoint3'),
+          t('onboarding.taxEngine.taxExplainerExemptPoint4'),
         ],
       },
     };
@@ -180,13 +189,13 @@ export default function TaxEngineDemo({ onNext, onSkip }: Props) {
           <View style={styles.iconContainer}>
             <Ionicons name="calculator" size={48} color={colors.primary} />
           </View>
-          <Text style={styles.title}>{t('onboarding.taxEngineTitle')}</Text>
-          <Text style={styles.subtitle}>{t('onboarding.taxEngineSubtitle')}</Text>
+          <Text style={styles.title}>{t('onboarding.taxEngine.title')}</Text>
+          <Text style={styles.subtitle}>{t('onboarding.taxEngine.subtitle')}</Text>
         </View>
 
         {/* Interactive Demo */}
         <View style={styles.demoContainer}>
-          <Text style={styles.sectionTitle}>{t('onboarding.tryYourOwn')}</Text>
+          <Text style={styles.sectionTitle}>{t('onboarding.taxEngine.tryYourOwn')}</Text>
           
           {/* Editable Items */}
           {items.map((item, index) => (
@@ -206,7 +215,7 @@ export default function TaxEngineDemo({ onNext, onSkip }: Props) {
                       styles.taxableBadgeText,
                       item.taxable ? styles.taxableBadgeTextActive : styles.taxableBadgeTextInactive
                     ]}>
-                      {item.taxable ? t('common.taxable') : t('common.exempt')}
+                      {item.taxable ? t('onboarding.taxEngine.taxable') : t('onboarding.taxEngine.exempt')}
                     </Text>
                   </View>
                 </TouchableOpacity>
@@ -236,7 +245,7 @@ export default function TaxEngineDemo({ onNext, onSkip }: Props) {
 
           {/* Tax Breakdown Visualizer */}
           <Animated.View entering={FadeIn.delay(300)} style={styles.breakdownCard}>
-            <Text style={styles.breakdownTitle}>{t('onboarding.taxBreakdown')}</Text>
+            <Text style={styles.breakdownTitle}>{t('onboarding.taxEngine.taxBreakdown')}</Text>
             
             {/* Subtotal Bar */}
             <View style={styles.breakdownRow}>
@@ -285,7 +294,7 @@ export default function TaxEngineDemo({ onNext, onSkip }: Props) {
                 >
                   <Ionicons name="shield-checkmark" size={16} color={colors.success} />
                   <Text style={styles.exemptionText}>
-                    {formatCurrency(calculations.nonTaxableAmount)} {t('common.exempt')}
+                    {formatCurrency(calculations.nonTaxableAmount)} {t('onboarding.taxEngine.exempt')}
                   </Text>
                   <Ionicons name="chevron-forward" size={16} color={colors.success} />
                 </TouchableOpacity>
@@ -303,7 +312,7 @@ export default function TaxEngineDemo({ onNext, onSkip }: Props) {
           {!hasInteracted && (
             <Animated.View entering={FadeIn.delay(500)} exiting={FadeOut} style={styles.hintCard}>
               <Ionicons name="hand-left" size={24} color={colors.primary} />
-              <Text style={styles.hintText}>{t('onboarding.tapToEdit')}</Text>
+              <Text style={styles.hintText}>{t('onboarding.taxEngine.tapToEdit')}</Text>
             </Animated.View>
           )}
         </View>

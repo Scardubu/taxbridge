@@ -10,6 +10,7 @@ import {
   ScrollView, 
   Linking,
   Platform,
+  InteractionManager,
 } from 'react-native';
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
@@ -257,8 +258,12 @@ function SettingsScreen() {
       .then(url => setValue('apiUrl', url))
       .catch(() => undefined);
 
-    loadStorageStats();
-    void refreshAuthStatus();
+    const task = InteractionManager.runAfterInteractions(() => {
+      loadStorageStats();
+      void refreshAuthStatus();
+    });
+
+    return () => task.cancel();
   }, [loadStorageStats, refreshAuthStatus, setValue]);
 
   // Auto-focus on validation errors

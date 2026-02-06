@@ -29,24 +29,30 @@ export function useFormValidation<T extends Record<string, any>>(
     const rules = validationRules[name];
     if (!rules) return null;
 
-    if (rules.required && (!value || value.trim() === '')) {
+    const trimmed = value?.trim?.() ?? '';
+
+    if (!rules.required && trimmed === '') {
+      return null;
+    }
+
+    if (rules.required && trimmed === '') {
       return 'This field is required';
     }
 
-    if (rules.minLength && value.length < rules.minLength) {
+    if (rules.minLength && trimmed.length < rules.minLength) {
       return `Minimum ${rules.minLength} characters required`;
     }
 
-    if (rules.maxLength && value.length > rules.maxLength) {
+    if (rules.maxLength && trimmed.length > rules.maxLength) {
       return `Maximum ${rules.maxLength} characters allowed`;
     }
 
-    if (rules.pattern && !rules.pattern.test(value)) {
+    if (rules.pattern && !rules.pattern.test(trimmed)) {
       return 'Invalid format';
     }
 
     if (rules.custom) {
-      return rules.custom(value);
+      return rules.custom(trimmed);
     }
 
     return null;

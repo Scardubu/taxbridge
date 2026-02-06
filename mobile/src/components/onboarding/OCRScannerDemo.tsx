@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -23,20 +23,22 @@ interface Props {
 
 type DemoStep = 'intro' | 'permission' | 'camera' | 'processing' | 'preview';
 
-// Mock extracted receipt data for demo
-const DEMO_RECEIPT_DATA = {
-  vendor: 'Mama Tolu\'s Store',
-  amount: 15750,
-  date: new Date().toLocaleDateString('en-NG'),
-  items: [
-    { name: 'Rice (50kg bag)', price: 12000 },
-    { name: 'Vegetable Oil (5L)', price: 3750 },
-  ],
-};
-
 export default function OCRScannerDemo({ onNext, onSkip }: Props) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const haptics = useHapticFeedback();
+
+  const demoReceiptData = useMemo(
+    () => ({
+      vendor: t('onboarding.scanner.demo.vendor'),
+      amount: 15750,
+      date: t('onboarding.scanner.demo.date'),
+      items: [
+        { name: t('onboarding.scanner.demo.item1'), price: 12000 },
+        { name: t('onboarding.scanner.demo.item3'), price: 3750 },
+      ],
+    }),
+    [t, i18n.language]
+  );
 
   const [demoStep, setDemoStep] = useState<DemoStep>('intro');
   const [permission, requestPermission] = useCameraPermissions();
@@ -65,7 +67,7 @@ export default function OCRScannerDemo({ onNext, onSkip }: Props) {
         );
       }
     } catch (error) {
-      console.error('Permission request error:', error);
+      if (__DEV__) console.error('Permission request error:', error);
       haptics.error();
       setDemoStep('intro');
     }
@@ -123,8 +125,8 @@ export default function OCRScannerDemo({ onNext, onSkip }: Props) {
             <Ionicons name="scan" size={48} color={colors.primary} />
           </View>
           
-          <Text style={styles.title}>{t('onboarding.scannerTitle')}</Text>
-          <Text style={styles.subtitle}>{t('onboarding.scannerSubtitle')}</Text>
+          <Text style={styles.title}>{t('onboarding.scanner.title')}</Text>
+          <Text style={styles.subtitle}>{t('onboarding.scanner.subtitle')}</Text>
         </Animated.View>
 
         {/* Flow Steps */}
@@ -298,20 +300,20 @@ export default function OCRScannerDemo({ onNext, onSkip }: Props) {
 
         <Animated.View entering={SlideInRight.delay(200)} style={styles.extractedDataCard}>
           <View style={styles.dataRow}>
-            <Text style={styles.dataLabel}>{t('scanner.fields.vendor')}</Text>
-            <Text style={styles.dataValue}>{DEMO_RECEIPT_DATA.vendor}</Text>
+            <Text style={styles.dataLabel}>{t('onboarding.scanner.vendor')}</Text>
+            <Text style={styles.dataValue}>{demoReceiptData.vendor}</Text>
           </View>
 
           <View style={styles.dataRow}>
-            <Text style={styles.dataLabel}>{t('scanner.fields.date')}</Text>
-            <Text style={styles.dataValue}>{DEMO_RECEIPT_DATA.date}</Text>
+            <Text style={styles.dataLabel}>{t('onboarding.scanner.date')}</Text>
+            <Text style={styles.dataValue}>{demoReceiptData.date}</Text>
           </View>
 
           <View style={styles.dataRow}>
-            <Text style={styles.dataLabel}>{t('scanner.fields.amount')}</Text>
+            <Text style={styles.dataLabel}>{t('onboarding.scanner.amount')}</Text>
             <View style={styles.amountContainer}>
               <Text style={styles.dataValue}>
-                ₦{DEMO_RECEIPT_DATA.amount.toLocaleString('en-NG')}
+                ₦{demoReceiptData.amount.toLocaleString('en-NG')}
               </Text>
               <View style={styles.confidenceBadge}>
                 <Text style={styles.confidenceBadgeText}>95%</Text>
@@ -321,8 +323,8 @@ export default function OCRScannerDemo({ onNext, onSkip }: Props) {
 
           <View style={styles.divider} />
 
-          <Text style={styles.itemsTitle}>{t('scanner.fields.items')}</Text>
-          {DEMO_RECEIPT_DATA.items.map((item, index) => (
+          <Text style={styles.itemsTitle}>{t('onboarding.scanner.items')}</Text>
+          {demoReceiptData.items.map((item, index) => (
             <View key={index} style={styles.itemRow}>
               <Text style={styles.itemName}>{item.name}</Text>
               <Text style={styles.itemPrice}>

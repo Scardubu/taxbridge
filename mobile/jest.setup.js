@@ -350,6 +350,11 @@ jest.mock('expo-modules-core', () => {
   return {
     createPermissionHook: () => [null, jest.fn()],
     requireOptionalNativeModule: () => null,
+    requireNativeModule: () => ({
+      loadAsync: jest.fn().mockResolvedValue(true),
+      unloadAsync: jest.fn().mockResolvedValue(true),
+      unloadAllAsync: jest.fn().mockResolvedValue(true),
+    }),
     NativeModulesProxy: {},
     EventEmitter: class {
       addListener() { return { remove: () => {} }; }
@@ -357,6 +362,16 @@ jest.mock('expo-modules-core', () => {
     },
   };
 });
+
+// Mock expo-font to avoid native module issues during Jest runs
+jest.mock('expo-font', () => ({
+  loadAsync: jest.fn().mockResolvedValue(true),
+  unloadAsync: jest.fn().mockResolvedValue(true),
+  unloadAllAsync: jest.fn().mockResolvedValue(true),
+  isLoaded: jest.fn().mockReturnValue(true),
+  isLoading: jest.fn().mockReturnValue(false),
+  useFonts: () => [true, null],
+}));
 
 // Mock expo-camera to avoid ESM/native imports during Jest runs
 jest.mock('expo-camera', () => {
