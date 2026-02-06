@@ -44,6 +44,16 @@ Test Suite:   176/188 passing (core unit tests stable)
 - `mobile/src/i18n/pidgin.json` - Added 13 taxExplainer keys
 - `mobile/src/screens/SettingsScreen.tsx` - InteractionManager deferral
 - `mobile/src/utils/validation.ts` - Optional validation fix
+- `mobile/app.json` - Disabled newArchEnabled for EAS build stability
+- `mobile/metro.config.js` - Conditional EAS/local module resolution
+- `mobile/eas.json` - Added EAS_BUILD environment variable
+
+**EAS Build Fixes:**
+- ✅ Disabled React Native new architecture (compatibility with dependencies)
+- ✅ Simplified Metro config for cloud builds (removed Proxy in EAS environment)
+- ✅ Added EAS_BUILD=true to preview profile for proper detection
+- ✅ Conditional module resolution: Proxy for local dev, standard for EAS
+- ✅ Resolves "Bundle JavaScript build phase" failures on EAS Android builds
 
 ---
 
