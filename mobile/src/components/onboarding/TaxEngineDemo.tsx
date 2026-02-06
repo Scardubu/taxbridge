@@ -3,621 +3,687 @@ import {
   View,
   Text,
   StyleSheet,
-  TextInput,
   TouchableOpacity,
   ScrollView,
+  TextInput,
+  Platform,
 } from 'react-native';
+import Animated, { FadeIn, FadeOut, SlideInRight } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
-import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
-import LottieView from 'lottie-react-native';
-import { colors, spacing, radii, typography } from '../../theme/tokens';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { colors, radii, spacing, typography } from '../../theme/tokens';
+import { useHapticFeedback } from '../../utils/haptics';
+import { calculateVAT, calculateWHT } from '../../services/tax/engine';
 
-const TAX_ENGINE_ANIMATION = require('../../../assets/animations/tax-engine.json');
-
-interface TaxEngineDemoProps {
+interface Props {
   onNext: () => void;
   onSkip?: () => void;
 }
 
-interface InvoiceItem {
+interface DemoItem {
   description: string;
   amount: number;
   taxable: boolean;
-  whtApplicable?: boolean;
+  isEditing?: boolean;
 }
 
-/**
- * TaxEngineDemo Component
- * 
- * Interactive tax calculation demo showing Nigerian tax intelligence:
- * - VAT (7.5%) on taxable items
- * - Withholding Tax (5% on professional services)
- * - Clear breakdown with explainers
- * - Try-your-own functionality
- */
-export default function TaxEngineDemo({ onNext, onSkip }: TaxEngineDemoProps) {
+const INITIAL_DEMO_ITEMS: DemoItem[] = [
+  { description: 'Professional Services', amount: 50000, taxable: true },
+  { description: 'Travel Reimbursement', amount: 10000, taxable: false },
+];
+
+export default function TaxEngineDemo({ onNext, onSkip }: Props) {
   const { t } = useTranslation();
-  const sampleItems = useMemo<InvoiceItem[]>(() => (
-    [
-      {
-        description: t('onboarding.taxEngine.sampleItem1'),
-        amount: 50000,
-        taxable: true,
-        whtApplicable: true,
-      },
-      {
-        description: t('onboarding.taxEngine.sampleItem2'),
-        amount: 10000,
-        taxable: false,
-        whtApplicable: false,
-      },
-    ]
-  ), [t]);
+  const triggerHaptic = useHapticFeedback();
 
-  const [items, setItems] = useState<InvoiceItem[]>(sampleItems);
-  const [editMode, setEditMode] = useState(false);
-  const [customAmount, setCustomAmount] = useState('50000');
-  const [customDescription, setCustomDescription] = useState(t('onboarding.taxEngine.customItemDefault'));
-  const [isTaxable, setIsTaxable] = useState(true);
-  const [isService, setIsService] = useState(true);
+  const [items, setItems] = useState<DemoItem[]>(INITIAL_DEMO_ITEMS);
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [showExplainer, setShowExplainer] = useState<string | null>(null);
+  const [hasInteracted, setHasInteracted] = useState(false);
 
-  // Calculate totals
+  // Calculate tax breakdown
   const calculations = useMemo(() => {
-    const subtotal = items.reduce((sum, item) => sum + item.amount, 0);
     const taxableAmount = items
       .filter(item => item.taxable)
       .reduce((sum, item) => sum + item.amount, 0);
     
-    const vat = taxableAmount * 0.075; // 7.5% VAT
-    const wht = items
-      .filter(item => item.taxable && item.whtApplicable)
-      .reduce((sum, item) => sum + item.amount * 0.05, 0); // 5% WHT on services
-    
+    const nonTaxableAmount = items
+      .filter(item => !item.taxable)
+      .reduce((sum, item) => sum + item.amount, 0);
+
+    const subtotal = taxableAmount + nonTaxableAmount;
+    const vat = calculateVAT(taxableAmount);
+    const wht = calculateWHT(taxableAmount, 'professional_services');
     const total = subtotal + vat - wht;
 
     return {
       subtotal,
       taxableAmount,
-      vat,
-      wht,
+      nonTaxableAmount,
+      vat: { amount: vat, rate: 7.5 },
+      wht: { amount: wht, rate: 5.0 },
       total,
-      vatRate: 0.075,
-      whtRate: 0.05,
     };
   }, [items]);
 
-  const handleAddCustomItem = useCallback(() => {
-    const amount = parseFloat(customAmount.replace(/,/g, '')) || 0;
-    if (amount > 0 && customDescription.trim()) {
-      setItems(prev => [
-        ...prev,
-        {
-          description: customDescription.trim(),
-          amount,
-          taxable: isTaxable,
-          whtApplicable: isTaxable && isService,
-        },
-      ]);
-      setCustomAmount('');
-      setCustomDescription(t('onboarding.taxEngine.customItemDefault'));
-      setEditMode(false);
+  // Handle item amount edit
+  const handleAmountChange = useCallback((index: number, value: string) => {
+    const numericValue = value.replace(/[^0-9]/g, '');
+    const amount = parseInt(numericValue || '0', 10);
+    
+    setItems(prev => {
+      const newItems = [...prev];
+      newItems[index] = { ...newItems[index], amount };
+      return newItems;
+    });
+    
+    if (!hasInteracted) {
+      setHasInteracted(true);
+      triggerHaptic('impactLight');
     }
-  }, [customAmount, customDescription, isService, isTaxable, t]);
+  }, [hasInteracted, triggerHaptic]);
 
-  const handleReset = useCallback(() => {
-    setItems(sampleItems);
-    setEditMode(false);
-  }, [sampleItems]);
+  // Toggle taxable status
+  const handleToggleTaxable = useCallback((index: number) => {
+    triggerHaptic('impactMedium');
+    setItems(prev => {
+      const newItems = [...prev];
+      newItems[index] = { ...newItems[index], taxable: !newItems[index].taxable };
+      return newItems;
+    });
+    setHasInteracted(true);
+  }, [triggerHaptic]);
 
-  const formatCurrency = (amount: number) => {
+  // Show explainer modal
+  const handleShowExplainer = useCallback((type: string) => {
+    triggerHaptic('impactLight');
+    setShowExplainer(type);
+  }, [triggerHaptic]);
+
+  // Format currency
+  const formatCurrency = useCallback((amount: number) => {
     return `₦${amount.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  };
+  }, []);
+
+  // Render explainer content
+  const renderExplainer = useCallback(() => {
+    if (!showExplainer) return null;
+
+    const explainerContent = {
+      vat: {
+        title: t('onboarding.taxExplainerVATTitle'),
+        points: [
+          t('onboarding.taxExplainer1'),
+          'Applied to most goods and services',
+          'Collected at point of sale',
+        ],
+      },
+      wht: {
+        title: t('onboarding.taxExplainerWHTTitle'),
+        points: [
+          t('onboarding.taxExplainer2'),
+          'Deducted at source by payer',
+          'Applicable to professional services, rent, etc.',
+        ],
+      },
+      exempt: {
+        title: t('onboarding.taxExplainerExemptTitle'),
+        points: [
+          t('onboarding.taxExplainer3'),
+          'Travel reimbursements (actual expenses)',
+          'Medical expenses',
+          'Basic food items',
+        ],
+      },
+    };
+
+    const content = explainerContent[showExplainer as keyof typeof explainerContent];
+    if (!content) return null;
+
+    return (
+      <Animated.View entering={FadeIn} exiting={FadeOut} style={styles.explainerOverlay}>
+        <TouchableOpacity 
+          style={styles.explainerBackdrop} 
+          activeOpacity={1}
+          onPress={() => setShowExplainer(null)}
+        />
+        <Animated.View entering={SlideInRight} style={styles.explainerContent}>
+          <View style={styles.explainerHeader}>
+            <Text style={styles.explainerTitle}>{content.title}</Text>
+            <TouchableOpacity onPress={() => setShowExplainer(null)}>
+              <Ionicons name="close" size={24} color={colors.textPrimary} />
+            </TouchableOpacity>
+          </View>
+          <ScrollView style={styles.explainerBody}>
+            {content.points.map((point, index) => (
+              <View key={index} style={styles.explainerPoint}>
+                <Ionicons name="checkmark-circle" size={20} color={colors.success} />
+                <Text style={styles.explainerPointText}>{point}</Text>
+              </View>
+            ))}
+          </ScrollView>
+          <TouchableOpacity
+            style={styles.explainerCloseButton}
+            onPress={() => setShowExplainer(null)}
+          >
+            <Text style={styles.explainerCloseButtonText}>{t('common.gotIt')}</Text>
+          </TouchableOpacity>
+        </Animated.View>
+      </Animated.View>
+    );
+  }, [showExplainer, t]);
 
   return (
-    <ScrollView 
-      style={styles.container}
-      contentContainerStyle={styles.content}
-      showsVerticalScrollIndicator={false}
-    >
-      {/* Animated Header */}
-      <View style={styles.header}>
-        <LottieView
-          source={TAX_ENGINE_ANIMATION}
-          autoPlay
-          loop={true}
-          style={styles.headerAnimation}
-          speed={0.9}
-        />
-        <Text style={styles.title}>{t('onboarding.taxEngine.title')}</Text>
-        <Text style={styles.subtitle}>{t('onboarding.taxEngine.subtitle')}</Text>
-      </View>
+    <View style={styles.container}>
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+        {/* Header */}
+        <View style={styles.header}>
+          <View style={styles.iconContainer}>
+            <Ionicons name="calculator" size={48} color={colors.primary} />
+          </View>
+          <Text style={styles.title}>{t('onboarding.taxEngineTitle')}</Text>
+          <Text style={styles.subtitle}>{t('onboarding.taxEngineSubtitle')}</Text>
+        </View>
 
-      {/* Sample Invoice Items */}
-      <View style={styles.itemsCard}>
-        <Text style={styles.sectionLabel}>{t('onboarding.taxEngine.items')}</Text>
-        
-        {items.map((item, index) => (
-          <View key={index} style={styles.itemRow}>
-            <View style={styles.itemInfo}>
-              <Text style={styles.itemDescription}>{item.description}</Text>
-              <View style={styles.itemMeta}>
-                <Text style={styles.itemAmount}>{formatCurrency(item.amount)}</Text>
-                <View style={[
-                  styles.taxBadge,
-                  item.taxable ? styles.taxBadgeTaxable : styles.taxBadgeExempt
-                ]}>
-                  <Text style={[
-                    styles.taxBadgeText,
-                    item.taxable ? styles.taxBadgeTextTaxable : styles.taxBadgeTextExempt
+        {/* Interactive Demo */}
+        <View style={styles.demoContainer}>
+          <Text style={styles.sectionTitle}>{t('onboarding.tryYourOwn')}</Text>
+          
+          {/* Editable Items */}
+          {items.map((item, index) => (
+            <Animated.View 
+              key={index} 
+              entering={FadeIn.delay(index * 100)}
+              style={styles.itemCard}
+            >
+              <View style={styles.itemHeader}>
+                <Text style={styles.itemDescription}>{item.description}</Text>
+                <TouchableOpacity onPress={() => handleToggleTaxable(index)}>
+                  <View style={[
+                    styles.taxableBadge,
+                    item.taxable ? styles.taxableBadgeActive : styles.taxableBadgeInactive
                   ]}>
-                    {item.taxable ? t('onboarding.taxEngine.taxable') : t('onboarding.taxEngine.exempt')}
-                  </Text>
+                    <Text style={[
+                      styles.taxableBadgeText,
+                      item.taxable ? styles.taxableBadgeTextActive : styles.taxableBadgeTextInactive
+                    ]}>
+                      {item.taxable ? t('common.taxable') : t('common.exempt')}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              </View>
+              
+              <TouchableOpacity
+                style={styles.amountContainer}
+                onPress={() => setEditingIndex(index)}
+              >
+                {editingIndex === index ? (
+                  <TextInput
+                    style={styles.amountInput}
+                    value={item.amount.toString()}
+                    onChangeText={(value) => handleAmountChange(index, value)}
+                    onBlur={() => setEditingIndex(null)}
+                    keyboardType="numeric"
+                    autoFocus
+                    selectTextOnFocus
+                  />
+                ) : (
+                  <Text style={styles.amountText}>{formatCurrency(item.amount)}</Text>
+                )}
+                <Ionicons name="pencil" size={16} color={colors.primary} />
+              </TouchableOpacity>
+            </Animated.View>
+          ))}
+
+          {/* Tax Breakdown Visualizer */}
+          <Animated.View entering={FadeIn.delay(300)} style={styles.breakdownCard}>
+            <Text style={styles.breakdownTitle}>{t('onboarding.taxBreakdown')}</Text>
+            
+            {/* Subtotal Bar */}
+            <View style={styles.breakdownRow}>
+              <View style={styles.breakdownLabel}>
+                <Text style={styles.breakdownLabelText}>{t('tax.breakdown.subtotal')}</Text>
+              </View>
+              <View style={styles.breakdownBar}>
+                <View style={[styles.breakdownBarFill, { 
+                  width: '100%',
+                  backgroundColor: colors.gray200 
+                }]} />
+              </View>
+              <Text style={styles.breakdownAmount}>{formatCurrency(calculations.subtotal)}</Text>
+            </View>
+
+            {/* VAT Row */}
+            <View style={styles.breakdownRow}>
+              <View style={styles.breakdownLabel}>
+                <Text style={styles.breakdownLabelText}>{t('tax.breakdown.vat')}</Text>
+                <TouchableOpacity onPress={() => handleShowExplainer('vat')}>
+                  <Ionicons name="information-circle-outline" size={16} color={colors.accent} />
+                </TouchableOpacity>
+              </View>
+              <View style={styles.breakdownBar}>
+                <View style={[styles.breakdownBarFill, { 
+                  width: `${(calculations.vat.amount / calculations.subtotal) * 100}%`,
+                  backgroundColor: colors.info 
+                }]} />
+              </View>
+              <View style={styles.breakdownAmountWithBadge}>
+                <Text style={styles.breakdownAmount}>{formatCurrency(calculations.vat.amount)}</Text>
+                <View style={styles.rateBadge}>
+                  <Text style={styles.rateBadgeText}>{calculations.vat.rate}%</Text>
                 </View>
               </View>
             </View>
-          </View>
-        ))}
-      </View>
 
-      {/* Tax Breakdown with Animation */}
-      <Animated.View 
-        style={styles.breakdownCard}
-        entering={FadeIn.delay(200)}
-      >
-        <Text style={styles.breakdownTitle}>{t('onboarding.taxEngine.breakdown')}</Text>
-        
-        {/* Subtotal */}
-        <View style={styles.breakdownRow}>
-          <Text style={styles.breakdownLabel}>{t('onboarding.taxEngine.subtotal')}</Text>
-          <Text style={styles.breakdownValue}>{formatCurrency(calculations.subtotal)}</Text>
-        </View>
+            {/* WHT Row */}
+            {calculations.wht.amount > 0 && (
+              <View style={styles.breakdownRow}>
+                <View style={styles.breakdownLabel}>
+                  <Text style={styles.breakdownLabelText}>{t('tax.breakdown.wht')}</Text>
+                  <TouchableOpacity onPress={() => handleShowExplainer('wht')}>
+                    <Ionicons name="information-circle-outline" size={16} color={colors.accent} />
+                  </TouchableOpacity>
+                </View>
+                <View style={styles.breakdownBar}>
+                  <View style={[styles.breakdownBarFill, { 
+                    width: `${(calculations.wht.amount / calculations.subtotal) * 100}%`,
+                    backgroundColor: colors.warning 
+                  }]} />
+                </View>
+                <View style={styles.breakdownAmountWithBadge}>
+                  <Text style={[styles.breakdownAmount, styles.breakdownAmountNegative]}>
+                    -{formatCurrency(calculations.wht.amount)}
+                  </Text>
+                  <View style={[styles.rateBadge, styles.rateBadgeWarning]}>
+                    <Text style={styles.rateBadgeText}>{calculations.wht.rate}%</Text>
+                  </View>
+                </View>
+              </View>
+            )}
 
-        {/* VAT Explainer */}
-        <View style={styles.breakdownRow}>
-          <View style={styles.breakdownLabelContainer}>
-            <Text style={styles.breakdownLabel}>
-              {t('onboarding.taxEngine.vat')} ({(calculations.vatRate * 100).toFixed(1)}%)
-            </Text>
-            <Text style={styles.breakdownExplainer}>
-              {t('onboarding.taxEngine.vatExplainer')}
-            </Text>
-          </View>
-          <Text style={[styles.breakdownValue, styles.breakdownValuePositive]}>
-            +{formatCurrency(calculations.vat)}
-          </Text>
-        </View>
+            {/* Non-taxable Items */}
+            {calculations.nonTaxableAmount > 0 && (
+              <View style={styles.exemptionInfo}>
+                <TouchableOpacity 
+                  style={styles.exemptionButton}
+                  onPress={() => handleShowExplainer('exempt')}
+                >
+                  <Ionicons name="shield-checkmark" size={16} color={colors.success} />
+                  <Text style={styles.exemptionText}>
+                    {formatCurrency(calculations.nonTaxableAmount)} {t('common.exempt')}
+                  </Text>
+                  <Ionicons name="chevron-forward" size={16} color={colors.success} />
+                </TouchableOpacity>
+              </View>
+            )}
 
-        {/* WHT Explainer */}
-        {calculations.wht > 0 && (
-          <View style={styles.breakdownRow}>
-            <View style={styles.breakdownLabelContainer}>
-              <Text style={styles.breakdownLabel}>
-                {t('onboarding.taxEngine.wht')} ({(calculations.whtRate * 100).toFixed(0)}%)
-              </Text>
-              <Text style={styles.breakdownExplainer}>
-                {t('onboarding.taxEngine.whtExplainer')}
-              </Text>
+            {/* Total */}
+            <View style={[styles.breakdownRow, styles.totalRow]}>
+              <Text style={styles.totalLabel}>{t('tax.breakdown.total')}</Text>
+              <Text style={styles.totalAmount}>{formatCurrency(calculations.total)}</Text>
             </View>
-            <Text style={[styles.breakdownValue, styles.breakdownValueNegative]}>
-              -{formatCurrency(calculations.wht)}
-            </Text>
-          </View>
-        )}
+          </Animated.View>
 
-        {/* Total */}
-        <View style={[styles.breakdownRow, styles.breakdownTotal]}>
-          <Text style={styles.totalLabel}>{t('onboarding.taxEngine.total')}</Text>
-          <Text style={styles.totalValue}>{formatCurrency(calculations.total)}</Text>
+          {/* Interaction Hint */}
+          {!hasInteracted && (
+            <Animated.View entering={FadeIn.delay(500)} exiting={FadeOut} style={styles.hintCard}>
+              <Ionicons name="hand-left" size={24} color={colors.primary} />
+              <Text style={styles.hintText}>{t('onboarding.tapToEdit')}</Text>
+            </Animated.View>
+          )}
         </View>
+      </ScrollView>
 
-        {/* Learn More Link */}
-        <Text style={styles.learnMore}>
-          {t('onboarding.taxEngine.autoApply')}
-        </Text>
-      </Animated.View>
-
-      {/* Try Your Own Section */}
-      {!editMode ? (
-        <TouchableOpacity
-          style={styles.tryButton}
-          onPress={() => setEditMode(true)}
-        >
-          <Text style={styles.tryButtonText}>{t('onboarding.taxEngine.tryYourOwn')}</Text>
-        </TouchableOpacity>
-      ) : (
-        <Animated.View 
-          style={styles.editCard}
-          entering={FadeIn}
-          exiting={FadeOut}
-        >
-          <Text style={styles.editTitle}>{t('onboarding.taxEngine.addItem')}</Text>
-          
-          <TextInput
-            style={styles.input}
-            placeholder={t('onboarding.taxEngine.descriptionPlaceholder')}
-            placeholderTextColor={colors.textMuted}
-            value={customDescription}
-            onChangeText={setCustomDescription}
-          />
-
-          <View style={styles.inputRow}>
-            <View style={styles.currencyInputContainer}>
-              <Text style={styles.currencySymbol}>₦</Text>
-              <TextInput
-                style={styles.currencyInput}
-                placeholder="0.00"
-                placeholderTextColor={colors.textMuted}
-                keyboardType="numeric"
-                value={customAmount}
-                onChangeText={text => {
-                  const num = text.replace(/[^0-9]/g, '');
-                  setCustomAmount(num ? parseInt(num, 10).toLocaleString('en-NG') : '');
-                }}
-              />
-            </View>
-
-            <TouchableOpacity
-              style={[
-                styles.taxToggle,
-                isTaxable && styles.taxToggleActive
-              ]}
-              onPress={() => setIsTaxable(!isTaxable)}
-            >
-              <Text style={[
-                styles.taxToggleText,
-                isTaxable && styles.taxToggleTextActive
-              ]}>
-                {isTaxable ? t('onboarding.taxEngine.taxable') : t('onboarding.taxEngine.exempt')}
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.taxToggle,
-                isService && styles.taxToggleActive
-              ]}
-              onPress={() => setIsService(!isService)}
-            >
-              <Text style={[
-                styles.taxToggleText,
-                isService && styles.taxToggleTextActive
-              ]}>
-                {isService ? t('onboarding.taxEngine.service') : t('onboarding.taxEngine.goods')}
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.editActions}>
-            <TouchableOpacity
-              style={styles.editActionButton}
-              onPress={handleReset}
-            >
-              <Text style={styles.editActionText}>{t('common.reset')}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.editActionButton, styles.editActionButtonPrimary]}
-              onPress={handleAddCustomItem}
-            >
-              <Text style={[styles.editActionText, styles.editActionTextPrimary]}>
-                {t('common.add')}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </Animated.View>
-      )}
-
-      {/* Navigation Buttons */}
+      {/* Action Buttons */}
       <View style={styles.actions}>
-        <TouchableOpacity
-          style={styles.continueButton}
-          onPress={onNext}
-        >
-          <Text style={styles.continueButtonText}>{t('onboarding.continue')}</Text>
-        </TouchableOpacity>
-
         {onSkip && (
-          <TouchableOpacity
-            style={styles.skipButton}
-            onPress={onSkip}
-          >
-            <Text style={styles.skipButtonText}>{t('onboarding.skip')}</Text>
+          <TouchableOpacity style={styles.skipButton} onPress={onSkip}>
+            <Text style={styles.skipButtonText}>{t('common.skip')}</Text>
           </TouchableOpacity>
         )}
+        <TouchableOpacity 
+          style={[styles.nextButton, hasInteracted && styles.nextButtonActive]}
+          onPress={onNext}
+        >
+          <Text style={styles.nextButtonText}>{t('common.continue')}</Text>
+          <Ionicons name="arrow-forward" size={20} color={colors.white} />
+        </TouchableOpacity>
       </View>
-    </ScrollView>
+
+      {/* Explainer Modal */}
+      {renderExplainer()}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: colors.background,
   },
-  content: {
-    paddingBottom: spacing.xxl,
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.xl,
   },
   header: {
     alignItems: 'center',
-    marginBottom: spacing.lg,
+    paddingVertical: spacing.xl,
   },
-  headerAnimation: {
-    width: 140,
-    height: 140,
+  iconContainer: {
+    width: 96,
+    height: 96,
+    borderRadius: radii.full,
+    backgroundColor: `${colors.primary}15`,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: spacing.md,
   },
   title: {
-    fontSize: typography.size.xxl + 2,
-    fontWeight: typography.weight.bold,
+    ...typography.h2,
     color: colors.textPrimary,
-    marginBottom: spacing.sm,
     textAlign: 'center',
+    marginBottom: spacing.sm,
   },
   subtitle: {
-    fontSize: typography.size.md,
-    color: colors.textMuted,
-    marginBottom: spacing.xxl,
-    lineHeight: 24,
-    textAlign: 'center',
-    paddingHorizontal: spacing.md,
-  },
-  sectionLabel: {
-    fontSize: typography.size.sm,
-    fontWeight: typography.weight.semibold,
+    ...typography.body,
     color: colors.textSecondary,
-    marginBottom: spacing.md,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    textAlign: 'center',
   },
-  itemsCard: {
-    backgroundColor: colors.surfaceSecondary,
-    padding: spacing.md,
+  demoContainer: {
+    gap: spacing.md,
+  },
+  sectionTitle: {
+    ...typography.h4,
+    color: colors.textPrimary,
+    marginBottom: spacing.sm,
+  },
+  itemCard: {
+    backgroundColor: colors.white,
     borderRadius: radii.lg,
-    marginBottom: spacing.lg,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  itemRow: {
+  itemHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.borderSubtle,
-  },
-  itemInfo: {
-    flex: 1,
+    marginBottom: spacing.sm,
   },
   itemDescription: {
-    fontSize: typography.size.md,
-    fontWeight: typography.weight.medium,
+    ...typography.bodyLarge,
     color: colors.textPrimary,
-    marginBottom: spacing.xs,
+    flex: 1,
   },
-  itemMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
+  taxableBadge: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: radii.sm,
+    borderWidth: 1,
   },
-  itemAmount: {
-    fontSize: typography.size.lg,
-    fontWeight: typography.weight.bold,
+  taxableBadgeActive: {
+    backgroundColor: `${colors.primary}10`,
+    borderColor: colors.primary,
+  },
+  taxableBadgeInactive: {
+    backgroundColor: `${colors.success}10`,
+    borderColor: colors.success,
+  },
+  taxableBadgeText: {
+    ...typography.caption,
+    fontWeight: '600',
+  },
+  taxableBadgeTextActive: {
     color: colors.primary,
   },
-  taxBadge: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 4,
-    borderRadius: radii.sm,
-  },
-  taxBadgeTaxable: {
-    backgroundColor: colors.successBgSubtle,
-  },
-  taxBadgeExempt: {
-    backgroundColor: colors.surfaceSlate,
-  },
-  taxBadgeText: {
-    fontSize: typography.size.xs,
-    fontWeight: typography.weight.semibold,
-  },
-  taxBadgeTextTaxable: {
+  taxableBadgeTextInactive: {
     color: colors.success,
   },
-  taxBadgeTextExempt: {
-    color: colors.textMuted,
+  amountContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  amountText: {
+    ...typography.h3,
+    color: colors.primary,
+  },
+  amountInput: {
+    ...typography.h3,
+    color: colors.primary,
+    flex: 1,
+    borderBottomWidth: 2,
+    borderBottomColor: colors.primary,
+    paddingBottom: spacing.xs,
   },
   breakdownCard: {
-    backgroundColor: colors.primaryBgSubtle,
-    padding: spacing.lg,
+    backgroundColor: colors.white,
     borderRadius: radii.lg,
+    padding: spacing.md,
     borderWidth: 1,
-    borderColor: colors.primary,
-    marginBottom: spacing.lg,
+    borderColor: colors.border,
+    marginTop: spacing.md,
   },
   breakdownTitle: {
-    fontSize: typography.size.lg,
-    fontWeight: typography.weight.bold,
-    color: colors.primary,
+    ...typography.h4,
+    color: colors.textPrimary,
     marginBottom: spacing.md,
   },
   breakdownRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.borderSubtle,
-  },
-  breakdownLabelContainer: {
-    flex: 1,
-    marginRight: spacing.md,
-  },
-  breakdownLabel: {
-    fontSize: typography.size.md,
-    fontWeight: typography.weight.medium,
-    color: colors.textPrimary,
-  },
-  breakdownExplainer: {
-    fontSize: typography.size.xs,
-    color: colors.textMuted,
-    marginTop: spacing.xs,
-    lineHeight: 16,
-  },
-  breakdownValue: {
-    fontSize: typography.size.md,
-    fontWeight: typography.weight.bold,
-    color: colors.textPrimary,
-  },
-  breakdownValuePositive: {
-    color: colors.success,
-  },
-  breakdownValueNegative: {
-    color: colors.error,
-  },
-  breakdownTotal: {
-    borderBottomWidth: 0,
-    paddingTop: spacing.md,
-    marginTop: spacing.sm,
-  },
-  totalLabel: {
-    fontSize: typography.size.lg,
-    fontWeight: typography.weight.bold,
-    color: colors.textPrimary,
-  },
-  totalValue: {
-    fontSize: typography.size.xl,
-    fontWeight: typography.weight.bold,
-    color: colors.primary,
-  },
-  learnMore: {
-    fontSize: typography.size.sm,
-    color: colors.textMuted,
-    marginTop: spacing.md,
-    lineHeight: 20,
-  },
-  tryButton: {
-    backgroundColor: colors.info,
-    paddingVertical: spacing.md,
-    borderRadius: radii.md,
-    alignItems: 'center',
-    marginBottom: spacing.lg,
-  },
-  tryButtonText: {
-    fontSize: typography.size.md,
-    fontWeight: typography.weight.semibold,
-    color: colors.textOnPrimary,
-  },
-  editCard: {
-    backgroundColor: colors.surfaceSecondary,
-    padding: spacing.lg,
-    borderRadius: radii.lg,
-    marginBottom: spacing.lg,
-  },
-  editTitle: {
-    fontSize: typography.size.md,
-    fontWeight: typography.weight.bold,
-    color: colors.textPrimary,
-    marginBottom: spacing.md,
-  },
-  input: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    borderRadius: radii.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm + 2,
-    fontSize: typography.size.md,
-    color: colors.textPrimary,
-    marginBottom: spacing.md,
-  },
-  inputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    flexWrap: 'wrap',
-    marginBottom: spacing.md,
-  },
-  currencyInputContainer: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    borderRadius: radii.md,
-    paddingHorizontal: spacing.md,
-  },
-  currencySymbol: {
-    fontSize: typography.size.lg,
-    fontWeight: typography.weight.bold,
-    color: colors.primary,
-    marginRight: spacing.xs,
-  },
-  currencyInput: {
-    flex: 1,
-    fontSize: typography.size.md,
-    color: colors.textPrimary,
-    paddingVertical: spacing.sm + 2,
-  },
-  taxToggle: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm + 2,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    backgroundColor: colors.surface,
-  },
-  taxToggleActive: {
-    backgroundColor: colors.successBgSubtle,
-    borderColor: colors.success,
-  },
-  taxToggleText: {
-    fontSize: typography.size.sm,
-    fontWeight: typography.weight.semibold,
-    color: colors.textMuted,
-  },
-  taxToggleTextActive: {
-    color: colors.success,
-  },
-  editActions: {
-    flexDirection: 'row',
     gap: spacing.sm,
   },
-  editActionButton: {
-    flex: 1,
-    paddingVertical: spacing.sm,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
+  breakdownLabel: {
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: spacing.xs,
+    width: 80,
   },
-  editActionButtonPrimary: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  editActionText: {
-    fontSize: typography.size.md,
-    fontWeight: typography.weight.semibold,
+  breakdownLabelText: {
+    ...typography.caption,
     color: colors.textSecondary,
   },
-  editActionTextPrimary: {
-    color: colors.textOnPrimary,
+  breakdownBar: {
+    flex: 1,
+    height: 8,
+    backgroundColor: colors.gray100,
+    borderRadius: radii.sm,
+    overflow: 'hidden',
+  },
+  breakdownBarFill: {
+    height: '100%',
+    borderRadius: radii.sm,
+  },
+  breakdownAmount: {
+    ...typography.bodyLarge,
+    color: colors.textPrimary,
+    fontWeight: '600',
+    width: 100,
+    textAlign: 'right',
+  },
+  breakdownAmountNegative: {
+    color: colors.warning,
+  },
+  breakdownAmountWithBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    width: 140,
+    justifyContent: 'flex-end',
+  },
+  rateBadge: {
+    backgroundColor: colors.info,
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 2,
+    borderRadius: radii.xs,
+  },
+  rateBadgeWarning: {
+    backgroundColor: colors.warning,
+  },
+  rateBadgeText: {
+    ...typography.caption,
+    color: colors.white,
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  exemptionInfo: {
+    marginTop: spacing.sm,
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  exemptionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    padding: spacing.sm,
+    backgroundColor: `${colors.success}10`,
+    borderRadius: radii.md,
+  },
+  exemptionText: {
+    ...typography.bodySmall,
+    color: colors.success,
+    flex: 1,
+    fontWeight: '600',
+  },
+  totalRow: {
+    marginTop: spacing.sm,
+    paddingTop: spacing.md,
+    borderTopWidth: 2,
+    borderTopColor: colors.border,
+  },
+  totalLabel: {
+    ...typography.h3,
+    color: colors.textPrimary,
+    flex: 1,
+  },
+  totalAmount: {
+    ...typography.h2,
+    color: colors.primary,
+    fontWeight: '700',
+  },
+  hintCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    padding: spacing.md,
+    backgroundColor: `${colors.primary}10`,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    borderStyle: 'dashed',
+  },
+  hintText: {
+    ...typography.body,
+    color: colors.primary,
+    flex: 1,
   },
   actions: {
+    flexDirection: 'row',
     gap: spacing.md,
-  },
-  continueButton: {
-    backgroundColor: colors.primary,
-    paddingVertical: spacing.md + 2,
-    borderRadius: radii.md,
-    alignItems: 'center',
-  },
-  continueButtonText: {
-    fontSize: typography.size.md,
-    fontWeight: typography.weight.semibold,
-    color: colors.textOnPrimary,
+    padding: spacing.lg,
+    backgroundColor: colors.white,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    ...Platform.select({
+      ios: {
+        shadowColor: colors.black,
+        shadowOffset: { width: 0, height: -2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
   },
   skipButton: {
-    paddingVertical: spacing.sm,
+    flex: 1,
+    paddingVertical: spacing.md,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.border,
     alignItems: 'center',
   },
   skipButtonText: {
-    fontSize: typography.size.md,
-    color: colors.textMuted,
+    ...typography.button,
+    color: colors.textSecondary,
+  },
+  nextButton: {
+    flex: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.md,
+    backgroundColor: colors.gray400,
+    borderRadius: radii.md,
+  },
+  nextButtonActive: {
+    backgroundColor: colors.primary,
+  },
+  nextButtonText: {
+    ...typography.button,
+    color: colors.white,
+  },
+  explainerOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 1000,
+  },
+  explainerBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  explainerContent: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: '80%',
+    backgroundColor: colors.white,
+    padding: spacing.lg,
+  },
+  explainerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.lg,
+  },
+  explainerTitle: {
+    ...typography.h3,
+    color: colors.textPrimary,
+    flex: 1,
+  },
+  explainerBody: {
+    flex: 1,
+  },
+  explainerPoint: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  explainerPointText: {
+    ...typography.body,
+    color: colors.textPrimary,
+    flex: 1,
+  },
+  explainerCloseButton: {
+    backgroundColor: colors.primary,
+    paddingVertical: spacing.md,
+    borderRadius: radii.md,
+    alignItems: 'center',
+    marginTop: spacing.md,
+  },
+  explainerCloseButtonText: {
+    ...typography.button,
+    color: colors.white,
   },
 });

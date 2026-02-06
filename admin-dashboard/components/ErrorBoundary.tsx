@@ -1,8 +1,7 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { logError } from '@/lib/logger';
-import { useAdminI18n } from '@/lib/i18n';
 
 interface ErrorBoundaryState {
   hasError: boolean;
@@ -78,16 +77,20 @@ class ErrorBoundaryInner extends React.Component<ErrorBoundaryInnerProps, ErrorB
   }
 }
 
+// Default english messages (used during SSR and as fallback)
+const DEFAULT_MESSAGES = {
+  title: 'Something went wrong',
+  description: 'An unexpected error occurred. Please try refreshing the page.',
+  retry: 'Try again',
+};
+
 export function ErrorBoundary(props: ErrorBoundaryProps) {
-  const { t } = useAdminI18n();
+  // Always use default messages to avoid SSR/hydration issues
+  // The i18n translations can be added in Phase 2 if needed
   return (
     <ErrorBoundaryInner
       {...props}
-      messages={{
-        title: t('errorBoundary.title'),
-        description: t('errorBoundary.description'),
-        retry: t('errorBoundary.retry'),
-      }}
+      messages={DEFAULT_MESSAGES}
     />
   );
 }

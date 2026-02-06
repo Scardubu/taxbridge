@@ -1,499 +1,703 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
+  Platform,
+  Alert,
   ScrollView,
+  Image,
 } from 'react-native';
+import Animated, { FadeIn, FadeOut, SlideInRight } from 'react-native-reanimated';
+import { Camera, CameraType, PermissionStatus } from 'expo-camera';
 import { useTranslation } from 'react-i18next';
-import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
-import LottieView from 'lottie-react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { colors, spacing, radii, typography } from '../../theme/tokens';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { colors, radii, spacing, typography } from '../../theme/tokens';
+import { useHapticFeedback } from '../../utils/haptics';
 
-const SCANNER_ANIMATION = require('../../../assets/animations/scanner.json');
-
-interface OCRScannerDemoProps {
+interface Props {
   onNext: () => void;
   onSkip?: () => void;
-  onLaunchScanner?: () => void;
 }
 
-const DEMO_STEPS = [
-  {
-    id: 'point',
-    icon: 'camera-outline' as keyof typeof Ionicons.glyphMap,
-    title: 'onboarding.scanner.step1Title',
-    description: 'onboarding.scanner.step1Desc',
-  },
-  {
-    id: 'extract',
-    icon: 'analytics-outline' as keyof typeof Ionicons.glyphMap,
-    title: 'onboarding.scanner.step2Title',
-    description: 'onboarding.scanner.step2Desc',
-  },
-  {
-    id: 'review',
-    icon: 'checkmark-done-outline' as keyof typeof Ionicons.glyphMap,
-    title: 'onboarding.scanner.step3Title',
-    description: 'onboarding.scanner.step3Desc',
-  },
-];
+type DemoStep = 'intro' | 'permission' | 'camera' | 'processing' | 'preview';
 
-const DEMO_AMOUNTS = {
-  receiptTotal: 15240.5,
-  item1: 42500,
-  item2: 8500,
-  item3: 12750,
-} as const;
+// Mock extracted receipt data for demo
+const DEMO_RECEIPT_DATA = {
+  vendor: 'Mama Tolu\'s Store',
+  amount: 15750,
+  date: new Date().toLocaleDateString('en-NG'),
+  items: [
+    { name: 'Rice (50kg bag)', price: 12000 },
+    { name: 'Vegetable Oil (5L)', price: 3750 },
+  ],
+};
 
-/**
- * OCRScannerDemo Component
- * 
- * Demonstrates the receipt scanning workflow:
- * - Step-by-step visual guide
- * - Sample extracted data preview
- * - Permission rationale
- * - CTA to try live scanning
- */
-export default function OCRScannerDemo({ 
-  onNext, 
-  onSkip,
-  onLaunchScanner 
-}: OCRScannerDemoProps) {
+export default function OCRScannerDemo({ onNext, onSkip }: Props) {
   const { t } = useTranslation();
-  const [showExtractedData, setShowExtractedData] = useState(false);
+  const triggerHaptic = useHapticFeedback();
 
-  const formatCurrency = useCallback((amount: number) => {
-    return `₦${amount.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  }, []);
+  const [demoStep, setDemoStep] = useState<DemoStep>('intro');
+  const [permission, setPermission] = useState<PermissionStatus | null>(null);
+  const [showDetailedSteps, setShowDetailedSteps] = useState(false);
 
-  const demoData = useMemo(() => ({
-    vendor: t('onboarding.scanner.demo.vendor'),
-    amount: formatCurrency(DEMO_AMOUNTS.receiptTotal),
-    date: t('onboarding.scanner.demo.date'),
-    items: [
-      { name: t('onboarding.scanner.demo.item1'), price: formatCurrency(DEMO_AMOUNTS.item1) },
-      { name: t('onboarding.scanner.demo.item2'), price: formatCurrency(DEMO_AMOUNTS.item2) },
-      { name: t('onboarding.scanner.demo.item3'), price: formatCurrency(DEMO_AMOUNTS.item3) },
-    ],
-  }), [formatCurrency, t]);
-
-  const handleTryScanning = useCallback(() => {
-    if (onLaunchScanner) {
-      onLaunchScanner();
-    } else {
-      // If no scanner available, just show demo data
-      setShowExtractedData(true);
+  // Request camera permission
+  const requestPermission = useCallback(async () => {
+    try {
+      const { status } = await Camera.requestCameraPermissionsAsync();
+      setPermission(status);
+      
+      if (status === PermissionStatus.GRANTED) {
+        triggerHaptic('notificationSuccess');
+        setDemoStep('camera');
+      } else {
+        triggerHaptic('notificationError');
+        Alert.alert(
+          t('onboarding.permissionDenied'),
+          t('onboarding.cameraRationale'),
+          [
+            { text: t('common.cancel'), style: 'cancel', onPress: () => setDemoStep('intro') },
+            { text: t('onboarding.openSettings'), onPress: () => {
+              // On real app, would open settings
+              setDemoStep('intro');
+            }},
+          ]
+        );
+      }
+    } catch (error) {
+      console.error('Permission request error:', error);
+      triggerHaptic('notificationError');
+      setDemoStep('intro');
     }
-  }, [onLaunchScanner]);
+  }, [t, triggerHaptic]);
 
-  return (
-    <ScrollView 
-      style={styles.container}
-      contentContainerStyle={styles.content}
-      showsVerticalScrollIndicator={false}
-    >
-      {/* Animated Header */}
-      <View style={styles.header}>
-        <LottieView
-          source={SCANNER_ANIMATION}
-          autoPlay
-          loop={true}
-          style={styles.headerAnimation}
-          speed={1.0}
-        />
-        <Text style={styles.title}>{t('onboarding.scanner.title')}</Text>
-        <Text style={styles.subtitle}>{t('onboarding.scanner.subtitle')}</Text>
-      </View>
+  // Simulate scan process
+  const handleScanDemo = useCallback(() => {
+    triggerHaptic('impactMedium');
+    setDemoStep('processing');
+    
+    // Simulate OCR processing time
+    setTimeout(() => {
+      triggerHaptic('notificationSuccess');
+      setDemoStep('preview');
+    }, 2500);
+  }, [triggerHaptic]);
 
-      {/* Visual Demo Steps */}
-      <View style={styles.stepsContainer}>
-        {DEMO_STEPS.map((step, index) => (
-          <Animated.View
-            key={step.id}
-            style={styles.stepCard}
-            entering={FadeInUp.delay(index * 100).springify()}
-          >
-            <View style={styles.stepIconContainer}>
-              <Ionicons name={step.icon} size={32} color={colors.primary} />
-              <View style={styles.stepNumber}>
-                <Text style={styles.stepNumberText}>{index + 1}</Text>
-              </View>
-            </View>
-            
-            <View style={styles.stepContent}>
-              <Text style={styles.stepTitle}>{t(step.title)}</Text>
-              <Text style={styles.stepDescription}>{t(step.description)}</Text>
-            </View>
-          </Animated.View>
-        ))}
-      </View>
+  // Skip to preview (for demo without camera)
+  const skipToPreview = useCallback(() => {
+    triggerHaptic('impactLight');
+    setDemoStep('preview');
+  }, [triggerHaptic]);
 
-      {/* Sample Receipt Image Placeholder */}
-      <View style={styles.receiptPreviewCard}>
-        <View style={styles.receiptPlaceholder}>
-          <Ionicons name="receipt-outline" size={64} color={colors.textMuted} />
-          <Text style={styles.receiptPlaceholderText}>
-            {t('onboarding.scanner.sampleReceipt')}
-          </Text>
-        </View>
-      </View>
+  const flowSteps = [
+    {
+      step: 1,
+      icon: 'camera',
+      label: t('onboarding.scanStep1'),
+      color: colors.primary,
+    },
+    {
+      step: 2,
+      icon: 'scan',
+      label: t('onboarding.scanStep2'),
+      color: colors.accent,
+    },
+    {
+      step: 3,
+      icon: 'checkmark-done',
+      label: t('onboarding.scanStep3'),
+      color: colors.success,
+    },
+  ];
 
-      {/* Extracted Data Preview */}
-      {showExtractedData && (
-        <Animated.View
-          style={styles.extractedCard}
-          entering={FadeIn}
-        >
-          <View style={styles.extractedHeader}>
-            <Ionicons name="sparkles" size={20} color={colors.success} />
-            <Text style={styles.extractedTitle}>{t('onboarding.scanner.extracted')}</Text>
+  // Intro view
+  if (demoStep === 'intro') {
+    return (
+      <ScrollView 
+        style={styles.container}
+        contentContainerStyle={styles.contentContainer}
+        showsVerticalScrollIndicator={false}
+      >
+        <Animated.View entering={FadeIn.duration(300)} style={styles.header}>
+          <View style={styles.iconContainer}>
+            <Ionicons name="scan" size={48} color={colors.primary} />
           </View>
-
-          <View style={styles.extractedData}>
-            <View style={styles.dataRow}>
-              <Text style={styles.dataLabel}>{t('onboarding.scanner.vendor')}</Text>
-              <View style={styles.dataValueContainer}>
-                <Text style={styles.dataValue}>{demoData.vendor}</Text>
-                <View style={styles.confidenceBadge}>
-                  <Text style={styles.confidenceText}>95%</Text>
-                </View>
-              </View>
-            </View>
-
-            <View style={styles.dataRow}>
-              <Text style={styles.dataLabel}>{t('onboarding.scanner.amount')}</Text>
-              <View style={styles.dataValueContainer}>
-                <Text style={styles.dataValue}>{demoData.amount}</Text>
-                <View style={styles.confidenceBadge}>
-                  <Text style={styles.confidenceText}>88%</Text>
-                </View>
-              </View>
-            </View>
-
-            <View style={styles.dataRow}>
-              <Text style={styles.dataLabel}>{t('onboarding.scanner.date')}</Text>
-              <View style={styles.dataValueContainer}>
-                <Text style={styles.dataValue}>{demoData.date}</Text>
-                <View style={[styles.confidenceBadge, styles.confidenceBadgeLow]}>
-                  <Text style={styles.confidenceText}>72%</Text>
-                </View>
-              </View>
-            </View>
-          </View>
-
-          <Text style={styles.extractedHint}>
-            {t('onboarding.scanner.reviewHint')}
-          </Text>
+          
+          <Text style={styles.title}>{t('onboarding.scannerTitle')}</Text>
+          <Text style={styles.subtitle}>{t('onboarding.scannerSubtitle')}</Text>
         </Animated.View>
-      )}
 
-      {/* Benefits Section */}
-      <View style={styles.benefitsCard}>
-        <Text style={styles.benefitsTitle}>{t('onboarding.scanner.benefits')}</Text>
-        
-        <View style={styles.benefitRow}>
-          <Ionicons name="flash-outline" size={20} color={colors.info} />
-          <Text style={styles.benefitText}>{t('onboarding.scanner.benefit1')}</Text>
-        </View>
+        {/* Flow Steps */}
+        <Animated.View entering={SlideInRight.delay(200)} style={styles.flowSection}>
+          {flowSteps.map((item, index) => (
+            <View key={item.step} style={styles.flowStep}>
+              <View style={[styles.flowIcon, { backgroundColor: `${item.color}20` }]}>
+                <Ionicons name={item.icon as any} size={32} color={item.color} />
+              </View>
+              <View style={styles.flowContent}>
+                <Text style={styles.flowStepNumber}>
+                  {t('onboarding.stepNumber', { number: item.step })}
+                </Text>
+                <Text style={styles.flowStepLabel}>{item.label}</Text>
+              </View>
+              {index < flowSteps.length - 1 && (
+                <View style={styles.flowConnector} />
+              )}
+            </View>
+          ))}
+        </Animated.View>
 
-        <View style={styles.benefitRow}>
-          <Ionicons name="shield-checkmark-outline" size={20} color={colors.success} />
-          <Text style={styles.benefitText}>{t('onboarding.scanner.benefit2')}</Text>
-        </View>
+        {/* Try Demo Section */}
+        <Animated.View entering={FadeIn.delay(400)} style={styles.demoSection}>
+          <TouchableOpacity
+            style={styles.primaryButton}
+            onPress={() => setDemoStep('permission')}
+            accessibilityLabel={t('onboarding.tryScanner')}
+            accessibilityRole="button"
+          >
+            <Ionicons name="camera" size={24} color={colors.white} />
+            <Text style={styles.primaryButtonText}>{t('onboarding.tryScanner')}</Text>
+          </TouchableOpacity>
 
-        <View style={styles.benefitRow}>
-          <Ionicons name="cloud-offline-outline" size={20} color={colors.warning} />
-          <Text style={styles.benefitText}>{t('onboarding.scanner.benefit3')}</Text>
-        </View>
-      </View>
+          <TouchableOpacity
+            style={styles.secondaryButton}
+            onPress={skipToPreview}
+            accessibilityLabel={t('onboarding.viewSampleScan')}
+            accessibilityRole="button"
+          >
+            <Text style={styles.secondaryButtonText}>{t('onboarding.viewSampleScan')}</Text>
+          </TouchableOpacity>
 
-      {/* Permission Rationale */}
-      <View style={styles.permissionCard}>
-        <View style={styles.permissionHeader}>
-          <Ionicons name="lock-closed-outline" size={18} color={colors.textMuted} />
-          <Text style={styles.permissionTitle}>{t('onboarding.scanner.privacy')}</Text>
-        </View>
-        <Text style={styles.permissionText}>{t('onboarding.scanner.privacyExplainer')}</Text>
-      </View>
+          {onSkip && (
+            <TouchableOpacity
+              style={styles.skipButton}
+              onPress={onSkip}
+              accessibilityLabel={t('onboarding.skipScanner')}
+              accessibilityRole="button"
+            >
+              <Text style={styles.skipButtonText}>{t('onboarding.skipScanner')}</Text>
+            </TouchableOpacity>
+          )}
+        </Animated.View>
+      </ScrollView>
+    );
+  }
 
-      {/* Try Scanning CTA */}
-      {!showExtractedData && (
-        <TouchableOpacity
-          style={styles.tryScanButton}
-          onPress={handleTryScanning}
-        >
-          <Ionicons name="camera" size={20} color={colors.textOnPrimary} />
-          <Text style={styles.tryScanButtonText}>{t('onboarding.scanner.tryScan')}</Text>
-        </TouchableOpacity>
-      )}
+  // Permission request view
+  if (demoStep === 'permission') {
+    return (
+      <View style={styles.centeredContainer}>
+        <Animated.View entering={FadeIn} style={styles.permissionCard}>
+          <Ionicons name="camera-outline" size={64} color={colors.primary} />
+          <Text style={styles.title}>{t('onboarding.cameraPermissionTitle')}</Text>
+          <Text style={styles.subtitle}>{t('onboarding.cameraRationale')}</Text>
+          
+          <TouchableOpacity
+            style={styles.primaryButton}
+            onPress={requestPermission}
+            accessibilityLabel={t('onboarding.grantPermission')}
+            accessibilityRole="button"
+          >
+            <Text style={styles.primaryButtonText}>{t('onboarding.grantPermission')}</Text>
+          </TouchableOpacity>
 
-      {/* Navigation Buttons */}
-      <View style={styles.actions}>
-        <TouchableOpacity
-          style={styles.continueButton}
-          onPress={onNext}
-        >
-          <Text style={styles.continueButtonText}>{t('onboarding.continue')}</Text>
-        </TouchableOpacity>
-
-        {onSkip && (
           <TouchableOpacity
             style={styles.skipButton}
-            onPress={onSkip}
+            onPress={() => setDemoStep('intro')}
+            accessibilityLabel={t('common.cancel')}
+            accessibilityRole="button"
           >
-            <Text style={styles.skipButtonText}>{t('onboarding.scanner.skipForNow')}</Text>
+            <Text style={styles.skipButtonText}>{t('common.cancel')}</Text>
           </TouchableOpacity>
-        )}
+        </Animated.View>
       </View>
-    </ScrollView>
-  );
+    );
+  }
+
+  // Camera view (live demo)
+  if (demoStep === 'camera') {
+    return (
+      <View style={styles.cameraContainer}>
+        <Camera
+          style={styles.camera}
+          type={CameraType.back}
+          ratio="16:9"
+        >
+          {/* AR Overlay Guide */}
+          <View style={styles.cameraOverlay}>
+            <View style={styles.scanGuide}>
+              <View style={[styles.corner, styles.cornerTopLeft]} />
+              <View style={[styles.corner, styles.cornerTopRight]} />
+              <View style={[styles.corner, styles.cornerBottomLeft]} />
+              <View style={[styles.corner, styles.cornerBottomRight]} />
+            </View>
+
+            <Animated.View entering={FadeIn} style={styles.guidanceContainer}>
+              <Text style={styles.guidanceText}>
+                {t('onboarding.scanGuidance')}
+              </Text>
+            </Animated.View>
+
+            <TouchableOpacity
+              style={styles.captureButton}
+              onPress={handleScanDemo}
+              accessibilityLabel={t('onboarding.captureReceipt')}
+              accessibilityRole="button"
+            >
+              <View style={styles.captureButtonInner}>
+                <Ionicons name="camera" size={32} color={colors.white} />
+              </View>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={() => setDemoStep('intro')}
+              accessibilityLabel={t('common.close')}
+              accessibilityRole="button"
+            >
+              <Ionicons name="close" size={24} color={colors.white} />
+            </TouchableOpacity>
+          </View>
+        </Camera>
+      </View>
+    );
+  }
+
+  // Processing view
+  if (demoStep === 'processing') {
+    return (
+      <View style={styles.centeredContainer}>
+        <Animated.View entering={FadeIn} exiting={FadeOut} style={styles.processingCard}>
+          <Animated.View
+            entering={FadeIn}
+            style={styles.processingAnimation}
+          >
+            <Ionicons name="scan" size={64} color={colors.primary} />
+          </Animated.View>
+          <Text style={styles.processingTitle}>{t('onboarding.analyzingReceipt')}</Text>
+          <Text style={styles.processingSubtitle}>{t('onboarding.extractingData')}</Text>
+        </Animated.View>
+      </View>
+    );
+  }
+
+  // Preview extracted data
+  if (demoStep === 'preview') {
+    return (
+      <ScrollView 
+        style={styles.container}
+        contentContainerStyle={styles.contentContainer}
+        showsVerticalScrollIndicator={false}
+      >
+        <Animated.View entering={FadeIn} style={styles.previewHeader}>
+          <View style={[styles.iconContainer, { backgroundColor: `${colors.success}20` }]}>
+            <Ionicons name="checkmark-circle" size={48} color={colors.success} />
+          </View>
+          <Text style={styles.title}>{t('onboarding.scanComplete')}</Text>
+          <Text style={styles.subtitle}>{t('onboarding.reviewExtractedData')}</Text>
+        </Animated.View>
+
+        <Animated.View entering={SlideInRight.delay(200)} style={styles.extractedDataCard}>
+          <View style={styles.dataRow}>
+            <Text style={styles.dataLabel}>{t('scanner.fields.vendor')}</Text>
+            <Text style={styles.dataValue}>{DEMO_RECEIPT_DATA.vendor}</Text>
+          </View>
+
+          <View style={styles.dataRow}>
+            <Text style={styles.dataLabel}>{t('scanner.fields.date')}</Text>
+            <Text style={styles.dataValue}>{DEMO_RECEIPT_DATA.date}</Text>
+          </View>
+
+          <View style={styles.dataRow}>
+            <Text style={styles.dataLabel}>{t('scanner.fields.amount')}</Text>
+            <View style={styles.amountContainer}>
+              <Text style={styles.dataValue}>
+                ₦{DEMO_RECEIPT_DATA.amount.toLocaleString('en-NG')}
+              </Text>
+              <View style={styles.confidenceBadge}>
+                <Text style={styles.confidenceBadgeText}>95%</Text>
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.divider} />
+
+          <Text style={styles.itemsTitle}>{t('scanner.fields.items')}</Text>
+          {DEMO_RECEIPT_DATA.items.map((item, index) => (
+            <View key={index} style={styles.itemRow}>
+              <Text style={styles.itemName}>{item.name}</Text>
+              <Text style={styles.itemPrice}>
+                ₦{item.price.toLocaleString('en-NG')}
+              </Text>
+            </View>
+          ))}
+        </Animated.View>
+
+        <Animated.View entering={FadeIn.delay(400)} style={styles.actions}>
+          <TouchableOpacity
+            style={styles.primaryButton}
+            onPress={onNext}
+            accessibilityLabel={t('onboarding.scanFirst')}
+            accessibilityRole="button"
+          >
+            <Text style={styles.primaryButtonText}>{t('onboarding.scanFirst')}</Text>
+            <Ionicons name="arrow-forward" size={20} color={colors.white} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.secondaryButton}
+            onPress={() => setDemoStep('intro')}
+            accessibilityLabel={t('onboarding.tryAgain')}
+            accessibilityRole="button"
+          >
+            <Text style={styles.secondaryButtonText}>{t('onboarding.tryAgain')}</Text>
+          </TouchableOpacity>
+        </Animated.View>
+      </ScrollView>
+    );
+  }
+
+  return null;
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: colors.background,
   },
-  content: {
-    paddingBottom: spacing.xxl,
+  contentContainer: {
+    padding: spacing.md,
+    paddingBottom: spacing.xl,
+  },
+  centeredContainer: {
+    flex: 1,
+    backgroundColor: colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing.md,
   },
   header: {
     alignItems: 'center',
     marginBottom: spacing.lg,
   },
-  headerAnimation: {
-    width: 160,
-    height: 160,
+  iconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: `${colors.primary}15`,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: spacing.md,
   },
   title: {
-    fontSize: typography.size.xxl + 2,
-    fontWeight: typography.weight.bold,
-    color: colors.textPrimary,
-    marginBottom: spacing.sm,
+    ...typography.h2,
+    color: colors.text,
     textAlign: 'center',
+    marginBottom: spacing.xs,
   },
   subtitle: {
-    fontSize: typography.size.md,
-    color: colors.textMuted,
-    marginBottom: spacing.xxl,
-    lineHeight: 24,
+    ...typography.body,
+    color: colors.textSecondary,
     textAlign: 'center',
-    paddingHorizontal: spacing.md,
   },
-  stepsContainer: {
+  flowSection: {
     marginBottom: spacing.lg,
-    gap: spacing.md,
   },
-  stepCard: {
+  flowStep: {
     flexDirection: 'row',
-    backgroundColor: colors.surfaceSecondary,
-    padding: spacing.md,
-    borderRadius: radii.lg,
-    gap: spacing.md,
-  },
-  stepIconContainer: {
+    alignItems: 'flex-start',
+    marginBottom: spacing.lg,
     position: 'relative',
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: 56,
-    height: 56,
-    backgroundColor: colors.primaryBgSubtle,
-    borderRadius: radii.lg,
   },
-  stepNumber: {
-    position: 'absolute',
-    top: -4,
-    right: -4,
-    width: 20,
-    height: 20,
-    backgroundColor: colors.primary,
-    borderRadius: 10,
+  flowIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  stepNumberText: {
-    fontSize: typography.size.xs,
-    fontWeight: typography.weight.bold,
-    color: colors.textOnPrimary,
-  },
-  stepContent: {
+  flowContent: {
     flex: 1,
+    marginLeft: spacing.md,
+    paddingTop: spacing.xs,
   },
-  stepTitle: {
-    fontSize: typography.size.md,
-    fontWeight: typography.weight.bold,
-    color: colors.textPrimary,
+  flowStepNumber: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    fontWeight: '600',
     marginBottom: spacing.xs,
   },
-  stepDescription: {
-    fontSize: typography.size.sm,
-    color: colors.textMuted,
-    lineHeight: 20,
+  flowStepLabel: {
+    ...typography.body,
+    color: colors.text,
   },
-  receiptPreviewCard: {
-    backgroundColor: colors.surfaceSlate,
-    borderRadius: radii.lg,
-    overflow: 'hidden',
-    marginBottom: spacing.lg,
+  flowConnector: {
+    position: 'absolute',
+    left: 31,
+    top: 64,
+    width: 2,
+    height: 40,
+    backgroundColor: colors.gray300,
   },
-  receiptPlaceholder: {
+  demoSection: {
+    gap: spacing.md,
+  },
+  primaryButton: {
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: spacing.xxl,
+    backgroundColor: colors.primary,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    borderRadius: radii.md,
+    gap: spacing.sm,
   },
-  receiptPlaceholderText: {
-    fontSize: typography.size.sm,
-    color: colors.textMuted,
-    marginTop: spacing.md,
+  primaryButtonText: {
+    ...typography.button,
+    color: colors.white,
   },
-  extractedCard: {
-    backgroundColor: colors.successBgSubtle,
+  secondaryButton: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.white,
+    paddingVertical: spacing.md,
+   paddingHorizontal: spacing.lg,
+    borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: colors.success,
-    borderRadius: radii.lg,
-    padding: spacing.lg,
-    marginBottom: spacing.lg,
+    borderColor: colors.gray300,
   },
-  extractedHeader: {
-    flexDirection: 'row',
+  secondaryButtonText: {
+    ...typography.button,
+    color: colors.text,
+  },
+  skipButton: {
     alignItems: 'center',
-    gap: spacing.sm,
-    marginBottom: spacing.md,
+    paddingVertical: spacing.sm,
   },
-  extractedTitle: {
-    fontSize: typography.size.md,
-    fontWeight: typography.weight.bold,
-    color: colors.success,
-  },
-  extractedData: {
-    gap: spacing.md,
-  },
-  dataRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  dataLabel: {
-    fontSize: typography.size.sm,
-    color: colors.textMuted,
-    flex: 1,
-  },
-  dataValueContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    flex: 2,
-    justifyContent: 'flex-end',
-  },
-  dataValue: {
-    fontSize: typography.size.md,
-    fontWeight: typography.weight.semibold,
-    color: colors.textPrimary,
-  },
-  confidenceBadge: {
-    backgroundColor: colors.success,
-    paddingHorizontal: spacing.xs,
-    paddingVertical: 2,
-    borderRadius: radii.sm,
-  },
-  confidenceBadgeLow: {
-    backgroundColor: colors.warning,
-  },
-  confidenceText: {
-    fontSize: typography.size.xs,
-    fontWeight: typography.weight.bold,
-    color: colors.textOnPrimary,
-  },
-  extractedHint: {
-    fontSize: typography.size.xs,
-    color: colors.textMuted,
-    marginTop: spacing.md,
-    lineHeight: 16,
-  },
-  benefitsCard: {
-    backgroundColor: colors.surfaceSecondary,
-    padding: spacing.lg,
-    borderRadius: radii.lg,
-    marginBottom: spacing.lg,
-  },
-  benefitsTitle: {
-    fontSize: typography.size.md,
-    fontWeight: typography.weight.bold,
-    color: colors.textPrimary,
-    marginBottom: spacing.md,
-  },
-  benefitRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  benefitText: {
-    flex: 1,
-    fontSize: typography.size.sm,
+  skipButtonText: {
+    ...typography.body,
     color: colors.textSecondary,
-    lineHeight: 20,
   },
   permissionCard: {
-    backgroundColor: colors.surfaceSlate,
-    padding: spacing.md,
-    borderRadius: radii.md,
-    marginBottom: spacing.lg,
-  },
-  permissionHeader: {
-    flexDirection: 'row',
+    backgroundColor: colors.white,
+    borderRadius: radii.lg,
+    padding: spacing.xl,
     alignItems: 'center',
-    gap: spacing.xs,
-    marginBottom: spacing.xs,
+    gap: spacing.md,
+    width: '100%',
+    maxWidth: 400,
+    ...Platform.select({
+      ios: {
+        shadowColor: colors.shadow,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 4,
+      },
+      default: {
+        boxShadow: `0 4px 8px ${colors.shadow}30`,
+      },
+    }),
   },
-  permissionTitle: {
-    fontSize: typography.size.sm,
-    fontWeight: typography.weight.semibold,
-    color: colors.textSecondary,
+  cameraContainer: {
+    flex: 1,
+    backgroundColor: colors.black,
   },
-  permissionText: {
-    fontSize: typography.size.xs,
-    color: colors.textMuted,
-    lineHeight: 16,
+  camera: {
+    flex: 1,
   },
-  tryScanButton: {
-    flexDirection: 'row',
+  cameraOverlay: {
+    flex: 1,
+    backgroundColor: 'transparent',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    backgroundColor: colors.info,
+    justifyContent: 'space-between',
+    paddingVertical: spacing.xl,
+  },
+  scanGuide: {
+    width: 280,
+    height: 400,
+    borderWidth: 2,
+    borderColor: colors.white,
+    borderStyle: 'dashed',
+    position: 'relative',
+    marginTop: spacing.xxl,
+  },
+  corner: {
+    position: 'absolute',
+    width: 40,
+    height: 40,
+    borderColor: colors.primary,
+    borderWidth: 4,
+  },
+  cornerTopLeft: {
+    top: -2,
+    left: -2,
+    borderRightWidth: 0,
+    borderBottomWidth: 0,
+  },
+  cornerTopRight: {
+    top: -2,
+    right: -2,
+    borderLeftWidth: 0,
+    borderBottomWidth: 0,
+  },
+  cornerBottomLeft: {
+    bottom: -2,
+    left: -2,
+    borderRightWidth: 0,
+    borderTopWidth: 0,
+  },
+  cornerBottomRight: {
+    bottom: -2,
+    right: -2,
+    borderLeftWidth: 0,
+    borderTopWidth: 0,
+  },
+  guidanceContainer: {
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
     borderRadius: radii.md,
+  },
+  guidanceText: {
+    ...typography.body,
+    color: colors.white,
+    textAlign: 'center',
+  },
+  captureButton: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  captureButtonInner: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  closeButton: {
+    position: 'absolute',
+    top: spacing.xl,
+    left: spacing.md,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  processingCard: {
+    backgroundColor: colors.white,
+    borderRadius: radii.lg,
+    padding: spacing.xxl,
+    alignItems: 'center',
+    gap: spacing.md,
+    width: '100%',
+    maxWidth: 300,
+  },
+  processingAnimation: {
+    marginBottom: spacing.md,
+  },
+  processingTitle: {
+    ...typography.h3,
+    color: colors.text,
+    textAlign: 'center',
+  },
+  processingSubtitle: {
+    ...typography.body,
+    color: colors.textSecondary,
+    textAlign: 'center',
+  },
+  previewHeader: {
+    alignItems: 'center',
     marginBottom: spacing.lg,
   },
-  tryScanButtonText: {
-    fontSize: typography.size.md,
-    fontWeight: typography.weight.semibold,
-    color: colors.textOnPrimary,
+  extractedDataCard: {
+    backgroundColor: colors.white,
+    borderRadius: radii.lg,
+    padding: spacing.lg,
+    marginBottom: spacing.lg,
+    ...Platform.select({
+      ios: {
+        shadowColor: colors.shadow,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 2,
+      },
+      default: {
+        boxShadow: `0 2px 4px ${colors.shadow}20`,
+      },
+    }),
+  },
+  dataRow: {
+    marginBottom: spacing.md,
+  },
+  dataLabel: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    marginBottom: spacing.xs,
+  },
+  dataValue: {
+    ...typography.body,
+    color: colors.text,
+    fontWeight: '600',
+  },
+  amountContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  confidenceBadge: {
+    backgroundColor: `${colors.success}20`,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: radii.sm,
+  },
+  confidenceBadgeText: {
+    ...typography.caption,
+    color: colors.success,
+    fontWeight: '600',
+  },
+  divider: {
+    height: 1,
+    backgroundColor: colors.gray200,
+    marginVertical: spacing.md,
+  },
+  itemsTitle: {
+    ...typography.h4,
+    color: colors.text,
+    marginBottom: spacing.sm,
+  },
+  itemRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.gray100,
+  },
+  itemName: {
+    ...typography.body,
+    color: colors.text,
+    flex: 1,
+  },
+  itemPrice: {
+    ...typography.body,
+    color: colors.text,
+    fontWeight: '600',
   },
   actions: {
     gap: spacing.md,
-  },
-  continueButton: {
-    backgroundColor: colors.primary,
-    paddingVertical: spacing.md + 2,
-    borderRadius: radii.md,
-    alignItems: 'center',
-  },
-  continueButtonText: {
-    fontSize: typography.size.md,
-    fontWeight: typography.weight.semibold,
-    color: colors.textOnPrimary,
-  },
-  skipButton: {
-    paddingVertical: spacing.sm,
-    alignItems: 'center',
-  },
-  skipButtonText: {
-    fontSize: typography.size.md,
-    color: colors.textMuted,
   },
 });
