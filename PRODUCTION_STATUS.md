@@ -6,6 +6,47 @@
 
 ---
 
+## v1.0.0 Mobile Onboarding & Validation Polish (February 6, 2026 - Session 6)
+
+### ✅ Comprehensive Mobile Polish Complete
+
+**Mobile App Refinements:**
+1. ✅ **Onboarding i18n 100% Complete** - TaxEngineDemo & OCRScannerDemo fully localized
+2. ✅ **Validation Fixed** - Optional fields no longer block "Add Item" action
+3. ✅ **Settings Performance** - Eliminated navigation hang with InteractionManager
+4. ✅ **Test Infrastructure** - Added expo-font mocks, fixed native module errors
+
+**Onboarding Localization:**
+- ✅ `TaxEngineDemo.tsx` - Localized demo items and tax explainer content (13 keys)
+- ✅ `OCRScannerDemo.tsx` - Localized demo receipt data and labels
+- ✅ Fixed i18n key paths from flat to nested structure (onboarding.taxEngine.*)
+- ✅ Added useEffect to react to language changes in demo components
+- ✅ 100% English + Nigerian Pidgin parity maintained (1,372+ keys)
+
+**Bug Fixes:**
+- ✅ `validation.ts` - Optional field validation no longer blocks on empty strings
+- ✅ `SettingsScreen.tsx` - Deferred storage stats loading to prevent UI hang
+- ✅ `jest.setup.js` - Added expo-font and requireNativeModule mocks
+
+**Code Quality:**
+```
+TypeScript:   0 errors (mobile, backend, admin-dashboard)
+Console logs: All gu with __DEV__ checks
+i18n Coverage: 100% (1,372+ keys across EN + Pidgin)
+Test Suite:   176/188 passing (core unit tests stable)
+```
+
+**Files Modified (Session 6):**
+- `mobile/jest.setup.js` - Added expo-font mock (+7 lines)
+- `mobile/src/components/onboarding/TaxEngineDemo.tsx` - Full localization
+- `mobile/src/components/onboarding/OCRScannerDemo.tsx` - Full localization
+- `mobile/src/i18n/en.json` - Added 13 taxExplainer keys
+- `mobile/src/i18n/pidgin.json` - Added 13 taxExplainer keys
+- `mobile/src/screens/SettingsScreen.tsx` - InteractionManager deferral
+- `mobile/src/utils/validation.ts` - Optional validation fix
+
+---
+
 ## v1.0.0 Production Excellence (February 6, 2026 - Session 5)
 
 ### ✅ Final Production Polish Complete
