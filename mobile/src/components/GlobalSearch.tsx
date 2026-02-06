@@ -281,7 +281,7 @@ function GlobalSearch({
         setRecentSearches(JSON.parse(stored));
       }
     } catch (error) {
-      console.warn('Failed to load recent searches:', error);
+      if (__DEV__) console.warn('Failed to load recent searches:', error);
     }
   };
 
@@ -291,7 +291,7 @@ function GlobalSearch({
       setRecentSearches(updated);
       await AsyncStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(updated));
     } catch (error) {
-      console.warn('Failed to save recent search:', error);
+      if (__DEV__) console.warn('Failed to save recent search:', error);
     }
   };
 
@@ -314,7 +314,7 @@ function GlobalSearch({
       setResults(searchResults);
       trackEvent('search', 'performed', searchQuery, undefined, { category: searchCategory, resultCount: searchResults.length });
     } catch (error) {
-      console.error('Search error:', error);
+      if (__DEV__) console.error('Search error:', error);
       setResults([]);
     } finally {
       setIsLoading(false);

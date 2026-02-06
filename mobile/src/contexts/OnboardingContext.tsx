@@ -306,7 +306,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
         setPreferences(JSON.parse(prefsData));
       }
     } catch (error) {
-      console.error('Failed to load onboarding data:', error);
+      if (__DEV__) console.error('Failed to load onboarding data:', error);
     }
   };
 

@@ -45,7 +45,7 @@ export default function FIRSDemoStep({ onNext, onSkip }: Props) {
       setStampResponse(response);
       await unlockAchievement('firs_explorer');
     } catch (error) {
-      console.error('Mock API error:', error);
+      if (__DEV__) console.error('Mock API error:', error);
     } finally {
       setIsLoading(false);
     }

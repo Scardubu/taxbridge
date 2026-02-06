@@ -264,7 +264,7 @@ export const useStorageStats = () => {
         pending,
       });
     } catch (error) {
-      console.error('Failed to load storage stats:', error);
+      if (__DEV__) console.error('Failed to load storage stats:', error);
       setStats({ total: 0, synced: 0, pending: 0 });
     } finally {
       setIsLoading(false);
@@ -363,7 +363,7 @@ export const useInvoiceExport = () => {
       
       return { success: true, fileUri };
     } catch (error) {
-      console.error('Export failed:', error);
+      if (__DEV__) console.error('Export failed:', error);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       throw error;
     } finally {

@@ -75,7 +75,7 @@ export function ARCameraView({ onCapture, onClose, facing = 'back', onFlip }: AR
       }
     } catch (error) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      console.error('Camera capture failed:', error);
+      if (__DEV__) console.error('Camera capture failed:', error);
     } finally {
       setIsProcessing(false);
       setIsAligned(false);

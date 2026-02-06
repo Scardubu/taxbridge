@@ -240,7 +240,7 @@ function FloatingActionButton({
   return (
     <>
       {/* Backdrop */}
-      <Animated.View style={[styles.backdrop, backdropStyle]} pointerEvents={expanded ? 'auto' : 'none'}>
+      <Animated.View style={[styles.backdrop, backdropStyle, { pointerEvents: expanded ? 'auto' : 'none' }]}>
         <Pressable style={styles.backdropPressable} onPress={closeMenu} />
       </Animated.View>
 
