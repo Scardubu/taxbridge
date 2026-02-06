@@ -25,35 +25,44 @@ if (isEASBuild || process.platform !== 'win32') {
   config.watchFolders.push(path.join(workspaceRoot, 'node_modules'));
 }
 
-// Force single React resolution (critical for hooks)
-// Point to workspace root node_modules for shared dependencies
-config.resolver.extraNodeModules = new Proxy(
-  {},
-  {
-    get: (target, name) => {
-      // Check if module exists in workspace root first
-      const workspaceModule = path.join(workspaceRoot, 'node_modules', name);
-      if (require('fs').existsSync(workspaceModule)) {
-        return workspaceModule;
-      }
-      // Fallback to project node_modules
-      return path.join(projectRoot, 'node_modules', name);
-    },
-  }
-);
+// Configure node modules resolution
+// Simplified for EAS build compatibility
+if (isEASBuild) {
+  // EAS build: use standard resolution
+  config.resolver.nodeModulesPaths = [
+    path.resolve(projectRoot, 'node_modules'),
+    path.resolve(workspaceRoot, 'node_modules'),
+  ];
+} else {
+  // Local dev: Force single React resolution (critical for hooks)
+  config.resolver.extraNodeModules = new Proxy(
+    {},
+    {
+      get: (target, name) => {
+        // Check if module exists in workspace root first
+        const workspaceModule = path.join(workspaceRoot, 'node_modules', name);
+        if (require('fs').existsSync(workspaceModule)) {
+          return workspaceModule;
+        }
+        // Fallback to project node_modules
+        return path.join(projectRoot, 'node_modules', name);
+      },
+    }
+  );
 
-// Block nested React instances (but allow direct project/node_modules)
-config.resolver.blockList = [
-  // Prevent nested use-sync-external-store (causes React context issues)
-  /node_modules\/.*\/node_modules\/react\/.*/,
-  /node_modules\/.*\/node_modules\/react-dom\/.*/,
-  /node_modules\/.*\/node_modules\/use-sync-external-store\/.*/,
-];
+  // Block nested React instances (but allow direct project/node_modules)
+  config.resolver.blockList = [
+    // Prevent nested use-sync-external-store (causes React context issues)
+    /node_modules\/.*\/node_modules\/react\/.*/,
+    /node_modules\/.*\/node_modules\/react-dom\/.*/,
+    /node_modules\/.*\/node_modules\/use-sync-external-store\/.*/,
+  ];
 
-// Always resolve from workspace root first
-config.resolver.nodeModulesPaths = [
-  path.resolve(workspaceRoot, 'node_modules'),
-  path.resolve(projectRoot, 'node_modules'),
-];
+  // Always resolve from workspace root first
+  config.resolver.nodeModulesPaths = [
+    path.resolve(workspaceRoot, 'node_modules'),
+    path.resolve(projectRoot, 'node_modules'),
+  ];
+}
 
 module.exports = config;
