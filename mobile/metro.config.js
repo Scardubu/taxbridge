@@ -25,15 +25,13 @@ if (!isWindows) {
 }
 
 // Disable watchman on Windows to avoid watch mode startup failures
-// Health checks can time out on large repos; disable them on Windows.
+// Completely disable health checks to prevent timeout failures
 config.watcher = {
   watchman: {
     enabled: false,
   },
   healthCheck: {
-    enabled: !isWindows,
-    timeout: 60000, // 60 seconds timeout
-    filePrefix: '.metro-health-check',
+    enabled: false, // Disabled completely to prevent startup failures
   },
 };
 

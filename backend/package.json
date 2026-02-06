@@ -1,6 +1,6 @@
 {
   "name": "@taxbridge/backend",
-  "version": "5.0.6",
+  "version": "1.0.0",
   "private": true,
   "main": "index.js",
   "scripts": {
