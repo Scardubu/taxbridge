@@ -1,7 +1,20 @@
 import { useEffect, useRef, useState } from 'react';
 import { Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { NavigationContainer, type NavigationContainerRef } from '@react-navigation/native';
+import { NavigationContainer, type NavigationContainerRef, DefaultTheme } from '@react-navigation/native';
+
+// Force light theme to prevent dark mode flash on Android
+const LightTheme = {
+  ...DefaultTheme,
+  colors: {
+    ...DefaultTheme.colors,
+    background: '#FFFFFF',
+    card: '#FFFFFF',
+    text: '#1F2937',
+    border: '#E5E7EB',
+    primary: '#0B5FFF',
+  },
+};
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { I18nextProvider, useTranslation } from 'react-i18next';
@@ -68,7 +81,21 @@ function BootRouter() {
 }
 
 function AppNavigator() {
-  const { isOnboardingComplete } = useOnboarding();
+  const { isOnboardingComplete, isLoading } = useOnboarding();
+
+  // Show loading state while onboarding data loads from storage
+  if (isLoading) {
+    return (
+      <View style={{
+        flex: 1,
+        backgroundColor: colors.surface,
+        justifyContent: 'center',
+        alignItems: 'center',
+      }}>
+        <Text style={{ fontSize: 48 }}>📊</Text>
+      </View>
+    );
+  }
 
   if (!isOnboardingComplete) {
     return (
@@ -214,6 +241,7 @@ export default function App() {
                       <ToastProvider>
                         <NavigationContainer
                           ref={navigationRef}
+                          theme={LightTheme}
                           onReady={() => {
                             const currentRoute = navigationRef.current?.getCurrentRoute()?.name || null;
                             routeNameRef.current = currentRoute;

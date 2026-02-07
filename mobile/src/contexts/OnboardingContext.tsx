@@ -70,6 +70,7 @@ interface OnboardingContextType {
   achievements: Achievement[];
   preferences: UserPreferences;
   isOnboardingComplete: boolean;
+  isLoading: boolean;
   
   // Actions
   updateProfile: (profile: Partial<UserProfile>) => Promise<void>;
@@ -264,6 +265,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
   const [calculatorHistory, setCalculatorHistory] = useState<CalculatorEntry[]>([]);
   const [achievements, setAchievements] = useState<Achievement[]>(cloneAchievements());
   const [preferences, setPreferences] = useState<UserPreferences>(DEFAULT_PREFERENCES);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Load data from AsyncStorage on mount
   useEffect(() => {
@@ -307,6 +309,8 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
       }
     } catch (error) {
       if (__DEV__) console.error('Failed to load onboarding data:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -443,6 +447,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
         achievements,
         preferences,
         isOnboardingComplete,
+        isLoading,
         updateProfile,
         updatePreferences,
         updateProgress,

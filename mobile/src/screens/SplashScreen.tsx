@@ -33,6 +33,7 @@ import i18n from '../i18n';
 
 const { width, height } = Dimensions.get('window');
 const LOGO_SIZE = Math.min(width, height) * 0.42;
+const BOOT_TIMEOUT_MS = 8000;
 
 interface SplashScreenProps {
   onFinish: (bootData?: { deviceInfo: any; persistedState: any }) => void;
@@ -58,7 +59,8 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
       }).start();
 
       // 2️⃣ Parallel warm-ups (never serial)
-      const [syncEngineResult] = await Promise.allSettled([
+      let timeoutId: ReturnType<typeof setTimeout> | undefined;
+      const bootTasks = Promise.allSettled([
         warmUpSyncEngine(),
         hydrateFeatureFlags(),
         // Ensure i18n is fully initialized before proceeding
@@ -66,10 +68,19 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
           i18n.on('initialized', () => resolve());
         }),
       ]);
+      const bootTimeout = new Promise<'timeout'>((resolve) => {
+        timeoutId = setTimeout(() => resolve('timeout'), BOOT_TIMEOUT_MS);
+      });
+      const bootResult = await Promise.race([bootTasks, bootTimeout]);
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+
+      const syncEngineResult = bootResult === 'timeout' ? null : bootResult[0];
       
       // Extract device info and persisted state
       let bootData: { deviceInfo: any; persistedState: any } | undefined;
-      if (syncEngineResult.status === 'fulfilled') {
+      if (syncEngineResult?.status === 'fulfilled') {
         bootData = syncEngineResult.value;
       }
 
