@@ -1327,7 +1327,16 @@
     "noResults": "No result show",
     "tryDifferent": "Try another word",
     "recentSearches": "Recent searches",
-    "clearRecent": "Clear"
+    "clearRecent": "Clear",
+    "clear": "Clear",
+    "resultsCount": "{{count}} results",
+    "removeRecent": "Comot recent search",
+    "filters": {
+      "all": "All",
+      "invoices": "Invoices",
+      "customers": "Customers",
+      "transactions": "Transactions"
+    }
   },
   "validation": {
     "required": "This field dey required",

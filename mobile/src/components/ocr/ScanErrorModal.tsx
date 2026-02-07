@@ -7,7 +7,7 @@ import {
   Pressable,
   ScrollView,
 } from 'react-native';
-import * as Haptics from 'expo-haptics';
+import * as Haptics from '../../utils/safeHaptics';
 import { useTranslation } from 'react-i18next';
 import { colors, spacing, radii, typography, shadows } from '../../theme/tokens';
 import { Button } from '../Button';

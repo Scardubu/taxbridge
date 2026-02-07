@@ -39,7 +39,7 @@ import Animated, {
   SlideOutDown,
 } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
-import * as Haptics from 'expo-haptics';
+import * as Haptics from '../utils/safeHaptics';
 import { colors, spacing, radii, typography, shadows } from '../theme/tokens';
 import { useSync } from '../contexts/SyncContext';
 import { trackEvent } from '../services/analytics';

@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
-import * as Haptics from 'expo-haptics';
+import * as Haptics from '../../utils/safeHaptics';
 import { useTranslation } from 'react-i18next';
 import { colors, spacing, radii, typography, shadows } from '../../theme/tokens';
 import { PITCalculation, TaxOptimization, formatNaira, formatPercentage } from '../../services/tax/engine';

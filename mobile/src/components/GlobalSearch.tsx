@@ -36,7 +36,7 @@ import Animated, {
   FadeOut,
 } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
-import * as Haptics from 'expo-haptics';
+import * as Haptics from '../utils/safeHaptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors, spacing, radii, typography, shadows } from '../theme/tokens';
 import { trackEvent } from '../services/analytics';

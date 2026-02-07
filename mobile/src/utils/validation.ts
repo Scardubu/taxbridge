@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import i18n from '../i18n';
 import { showToast } from '../components/ui/Toast';
 
@@ -26,8 +26,18 @@ export function useFormValidation<T extends Record<string, any>>(
   const [errors, setErrors] = useState<ValidationErrors>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
 
-  const validateField = (name: string, value: string): string | null => {
-    const rules = validationRules[name];
+  // Keep refs in sync so memoized callbacks always read the latest state
+  const valuesRef = useRef(values);
+  valuesRef.current = values;
+  const touchedRef = useRef(touched);
+  touchedRef.current = touched;
+  const errorsRef = useRef(errors);
+  errorsRef.current = errors;
+  const rulesRef = useRef(validationRules);
+  rulesRef.current = validationRules;
+
+  const validateField = useCallback((name: string, value: string): string | null => {
+    const rules = rulesRef.current[name];
     if (!rules) return null;
 
     const trimmed = value?.trim?.() ?? '';
@@ -57,44 +67,48 @@ export function useFormValidation<T extends Record<string, any>>(
     }
 
     return null;
-  };
+  }, []);
 
-  const setValue = (name: keyof T, value: any) => {
+  const setValue = useCallback((name: keyof T, value: any) => {
     setValues(prev => ({ ...prev, [name]: value }));
     
-    if (touched[name as string]) {
+    if (touchedRef.current[name as string]) {
       const error = validateField(name as string, String(value));
       setErrors(prev => ({ ...prev, [name]: error }));
     }
-  };
+  }, [validateField]);
 
-  const setTouchedField = (name: keyof T) => {
+  const setTouchedField = useCallback((name: keyof T) => {
     setTouched(prev => ({ ...prev, [name]: true }));
-    const error = validateField(name as string, String(values[name]));
+    const error = validateField(name as string, String(valuesRef.current[name]));
     setErrors(prev => ({ ...prev, [name]: error }));
-  };
+  }, [validateField]);
 
-  const validateAll = (): boolean => {
+  const validateAll = useCallback((): boolean => {
     const newErrors: ValidationErrors = {};
     let isValid = true;
+    const currentValues = valuesRef.current;
+    const currentRules = rulesRef.current;
 
-    Object.keys(validationRules).forEach(key => {
-      const error = validateField(key, String(values[key]));
+    Object.keys(currentRules).forEach(key => {
+      const error = validateField(key, String(currentValues[key]));
       newErrors[key] = error;
       if (error) isValid = false;
     });
 
     setErrors(newErrors);
-    setTouched(Object.keys(validationRules).reduce((acc, key) => ({ ...acc, [key]: true }), {}));
+    setTouched(Object.keys(currentRules).reduce((acc, key) => ({ ...acc, [key]: true }), {}));
     return isValid;
-  };
+  }, [validateField]);
 
-  const validateFields = (fieldNames: string[]): boolean => {
-    const newErrors: ValidationErrors = { ...errors };
+  const validateFields = useCallback((fieldNames: string[]): boolean => {
+    const currentValues = valuesRef.current;
+    const currentErrors = errorsRef.current;
+    const newErrors: ValidationErrors = { ...currentErrors };
     let isValid = true;
 
     fieldNames.forEach(key => {
-      const error = validateField(key, String(values[key]));
+      const error = validateField(key, String(currentValues[key]));
       newErrors[key] = error;
       if (error) isValid = false;
     });
@@ -105,13 +119,13 @@ export function useFormValidation<T extends Record<string, any>>(
       ...fieldNames.reduce((acc, key) => ({ ...acc, [key]: true }), {}),
     }));
     return isValid;
-  };
+  }, [validateField]);
 
-  const resetForm = () => {
+  const resetForm = useCallback(() => {
     setValues(initialValues);
     setErrors({});
     setTouched({});
-  };
+  }, [initialValues]);
 
   return {
     values,

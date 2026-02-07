@@ -10,12 +10,13 @@ import {
   View,
   Alert,
   Dimensions,
+  InteractionManager,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { useNavigation } from '@react-navigation/native';
 import Animated, { FadeIn, FadeInDown, FadeInRight, useSharedValue, withSpring } from 'react-native-reanimated';
-import * as Haptics from 'expo-haptics';
+import * as Haptics from '../utils/safeHaptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import type { InvoiceItem } from '../types/invoice';
@@ -306,6 +307,7 @@ function CreateInvoiceScreen(props: any) {
   const quantityRef = useRef<TextInput>(null);
   const unitPriceRef = useRef<TextInput>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const draftSaveTaskRef = useRef<ReturnType<typeof InteractionManager.runAfterInteractions> | null>(null);
 
   // Wizard state
   const [currentStep, setCurrentStep] = useState<WizardStep>('customer');
@@ -373,16 +375,21 @@ function CreateInvoiceScreen(props: any) {
   // ============================================================================
 
   const saveDraft = useCallback(async () => {
-    try {
-      const draft: InvoiceDraft = {
-        customerName: values.customerName,
-        items,
-        timestamp: Date.now(),
-      };
-      await AsyncStorage.setItem(INVOICE_CONSTANTS.DRAFT_KEY, JSON.stringify(draft));
-    } catch (error) {
-      if (__DEV__) console.error('Failed to save draft:', error);
+    if (draftSaveTaskRef.current) {
+      draftSaveTaskRef.current.cancel();
     }
+
+    const draft: InvoiceDraft = {
+      customerName: values.customerName,
+      items,
+      timestamp: Date.now(),
+    };
+
+    draftSaveTaskRef.current = InteractionManager.runAfterInteractions(() => {
+      AsyncStorage.setItem(INVOICE_CONSTANTS.DRAFT_KEY, JSON.stringify(draft)).catch((error) => {
+        if (__DEV__) console.error('Failed to save draft:', error);
+      });
+    });
   }, [values.customerName, items]);
 
   const debouncedSaveDraft = useMemo(
@@ -395,6 +402,12 @@ function CreateInvoiceScreen(props: any) {
       debouncedSaveDraft();
     }
   }, [values.customerName, items, debouncedSaveDraft]);
+
+  useEffect(() => {
+    return () => {
+      draftSaveTaskRef.current?.cancel();
+    };
+  }, []);
 
   const loadDraft = useCallback(async () => {
     try {

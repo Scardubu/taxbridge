@@ -1311,7 +1311,16 @@
     "noResults": "No results found",
     "tryDifferent": "Try a different search term",
     "recentSearches": "Recent Searches",
-    "clearRecent": "Clear"
+    "clearRecent": "Clear",
+    "clear": "Clear",
+    "resultsCount": "{{count}} results",
+    "removeRecent": "Remove recent search",
+    "filters": {
+      "all": "All",
+      "invoices": "Invoices",
+      "customers": "Customers",
+      "transactions": "Transactions"
+    }
   },
   "validation": {
     "required": "This field is required",

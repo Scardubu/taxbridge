@@ -24,7 +24,7 @@ import Animated, {
   Extrapolation,
 } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
-import * as Haptics from 'expo-haptics';
+import * as Haptics from '../utils/safeHaptics';
 import { colors, spacing, radii, typography, shadows } from '../theme/tokens';
 import { trackNavigation } from '../services/analytics';
 

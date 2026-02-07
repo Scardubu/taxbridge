@@ -9,10 +9,13 @@ import {
   ScrollView, 
   Dimensions,
   Modal,
+  Platform,
 } from 'react-native';
 import Animated, { FadeInDown, FadeInUp, FadeIn } from 'react-native-reanimated';
+
+const isWeb = Platform.OS === 'web';
 import { useTranslation } from 'react-i18next';
-import * as Haptics from 'expo-haptics';
+import * as Haptics from '../utils/safeHaptics';
 
 import { getInvoices } from '../services/database';
 import { useNetwork } from '../contexts/NetworkContext';
@@ -90,7 +93,7 @@ const EmptyInvoicesState = memo(({ onCreateInvoice }: { onCreateInvoice: () => v
   const { t } = useTranslation();
 
   return (
-    <Animated.View entering={FadeInDown.duration(400).delay(300)} style={styles.emptyState}>
+    <Animated.View entering={isWeb ? undefined : FadeInDown.duration(400).delay(300)} style={styles.emptyState}>
       <Text style={styles.emptyEmoji}>📄</Text>
       <Text style={styles.emptyTitle}>{t('home.noInvoicesTitle')}</Text>
       <Text style={styles.emptyText}>{t('home.noInvoicesText')}</Text>
@@ -119,7 +122,7 @@ EmptyInvoicesState.displayName = 'EmptyInvoicesState';
 
 const LoadingSkeleton = memo(() => (
   <>
-    <Animated.View entering={FadeIn.duration(200)} style={styles.skeletonContainer}>
+    <Animated.View entering={isWeb ? undefined : FadeIn.duration(200)} style={styles.skeletonContainer}>
       {/* Stats Skeleton */}
       <View style={styles.statsRow}>
         <View style={[styles.skeletonCard, styles.skeletonCardLarge]}>
@@ -161,7 +164,7 @@ const StatsCards = memo(({ stats, formatCurrency }: StatsCardsProps) => {
   const { t } = useTranslation();
 
   return (
-    <Animated.View entering={FadeInDown.duration(400).delay(300)} style={styles.statsRow}>
+    <Animated.View entering={isWeb ? undefined : FadeInDown.duration(400).delay(300)} style={styles.statsRow}>
       <Pressable
         style={[styles.statCard, styles.statCardPrimary]}
         accessible={true}
@@ -215,7 +218,7 @@ function HomeScreen(props: any) {
   const [isSyncQueueVisible, setIsSyncQueueVisible] = useState(false);
 
   // Refs for debouncing
-  const refreshTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
+  const refreshTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   // Memoized stats calculation
   const stats = useMemo(() => calculateInvoiceStats(invoices), [invoices]);
@@ -300,7 +303,7 @@ function HomeScreen(props: any) {
 
   const handleTaxCalculator = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    props.navigation.navigate('Settings');
+    props.navigation.navigate('TaxGuide');
   }, [props.navigation]);
 
   // Search handlers
@@ -423,7 +426,7 @@ function HomeScreen(props: any) {
       />
 
       {/* Search Bar Trigger */}
-      <Animated.View entering={FadeInDown.duration(300).delay(100)}>
+      <Animated.View entering={isWeb ? undefined : FadeInDown.duration(300).delay(100)}>
         <Pressable
           style={styles.searchTrigger}
           onPress={handleOpenSearch}
@@ -462,7 +465,7 @@ function HomeScreen(props: any) {
             ) : (
               <>
                 {/* Sync Status Bar */}
-                <Animated.View entering={FadeInDown.duration(400).delay(200)}>
+                <Animated.View entering={isWeb ? undefined : FadeInDown.duration(400).delay(200)}>
                   <SyncStatusBar 
                     pendingCount={stats.pendingCount} 
                     onSyncPress={handleSync}
@@ -484,7 +487,7 @@ function HomeScreen(props: any) {
                 <StatsCards stats={stats} formatCurrency={formatCurrency} />
 
                 {/* Quick Action Rail */}
-                <Animated.View entering={FadeInDown.duration(400).delay(400)}>
+                <Animated.View entering={isWeb ? undefined : FadeInDown.duration(400).delay(400)}>
                   <QuickActionRail
                     onCreateInvoice={handleCreateInvoice}
                     onScanReceipt={handleScanReceipt}
@@ -495,7 +498,7 @@ function HomeScreen(props: any) {
                 </Animated.View>
 
                 {/* Insights Carousel */}
-                <Animated.View entering={FadeInDown.duration(400).delay(500)}>
+                <Animated.View entering={isWeb ? undefined : FadeInDown.duration(400).delay(500)}>
                   <InsightsCarousel
                     invoiceCount={stats.count}
                     pendingCount={stats.pendingCount}
@@ -505,7 +508,7 @@ function HomeScreen(props: any) {
                 </Animated.View>
 
                 {/* Compliance Tip */}
-                <Animated.View entering={FadeInDown.duration(400).delay(600)} style={styles.tipCard}>
+                <Animated.View entering={isWeb ? undefined : FadeInDown.duration(400).delay(600)} style={styles.tipCard}>
                   <Text style={styles.tipEmoji}>💡</Text>
                   <View style={styles.tipContent}>
                     <Text style={styles.tipTitle}>{t('home.taxTip')}</Text>
@@ -514,7 +517,7 @@ function HomeScreen(props: any) {
                 </Animated.View>
 
                 {/* Trust Badges */}
-                <Animated.View entering={FadeInDown.duration(400).delay(700)} style={styles.trustBadges}>
+                <Animated.View entering={isWeb ? undefined : FadeInDown.duration(400).delay(700)} style={styles.trustBadges}>
                   <View style={styles.trustBadge}>
                     <Text style={styles.trustIcon}>✓</Text>
                     <Text style={styles.trustLabel}>{t('home.nrsReady')}</Text>

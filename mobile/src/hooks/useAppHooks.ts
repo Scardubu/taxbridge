@@ -313,7 +313,7 @@ export const useFormFocus = (
  */
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
-import * as Haptics from 'expo-haptics';
+import * as Haptics from '../utils/safeHaptics';
 import { showToast } from '../components/ui/Toast';
 
 export const useInvoiceExport = () => {

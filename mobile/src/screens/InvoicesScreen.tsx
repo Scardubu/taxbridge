@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useState, useRef, memo, useMemo } from 'react';
-import { FlatList, RefreshControl, SafeAreaView, StyleSheet, Text, View, Pressable, Alert, Dimensions } from 'react-native';
+import { FlatList, RefreshControl, SafeAreaView, StyleSheet, Text, View, Pressable, Alert, Dimensions, Platform } from 'react-native';
 import Animated, { FadeIn, FadeInDown, FadeInUp } from 'react-native-reanimated';
+
+const isWeb = Platform.OS === 'web';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
-import * as Haptics from 'expo-haptics';
+import * as Haptics from '../utils/safeHaptics';
 
 import InvoiceCard from '../components/InvoiceCard';
 import SwipeableInvoiceCard from '../components/SwipeableInvoiceCard';
@@ -149,7 +151,7 @@ function InvoicesScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <Animated.View entering={FadeIn.duration(300)} style={styles.container}>
+      <Animated.View entering={isWeb ? undefined : FadeIn.duration(300)} style={styles.container}>
         {/* Sync Status Bar */}
         <SyncStatusBar />
 
@@ -179,7 +181,7 @@ function InvoicesScreen() {
         </View>
 
         {/* Filter Tabs */}
-        <Animated.View entering={FadeIn.delay(100).duration(300)} style={styles.filterContainer}>
+        <Animated.View entering={isWeb ? undefined : FadeIn.delay(100).duration(300)} style={styles.filterContainer}>
           {filterOptions.map((filter) => (
             <Pressable
               key={filter.key}
@@ -226,7 +228,7 @@ function InvoicesScreen() {
           data={filteredRows}
           keyExtractor={(item) => item.id}
           renderItem={({ item, index }) => (
-            <Animated.View entering={FadeIn.delay(index * 50).duration(200)}>
+            <Animated.View entering={isWeb ? undefined : FadeIn.delay(index * 50).duration(200)}>
               <SwipeableInvoiceCard
                 invoice={item}
                 onRetry={handleRetry}

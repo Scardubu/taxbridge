@@ -1,4 +1,4 @@
-import * as Haptics from 'expo-haptics';
+import * as Haptics from '../utils/safeHaptics';
 
 export function useHapticFeedback() {
   const light = () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);

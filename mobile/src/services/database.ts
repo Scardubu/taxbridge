@@ -5,7 +5,10 @@ import type { InvoiceStatus, InvoiceItem, LocalInvoiceRow } from '../types/invoi
 
 // Use SQLite on native platforms; for web provide a lightweight localStorage-backed fallback
 const STORAGE_INVOICES_KEY = 'taxbridge:invoices:v1';
+const STORAGE_INVOICE_STATS_KEY = 'taxbridge:invoiceStats:v1';
 const STORAGE_SETTINGS_KEY = 'taxbridge:settings:v1';
+
+type InvoiceStats = { total: number; synced: number; pending: number };
 
 let nativeExec: any = null;
 let nativeDb: any = null;
@@ -48,6 +51,38 @@ async function readStoredInvoices(): Promise<LocalInvoiceRow[]> {
   }
 }
 
+function computeInvoiceStats(rows: LocalInvoiceRow[]): InvoiceStats {
+  const total = rows.length;
+  const synced = rows.filter((r) => r.synced === 1).length;
+  return { total, synced, pending: Math.max(0, total - synced) };
+}
+
+async function readInvoiceStats(): Promise<InvoiceStats | null> {
+  try {
+    const raw = await AsyncStorage.getItem(STORAGE_INVOICE_STATS_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as InvoiceStats;
+    if (
+      typeof parsed?.total !== 'number' ||
+      typeof parsed?.synced !== 'number' ||
+      typeof parsed?.pending !== 'number'
+    ) {
+      return null;
+    }
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+async function writeInvoiceStats(stats: InvoiceStats): Promise<void> {
+  try {
+    await AsyncStorage.setItem(STORAGE_INVOICE_STATS_KEY, JSON.stringify(stats));
+  } catch {
+    // Best-effort cache for web fallback; ignore failures.
+  }
+}
+
 async function pruneOldSyncedInvoices(rows: LocalInvoiceRow[]): Promise<LocalInvoiceRow[]> {
   // First, remove all synced invoices older than 30 days to free space
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
@@ -70,6 +105,7 @@ async function pruneOldSyncedInvoices(rows: LocalInvoiceRow[]): Promise<LocalInv
 async function writeStoredInvoices(rows: LocalInvoiceRow[]): Promise<void> {
   try {
     await AsyncStorage.setItem(STORAGE_INVOICES_KEY, JSON.stringify(rows));
+    await writeInvoiceStats(computeInvoiceStats(rows));
     return;
   } catch (err) {
     if (__DEV__) console.warn('writeStoredInvoices: failed to write storage, attempting cleanup...', err);
@@ -78,6 +114,7 @@ async function writeStoredInvoices(rows: LocalInvoiceRow[]): Promise<void> {
       const pruned = await pruneOldSyncedInvoices(rows);
       if (__DEV__) console.log(`Pruned from ${rows.length} to ${pruned.length} invoices`);
       await AsyncStorage.setItem(STORAGE_INVOICES_KEY, JSON.stringify(pruned));
+      await writeInvoiceStats(computeInvoiceStats(pruned));
       return;
     } catch (err2) {
       if (__DEV__) console.error('writeStoredInvoices: pruning failed, attempting emergency cleanup...', err2);
@@ -88,6 +125,7 @@ async function writeStoredInvoices(rows: LocalInvoiceRow[]): Promise<void> {
         const emergency = [...pending, ...synced];
         if (__DEV__) console.log(`Emergency cleanup: keeping ${emergency.length} invoices`);
         await AsyncStorage.setItem(STORAGE_INVOICES_KEY, JSON.stringify(emergency));
+        await writeInvoiceStats(computeInvoiceStats(emergency));
         return;
       } catch (err3) {
         if (__DEV__) console.error('writeStoredInvoices: emergency cleanup failed', err3);
@@ -132,7 +170,20 @@ export async function initDB(): Promise<void> {
       `DELETE FROM invoices WHERE synced = 1 AND created_at < datetime('now', '-30 days');`
     );
   } else {
-    // ensure storage keys exist for web or fallback
+    // Web fallback: avoid heavy invoice JSON parsing during boot.
+    if (Platform.OS === 'web') {
+      const settings = await AsyncStorage.getItem(STORAGE_SETTINGS_KEY);
+      if (!settings) {
+        await AsyncStorage.setItem(STORAGE_SETTINGS_KEY, JSON.stringify({}));
+      }
+      const cachedStats = await readInvoiceStats();
+      if (!cachedStats) {
+        await writeInvoiceStats({ total: 0, synced: 0, pending: 0 });
+      }
+      return;
+    }
+
+    // ensure storage keys exist for fallback
     const existing = await readStoredInvoices();
     if (!existing) {
       await writeStoredInvoices([]);
@@ -147,6 +198,8 @@ export async function initDB(): Promise<void> {
       const cleaned = await pruneOldSyncedInvoices(rows);
       if (cleaned.length < rows.length) {
         await writeStoredInvoices(cleaned);
+      } else {
+        await writeInvoiceStats(computeInvoiceStats(cleaned));
       }
     } catch (e) {
       if (__DEV__) console.warn('initDB: cleanup failed', e);
@@ -252,10 +305,18 @@ export async function getInvoiceStats(): Promise<{ total: number; synced: number
     return { total, synced, pending };
   }
 
+  const cached = await readInvoiceStats();
+  if (cached) return cached;
+
+  if (Platform.OS === 'web') {
+    // Avoid blocking reads on web; return safe defaults until cache warms.
+    return { total: 0, synced: 0, pending: 0 };
+  }
+
   const rows = await readStoredInvoices();
-  const synced = rows.filter((r) => r.synced === 1).length;
-  const total = rows.length;
-  return { total, synced, pending: Math.max(0, total - synced) };
+  const stats = computeInvoiceStats(rows);
+  await writeInvoiceStats(stats);
+  return stats;
 }
 
 export async function getPendingInvoices(): Promise<LocalInvoiceRow[]> {

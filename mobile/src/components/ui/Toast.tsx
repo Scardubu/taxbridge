@@ -14,7 +14,7 @@ import Animated, {
   withTiming,
   runOnJS,
 } from 'react-native-reanimated';
-import * as Haptics from 'expo-haptics';
+import * as Haptics from '../../utils/safeHaptics';
 import { colors, spacing, radii, typography } from '../../theme/tokens';
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info';

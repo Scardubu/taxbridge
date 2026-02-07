@@ -15,11 +15,9 @@ import {
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
 import Constants from 'expo-constants';
-import * as Haptics from 'expo-haptics';
-import * as FileSystem from 'expo-file-system';
-import * as Sharing from 'expo-sharing';
 
 import i18n, { type SupportedLanguage } from '../i18n';
+import SafeHaptics from '../utils/safeHaptics';
 import { getSetting, setSetting, getInvoiceStats, getInvoices, clearSyncedLocalInvoices } from '../services/database';
 import { getApiBaseUrl, setApiBaseUrl } from '../services/api';
 import { getAccessToken } from '../services/authTokens';
@@ -35,6 +33,7 @@ import { colors, spacing, radii, typography } from '../theme/tokens';
 // Constants
 // ============================================================================
 
+const isWeb = Platform.OS === 'web';
 const LANGUAGE_KEY = 'language';
 
 const VALIDATION_LIMITS = {
@@ -96,7 +95,7 @@ const SectionHeader = memo(({ icon, title, expanded, onPress }: SectionHeaderPro
   <Pressable 
     style={styles.sectionHeader} 
     onPress={() => {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      SafeHaptics.impactAsync('Light');
       onPress();
     }}
     accessible={true}
@@ -310,7 +309,7 @@ function SettingsScreen() {
     }
 
     setIsAuthSubmitting(true);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    SafeHaptics.impactAsync('Medium');
     
     try {
       const res = await authApi.login(authPhone.trim(), authPassword);
@@ -325,7 +324,7 @@ function SettingsScreen() {
       }
 
       await refreshAuthStatus();
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      SafeHaptics.notificationAsync('Success');
       Alert.alert(t('settings.signedIn'), t('settings.signedInMsg'));
       resetAuthForms();
       
@@ -333,7 +332,7 @@ function SettingsScreen() {
         void manualSync();
       }
     } catch (error) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      SafeHaptics.notificationAsync('Error');
       showValidationError(t('settings.signInFailed'), t('settings.signInFailedMsg'));
     } finally {
       setIsAuthSubmitting(false);
@@ -349,12 +348,12 @@ function SettingsScreen() {
     }
 
     setIsAuthSubmitting(true);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    SafeHaptics.impactAsync('Medium');
     
     try {
       await authApi.mfaLogin(mfaToken, totpCode.trim());
       await refreshAuthStatus();
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      SafeHaptics.notificationAsync('Success');
       showToast({
         type: 'success',
         message: t('settings.signedInMsg'),
@@ -366,7 +365,7 @@ function SettingsScreen() {
         void manualSync();
       }
     } catch (error) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      SafeHaptics.notificationAsync('Error');
       showValidationError(t('settings.mfaFailed'), t('settings.mfaFailedMsg'));
     } finally {
       setIsAuthSubmitting(false);
@@ -392,7 +391,7 @@ function SettingsScreen() {
     }
 
     setIsAuthSubmitting(true);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    SafeHaptics.impactAsync('Medium');
     
     try {
       const res = await authApi.register(authPhone.trim(), authName.trim(), authPassword);
@@ -402,7 +401,7 @@ function SettingsScreen() {
         message: t('settings.verifyPhoneMsg')
       });
     } catch (error) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      SafeHaptics.notificationAsync('Error');
       showValidationError(t('settings.signupFailed'), t('settings.signupFailedMsg'));
     } finally {
       setIsAuthSubmitting(false);
@@ -418,12 +417,12 @@ function SettingsScreen() {
     }
 
     setIsAuthSubmitting(true);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    SafeHaptics.impactAsync('Medium');
     
     try {
       await authApi.verifyPhone(registerUserId, authOtp.trim());
       await refreshAuthStatus();
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      SafeHaptics.notificationAsync('Success');
       showToast({
         type: 'success',
         message: t('settings.accountReadyMsg'),
@@ -435,7 +434,7 @@ function SettingsScreen() {
         void manualSync();
       }
     } catch (error) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      SafeHaptics.notificationAsync('Error');
       showValidationError(t('settings.verificationFailed'), t('settings.verificationFailedMsg'));
     } finally {
       setIsAuthSubmitting(false);
@@ -446,19 +445,19 @@ function SettingsScreen() {
     if (isAuthSubmitting) return;
     
     setIsAuthSubmitting(true);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    SafeHaptics.impactAsync('Medium');
     
     try {
       await authApi.logout();
       await refreshAuthStatus();
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      SafeHaptics.notificationAsync('Success');
       showToast({
         type: 'info',
         message: t('settings.signedOutMsg')
       });
       resetAuthForms();
     } catch (error) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      SafeHaptics.notificationAsync('Error');
       showValidationError(t('settings.signOutFailed'), t('settings.signOutFailedMsg'));
     } finally {
       setIsAuthSubmitting(false);
@@ -470,7 +469,7 @@ function SettingsScreen() {
   // ============================================================================
 
   const chooseLanguage = useCallback(async (next: SupportedLanguage) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    SafeHaptics.impactAsync('Light');
     setLang(next);
     await setSetting(LANGUAGE_KEY, next);
     await i18n.changeLanguage(next);
@@ -482,24 +481,24 @@ function SettingsScreen() {
       return;
     }
 
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    SafeHaptics.impactAsync('Medium');
     
     try {
       await setApiBaseUrl(values.apiUrl);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      SafeHaptics.notificationAsync('Success');
       showToast({
         type: 'success',
         message: t('settings.apiUrlUpdated'),
         haptic: 'success'
       });
     } catch (error) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      SafeHaptics.notificationAsync('Error');
       showValidationError(t('settings.error'), t('settings.failedSaveApiUrl'));
     }
   }, [validateAll, values.apiUrl]);
 
   const handleClearSyncedData = useCallback(() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    SafeHaptics.impactAsync('Medium');
     
     Alert.alert(
       t('settings.clearSyncedTitle'),
@@ -512,7 +511,7 @@ function SettingsScreen() {
           onPress: async () => {
             try {
               const removed = await clearSyncedLocalInvoices(0);
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              SafeHaptics.notificationAsync('Success');
               showToast({
                 type: 'success',
                 message: t('settings.removedSyncedMsg', { count: removed }),
@@ -520,7 +519,7 @@ function SettingsScreen() {
               });
               loadStorageStats();
             } catch (error) {
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+              SafeHaptics.notificationAsync('Error');
               showValidationError(t('settings.error'), t('settings.failedClearData'));
             }
           },
@@ -532,10 +531,12 @@ function SettingsScreen() {
   const handleExportData = useCallback(async () => {
     if (isExporting) return;
     
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    SafeHaptics.impactAsync('Medium');
     setIsExporting(true);
     
     try {
+      const FileSystem = await import('expo-file-system');
+      const Sharing = await import('expo-sharing');
       const invoices = (await getInvoices()).map(inv => ({ ...inv, createdAt: new Date(inv.createdAt).getTime() })) as Invoice[];
       
       // Generate CSV
@@ -561,7 +562,7 @@ function SettingsScreen() {
           mimeType: 'text/csv',
           dialogTitle: t('settings.exportInvoices'),
         });
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        SafeHaptics.notificationAsync('Success');
       } else {
         showToast({
           type: 'success',
@@ -572,15 +573,15 @@ function SettingsScreen() {
       }
     } catch (error) {
       if (__DEV__) console.error('Export failed:', error);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      showValidationError(t('error'), t('settings.exportFailed'));
+      SafeHaptics.notificationAsync('Error');
+      showValidationError(t('settings.error'), t('settings.exportFailed'));
     } finally {
       setIsExporting(false);
     }
   }, [isExporting, t]);
 
   const handleJoinCommunity = useCallback(() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    SafeHaptics.impactAsync('Light');
     
     Alert.alert(
       t('settings.joinCommunityTitle'),
@@ -617,7 +618,7 @@ function SettingsScreen() {
         accessibilityLabel={t('settings.mainContent')}
       >
         {/* Header */}
-        <Animated.View entering={FadeInDown.duration(300)} style={styles.header}>
+        <Animated.View entering={isWeb ? undefined : FadeInDown.duration(300)} style={styles.header}>
           <Text style={styles.headerIcon}>⚙️</Text>
           <View>
             <Text style={styles.h1}>{t('settings.title')}</Text>
@@ -627,7 +628,7 @@ function SettingsScreen() {
 
         {/* Network Status Card */}
         <Animated.View 
-          entering={FadeInDown.duration(250).delay(50)} 
+          entering={isWeb ? undefined : FadeInDown.duration(250).delay(50)} 
           style={[styles.statusCard, isOnline ? styles.statusOnline : styles.statusOffline]}
         >
           <View style={styles.statusRow}>
@@ -658,7 +659,7 @@ function SettingsScreen() {
         </Animated.View>
 
         {/* Language & Accessibility Section */}
-        <Animated.View entering={FadeInDown.duration(250).delay(50)}>
+        <Animated.View entering={isWeb ? undefined : FadeInDown.duration(250).delay(50)}>
           <SectionHeader
             icon="🌍"
             title={t('settings.languageAndAccessibility')}
@@ -667,7 +668,7 @@ function SettingsScreen() {
           />
           
           {expandedSection === 'language' && (
-            <Animated.View entering={FadeIn.duration(200)} style={styles.sectionContent}>
+            <Animated.View entering={isWeb ? undefined : FadeIn.duration(200)} style={styles.sectionContent}>
               <View style={styles.row}>
                 <Pressable 
                   style={[styles.option, lang === 'en' && styles.optionActive]} 
@@ -702,7 +703,7 @@ function SettingsScreen() {
         </Animated.View>
 
         {/* Data & Storage Section */}
-        <Animated.View entering={FadeInDown.duration(250).delay(75)}>
+        <Animated.View entering={isWeb ? undefined : FadeInDown.duration(250).delay(75)}>
           <SectionHeader
             icon="💾"
             title={t('settings.dataAndStorage')}
@@ -711,7 +712,7 @@ function SettingsScreen() {
           />
           
           {expandedSection === 'data' && (
-            <Animated.View entering={FadeIn.duration(200)} style={styles.sectionContent}>
+            <Animated.View entering={isWeb ? undefined : FadeIn.duration(200)} style={styles.sectionContent}>
               <StorageMeter stats={storageStats} />
 
               <View style={styles.actionButtons}>
@@ -750,7 +751,7 @@ function SettingsScreen() {
         </Animated.View>
 
         {/* Network & Sync Section */}
-        <Animated.View entering={FadeInDown.duration(250).delay(100)}>
+        <Animated.View entering={isWeb ? undefined : FadeInDown.duration(250).delay(100)}>
           <SectionHeader
             icon="🔄"
             title={t('settings.networkAndSync')}
@@ -759,7 +760,7 @@ function SettingsScreen() {
           />
           
           {expandedSection === 'network' && (
-            <Animated.View entering={FadeIn.duration(200)} style={styles.sectionContent}>
+            <Animated.View entering={isWeb ? undefined : FadeIn.duration(200)} style={styles.sectionContent}>
               <Text style={styles.label}>{t('settings.apiUrl')}</Text>
               <TextInput
                 style={[styles.input, errors.apiUrl && touched.apiUrl && styles.inputError]}
@@ -786,7 +787,7 @@ function SettingsScreen() {
         </Animated.View>
 
         {/* Account & Sync Section */}
-        <Animated.View entering={FadeInDown.duration(250).delay(100)}>
+        <Animated.View entering={isWeb ? undefined : FadeInDown.duration(250).delay(100)}>
           <SectionHeader
             icon="👤"
             title={t('settings.accountSyncTitle')}
@@ -795,7 +796,7 @@ function SettingsScreen() {
           />
 
           {expandedSection === 'account' && (
-            <Animated.View entering={FadeIn.duration(200)} style={styles.sectionContent}>
+            <Animated.View entering={isWeb ? undefined : FadeIn.duration(200)} style={styles.sectionContent}>
               <Text style={styles.helperText}>
                 {t('settings.accountSyncHelper')}
               </Text>
@@ -970,7 +971,7 @@ function SettingsScreen() {
         </Animated.View>
 
         {/* Community Section */}
-        <Animated.View entering={FadeInDown.duration(250).delay(125)}>
+        <Animated.View entering={isWeb ? undefined : FadeInDown.duration(250).delay(125)}>
           <SectionHeader
             icon="👥"
             title={t('settings.communityTitle')}
@@ -979,7 +980,7 @@ function SettingsScreen() {
           />
           
           {expandedSection === 'community' && (
-            <Animated.View entering={FadeIn.duration(200)} style={styles.sectionContent}>
+            <Animated.View entering={isWeb ? undefined : FadeIn.duration(200)} style={styles.sectionContent}>
               <Pressable style={styles.communityCard} onPress={handleJoinCommunity}>
                 <View style={styles.communityHeader}>
                   <Text style={styles.communityIcon}>🌉</Text>
@@ -1005,7 +1006,7 @@ function SettingsScreen() {
         </Animated.View>
 
         {/* Security & Compliance Section */}
-        <Animated.View entering={FadeInDown.duration(250).delay(125)}>
+        <Animated.View entering={isWeb ? undefined : FadeInDown.duration(250).delay(125)}>
           <SectionHeader
             icon="🔒"
             title={t('settings.securityComplianceTitle')}
@@ -1014,7 +1015,7 @@ function SettingsScreen() {
           />
           
           {expandedSection === 'security' && (
-            <Animated.View entering={FadeIn.duration(200)} style={styles.sectionContent}>
+            <Animated.View entering={isWeb ? undefined : FadeIn.duration(200)} style={styles.sectionContent}>
               <View style={styles.complianceCard}>
                 <View style={styles.complianceBadge}>
                   <Text style={styles.complianceBadgeIcon}>✓</Text>
@@ -1044,7 +1045,7 @@ function SettingsScreen() {
         </Animated.View>
 
         {/* App Info */}
-        <Animated.View entering={FadeInDown.duration(250).delay(150)} style={styles.appInfo}>
+        <Animated.View entering={isWeb ? undefined : FadeInDown.duration(250).delay(150)} style={styles.appInfo}>
           <Text style={styles.appName}>
             {t('settings.appName', { version: Constants.expoConfig?.version || '5.0.2' })}
           </Text>

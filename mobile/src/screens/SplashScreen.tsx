@@ -81,7 +81,18 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
         await new Promise(res => setTimeout(res, remaining));
       }
 
-      // 4️⃣ Safe exit with boot data
+      // 4️⃣ Fade out before handing off
+      if (!mounted) return;
+      
+      await new Promise<void>((resolve) => {
+        Animated.timing(opacity, {
+          toValue: 0,
+          duration: 300,
+          useNativeDriver: Platform.OS !== 'web',
+        }).start(() => resolve());
+      });
+
+      // 5️⃣ Safe exit with boot data
       if (mounted) {
         onFinish(bootData);
       }

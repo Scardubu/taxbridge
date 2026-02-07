@@ -1,4 +1,4 @@
-import * as Haptics from 'expo-haptics';
+import * as Haptics from './safeHaptics';
 
 export type HapticFeedbackType =
   | 'impactLight'

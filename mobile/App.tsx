@@ -51,7 +51,17 @@ function BootRouter() {
   const { isHydrated } = useAuth();
 
   if (!isHydrated) {
-    return null;
+    // Show branded loading state during hydration instead of blank screen
+    return (
+      <View style={{
+        flex: 1,
+        backgroundColor: colors.surface,
+        justifyContent: 'center',
+        alignItems: 'center',
+      }}>
+        <Text style={{ fontSize: 48 }}>📊</Text>
+      </View>
+    );
   }
 
   return <AppNavigator />;
