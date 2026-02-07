@@ -627,7 +627,7 @@ function SettingsScreen() {
 
         {/* Network Status Card */}
         <Animated.View 
-          entering={FadeInDown.duration(300).delay(100)} 
+          entering={FadeInDown.duration(250).delay(50)} 
           style={[styles.statusCard, isOnline ? styles.statusOnline : styles.statusOffline]}
         >
           <View style={styles.statusRow}>
@@ -658,7 +658,7 @@ function SettingsScreen() {
         </Animated.View>
 
         {/* Language & Accessibility Section */}
-        <Animated.View entering={FadeInDown.duration(300).delay(200)}>
+        <Animated.View entering={FadeInDown.duration(250).delay(50)}>
           <SectionHeader
             icon="🌍"
             title={t('settings.languageAndAccessibility')}
@@ -702,7 +702,7 @@ function SettingsScreen() {
         </Animated.View>
 
         {/* Data & Storage Section */}
-        <Animated.View entering={FadeInDown.duration(300).delay(300)}>
+        <Animated.View entering={FadeInDown.duration(250).delay(75)}>
           <SectionHeader
             icon="💾"
             title={t('settings.dataAndStorage')}
@@ -750,7 +750,7 @@ function SettingsScreen() {
         </Animated.View>
 
         {/* Network & Sync Section */}
-        <Animated.View entering={FadeInDown.duration(300).delay(400)}>
+        <Animated.View entering={FadeInDown.duration(250).delay(100)}>
           <SectionHeader
             icon="🔄"
             title={t('settings.networkAndSync')}
@@ -786,7 +786,7 @@ function SettingsScreen() {
         </Animated.View>
 
         {/* Account & Sync Section */}
-        <Animated.View entering={FadeInDown.duration(300).delay(450)}>
+        <Animated.View entering={FadeInDown.duration(250).delay(100)}>
           <SectionHeader
             icon="👤"
             title={t('settings.accountSyncTitle')}
@@ -970,7 +970,7 @@ function SettingsScreen() {
         </Animated.View>
 
         {/* Community Section */}
-        <Animated.View entering={FadeInDown.duration(300).delay(500)}>
+        <Animated.View entering={FadeInDown.duration(250).delay(125)}>
           <SectionHeader
             icon="👥"
             title={t('settings.communityTitle')}
@@ -1005,7 +1005,7 @@ function SettingsScreen() {
         </Animated.View>
 
         {/* Security & Compliance Section */}
-        <Animated.View entering={FadeInDown.duration(300).delay(600)}>
+        <Animated.View entering={FadeInDown.duration(250).delay(125)}>
           <SectionHeader
             icon="🔒"
             title={t('settings.securityComplianceTitle')}
@@ -1044,7 +1044,7 @@ function SettingsScreen() {
         </Animated.View>
 
         {/* App Info */}
-        <Animated.View entering={FadeInDown.duration(300).delay(700)} style={styles.appInfo}>
+        <Animated.View entering={FadeInDown.duration(250).delay(150)} style={styles.appInfo}>
           <Text style={styles.appName}>
             {t('settings.appName', { version: Constants.expoConfig?.version || '5.0.2' })}
           </Text>

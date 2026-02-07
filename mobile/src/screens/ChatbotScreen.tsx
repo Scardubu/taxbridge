@@ -137,8 +137,8 @@ export default function ChatbotScreen({
   // Refs
   const scrollViewRef = useRef<ScrollView>(null);
   const isMountedRef = useRef(true);
-  const sendTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
-  const sessionTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
+  const sendTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const sessionTimeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const messageQueueRef = useRef<Message[]>([]);
   const lastMessageTimeRef = useRef<number>(Date.now());
 

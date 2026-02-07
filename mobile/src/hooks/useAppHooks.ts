@@ -198,7 +198,7 @@ export const useSmartSync = ({
   }, [autoSyncEnabled, isOnline, lastSyncAt, autoSyncThresholdHours]);
 
   useEffect(() => {
-    let timeoutId: NodeJS.Timeout;
+    let timeoutId: ReturnType<typeof setTimeout>;
     
     if (shouldAutoSync() && !isSyncing) {
       // Delay auto-sync to avoid blocking UI

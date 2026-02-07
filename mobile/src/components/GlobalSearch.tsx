@@ -266,7 +266,7 @@ function GlobalSearch({
   const [isLoading, setIsLoading] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
   
-  const searchTimeout = useRef<NodeJS.Timeout | null>(null);
+  const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const containerHeight = useSharedValue(56);
 
   // Load recent searches on mount

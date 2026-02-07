@@ -6,9 +6,18 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { I18nextProvider, useTranslation } from 'react-i18next';
 
+import { configureReanimatedLogger, ReanimatedLogLevel } from 'react-native-reanimated';
+
 import i18n from './src/i18n';
 import { initDB } from './src/services/database';
 import { initSentry, addBreadcrumb } from './src/services/sentry';
+
+// Suppress Reanimated strict-mode warnings ("Reading from 'value' during render")
+// These are benign on web and flood the console. Must be called before any Reanimated usage.
+configureReanimatedLogger({
+  level: ReanimatedLogLevel.warn,
+  strict: false,
+});
 import { trackNavigation, trackScreenView } from './src/services/analytics';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 import SplashScreen from './src/screens/SplashScreen';
@@ -143,6 +152,7 @@ function TabNavigator() {
         name="Settings" 
         component={SettingsScreen}
         options={{
+          lazy: true,
           tabBarLabel: t('navigation.settings'),
           tabBarIcon: ({ color, size }) => (
             <View style={{ alignItems: 'center', justifyContent: 'center' }}>

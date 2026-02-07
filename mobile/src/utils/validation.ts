@@ -89,6 +89,24 @@ export function useFormValidation<T extends Record<string, any>>(
     return isValid;
   };
 
+  const validateFields = (fieldNames: string[]): boolean => {
+    const newErrors: ValidationErrors = { ...errors };
+    let isValid = true;
+
+    fieldNames.forEach(key => {
+      const error = validateField(key, String(values[key]));
+      newErrors[key] = error;
+      if (error) isValid = false;
+    });
+
+    setErrors(newErrors);
+    setTouched(prev => ({
+      ...prev,
+      ...fieldNames.reduce((acc, key) => ({ ...acc, [key]: true }), {}),
+    }));
+    return isValid;
+  };
+
   const resetForm = () => {
     setValues(initialValues);
     setErrors({});
@@ -102,6 +120,7 @@ export function useFormValidation<T extends Record<string, any>>(
     setValue,
     setTouchedField,
     validateAll,
+    validateFields,
     resetForm,
   };
 }

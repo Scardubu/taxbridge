@@ -332,13 +332,13 @@ function CreateInvoiceScreen(props: any) {
   }, [currentStep, currentStepIndex, stepProgress, steps.length]);
 
   // Form state
-  const { values, errors, touched, setValue, setTouchedField, validateAll, resetForm } = useFormValidation(
+  const { values, errors, touched, setValue, setTouchedField, validateAll, validateFields, resetForm } = useFormValidation(
     {
       customerName: '',
       customerTIN: '',
       description: '',
       quantity: '1',
-      unitPrice: '0',
+      unitPrice: '',
     },
     {
       customerName: validationRules.customerName,
@@ -459,12 +459,12 @@ function CreateInvoiceScreen(props: any) {
   const resetItemForm = useCallback(() => {
     setValue('description', '');
     setValue('quantity', '1');
-    setValue('unitPrice', '0');
+    setValue('unitPrice', '');
     setEditingIndex(null);
   }, [setValue]);
 
   const addItem = useCallback(() => {
-    if (!validateAll()) {
+    if (!validateFields(['description', 'quantity', 'unitPrice'])) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       showValidationError(t('alerts.validationError'), t('alerts.fixErrorsBeforeAdding'));
       return;
@@ -506,7 +506,7 @@ function CreateInvoiceScreen(props: any) {
 
     resetItemForm();
     descriptionRef.current?.focus();
-  }, [validateAll, values, items, editingIndex, resetItemForm, t]);
+  }, [validateFields, values, items, editingIndex, resetItemForm, t]);
 
   const removeItem = useCallback((index: number) => {
     setItems((prev) => prev.filter((_, i) => i !== index));
