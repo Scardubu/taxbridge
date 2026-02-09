@@ -153,6 +153,7 @@
     "alignReceipt": "Align Receipt in Frame",
     "receiptAligned": "Receipt Aligned ✓",
     "readyToScan": "Ready to Scan",
+    "tapFrameToConfirm": "Tap the frame when your receipt is centered",
     "positionReceipt": "Position receipt within the frame for best results",
     "processing": "Processing...",
     "tapToCapture": "Tap to Capture",
