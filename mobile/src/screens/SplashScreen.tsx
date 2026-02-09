@@ -24,6 +24,7 @@ import {
   Dimensions,
   Platform,
 } from 'react-native';
+import * as ExpoSplashScreen from 'expo-splash-screen';
 
 // 🔌 Boot services (existing or to be added)
 import { warmUpSyncEngine } from '../sync/syncEngine';
@@ -51,6 +52,9 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
     let mounted = true;
 
     const boot = async () => {
+      // 0️⃣ Hide the native expo splash now that our custom splash is rendering
+      ExpoSplashScreen.hideAsync().catch(() => undefined);
+
       // 1️⃣ Fade in immediately (UX first)
       Animated.timing(opacity, {
         toValue: 1,

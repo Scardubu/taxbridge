@@ -17,6 +17,7 @@
     "web": "expo start --web"
   },
   "dependencies": {
+    "@babel/core": "^7.22.0",
     "@expo/vector-icons": "^15.0.3",
     "@react-native-async-storage/async-storage": "^2.2.0",
     "@react-native-community/netinfo": "^11.4.1",
@@ -59,7 +60,6 @@
     "babel-plugin-transform-remove-console": "^6.9.4"
   },
   "devDependencies": {
-    "@babel/core": "^7.22.0",
     "@testing-library/react-native": "^13.3.3",
     "@types/react": "~19.1.0",
     "babel-jest": "^29.7.0",

@@ -18,12 +18,17 @@ const config = getDefaultConfig(projectRoot);
 
 // Watch only necessary folders to avoid Windows file watcher timeout
 // For EAS builds, always include workspace node_modules
+// Merge with Expo defaults to avoid "watchFolders does not contain all entries" warning
 const isEASBuild = process.env.EAS_BUILD === 'true';
-config.watchFolders = [projectRoot];
+const defaultWatchFolders = config.watchFolders || [];
+config.watchFolders = [...defaultWatchFolders, projectRoot];
 
 if (isEASBuild || process.platform !== 'win32') {
   config.watchFolders.push(path.join(workspaceRoot, 'node_modules'));
 }
+
+// Deduplicate watch folders
+config.watchFolders = [...new Set(config.watchFolders)];
 
 // Configure node modules resolution
 // Simplified for EAS build compatibility

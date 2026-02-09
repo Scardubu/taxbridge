@@ -1,7 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import * as ExpoSplashScreen from 'expo-splash-screen';
 import { NavigationContainer, type NavigationContainerRef, DefaultTheme } from '@react-navigation/native';
+
+// Prevent the native splash from auto-hiding until we're ready
+ExpoSplashScreen.preventAutoHideAsync().catch(() => {
+  // Already hidden or not available — safe to ignore
+});
 
 // Force light theme to prevent dark mode flash on Android
 const LightTheme = {
@@ -27,10 +33,14 @@ import { initSentry, addBreadcrumb } from './src/services/sentry';
 
 // Suppress Reanimated strict-mode warnings ("Reading from 'value' during render")
 // These are benign on web and flood the console. Must be called before any Reanimated usage.
-configureReanimatedLogger({
-  level: ReanimatedLogLevel.warn,
-  strict: false,
-});
+try {
+  configureReanimatedLogger({
+    level: ReanimatedLogLevel.warn,
+    strict: false,
+  });
+} catch {
+  // Safe to ignore — older versions of Reanimated do not export configureReanimatedLogger
+}
 import { trackNavigation, trackScreenView } from './src/services/analytics';
 import { ErrorBoundary } from './src/components/ErrorBoundary';
 import SplashScreen from './src/screens/SplashScreen';
@@ -205,6 +215,7 @@ function TabNavigator() {
 
 export default function App() {
   const [booted, setBooted] = useState(false);
+  const [bootError, setBootError] = useState<Error | null>(null);
   const [bootData, setBootData] = useState<{ deviceInfo: any; persistedState: any } | null>(null);
   const routeNameRef = useRef<string | null>(null);
   const navigationRef = useRef<NavigationContainerRef<any> | null>(null);
@@ -218,11 +229,38 @@ export default function App() {
     void initDB().catch(() => undefined);
   }, []);
 
+  // Hide the native expo splash screen once booted
+  useEffect(() => {
+    if (booted) {
+      ExpoSplashScreen.hideAsync().catch(() => undefined);
+    }
+  }, [booted]);
+
   if (!booted) {
     return <SplashScreen onFinish={(data) => {
-      setBootData(data || null);
-      setBooted(true);
+      try {
+        setBootData(data || null);
+        setBooted(true);
+      } catch (err) {
+        setBootError(err instanceof Error ? err : new Error(String(err)));
+        setBooted(true);
+      }
     }} />;
+  }
+
+  // If boot failed, show a minimal recovery screen
+  if (bootError) {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#FFFFFF', justifyContent: 'center', alignItems: 'center', padding: 24 }}>
+        <Text style={{ fontSize: 48, marginBottom: 16 }}>😔</Text>
+        <Text style={{ fontSize: 18, fontWeight: '600', color: '#1F2937', textAlign: 'center', marginBottom: 8 }}>
+          Something went wrong
+        </Text>
+        <Text style={{ fontSize: 14, color: '#6B7280', textAlign: 'center' }}>
+          Please restart the app. If this persists, reinstall TaxBridge.
+        </Text>
+      </View>
+    );
   }
 
   return (
