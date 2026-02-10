@@ -40,6 +40,7 @@
     "preview": {
       "channel": "preview",
       "distribution": "internal",
+      "node": "20.11.0",
       "env": {
         "EXPO_PUBLIC_API_URL": "https://taxbridge-api-ker8.onrender.com",
         "EXPO_PUBLIC_ENV": "preview",
