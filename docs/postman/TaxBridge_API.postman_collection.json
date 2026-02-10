@@ -1,0 +1,775 @@
+{
+  "info": {
+    "name": "TaxBridge API - Complete Collection",
+    "description": "Comprehensive Nigerian Tax Compliance Platform API - NTA 2025 Compliant\n\nAll 54+ endpoints across 11 modules:\n- Authentication\n- Business Management\n- Tax Calculations (PIT, VAT, CIT, CGT, WHT, PAYE)\n- Invoice Management (NRS-compliant)\n- Payment Processing (Multi-gateway)\n- Expense Tracking (OCR)\n- Payroll & PAYE\n- Compliance Alerts\n- Crypto Tax\n- Reconciliation\n- Health & Monitoring",
+    "version": "1.0.0",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{jwt_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "api_version",
+      "value": "v1",
+      "type": "string"
+    },
+    {
+      "key": "jwt_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "business_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "invoice_id",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Register User",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "url": "{{base_url}}/api/{{api_version}}/auth/register",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"SecurePassword123!\",\n  \"name\": \"John Doe\",\n  \"phone\": \"+2348012345678\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const response = pm.response.json();",
+                  "    pm.collectionVariables.set('jwt_token', response.data.token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "url": "{{base_url}}/api/{{api_version}}/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"SecurePassword123!\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "url": "{{base_url}}/api/{{api_version}}/auth/refresh",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refresh_token}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "url": "{{base_url}}/api/{{api_version}}/auth/logout"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Business Management",
+      "item": [
+        {
+          "name": "Create Business",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    pm.collectionVariables.set('business_id', response.data.business.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "url": "{{base_url}}/api/{{api_version}}/business",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Acme Trading Ltd\",\n  \"cacNumber\": \"RC123456\",\n  \"tin\": \"12345678-0001\",\n  \"email\": \"info@acmetrading.com\",\n  \"phone\": \"+2348012345678\",\n  \"address\": {\n    \"street\": \"123 Main Street\",\n    \"city\": \"Lagos\",\n    \"state\": \"Lagos\",\n    \"zipCode\": \"100001\"\n  },\n  \"businessType\": \"limited-company\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Get Business Profile",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/{{api_version}}/business/profile"
+          }
+        },
+        {
+          "name": "Update Business Profile",
+          "request": {
+            "method": "PUT",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "url": "{{base_url}}/api/{{api_version}}/business/profile",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Acme Trading Limited\",\n  \"phone\": \"+2348087654321\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Verify Business",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "url": "{{base_url}}/api/{{api_version}}/business/verify",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tinVerification\": true,\n  \"bvnVerification\": true,\n  \"cacVerification\": true\n}"
+            }
+          }
+        },
+        {
+          "name": "Get Verification Status",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/{{api_version}}/business/verification"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Tax Calculations",
+      "item": [
+        {
+          "name": "Calculate PIT",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "url": "{{base_url}}/api/{{api_version}}/tax/calculate/pit",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"grossIncome\": 5000000,\n  \"reliefs\": {\n    \"cra\": true,\n    \"pension\": 400000,\n    \"nhf\": 125000,\n    \"lifeInsurance\": 100000\n  }\n}"
+            }
+          }
+        },
+        {
+          "name": "Calculate VAT",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "url": "{{base_url}}/api/{{api_version}}/tax/calculate/vat",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 1000000,\n  \"category\": \"standard\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Calculate CIT",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "url": "{{base_url}}/api/{{api_version}}/tax/calculate/cit",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"revenue\": 50000000,\n  \"expenses\": 30000000\n}"
+            }
+          }
+        },
+        {
+          "name": "Calculate CGT",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "url": "{{base_url}}/api/{{api_version}}/tax/calculate/cgt",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"proceeds\": 5000000,\n  \"costBasis\": 3000000,\n  \"assetType\": \"crypto\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Calculate WHT",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "url": "{{base_url}}/api/{{api_version}}/tax/calculate/wht",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 1000000,\n  \"type\": \"consultancy\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Calculate PAYE",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "url": "{{base_url}}/api/{{api_version}}/tax/calculate/paye",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"grossSalary\": 500000,\n  \"allowances\": {\n    \"housing\": 100000,\n    \"transport\": 50000,\n    \"meal\": 30000,\n    \"others\": 20000\n  }\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Invoice Management",
+      "item": [
+        {
+          "name": "Create Invoice",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "    const response = pm.response.json();",
+                  "    pm.collectionVariables.set('invoice_id', response.data.invoice.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "url": "{{base_url}}/api/{{api_version}}/invoice-mgmt",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer\": {\n    \"name\": \"ABC Corporation\",\n    \"email\": \"accounts@abc.com\",\n    \"phone\": \"+2348087654321\",\n    \"tin\": \"87654321-0001\",\n    \"address\": \"456 Business Ave, Abuja\"\n  },\n  \"items\": [\n    {\n      \"description\": \"Web Development Services\",\n      \"quantity\": 1,\n      \"unitPrice\": 500000,\n      \"vatApplicable\": true\n    },\n    {\n      \"description\": \"Hosting (Annual)\",\n      \"quantity\": 1,\n      \"unitPrice\": 50000,\n      \"vatApplicable\": true\n    }\n  ],\n  \"dueDate\": \"2026-03-15\",\n  \"nrsCompliant\": true\n}"
+            }
+          }
+        },
+        {
+          "name": "List Invoices",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/{{api_version}}/invoice-mgmt?status=SENT&page=1&limit=20",
+              "query": [
+                {"key": "status", "value": "SENT"},
+                {"key": "page", "value": "1"},
+                {"key": "limit", "value": "20"}
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Invoice Detail",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/{{api_version}}/invoice-mgmt/{{invoice_id}}"
+          }
+        },
+        {
+          "name": "Update Invoice",
+          "request": {
+            "method": "PUT",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "url": "{{base_url}}/api/{{api_version}}/invoice-mgmt/{{invoice_id}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"dueDate\": \"2026-04-15\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Cancel Invoice",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/{{api_version}}/invoice-mgmt/{{invoice_id}}/cancel"
+          }
+        },
+        {
+          "name": "Send Invoice",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/{{api_version}}/invoice-mgmt/{{invoice_id}}/send"
+          }
+        },
+        {
+          "name": "Submit for NRS Stamping",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/{{api_version}}/invoice-mgmt/{{invoice_id}}/submit-nrs"
+          }
+        },
+        {
+          "name": "Generate PDF",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "url": "{{base_url}}/api/{{api_version}}/invoice-mgmt/{{invoice_id}}/pdf",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"template\": \"professional\",\n  \"includeQR\": true,\n  \"includeNRSBadge\": true\n}"
+            }
+          }
+        },
+        {
+          "name": "Get Invoice Statistics",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/{{api_version}}/invoice-mgmt/stats"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Payment Processing",
+      "item": [
+        {
+          "name": "Initialize Payment",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "url": "{{base_url}}/api/{{api_version}}/payments/initialize",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"invoiceId\": \"{{invoice_id}}\",\n  \"gateway\": \"paystack\",\n  \"email\": \"accounts@abc.com\",\n  \"callbackUrl\": \"https://yourapp.com/payment/callback\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Verify Payment",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/{{api_version}}/payments/verify/{{payment_reference}}"
+          }
+        },
+        {
+          "name": "List Payments",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/{{api_version}}/payments?status=SUCCESS&page=1&limit=20",
+              "query": [
+                {"key": "status", "value": "SUCCESS"},
+                {"key": "page", "value": "1"},
+                {"key": "limit", "value": "20"}
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Available Gateways",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/{{api_version}}/payments/gateways"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Expense Tracking",
+      "item": [
+        {
+          "name": "Create Expense",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "url": "{{base_url}}/api/{{api_version}}/expenses",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 50000,\n  \"category\": \"office-supplies\",\n  \"description\": \"Office stationery\",\n  \"date\": \"2026-02-10\",\n  \"vatEligible\": true\n}"
+            }
+          }
+        },
+        {
+          "name": "Scan Receipt (OCR)",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "url": "{{base_url}}/api/{{api_version}}/expenses/scan",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"receiptImage\": \"base64_encoded_image_data\"\n}"
+            }
+          }
+        },
+        {
+          "name": "List Expenses",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/{{api_version}}/expenses?category=office-supplies&status=approved",
+              "query": [
+                {"key": "category", "value": "office-supplies"},
+                {"key": "status", "value": "approved"}
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Expense Statistics",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/{{api_version}}/expenses/stats"
+          }
+        },
+        {
+          "name": "Get Expense Detail",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/{{api_version}}/expenses/{{expense_id}}"
+          }
+        },
+        {
+          "name": "Update Expense",
+          "request": {
+            "method": "PUT",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "url": "{{base_url}}/api/{{api_version}}/expenses/{{expense_id}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"Updated description\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Delete Expense",
+          "request": {
+            "method": "DELETE",
+            "url": "{{base_url}}/api/{{api_version}}/expenses/{{expense_id}}"
+          }
+        },
+        {
+          "name": "Approve Expense",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/{{api_version}}/expenses/{{expense_id}}/approve"
+          }
+        },
+        {
+          "name": "Reject Expense",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "url": "{{base_url}}/api/{{api_version}}/expenses/{{expense_id}}/reject",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Invalid receipt\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Payroll & PAYE",
+      "item": [
+        {
+          "name": "Create Employee",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "url": "{{base_url}}/api/{{api_version}}/payroll/employees",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"John Doe\",\n  \"email\": \"john.doe@acmetrading.com\",\n  \"phone\": \"+2348011112222\",\n  \"grossSalary\": 500000,\n  \"allowances\": {\n    \"housing\": 100000,\n    \"transport\": 50000,\n    \"meal\": 30000,\n    \"others\": 20000\n  },\n  \"startDate\": \"2026-01-01\"\n}"
+            }
+          }
+        },
+        {
+          "name": "List Employees",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/{{api_version}}/payroll/employees"
+          }
+        },
+        {
+          "name": "Get Employee",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/{{api_version}}/payroll/employees/{{employee_id}}"
+          }
+        },
+        {
+          "name": "Update Employee",
+          "request": {
+            "method": "PUT",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "url": "{{base_url}}/api/{{api_version}}/payroll/employees/{{employee_id}}",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"grossSalary\": 550000\n}"
+            }
+          }
+        },
+        {
+          "name": "Deactivate Employee",
+          "request": {
+            "method": "DELETE",
+            "url": "{{base_url}}/api/{{api_version}}/payroll/employees/{{employee_id}}"
+          }
+        },
+        {
+          "name": "Process Payroll",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "url": "{{base_url}}/api/{{api_version}}/payroll/process",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"period\": \"2026-02\"\n}"
+            }
+          }
+        },
+        {
+          "name": "List Payrolls",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/{{api_version}}/payroll"
+          }
+        },
+        {
+          "name": "Get Payroll Detail",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/{{api_version}}/payroll/{{payroll_id}}"
+          }
+        },
+        {
+          "name": "Get Payslip",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/{{api_version}}/payroll/{{payroll_id}}/payslip/{{employee_id}}"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Compliance Alerts",
+      "item": [
+        {
+          "name": "Generate Reminders",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "url": "{{base_url}}/api/{{api_version}}/compliance/generate",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"year\": 2026\n}"
+            }
+          }
+        },
+        {
+          "name": "Get Compliance Dashboard",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/{{api_version}}/compliance/dashboard"
+          }
+        },
+        {
+          "name": "List Reminders",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/{{api_version}}/compliance/reminders?status=pending",
+              "query": [{"key": "status", "value": "pending"}]
+            }
+          }
+        },
+        {
+          "name": "Create Custom Reminder",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "url": "{{base_url}}/api/{{api_version}}/compliance/reminders",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"taxType\": \"VAT\",\n  \"dueDate\": \"2026-03-21\",\n  \"amount\": 150000,\n  \"description\": \"VAT Return for February 2026\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Mark Reminder as Filed",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/{{api_version}}/compliance/reminders/{{reminder_id}}/file"
+          }
+        },
+        {
+          "name": "Dismiss Reminder",
+          "request": {
+            "method": "POST",
+            "url": "{{base_url}}/api/{{api_version}}/compliance/reminders/{{reminder_id}}/dismiss"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Crypto Tax",
+      "item": [
+        {
+          "name": "Record Transaction",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "url": "{{base_url}}/api/{{api_version}}/crypto/transactions",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"buy\",\n  \"asset\": \"BTC\",\n  \"amount\": 0.01,\n  \"priceNGN\": 50000000,\n  \"platform\": \"Binance\",\n  \"date\": \"2026-02-10\"\n}"
+            }
+          }
+        },
+        {
+          "name": "List Transactions",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/{{api_version}}/crypto/transactions?asset=BTC",
+              "query": [{"key": "asset", "value": "BTC"}]
+            }
+          }
+        },
+        {
+          "name": "Get Transaction Detail",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/{{api_version}}/crypto/transactions/{{transaction_id}}"
+          }
+        },
+        {
+          "name": "Delete Transaction",
+          "request": {
+            "method": "DELETE",
+            "url": "{{base_url}}/api/{{api_version}}/crypto/transactions/{{transaction_id}}"
+          }
+        },
+        {
+          "name": "Get Tax Report",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/{{api_version}}/crypto/tax-report?year=2026",
+              "query": [{"key": "year", "value": "2026"}]
+            }
+          }
+        },
+        {
+          "name": "Get Portfolio Summary",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/api/{{api_version}}/crypto/portfolio"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reconciliation",
+      "item": [
+        {
+          "name": "Run Reconciliation",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "url": "{{base_url}}/api/{{api_version}}/reconciliation/run",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"invoices\": [],\n  \"payments\": [],\n  \"fuzzyThreshold\": 0.05\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Health & Monitoring",
+      "item": [
+        {
+          "name": "Liveness Check",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/health/live"
+          }
+        },
+        {
+          "name": "Readiness Check",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/health/ready"
+          }
+        },
+        {
+          "name": "Overall Health",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/health"
+          }
+        },
+        {
+          "name": "Database Health",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/health/database"
+          }
+        },
+        {
+          "name": "DigiTax Integration Health",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/health/digitax"
+          }
+        },
+        {
+          "name": "Remita Integration Health",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/health/remita"
+          }
+        },
+        {
+          "name": "All Integrations Health",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/health/integrations"
+          }
+        },
+        {
+          "name": "Prometheus Metrics",
+          "request": {
+            "method": "GET",
+            "url": "{{base_url}}/metrics"
+          }
+        }
+      ]
+    }
+  ]
+}
