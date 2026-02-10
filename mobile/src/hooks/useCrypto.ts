@@ -1,49 +1,39 @@
 import { useState, useEffect } from 'react';
-import { cryptoApi } from '../services/api/crypto';
-
-interface CryptoTransaction {
-  id: string;
-  type: 'buy' | 'sell' | 'trade' | 'transfer';
-  asset: string;
-  amount: number;
-  priceNGN: number;
-  totalNGN: number;
-  costBasis?: number;
-  platform?: string;
-  date: string;
-  taxYear: number;
-}
-
-interface TaxSummary {
-  totalGains: number;
-  totalLosses: number;
-  netGains: number;
-  taxableGains: number;
-  estimatedTax: number;
-}
+import { listTransactions, getTaxReport, type CryptoTransaction, type CryptoTaxReport } from '../services/cryptoApi';
+import { getBusinessProfile } from '../services/businessApi';
 
 interface UseCryptoReturn {
   transactions: CryptoTransaction[];
-  taxSummary: TaxSummary | null;
+  taxSummary: CryptoTaxReport | null;
   loading: boolean;
   error: Error | null;
   refetch: () => Promise<void>;
 }
 
-export function useCrypto(taxYear: number): UseCryptoReturn {
+export function useCrypto(taxYear: number, businessId?: string): UseCryptoReturn {
   const [transactions, setTransactions] = useState<CryptoTransaction[]>([]);
-  const [taxSummary, setTaxSummary] = useState<TaxSummary | null>(null);
+  const [taxSummary, setTaxSummary] = useState<CryptoTaxReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const [resolvedBusinessId, setResolvedBusinessId] = useState<string | null>(businessId || null);
+
+  useEffect(() => {
+    if (!businessId) {
+      getBusinessProfile()
+        .then((profile) => setResolvedBusinessId(profile.id))
+        .catch((err) => setError(err as Error));
+    }
+  }, [businessId]);
 
   const fetchCryptoData = async () => {
     try {
+      if (!resolvedBusinessId) return;
       setLoading(true);
       setError(null);
       
-      const [transactionsData, summaryData] = await Promise.all([
-        cryptoApi.listTransactions(taxYear),
-        cryptoApi.getTaxSummary(taxYear),
+      const [{ transactions: transactionsData }, summaryData] = await Promise.all([
+        listTransactions(resolvedBusinessId, { taxYear }),
+        getTaxReport(resolvedBusinessId, taxYear),
       ]);
       
       setTransactions(transactionsData);
@@ -56,8 +46,10 @@ export function useCrypto(taxYear: number): UseCryptoReturn {
   };
 
   useEffect(() => {
-    fetchCryptoData();
-  }, [taxYear]);
+    if (resolvedBusinessId) {
+      fetchCryptoData();
+    }
+  }, [resolvedBusinessId, taxYear]);
 
   return {
     transactions,

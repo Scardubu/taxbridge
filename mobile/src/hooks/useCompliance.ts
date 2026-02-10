@@ -1,34 +1,35 @@
 import { useState, useEffect } from 'react';
-import { complianceApi } from '../services/api/compliance';
-
-interface ComplianceReminder {
-  id: string;
-  taxType: string;
-  dueDate: string;
-  amount?: number;
-  status: 'pending' | 'filed' | 'overdue' | 'dismissed';
-  priority: 'low' | 'medium' | 'high' | 'critical';
-  description: string;
-}
+import { listReminders, markFiled, type Reminder } from '../services/complianceApi';
+import { getBusinessProfile } from '../services/businessApi';
 
 interface UseComplianceReturn {
-  reminders: ComplianceReminder[];
+  reminders: Reminder[];
   loading: boolean;
   error: Error | null;
   refetch: () => Promise<void>;
   markAsFiled: (id: string) => Promise<void>;
 }
 
-export function useCompliance(): UseComplianceReturn {
-  const [reminders, setReminders] = useState<ComplianceReminder[]>([]);
+export function useCompliance(businessId?: string): UseComplianceReturn {
+  const [reminders, setReminders] = useState<Reminder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const [resolvedBusinessId, setResolvedBusinessId] = useState<string | null>(businessId || null);
+
+  useEffect(() => {
+    if (!businessId) {
+      getBusinessProfile()
+        .then((profile) => setResolvedBusinessId(profile.id))
+        .catch((err) => setError(err as Error));
+    }
+  }, [businessId]);
 
   const fetchReminders = async () => {
     try {
+      if (!resolvedBusinessId) return;
       setLoading(true);
       setError(null);
-      const data = await complianceApi.list();
+      const { reminders: data } = await listReminders(resolvedBusinessId);
       setReminders(data);
     } catch (err) {
       setError(err as Error);
@@ -37,11 +38,11 @@ export function useCompliance(): UseComplianceReturn {
     }
   };
 
-  const markAsFiled = async (id: string) => {
+  const markAsFiledHandler = async (id: string) => {
     try {
-      await complianceApi.markFiled(id);
+      await markFiled(id);
       setReminders((prev) =>
-        prev.map((r) => (r.id === id ? { ...r, status: 'filed' as const } : r))
+        prev.map((r) => (r.id === id ? { ...r, status: 'filed' } : r))
       );
     } catch (err) {
       console.error('Failed to mark as filed:', err);
@@ -49,14 +50,16 @@ export function useCompliance(): UseComplianceReturn {
   };
 
   useEffect(() => {
-    fetchReminders();
-  }, []);
+    if (resolvedBusinessId) {
+      fetchReminders();
+    }
+  }, [resolvedBusinessId]);
 
   return {
     reminders,
     loading,
     error,
     refetch: fetchReminders,
-    markAsFiled,
+    markAsFiled: markAsFiledHandler,
   };
 }

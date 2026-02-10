@@ -1,37 +1,34 @@
 import { useState, useEffect } from 'react';
-import { payrollApi } from '../services/api/payroll';
-
-interface PayrollItem {
-  id: string;
-  period: string;
-  status: 'draft' | 'processing' | 'completed' | 'cancelled';
-  totalGross: number;
-  totalNet: number;
-  totalTax: number;
-  totalPension: number;
-  totalNHF: number;
-  employeeCount: number;
-  processedAt?: string;
-  createdAt: string;
-}
+import { listPayrolls, type PayrollSummary } from '../services/payrollApi';
+import { getBusinessProfile } from '../services/businessApi';
 
 interface UsePayrollReturn {
-  payrolls: PayrollItem[];
+  payrolls: PayrollSummary[];
   loading: boolean;
   error: Error | null;
   refetch: () => Promise<void>;
 }
 
-export function usePayroll(): UsePayrollReturn {
-  const [payrolls, setPayrolls] = useState<PayrollItem[]>([]);
+export function usePayroll(businessId?: string): UsePayrollReturn {
+  const [payrolls, setPayrolls] = useState<PayrollSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const [resolvedBusinessId, setResolvedBusinessId] = useState<string | null>(businessId || null);
+
+  useEffect(() => {
+    if (!businessId) {
+      getBusinessProfile()
+        .then((profile) => setResolvedBusinessId(profile.id))
+        .catch((err) => setError(err as Error));
+    }
+  }, [businessId]);
 
   const fetchPayrolls = async () => {
     try {
+      if (!resolvedBusinessId) return;
       setLoading(true);
       setError(null);
-      const data = await payrollApi.list();
+      const { payrolls: data } = await listPayrolls(resolvedBusinessId);
       setPayrolls(data);
     } catch (err) {
       setError(err as Error);
@@ -41,8 +38,10 @@ export function usePayroll(): UsePayrollReturn {
   };
 
   useEffect(() => {
-    fetchPayrolls();
-  }, []);
+    if (resolvedBusinessId) {
+      fetchPayrolls();
+    }
+  }, [resolvedBusinessId]);
 
   return {
     payrolls,
