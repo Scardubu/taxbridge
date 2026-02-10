@@ -135,13 +135,15 @@ export class RemitaAdapter {
       return { status: 'pending' };
     }
 
-    try {
-      const cached = await redis.get(cacheKey);
-      if (cached) {
-        return JSON.parse(cached);
+    if (redis) {
+      try {
+        const cached = await redis.get(cacheKey);
+        if (cached) {
+          return JSON.parse(cached);
+        }
+      } catch (err) {
+        console.warn('Redis cache read failed for Remita verifyPayment', err);
       }
-    } catch (err) {
-      console.warn('Redis cache read failed for Remita verifyPayment', err);
     }
 
     const hashString = `${rrr}${this.config.apiKey}${this.config.merchantId}`;

@@ -57,14 +57,22 @@ const TOAST_COLORS: Record<ToastType, string> = {
  * - Optional action button
  * - Auto-dismiss with configurable duration
  */
+const DEFAULT_DURATIONS: Record<ToastType, number> = {
+  success: 3000,
+  info: 3000,
+  warning: 4000,
+  error: 5000,
+};
+
 export const Toast: React.FC<ToastProps> = ({
   type,
   message,
   action,
-  duration = 3000,
+  duration,
   haptic,
   onDismiss,
 }) => {
+  const effectiveDuration = duration ?? DEFAULT_DURATIONS[type];
   const translateY = useSharedValue(-100);
   const opacity = useSharedValue(0);
   const dismissTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -88,10 +96,10 @@ export const Toast: React.FC<ToastProps> = ({
     opacity.value = withTiming(1, { duration: 200 });
 
     // Auto-dismiss
-    if (duration > 0) {
+    if (effectiveDuration > 0) {
       dismissTimeoutRef.current = setTimeout(() => {
         handleDismiss();
-      }, duration);
+      }, effectiveDuration);
     }
 
     return () => {
@@ -119,7 +127,7 @@ export const Toast: React.FC<ToastProps> = ({
   const icon = TOAST_ICONS[type];
 
   return (
-    <Animated.View style={[styles.container, animatedStyle]}>
+    <Animated.View style={[styles.container, animatedStyle]} testID={`toast-${type}`}>
       <View style={styles.content}>
         <Ionicons name={icon} size={24} color={iconColor} />
         
@@ -134,6 +142,7 @@ export const Toast: React.FC<ToastProps> = ({
               action.onPress();
               handleDismiss();
             }}
+            testID="toast-action"
           >
             <Text style={[styles.actionText, { color: iconColor }]}>
               {action.label}

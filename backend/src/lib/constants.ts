@@ -24,16 +24,22 @@ export const VAT_RATE = 0.075;
 export const VAT_RATE_PERCENT = 7.5;
 
 /**
- * CIT (Companies Income Tax) Rates
- * @see Nigeria Tax Act 2025, Section 40
+ * CIT (Companies Income Tax) Rates — 3-tier system
+ * @see Nigeria Tax Act 2025, Section 40/90
  */
 export const CIT_RATES = {
-  /** Small company rate (turnover ≤ ₦50M) */
-  SMALL: 0.20,
-  /** Standard rate (turnover > ₦50M) */
+  /** Small company rate (turnover ≤ ₦25M) — exempt */
+  SMALL: 0.00,
+  /** Medium company rate (₦25M < turnover ≤ ₦100M) */
+  MEDIUM: 0.20,
+  /** Large company rate (turnover > ₦100M) */
   STANDARD: 0.30,
-  /** Exemption threshold */
-  EXEMPTION_THRESHOLD: 50_000_000,
+  /** Small company threshold */
+  SMALL_THRESHOLD: 25_000_000,
+  /** Medium company threshold */
+  MEDIUM_THRESHOLD: 100_000_000,
+  /** @deprecated Use SMALL_THRESHOLD instead */
+  EXEMPTION_THRESHOLD: 25_000_000,
 } as const;
 
 /**

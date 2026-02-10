@@ -59,6 +59,8 @@ const validatePhone = (phone: string): boolean => {
 
 // Rate limiting helper
 async function checkSMSRateLimit(phone: string): Promise<boolean> {
+  if (!redis) return true; // Skip rate limiting if Redis unavailable
+  
   const key = `sms:rate:${sanitizePhone(phone)}`;
   const current = await redis.incr(key);
   

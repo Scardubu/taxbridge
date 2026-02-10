@@ -10,7 +10,7 @@
     "jsEngine": "hermes",
     "scheme": "taxbridge",
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/icon-square.png",
       "resizeMode": "contain",
       "backgroundColor": "#FFFFFF"
     },
@@ -28,14 +28,14 @@
         "NSPhotoLibraryUsageDescription": "TaxBridge needs photo library access to import receipt images for tax documentation."
       },
       "splash": {
-        "image": "./assets/splash-icon.png",
+        "image": "./assets/icon-square.png",
         "resizeMode": "contain",
         "backgroundColor": "#FFFFFF"
       }
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/icon-square.png",
         "backgroundColor": "#FFFFFF"
       },
       "package": "ng.taxbridge.app",
@@ -50,7 +50,7 @@
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "splash": {
-        "image": "./assets/splash-icon.png",
+        "image": "./assets/icon-square.png",
         "resizeMode": "cover",
         "backgroundColor": "#FFFFFF"
       }
@@ -64,15 +64,7 @@
       }
     },
     "plugins": [
-      [
-        "expo-build-properties",
-        {
-          "android": {
-            "newArchEnabled": true,
-            "usesCleartextTraffic": false
-          }
-        }
-      ],
+      "expo-build-properties",
       [
         "expo-camera",
         {
@@ -82,7 +74,7 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/splash-icon.png",
+          "image": "./assets/icon-square.png",
           "imageWidth": 200,
           "resizeMode": "cover",
           "backgroundColor": "#FFFFFF"

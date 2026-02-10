@@ -74,7 +74,7 @@ export const paymentWebhookWorker = new Worker(
       throw err;
     }
   },
-  { connection: getRedisConnection() }
+  { connection: getRedisConnection() as any }
 );
 
 paymentWebhookWorker.on('completed', (job, result) => {

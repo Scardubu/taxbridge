@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { FetchError, fetchJson } from '@/lib/fetcher';
 import { useAdminI18n } from '@/lib/i18n';
+import { SkeletonCard } from '@/components/ui/skeleton-table';
 
 interface DashboardStats {
   totalUsers: number;
@@ -213,18 +214,22 @@ export default function DashboardPage() {
   if (!isStatsBlocked && (isLoading || !stats)) {
     return (
       <DashboardLayout>
-        <div className="space-y-4 animate-pulse">
-          <div className="h-8 bg-slate-200 rounded w-64" />
+        <div className="space-y-6" role="status" aria-label="Loading dashboard">
+          <div className="h-8 w-64 animate-pulse rounded bg-slate-200" />
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             {[1, 2, 3, 4].map(i => (
-              <div key={i} className="h-32 bg-slate-200 rounded-lg" />
+              <SkeletonCard key={i} />
             ))}
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             {[1, 2].map(i => (
-              <div key={i} className="h-48 bg-slate-200 rounded-lg" />
+              <div key={i} className="animate-pulse rounded-lg border border-slate-200 bg-white p-6">
+                <div className="mb-4 h-5 w-40 rounded bg-slate-200" />
+                <div className="h-48 rounded-lg bg-slate-100" />
+              </div>
             ))}
           </div>
+          <span className="sr-only">Loading dashboard data...</span>
         </div>
       </DashboardLayout>
     );

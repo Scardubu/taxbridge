@@ -141,6 +141,15 @@ async function getRedisMetrics(): Promise<RedisMetrics> {
   
   try {
     // Test Redis connection
+    if (!redis) {
+      return {
+        connected: false,
+        responseTime: 0,
+        memory: 0,
+        keyCount: 0
+      };
+    }
+    
     await redis.ping();
     const responseTime = Date.now() - startTime;
     
@@ -171,6 +180,17 @@ async function getRedisMetrics(): Promise<RedisMetrics> {
 async function getSMSMetrics(): Promise<SMSMetrics> {
   try {
     // Get SMS metrics from Redis or database
+    if (!redis) {
+      return {
+        totalSent: 0,
+        successCount: 0,
+        failureCount: 0,
+        successRate: 100,
+        averageResponseTime: 0,
+        providerStats: {}
+      };
+    }
+    
     const smsStats = await redis.hgetall('sms_metrics');
     
     let totalSent = 0;
@@ -227,6 +247,15 @@ async function getSMSMetrics(): Promise<SMSMetrics> {
 async function getUSSDMetrics(): Promise<USSDMetrics> {
   try {
     // Get USSD session metrics from Redis
+    if (!redis) {
+      return {
+        activeSessions: 0,
+        totalRequests: 0,
+        errorRate: 0,
+        averageSessionDuration: 0
+      };
+    }
+    
     const activeSessions = await redis.scard('ussd:active_sessions');
     
     // Get request metrics (simplified)
@@ -255,6 +284,13 @@ async function getUSSDMetrics(): Promise<USSDMetrics> {
 // Get queue metrics
 async function getQueueMetrics(): Promise<QueueMetrics> {
   try {
+    if (!redis) {
+      return {
+        invoiceSync: { waiting: 0, active: 0, completed: 0, failed: 0 },
+        payment: { waiting: 0, active: 0, completed: 0, failed: 0 }
+      };
+    }
+    
     const invoiceSyncQueue = await redis.llen('bull:invoice-sync:waiting');
     const paymentQueue = await redis.llen('bull:payment-webhook:waiting');
     

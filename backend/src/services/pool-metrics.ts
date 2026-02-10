@@ -241,6 +241,15 @@ export class ConnectionPoolMonitor {
     try {
       const redis = getRedisConnection();
 
+      if (!redis) {
+        return {
+          status: 'disconnected',
+          connected: false,
+          ready: false,
+          commandsSent: 0,
+        };
+      }
+
       return {
         status: redis.status,
         connected: redis.status === 'ready',

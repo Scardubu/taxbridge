@@ -113,8 +113,7 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
     <View style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={colors.surface} />
 
-      <Animated.View style={[styles.logoWrapper, { opacity }]}>
-        <Image
+      <Animated.View style={[styles.logoWrapper, { opacity }]}><Image
           source={require('../../assets/icon-square.png')}
           style={styles.logo}
           resizeMode="contain"

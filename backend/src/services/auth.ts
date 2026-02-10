@@ -11,8 +11,12 @@ import { logSecurityEvent } from '../lib/security';
 import { getRedisConnection } from '../queue/client';
 import { encryption } from './encryption';
 
-const redis = getRedisConnection();
 const log = createLogger('auth');
+
+// Get Redis connection (may be null in development)
+function getRedis() {
+  return getRedisConnection();
+}
 
 export interface AuthTokens {
   accessToken: string;
@@ -318,6 +322,11 @@ export class AuthService {
     if (!token) return;
     const decoded = jwt.decode(token) as { exp?: number } | null;
     if (!decoded?.exp) return;
+    const redis = getRedis();
+    if (!redis) {
+      log.debug('Redis unavailable, cannot blacklist token');
+      return;
+    }
     const ttl = decoded.exp - Math.floor(Date.now() / 1000);
     if (ttl > 0) {
       await redis.setex(`token:blacklist:${token}`, ttl, '1');
@@ -375,6 +384,10 @@ export class AuthService {
   }
 
   private async isTokenBlacklisted(token: string): Promise<boolean> {
+    const redis = getRedis();
+    if (!redis) {
+      return false;
+    }
     const exists = await redis.get(`token:blacklist:${token}`);
     return Boolean(exists);
   }

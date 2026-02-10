@@ -206,7 +206,11 @@ export default function TaxEngineDemo({ onNext, onSkip }: Props) {
             >
               <View style={styles.itemHeader}>
                 <Text style={styles.itemDescription}>{item.description}</Text>
-                <TouchableOpacity onPress={() => handleToggleTaxable(index)}>
+                <TouchableOpacity
+                onPress={() => handleToggleTaxable(index)}
+                accessibilityLabel={item.taxable ? t('onboarding.taxEngine.markExempt') : t('onboarding.taxEngine.markTaxable')}
+                accessibilityRole="switch"
+              >
                   <View style={[
                     styles.taxableBadge,
                     item.taxable ? styles.taxableBadgeActive : styles.taxableBadgeInactive
@@ -321,13 +325,20 @@ export default function TaxEngineDemo({ onNext, onSkip }: Props) {
       {/* Action Buttons */}
       <View style={styles.actions}>
         {onSkip && (
-          <TouchableOpacity style={styles.skipButton} onPress={onSkip}>
+          <TouchableOpacity
+            style={styles.skipButton}
+            onPress={onSkip}
+            accessibilityLabel={t('common.skip')}
+            accessibilityRole="button"
+          >
             <Text style={styles.skipButtonText}>{t('common.skip')}</Text>
           </TouchableOpacity>
         )}
         <TouchableOpacity 
           style={[styles.nextButton, hasInteracted && styles.nextButtonActive]}
           onPress={onNext}
+          accessibilityLabel={t('common.continue')}
+          accessibilityRole="button"
         >
           <Text style={styles.nextButtonText}>{t('common.continue')}</Text>
           <Ionicons name="arrow-forward" size={20} color={colors.surface} />
@@ -380,9 +391,9 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   sectionTitle: {
-    fontSize: 20,
+    fontSize: typography.size.xl,
     lineHeight: 28,
-    fontWeight: '600' as const,
+    fontWeight: typography.weight.semibold,
     color: colors.textPrimary,
     marginBottom: spacing.sm,
   },
@@ -457,9 +468,9 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
   },
   breakdownTitle: {
-    fontSize: 20,
+    fontSize: typography.size.xl,
     lineHeight: 28,
-    fontWeight: '600' as const,
+    fontWeight: typography.weight.semibold,
     color: colors.textPrimary,
     marginBottom: spacing.md,
   },
@@ -519,8 +530,8 @@ const styles = StyleSheet.create({
   rateBadgeText: {
     ...typography.caption,
     color: colors.surface,
-    fontSize: 10,
-    fontWeight: '700',
+    fontSize: typography.size.xxs,
+    fontWeight: typography.weight.bold,
   },
   exemptionInfo: {
     marginTop: spacing.sm,

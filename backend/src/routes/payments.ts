@@ -3,6 +3,9 @@ import { z } from 'zod';
 import type { FastifyInstance } from 'fastify';
 
 import { remitaAdapter } from '../integrations/remita/adapter';
+import { paystackAdapter } from '../integrations/paystack/adapter';
+import { flutterwaveAdapter } from '../integrations/flutterwave/adapter';
+import { paymentGateway, GatewayName } from '../services/payment-gateway';
 import { computeRequestHash, isIdempotencyExpired } from '../lib/idempotency';
 import { getPaymentQueue } from '../queue/client';
 import {
@@ -20,13 +23,16 @@ export default async function paymentRoutes(app: FastifyInstance, opts: { prisma
     invoiceId: z.string().uuid(),
     payerName: z.string(),
     payerEmail: z.string().email(),
-    payerPhone: z.string()
+    payerPhone: z.string(),
+    gateway: z.enum(['paystack', 'flutterwave', 'remita']).optional(),
+    callbackUrl: z.string().url().optional()
   });
 
   const PaymentResponseSchema = z.object({
     rrr: z.string(),
     paymentUrl: z.string().nullable().optional(),
-    amount: z.number()
+    amount: z.number(),
+    gateway: z.string().optional()
   });
 
   app.post('/api/v1/payments/generate', async (req, reply) => {
@@ -80,24 +86,28 @@ export default async function paymentRoutes(app: FastifyInstance, opts: { prisma
       return reply.status(error.statusCode).send(formatErrorResponse(error));
     }
 
-    const result = await remitaAdapter.generateRRR({
+    const { gateway: requestedGateway, callbackUrl } = parsed.data;
+
+    const initResult = await paymentGateway.initializePayment({
+      invoiceId,
       amount: parseFloat(invoice.total.toString()),
       payerName,
       payerEmail,
       payerPhone,
-      description: `Tax payment for invoice ${invoice.id.slice(0, 8)}`,
-      orderId: invoice.id
+      gateway: requestedGateway as GatewayName | undefined,
+      callbackUrl,
     });
 
-    if (!result.success) {
-      const error = new RemitaError(`RRR generation failed: ${result.error}`, true, { operation: 'GENERATE_RRR' });
+    if (!initResult.success) {
+      const error = new RemitaError(`Payment initialization failed: ${initResult.error}`, true, { operation: 'INIT_PAYMENT', gateway: initResult.gateway });
       return reply.status(error.statusCode).send(formatErrorResponse(error));
     }
 
     await prisma.payment.create({
       data: {
         invoiceId,
-        rrr: result.rrr!,
+        gateway: initResult.gateway,
+        rrr: initResult.reference,
         amount: invoice.total,
         status: 'pending',
         payerName,
@@ -107,9 +117,10 @@ export default async function paymentRoutes(app: FastifyInstance, opts: { prisma
     });
 
     const responseBody = {
-      rrr: result.rrr,
-      paymentUrl: result.paymentUrl,
-      amount: parseFloat(invoice.total.toString())
+      rrr: initResult.reference,
+      paymentUrl: initResult.paymentUrl,
+      amount: parseFloat(invoice.total.toString()),
+      gateway: initResult.gateway
     };
 
     if (idempotencyKey) {
@@ -188,17 +199,19 @@ export default async function paymentRoutes(app: FastifyInstance, opts: { prisma
 
       // Enqueue background processing and return quickly
       const queue = getPaymentQueue();
-      const maxAttempts = Number.parseInt(process.env.PAYMENT_WEBHOOK_MAX_ATTEMPTS || '4', 10);
-      const backoffMs = Number.parseInt(process.env.PAYMENT_WEBHOOK_BACKOFF_MS || '3000', 10);
+      if (queue) {
+        const maxAttempts = Number.parseInt(process.env.PAYMENT_WEBHOOK_MAX_ATTEMPTS || '4', 10);
+        const backoffMs = Number.parseInt(process.env.PAYMENT_WEBHOOK_BACKOFF_MS || '3000', 10);
 
-      await queue.add(
-        'process-remita-webhook',
-        { rrr, body },
-        {
-          attempts: Number.isFinite(maxAttempts) && maxAttempts > 0 ? maxAttempts : 4,
-          backoff: { type: 'exponential', delay: Number.isFinite(backoffMs) && backoffMs > 0 ? backoffMs : 3000 }
-        }
-      );
+        await queue.add(
+          'process-remita-webhook',
+          { rrr, body },
+          {
+            attempts: Number.isFinite(maxAttempts) && maxAttempts > 0 ? maxAttempts : 4,
+            backoff: { type: 'exponential', delay: Number.isFinite(backoffMs) && backoffMs > 0 ? backoffMs : 3000 }
+          }
+        );
+      }
       metrics.recordRemitaWebhook(true);
 
       return reply.status(200).send({ received: true });
@@ -224,13 +237,27 @@ export default async function paymentRoutes(app: FastifyInstance, opts: { prisma
     }
 
     if (payment.status === 'pending') {
-      const verification = await remitaAdapter.verifyPayment(payment.rrr, invoiceId);
+      const gateway = (payment as any).gateway as GatewayName || 'remita';
+      const verification = await paymentGateway.verifyPayment(gateway, payment.rrr, invoiceId);
       if (verification.status === 'paid') {
-        await prisma.payment.update({ where: { id: payment.id }, data: { status: 'paid', paidAt: new Date() } });
+        await prisma.payment.update({
+          where: { id: payment.id },
+          data: {
+            status: 'paid',
+            paidAt: new Date(),
+            gatewayRef: verification.gatewayRef || verification.reference,
+            channel: verification.channel,
+            metadata: {
+              cardType: verification.cardType,
+              last4: verification.last4,
+              bank: verification.bank,
+            },
+          },
+        });
         await prisma.invoice.update({ where: { id: invoiceId }, data: { status: 'paid' } });
       }
 
-      return reply.send({ status: verification.status, payment });
+      return reply.send({ status: verification.status, gateway, payment });
     }
 
     return reply.send({ status: payment.status, payment });

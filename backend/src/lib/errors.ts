@@ -114,6 +114,22 @@ export class RemitaError extends TaxBridgeError {
   }
 }
 
+// Paystack payment errors (502)
+export class PaystackError extends TaxBridgeError {
+  constructor(message: string, retriable: boolean = true, details?: Record<string, unknown>) {
+    super('PAYSTACK_ERROR', message, 502, retriable, details);
+    this.name = 'PaystackError';
+  }
+}
+
+// Flutterwave payment errors (502)
+export class FlutterwaveError extends TaxBridgeError {
+  constructor(message: string, retriable: boolean = true, details?: Record<string, unknown>) {
+    super('FLUTTERWAVE_ERROR', message, 502, retriable, details);
+    this.name = 'FlutterwaveError';
+  }
+}
+
 // SMS provider errors (502)
 export class SMSError extends TaxBridgeError {
   constructor(message: string, provider: string, retriable: boolean = true) {

@@ -221,5 +221,7 @@ export async function updateConsent(
 
 export const api = {
   post: (path: string, body?: any, options?: RequestOptions) => requestJson('POST', path, body, options),
-  get: (path: string, options?: RequestOptions) => requestJson('GET', path, undefined, options)
+  get: (path: string, options?: RequestOptions) => requestJson('GET', path, undefined, options),
+  put: (path: string, body?: any, options?: RequestOptions) => requestJson('PUT', path, body, options),
+  delete: (path: string, options?: RequestOptions) => requestJson('DELETE', path, undefined, options)
 };

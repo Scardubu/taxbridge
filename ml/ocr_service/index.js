@@ -68,11 +68,20 @@ app.post('/extract', async (req, res) => {
       data: extractedData
     });
   } catch (error) {
-    console.error('OCR error:', error);
+    // Structured error logging for production monitoring
+    const errorLog = {
+      timestamp: new Date().toISOString(),
+      service: 'ocr-service',
+      error: error.message,
+      stack: process.env.NODE_ENV === 'production' ? undefined : error.stack,
+      endpoint: '/extract'
+    };
+    console.error(JSON.stringify(errorLog));
+    
     res.status(500).json({ 
       success: false, 
       error: 'OCR processing failed',
-      message: error.message 
+      message: process.env.NODE_ENV === 'production' ? 'Processing error' : error.message 
     });
   }
 });

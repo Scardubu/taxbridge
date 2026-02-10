@@ -41,30 +41,185 @@ model User {
   consents               UserConsent[]
   devices                Device[]
   adminActions           AdminAction[]
+  businesses             Business[]
 
   @@unique([phone], map: "users_phone_unique")
   @@map("users")
 }
 
+// ============================================
+// Business Entity (separate from User)
+// ============================================
+
+enum BusinessStatus {
+  PENDING
+  VERIFIED
+  ACTIVE
+  SUSPENDED
+  INACTIVE
+}
+
+enum BusinessType {
+  SOLE_PROPRIETOR
+  PARTNERSHIP
+  LIMITED_COMPANY
+  NGO
+}
+
+model Business {
+  id              String          @id @default(uuid()) @db.Uuid
+  ownerId         String          @map("owner_id") @db.Uuid
+  name            String
+  cacNumber       String?         @unique @map("cac_number")
+  tin             String?         @unique
+  bvn             String?
+  email           String?
+  phone           String?
+  addressStreet   String?         @map("address_street")
+  addressCity     String?         @map("address_city")
+  addressState    String?         @map("address_state")
+  addressZipCode  String?         @map("address_zip_code")
+  businessType    BusinessType    @default(SOLE_PROPRIETOR) @map("business_type")
+  status          BusinessStatus  @default(PENDING)
+
+  // Verification details (from Youverify)
+  tinVerified     Boolean         @default(false) @map("tin_verified")
+  bvnVerified     Boolean         @default(false) @map("bvn_verified")
+  cacVerified     Boolean         @default(false) @map("cac_verified")
+  verifiedAt      DateTime?       @map("verified_at")
+
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+
+  owner           User            @relation(fields: [ownerId], references: [id])
+  invoices        Invoice[]
+  employees       Employee[]
+  expenses        Expense[]
+  taxRemittances  TaxRemittance[]
+
+  @@index([ownerId])
+  @@index([tin])
+  @@index([status])
+  @@index([cacNumber])
+  @@map("businesses")
+}
+
+// ============================================
+// Employee (for Payroll / PAYE)
+// ============================================
+
+model Employee {
+  id              String    @id @default(uuid()) @db.Uuid
+  businessId      String    @map("business_id") @db.Uuid
+  name            String
+  email           String?
+  phone           String?
+  grossSalary     Decimal   @db.Decimal(15, 2) @map("gross_salary")
+  housingAllowance  Decimal @default(0) @db.Decimal(15, 2) @map("housing_allowance")
+  transportAllowance Decimal @default(0) @db.Decimal(15, 2) @map("transport_allowance")
+  mealAllowance   Decimal   @default(0) @db.Decimal(15, 2) @map("meal_allowance")
+  otherAllowances Decimal   @default(0) @db.Decimal(15, 2) @map("other_allowances")
+  startDate       DateTime  @map("start_date")
+  status          String    @default("active") // active, inactive, suspended
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  business        Business  @relation(fields: [businessId], references: [id])
+
+  @@index([businessId])
+  @@index([status])
+  @@map("employees")
+}
+
+// ============================================
+// Expense Tracking
+// ============================================
+
+model Expense {
+  id              String    @id @default(uuid()) @db.Uuid
+  businessId      String    @map("business_id") @db.Uuid
+  amount          Decimal   @db.Decimal(15, 2)
+  category        String
+  description     String
+  date            DateTime
+  vatAmount       Decimal   @default(0) @db.Decimal(15, 2) @map("vat_amount")
+  vatEligible     Boolean   @default(false) @map("vat_eligible")
+  receiptImage    String?   @map("receipt_image") @db.Text
+  ocrData         Json?     @map("ocr_data")
+  status          String    @default("pending") // pending, approved, rejected
+  approvedBy      String?   @map("approved_by") @db.Uuid
+  approvedAt      DateTime? @map("approved_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  business        Business  @relation(fields: [businessId], references: [id])
+
+  @@index([businessId])
+  @@index([category])
+  @@index([status])
+  @@index([date])
+  @@map("expenses")
+}
+
+// ============================================
+// Tax Remittance Tracking
+// ============================================
+
+model TaxRemittance {
+  id              String    @id @default(uuid()) @db.Uuid
+  businessId      String    @map("business_id") @db.Uuid
+  taxType         String    @map("tax_type") // PIT, VAT, CIT, CGT, WHT, PAYE
+  period          String    // e.g. "2026-02" or "2025"
+  amount          Decimal   @db.Decimal(15, 2)
+  status          String    @default("pending") // pending, processing, success, failed
+  reference       String?   // Remita RRR or payment reference
+  paidAt          DateTime? @map("paid_at")
+  filingDeadline  DateTime? @map("filing_deadline")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  business        Business  @relation(fields: [businessId], references: [id])
+
+  @@index([businessId])
+  @@index([taxType])
+  @@index([status])
+  @@index([period])
+  @@map("tax_remittances")
+}
+
 model Invoice {
   id                 String   @id @default(uuid()) @db.Uuid
   userId             String   @map("user_id") @db.Uuid
+  businessId         String?  @map("business_id") @db.Uuid
+  invoiceNumber      String?  @unique @map("invoice_number")
   customerName       String?  @map("customer_name")
   customerTIN        String?  @map("customer_tin")
   customerEndpointId String?  @map("customer_endpoint_id")
-  status             String   @default("queued") // queued, processing, stamped, failed
+  customerEmail      String?  @map("customer_email")
+  customerPhone      String?  @map("customer_phone")
+  customerAddress    String?  @map("customer_address")
+  status             String   @default("queued") // draft, queued, processing, stamped, sent, paid, overdue, cancelled, failed
   subtotal           Decimal  @db.Decimal(12, 2)
   vat                Decimal  @db.Decimal(12, 2)
   total              Decimal  @db.Decimal(12, 2)
   items              Json
+  dueDate            DateTime? @map("due_date")
+  template           String   @default("professional") // professional, retail, service, wholesale
   ublXml             String?  @map("ubl_xml") @db.Text
   nrsReference       String?  @map("nrs_reference")
+  nrsCompliant       Boolean  @default(false) @map("nrs_compliant")
+  firsCSID           String?  @map("firs_csid")
+  firsIRN            String?  @map("firs_irn")
   qrCode             String?  @map("qr_code") @db.Text
+  pdfUrl             String?  @map("pdf_url")
+  notes              String?  @db.Text
   version            Int      @default(1) // For conflict detection
+  sentAt             DateTime? @map("sent_at")
   createdAt          DateTime @default(now()) @map("created_at")
   updatedAt          DateTime @updatedAt @map("updated_at")
 
-  user         User     @relation(fields: [userId], references: [id])
+  user         User      @relation(fields: [userId], references: [id])
+  business     Business? @relation(fields: [businessId], references: [id])
 
   syncQueue    SyncQueue[]
   payments     Payment[]
@@ -75,10 +230,13 @@ model Invoice {
   // Performance indexes for common query patterns
   @@index([status])                    // Filter by invoice status (queued, stamped, failed)
   @@index([userId])                    // List user's invoices
+  @@index([businessId])                // List business invoices
   @@index([createdAt])                 // Recent invoices sorting
   @@index([nrsReference])              // Lookup by NRS reference
+  @@index([firsIRN])                   // Lookup by FIRS IRN
   @@index([status, userId])            // User's invoices by status
   @@index([userId, updatedAt])         // Sync pull performance (delta updates)
+  @@index([dueDate, status])           // Overdue invoice detection
   @@map("invoices")
 }
 
@@ -131,22 +289,28 @@ model Payment {
   id             String   @id @default(uuid()) @db.Uuid
   invoiceId      String   @map("invoice_id") @db.Uuid
   invoice        Invoice  @relation(fields: [invoiceId], references: [id])
-  rrr            String   @unique
+  gateway        String   @default("remita") // remita, paystack, flutterwave
+  rrr            String   @unique // Remita RRR or gateway reference
   amount         Decimal  @db.Decimal(12, 2)
-  status         String   @default("pending")
+  status         String   @default("pending") // pending, processing, paid, failed, refunded
   payerName      String
   payerEmail     String
   payerPhone     String
   transactionRef String?
+  gatewayRef     String?  @map("gateway_ref") // Gateway-specific transaction ID
+  channel        String?  // card, bank_transfer, ussd, mobile_money
   paidAt         DateTime?
+  metadata       Json?    // Gateway-specific metadata (card type, last4, etc.)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
   // Performance indexes for payment queries
   @@index([invoiceId])                 // Lookup payments by invoice
   @@index([status])                    // Filter by payment status
+  @@index([gateway])                   // Filter by gateway
   @@index([createdAt])                 // Recent payments
   @@index([status, createdAt])         // Dashboard analytics
+  @@index([gatewayRef])                // Lookup by gateway reference
   @@map("payments")
 }
 
@@ -334,6 +498,111 @@ model OCRJob {
   @@index([status])
   @@index([createdAt])
   @@map("ocr_jobs")
+}
+
+// ============================================
+// Payroll (Phase 6)
+// ============================================
+
+model Payroll {
+  id              String        @id @default(uuid()) @db.Uuid
+  businessId      String        @map("business_id") @db.Uuid
+  period          String        // e.g. "2026-02"
+  status          String        @default("draft") // draft, processing, completed, cancelled
+  totalGross      Decimal       @default(0) @db.Decimal(15, 2) @map("total_gross")
+  totalNet        Decimal       @default(0) @db.Decimal(15, 2) @map("total_net")
+  totalTax        Decimal       @default(0) @db.Decimal(15, 2) @map("total_tax")
+  totalPension    Decimal       @default(0) @db.Decimal(15, 2) @map("total_pension")
+  totalNHF        Decimal       @default(0) @db.Decimal(15, 2) @map("total_nhf")
+  employeeCount   Int           @default(0) @map("employee_count")
+  processedBy     String?       @map("processed_by") @db.Uuid
+  processedAt     DateTime?     @map("processed_at")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  items           PayrollItem[]
+
+  @@unique([businessId, period])
+  @@index([businessId])
+  @@index([status])
+  @@index([period])
+  @@map("payrolls")
+}
+
+model PayrollItem {
+  id                  String    @id @default(uuid()) @db.Uuid
+  payrollId           String    @map("payroll_id") @db.Uuid
+  employeeId          String    @map("employee_id") @db.Uuid
+  grossSalary         Decimal   @db.Decimal(15, 2) @map("gross_salary")
+  totalAllowances     Decimal   @default(0) @db.Decimal(15, 2) @map("total_allowances")
+  grossIncome         Decimal   @db.Decimal(15, 2) @map("gross_income")
+  pensionContribution Decimal   @default(0) @db.Decimal(15, 2) @map("pension_contribution")
+  nhfContribution     Decimal   @default(0) @db.Decimal(15, 2) @map("nhf_contribution")
+  taxableIncome       Decimal   @default(0) @db.Decimal(15, 2) @map("taxable_income")
+  payeTax             Decimal   @default(0) @db.Decimal(15, 2) @map("paye_tax")
+  netPay              Decimal   @db.Decimal(15, 2) @map("net_pay")
+  breakdown           Json      @default("[]")
+  createdAt           DateTime  @default(now()) @map("created_at")
+
+  payroll             Payroll   @relation(fields: [payrollId], references: [id])
+
+  @@index([payrollId])
+  @@index([employeeId])
+  @@map("payroll_items")
+}
+
+// ============================================
+// Compliance Reminders (Phase 6)
+// ============================================
+
+model ComplianceReminder {
+  id              String    @id @default(uuid()) @db.Uuid
+  businessId      String    @map("business_id") @db.Uuid
+  taxType         String    @map("tax_type") // VAT, PAYE, CIT, WHT, PIT
+  dueDate         DateTime  @map("due_date")
+  amount          Decimal?  @db.Decimal(15, 2)
+  status          String    @default("pending") // pending, filed, overdue, dismissed
+  priority        String    @default("medium") // low, medium, high, critical
+  description     String
+  notifiedAt      DateTime? @map("notified_at")
+  filedAt         DateTime? @map("filed_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@index([businessId])
+  @@index([taxType])
+  @@index([status])
+  @@index([dueDate])
+  @@index([businessId, status])
+  @@map("compliance_reminders")
+}
+
+// ============================================
+// Crypto Transactions (Phase 6)
+// ============================================
+
+model CryptoTransaction {
+  id              String    @id @default(uuid()) @db.Uuid
+  businessId      String    @map("business_id") @db.Uuid
+  type            String    // buy, sell, trade, transfer
+  asset           String    // BTC, ETH, USDT, etc.
+  amount          Decimal   @db.Decimal(18, 8) // crypto amount (high precision)
+  priceNGN        Decimal   @db.Decimal(15, 2) @map("price_ngn") // price in NGN
+  totalNGN        Decimal   @db.Decimal(15, 2) @map("total_ngn") // total value in NGN
+  costBasis       Decimal?  @db.Decimal(15, 2) @map("cost_basis")
+  platform        String?   // Binance, Luno, Quidax, etc.
+  txHash          String?   @map("tx_hash")
+  date            DateTime
+  taxYear         Int       @map("tax_year")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@index([businessId])
+  @@index([asset])
+  @@index([type])
+  @@index([taxYear])
+  @@index([businessId, taxYear])
+  @@map("crypto_transactions")
 }
 
 model AdminAction {

@@ -4,8 +4,12 @@ import { getAdminApiKeys } from './config';
 import crypto from 'crypto';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 
-const redis = getRedisConnection();
 const log = createLogger('security');
+
+// Get Redis connection (may be null in development)
+function getRedis() {
+  return getRedisConnection();
+}
 
 // Rate limiting configurations
 const RATE_LIMITS = {
@@ -69,6 +73,12 @@ export async function checkRateLimit(
   type: keyof typeof RATE_LIMITS, 
   ip?: string
 ): Promise<{ allowed: boolean; remaining: number; resetTime?: Date; blocked?: boolean }> {
+  const redis = getRedis();
+  if (!redis) {
+    // Skip rate limiting if Redis unavailable
+    return { allowed: true, remaining: 100 };
+  }
+
   const config = RATE_LIMITS[type];
   const key = `rate_limit:${type}:${identifier}`;
   
@@ -171,6 +181,11 @@ export function verifyPassword(password: string, hash: string, salt: string): bo
 
 // Check if IP is blocked
 export async function isIPBlocked(ip: string): Promise<boolean> {
+  const redis = getRedis();
+  if (!redis) {
+    return false;
+  }
+
   try {
     const blocked = await redis.get(`blocked_ip:${ip}`);
     return !!blocked;
@@ -182,6 +197,12 @@ export async function isIPBlocked(ip: string): Promise<boolean> {
 
 // Block IP
 export async function blockIP(ip: string, duration: number = 3600): Promise<void> {
+  const redis = getRedis();
+  if (!redis) {
+    log.warn('Redis unavailable, cannot block IP', { ip });
+    return;
+  }
+
   try {
     await redis.setex(`blocked_ip:${ip}`, duration, '1');
     log.warn('IP blocked', { ip, duration });
@@ -275,8 +296,11 @@ export async function logSecurityEvent(
     }
     
     // Store in Redis for quick access (expires in 24 hours)
-    const key = `security:events:${Date.now()}`;
-    await redis.setex(key, 86400, JSON.stringify(eventData));
+    const redis = getRedis();
+    if (redis) {
+      const key = `security:events:${Date.now()}`;
+      await redis.setex(key, 86400, JSON.stringify(eventData));
+    }
   } catch (error) {
     log.error('Failed to log security event', { error, event });
   }

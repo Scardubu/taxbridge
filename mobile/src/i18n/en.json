@@ -413,7 +413,9 @@
       "taxExplainerExemptPoint2": "Travel reimbursements (actual expenses)",
       "taxExplainerExemptPoint3": "Medical expenses",
       "taxExplainerExemptPoint4": "Basic food items",
-      "tapToEdit": "Tap any amount to edit and see instant tax recalculation"
+      "tapToEdit": "Tap any amount to edit and see instant tax recalculation",
+      "markExempt": "Mark item as tax exempt",
+      "markTaxable": "Mark item as taxable"
     },
     "scanner": {
       "title": "Scan Receipts Instantly",
@@ -830,6 +832,7 @@
     "taxableIncome": "Taxable Income",
     "ok": "OK",
     "loading": "Loading...",
+    "seeAll": "See All",
     "updateItem": "Update Item",
     "cancel": "Cancel",
     "close": "Close",

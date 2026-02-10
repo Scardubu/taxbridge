@@ -68,14 +68,14 @@ export interface TaxOptimization {
 // Constants - Nigeria Tax Act 2025
 // ============================================================================
 
-// PIT Brackets (Annual Income in ₦)
+// PIT Brackets (Annual Income in ₦) — Updated NTA 2025 (Fourth Schedule, Section 58)
 export const PIT_BRACKETS: TaxBracket[] = [
-  { min: 0, max: 300000, rate: 0.07, label: 'Band 1: ₦0 - ₦300,000' },
-  { min: 300001, max: 600000, rate: 0.11, label: 'Band 2: ₦300,001 - ₦600,000' },
-  { min: 600001, max: 1100000, rate: 0.15, label: 'Band 3: ₦600,001 - ₦1,100,000' },
-  { min: 1100001, max: 1600000, rate: 0.19, label: 'Band 4: ₦1,100,001 - ₦1,600,000' },
-  { min: 1600001, max: 3200000, rate: 0.21, label: 'Band 5: ₦1,600,001 - ₦3,200,000' },
-  { min: 3200001, max: null, rate: 0.24, label: 'Band 6: Above ₦3,200,000' },
+  { min: 0, max: 800000, rate: 0.00, label: 'Tax-Free: ₦0 - ₦800,000' },
+  { min: 800001, max: 3000000, rate: 0.15, label: 'Band 2: ₦800,001 - ₦3,000,000' },
+  { min: 3000001, max: 12000000, rate: 0.18, label: 'Band 3: ₦3,000,001 - ₦12,000,000' },
+  { min: 12000001, max: 25000000, rate: 0.21, label: 'Band 4: ₦12,000,001 - ₦25,000,000' },
+  { min: 25000001, max: 50000000, rate: 0.23, label: 'Band 5: ₦25,000,001 - ₦50,000,000' },
+  { min: 50000001, max: null, rate: 0.25, label: 'Band 6: Above ₦50,000,000' },
 ];
 
 // Minimum wage (2025) - determines minimum tax exemption
@@ -91,13 +91,18 @@ export const CRA_MIN_PERCENTAGE = 0.01;
 // VAT Rate (7.5% standard)
 export const VAT_RATE = 0.075;
 
-// VAT Threshold for mandatory registration (₦25 million annual turnover)
-export const VAT_REGISTRATION_THRESHOLD = 25000000;
+// VAT Threshold for mandatory registration (₦100 million annual turnover, Section 80)
+export const VAT_REGISTRATION_THRESHOLD = 100000000;
 
-// CIT Rate (30% for large companies, 20% for small companies with turnover < ₦25M)
+// CIT Rate — 3-tier system (NTA 2025, Section 40/90)
+// Small (≤₦25M): 0%, Medium (≤₦100M): 20%, Large (>₦100M): 30%
 export const CIT_RATE_LARGE = 0.30;
-export const CIT_RATE_SMALL = 0.20;
-export const CIT_SMALL_BUSINESS_THRESHOLD = 25000000;
+export const CIT_RATE_MEDIUM = 0.20;
+export const CIT_RATE_SMALL = 0.00;
+export const CIT_SMALL_THRESHOLD = 25000000;
+export const CIT_MEDIUM_THRESHOLD = 100000000;
+/** @deprecated Use CIT_SMALL_THRESHOLD instead */
+export const CIT_SMALL_BUSINESS_THRESHOLD = CIT_SMALL_THRESHOLD;
 
 // Educational development tax (2% on assessable profit for companies with 10+ employees)
 export const EDT_RATE = 0.02;
@@ -258,10 +263,15 @@ export function calculateCIT(
 ): CITCalculation {
   const taxableProfit = Math.max(0, revenue - allowableDeductions);
   
-  // Determine rate based on turnover
-  const citRate = revenue >= CIT_SMALL_BUSINESS_THRESHOLD 
-    ? CIT_RATE_LARGE 
-    : CIT_RATE_SMALL;
+  // Determine rate based on turnover (3-tier system)
+  let citRate: number;
+  if (revenue <= CIT_SMALL_THRESHOLD) {
+    citRate = CIT_RATE_SMALL;
+  } else if (revenue <= CIT_MEDIUM_THRESHOLD) {
+    citRate = CIT_RATE_MEDIUM;
+  } else {
+    citRate = CIT_RATE_LARGE;
+  }
   
   const citAmount = taxableProfit * citRate;
 
