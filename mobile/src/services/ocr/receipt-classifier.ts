@@ -49,6 +49,12 @@ const CONFIDENCE_THRESHOLD = 0.7;
 const MAX_ITEMS = 50;
 const MAX_PROCESSING_TIME_MS = 30000; // 30 seconds timeout
 
+const OCR_ERROR_CODES = {
+  IMAGE_NOT_FOUND: 'OCR_IMAGE_NOT_FOUND',
+  LOW_CONFIDENCE: 'OCR_LOW_CONFIDENCE',
+  PROCESSING_FAILED: 'OCR_PROCESSING_FAILED',
+} as const;
+
 // Common Nigerian merchant patterns
 const NIGERIAN_MERCHANT_PATTERNS = [
   /shoprite/i,
@@ -80,7 +86,7 @@ export async function classifyReceipt(imageUri: string): Promise<OCRResult> {
     if (!fileInfo.exists) {
       return {
         success: false,
-        error: 'Image file not found',
+        error: OCR_ERROR_CODES.IMAGE_NOT_FOUND,
         processingTimeMs: Date.now() - startTime,
       };
     }
@@ -100,7 +106,7 @@ export async function classifyReceipt(imageUri: string): Promise<OCRResult> {
     if (validatedData.confidence < CONFIDENCE_THRESHOLD) {
       return {
         success: false,
-        error: `Low confidence (${(validatedData.confidence * 100).toFixed(0)}%). Please try again with better lighting.`,
+        error: OCR_ERROR_CODES.LOW_CONFIDENCE,
         processingTimeMs: Date.now() - startTime,
       };
     }
@@ -113,7 +119,7 @@ export async function classifyReceipt(imageUri: string): Promise<OCRResult> {
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'OCR processing failed',
+      error: error instanceof Error ? error.message : OCR_ERROR_CODES.PROCESSING_FAILED,
       processingTimeMs: Date.now() - startTime,
     };
   }
@@ -274,10 +280,10 @@ export function formatForInvoice(data: ReceiptData) {
  * Returns user-friendly confidence message
  */
 export function getConfidenceMessage(confidence: number): string {
-  if (confidence >= 0.9) return 'Excellent scan quality';
-  if (confidence >= 0.8) return 'Good scan quality';
-  if (confidence >= 0.7) return 'Acceptable scan quality';
-  return 'Poor scan quality - please retake';
+  if (confidence >= 0.9) return 'ocr.excellent';
+  if (confidence >= 0.8) return 'ocr.good';
+  if (confidence >= 0.7) return 'ocr.acceptable';
+  return 'ocr.poor';
 }
 
 /**

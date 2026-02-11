@@ -1,7 +1,8 @@
 {
   "cli": {
     "version": ">= 6.0.0",
-    "appVersionSource": "remote"
+    "appVersionSource": "remote",
+    "packageManager": "npm"
   },
   "build": {
     "development": {
@@ -40,6 +41,7 @@
     "preview": {
       "channel": "preview",
       "distribution": "internal",
+      "node": "20.11.0",
       "env": {
         "EXPO_PUBLIC_API_URL": "https://taxbridge-api-ker8.onrender.com",
         "EXPO_PUBLIC_ENV": "preview",

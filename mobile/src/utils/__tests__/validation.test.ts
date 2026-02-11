@@ -1,5 +1,19 @@
 import { validationRules } from '../validation';
 
+// Mock i18n to return keys as-is
+jest.mock('../../i18n', () => ({
+  t: (key: string, params?: any) => {
+    if (params) return `${key}::${JSON.stringify(params)}`;
+    return key;
+  },
+  language: 'en',
+  changeLanguage: jest.fn(),
+  isInitialized: true,
+}));
+jest.mock('../../components/ui/Toast', () => ({
+  showToast: jest.fn(),
+}));
+
 describe('Validation Service', () => {
   describe('customerName validation', () => {
     const rule = validationRules.customerName;
@@ -12,7 +26,7 @@ describe('Validation Service', () => {
     it('should reject names with numbers', () => {
       const result = rule.custom?.('John123');
       expect(result).toBeTruthy();
-      expect(result).toContain('letters');
+      expect(result).toContain('nameLettersOnly');
     });
 
     it('should reject names with special characters', () => {
@@ -88,7 +102,7 @@ describe('Validation Service', () => {
     it('should reject zero', () => {
       const result = rule.custom?.('0');
       expect(result).toBeTruthy();
-      expect(result).toContain('greater than 0');
+      expect(result).toContain('quantityMin');
     });
 
     it('should reject negative numbers', () => {
@@ -104,7 +118,7 @@ describe('Validation Service', () => {
     it('should reject quantity over 9999', () => {
       const result = rule.custom?.('10000');
       expect(result).toBeTruthy();
-      expect(result).toContain('9999');
+      expect(result).toContain('quantityMax');
     });
   });
 
@@ -133,7 +147,7 @@ describe('Validation Service', () => {
     it('should reject prices over 999,999', () => {
       const result = rule.custom?.('1000000');
       expect(result).toBeTruthy();
-      expect(result).toContain('999,999');
+      expect(result).toContain('priceMax');
     });
   });
 

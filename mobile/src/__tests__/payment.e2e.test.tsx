@@ -19,6 +19,27 @@ jest.mock('../contexts/LoadingContext', () => {
     LoadingContext: React.createContext({ setLoading: jest.fn() }),
   };
 });
+jest.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string, params?: any) => {
+      if (params) return `${key}::${JSON.stringify(params)}`;
+      return key;
+    },
+    i18n: { changeLanguage: jest.fn(), language: 'en' },
+  }),
+}));
+jest.mock('../components/ui/Toast', () => ({
+  showToast: jest.fn(),
+}));
+jest.mock('../components/ui/SkeletonLoader', () => ({
+  SkeletonLoader: () => null,
+}));
+jest.mock('../utils/safeHaptics', () => ({
+  impactAsync: jest.fn(),
+  notificationAsync: jest.fn(),
+  ImpactFeedbackStyle: { Medium: 'medium', Light: 'light' },
+  NotificationFeedbackType: { Success: 'success', Error: 'error', Warning: 'warning' },
+}));
 jest.mock('@react-navigation/native', () => ({
   useNavigation: () => ({
     navigate: jest.fn(),
@@ -102,6 +123,7 @@ describe('PaymentScreen E2E Tests', () => {
     });
 
     test('validates form inputs before submission', async () => {
+      const { showToast } = require('../components/ui/Toast');
       const { getByText } = render(<PaymentScreen route={mockRoute} />);
 
       const generateButton = getByText('payment.generateRRR');
@@ -109,11 +131,13 @@ describe('PaymentScreen E2E Tests', () => {
         fireEvent.press(generateButton);
       });
 
-      // Should show validation error
+      // Should show validation toast (component uses showToast, not Alert.alert)
       await waitFor(() => {
-        expect(Alert.alert).toHaveBeenCalledWith(
-          'payment.validationError',
-          'payment.enterPayerName'
+        expect(showToast).toHaveBeenCalledWith(
+          expect.objectContaining({
+            type: 'error',
+            message: 'payment.enterPayerName',
+          })
         );
       });
 
@@ -122,6 +146,7 @@ describe('PaymentScreen E2E Tests', () => {
     });
 
     test('validates email format', async () => {
+      const { showToast } = require('../components/ui/Toast');
       const { getByPlaceholderText, getByText } = render(
         <PaymentScreen route={mockRoute} />
       );
@@ -142,14 +167,17 @@ describe('PaymentScreen E2E Tests', () => {
       });
 
       await waitFor(() => {
-        expect(Alert.alert).toHaveBeenCalledWith(
-          'payment.validationError',
-          'payment.enterValidEmail'
+        expect(showToast).toHaveBeenCalledWith(
+          expect.objectContaining({
+            type: 'error',
+            message: 'payment.enterValidEmail',
+          })
         );
       });
     });
 
     test('validates phone number length', async () => {
+      const { showToast } = require('../components/ui/Toast');
       const { getByPlaceholderText, getByText } = render(
         <PaymentScreen route={mockRoute} />
       );
@@ -170,14 +198,17 @@ describe('PaymentScreen E2E Tests', () => {
       });
 
       await waitFor(() => {
-        expect(Alert.alert).toHaveBeenCalledWith(
-          'payment.validationError',
-          'payment.enterValidPhone'
+        expect(showToast).toHaveBeenCalledWith(
+          expect.objectContaining({
+            type: 'error',
+            message: 'payment.enterValidPhone',
+          })
         );
       });
     });
 
     test('handles API errors gracefully', async () => {
+      const { showToast } = require('../components/ui/Toast');
       (api.post as jest.Mock).mockRejectedValueOnce(
         new Error('API error 400: Invoice must be NRS-stamped before payment')
       );
@@ -201,15 +232,19 @@ describe('PaymentScreen E2E Tests', () => {
         fireEvent.press(generateButton);
       });
 
+      // Component uses showToast for errors, not Alert.alert
       await waitFor(() => {
-        expect(Alert.alert).toHaveBeenCalledWith(
-          'payment.error',
-          'Invoice must be NRS-stamped before payment'
+        expect(showToast).toHaveBeenCalledWith(
+          expect.objectContaining({
+            type: 'error',
+            message: 'Invoice must be NRS-stamped before payment',
+          })
         );
       });
     });
 
     test('handles network errors', async () => {
+      const { showToast } = require('../components/ui/Toast');
       (api.post as jest.Mock).mockRejectedValueOnce(new Error('Network error'));
 
       const { getByPlaceholderText, getByText } = render(
@@ -231,8 +266,14 @@ describe('PaymentScreen E2E Tests', () => {
         fireEvent.press(generateButton);
       });
 
+      // Component uses showToast for errors
       await waitFor(() => {
-        expect(Alert.alert).toHaveBeenCalledWith('payment.error', 'Network error');
+        expect(showToast).toHaveBeenCalledWith(
+          expect.objectContaining({
+            type: 'error',
+            message: 'Network error',
+          })
+        );
       });
     });
   });
@@ -272,10 +313,11 @@ describe('PaymentScreen E2E Tests', () => {
       });
 
       // Wait for success alert and RRR to be set
+      // t() mock with params returns 'key::{"param":"value"}', so use stringContaining
       await waitFor(() => {
         expect(Alert.alert).toHaveBeenCalledWith(
           'payment.paymentReady',
-          'payment.paymentReadyDesc',
+          expect.stringContaining('payment.paymentReadyDesc'),
           expect.any(Array)
         );
       });
@@ -299,7 +341,7 @@ describe('PaymentScreen E2E Tests', () => {
 
       await waitFor(() => {
         expect(Alert.alert).toHaveBeenCalledWith(
-          'Payment Status',
+          'payment.statusTitle',
           expect.stringContaining('PENDING'),
           expect.any(Array)
         );
@@ -343,7 +385,7 @@ describe('PaymentScreen E2E Tests', () => {
 
       await waitFor(() => {
         expect(Alert.alert).toHaveBeenCalledWith(
-          'Payment Status',
+          'payment.statusTitle',
           expect.stringContaining('PAID'),
           expect.any(Array)
         );
@@ -383,8 +425,15 @@ describe('PaymentScreen E2E Tests', () => {
         fireEvent.press(statusButton);
       });
 
+      // Component uses showToast for status check errors
+      const { showToast } = require('../components/ui/Toast');
       await waitFor(() => {
-        expect(Alert.alert).toHaveBeenCalledWith('Error', 'No payment found');
+        expect(showToast).toHaveBeenCalledWith(
+          expect.objectContaining({
+            type: 'error',
+            message: 'No payment found',
+          })
+        );
       }, { timeout: 3000 });
     }, 15000); // Increase test timeout
   });
@@ -393,8 +442,8 @@ describe('PaymentScreen E2E Tests', () => {
     test('displays invoice information correctly', () => {
       const { getByText } = render(<PaymentScreen route={mockRoute} />);
 
-      // PaymentScreen shows: "Invoice ID" label and truncated uppercase ID
-      expect(getByText('Invoice ID')).toBeTruthy();
+      // PaymentScreen uses i18n keys (mock returns key as-is)
+      expect(getByText('payment.invoiceIdLabel')).toBeTruthy();
       expect(getByText(mockInvoice.id)).toBeTruthy(); // TEST-INV (8 chars, stays same)
       expect(getByText('Test Customer')).toBeTruthy();
       // Amount is displayed as ₦{total.toFixed(2)}
@@ -509,10 +558,10 @@ describe('PaymentScreen E2E Tests', () => {
         <PaymentScreen route={routeWithoutCustomer} />
       );
 
-      // Should not crash, invoice ID should be displayed
-      expect(getByText('Invoice ID')).toBeTruthy();
+      // Should not crash, invoice ID should be displayed (i18n key)
+      expect(getByText('payment.invoiceIdLabel')).toBeTruthy();
       // Customer section should not render since customerName is undefined
-      expect(queryByText('Customer')).toBeNull();
+      expect(queryByText('payment.customerLabel')).toBeNull();
     });
   });
 

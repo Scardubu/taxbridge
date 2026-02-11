@@ -64,15 +64,7 @@
       }
     },
     "plugins": [
-      [
-        "expo-build-properties",
-        {
-          "android": {
-            "newArchEnabled": true,
-            "usesCleartextTraffic": false
-          }
-        }
-      ],
+      "expo-build-properties",
       [
         "expo-camera",
         {

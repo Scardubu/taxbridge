@@ -72,8 +72,19 @@ const Stack = createNativeStackNavigator();
 
 function BootRouter() {
   const { isHydrated } = useAuth();
+  const [loadingTimeout, setLoadingTimeout] = useState(false);
 
-  if (!isHydrated) {
+  // Safety timeout: if hydration takes >5 seconds, show app anyway
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (!isHydrated) {
+        setLoadingTimeout(true);
+      }
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [isHydrated]);
+
+  if (!isHydrated && !loadingTimeout) {
     // Show branded loading state during hydration instead of blank screen
     return (
       <View style={{
@@ -83,6 +94,9 @@ function BootRouter() {
         alignItems: 'center',
       }}>
         <Text style={{ fontSize: 48 }}>📊</Text>
+        <Text style={{ marginTop: 16, color: colors.textSecondary, fontSize: 14 }}>
+          Loading...
+        </Text>
       </View>
     );
   }
@@ -92,9 +106,20 @@ function BootRouter() {
 
 function AppNavigator() {
   const { isOnboardingComplete, isLoading } = useOnboarding();
+  const [loadingTimeout, setLoadingTimeout] = useState(false);
+
+  // Safety timeout: if onboarding loading takes >5 seconds, proceed anyway
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (isLoading) {
+        setLoadingTimeout(true);
+      }
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [isLoading]);
 
   // Show loading state while onboarding data loads from storage
-  if (isLoading) {
+  if (isLoading && !loadingTimeout) {
     return (
       <View style={{
         flex: 1,
@@ -103,6 +128,9 @@ function AppNavigator() {
         alignItems: 'center',
       }}>
         <Text style={{ fontSize: 48 }}>📊</Text>
+        <Text style={{ marginTop: 16, color: colors.textSecondary, fontSize: 14 }}>
+          Preparing your experience...
+        </Text>
       </View>
     );
   }
@@ -217,8 +245,22 @@ export default function App() {
   const [booted, setBooted] = useState(false);
   const [bootError, setBootError] = useState<Error | null>(null);
   const [bootData, setBootData] = useState<{ deviceInfo: any; persistedState: any } | null>(null);
+  const [bootTimeoutReached, setBootTimeoutReached] = useState(false);
   const routeNameRef = useRef<string | null>(null);
   const navigationRef = useRef<NavigationContainerRef<any> | null>(null);
+
+  // Safety timeout: force boot completion after 10 seconds max
+  useEffect(() => {
+    const safetyTimer = setTimeout(() => {
+      if (!booted) {
+        setBootTimeoutReached(true);
+        // Force boot to complete even if SplashScreen didn't finish properly
+        setBooted(true);
+      }
+    }, 10000); // 10 second max boot time
+
+    return () => clearTimeout(safetyTimer);
+  }, [booted]);
 
   useEffect(() => {
     addBreadcrumb({
@@ -226,7 +268,15 @@ export default function App() {
       message: 'App mounted',
       level: 'info',
     });
-    void initDB().catch(() => undefined);
+    // Initialize DB in background - don't block boot
+    void initDB().catch((err) => {
+      addBreadcrumb({
+        category: 'database',
+        message: 'DB init error (non-fatal)',
+        data: { error: String(err) },
+        level: 'warning',
+      });
+    });
   }, []);
 
   // Hide the native expo splash screen once booted
@@ -248,19 +298,18 @@ export default function App() {
     }} />;
   }
 
-  // If boot failed, show a minimal recovery screen
-  if (bootError) {
-    return (
-      <View style={{ flex: 1, backgroundColor: '#FFFFFF', justifyContent: 'center', alignItems: 'center', padding: 24 }}>
-        <Text style={{ fontSize: 48, marginBottom: 16 }}>😔</Text>
-        <Text style={{ fontSize: 18, fontWeight: '600', color: '#1F2937', textAlign: 'center', marginBottom: 8 }}>
-          Something went wrong
-        </Text>
-        <Text style={{ fontSize: 14, color: '#6B7280', textAlign: 'center' }}>
-          Please restart the app. If this persists, reinstall TaxBridge.
-        </Text>
-      </View>
-    );
+  // If boot failed or timeout reached, show a minimal recovery screen but still allow app use
+  if (bootError || bootTimeoutReached) {
+    // Don't block the app - just log the error and continue
+    if (bootError) {
+      addBreadcrumb({
+        category: 'boot',
+        message: 'Boot error occurred but continuing',
+        data: { error: bootError.message },
+        level: 'warning',
+      });
+    }
+    // Continue to main app instead of showing error screen
   }
 
   return (

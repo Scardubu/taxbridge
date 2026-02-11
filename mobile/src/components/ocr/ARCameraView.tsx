@@ -60,6 +60,12 @@ export function ARCameraView({ onCapture, onClose, facing = 'back', onFlip }: AR
   const handleCapture = useCallback(async () => {
     if (isProcessing || !cameraRef.current) return;
 
+    if (!isAligned) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      setIsAligned(true);
+      return;
+    }
+
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     setIsProcessing(true);
 
@@ -80,7 +86,17 @@ export function ARCameraView({ onCapture, onClose, facing = 'back', onFlip }: AR
       setIsProcessing(false);
       setIsAligned(false);
     }
-  }, [isProcessing, onCapture]);
+  }, [isAligned, isProcessing, onCapture]);
+
+  React.useEffect(() => {
+    if (!isAligned || isProcessing) return;
+
+    const resetTimer = setTimeout(() => {
+      setIsAligned(false);
+    }, 5000);
+
+    return () => clearTimeout(resetTimer);
+  }, [isAligned, isProcessing]);
 
   // Request permission if needed
   if (!permission) {
@@ -175,7 +191,7 @@ export function ARCameraView({ onCapture, onClose, facing = 'back', onFlip }: AR
 
             {/* Helper Text */}
             <Text style={styles.helperText}>
-              {t('ocr.positionReceipt')}
+              {isAligned ? t('ocr.readyToScan') : t('ocr.tapFrameToConfirm')}
             </Text>
           </View>
 
