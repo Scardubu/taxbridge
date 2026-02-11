@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { Text, View, Image, ActivityIndicator } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { Text, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import * as ExpoSplashScreen from 'expo-splash-screen';
 import { NavigationContainer, type NavigationContainerRef, DefaultTheme } from '@react-navigation/native';
@@ -53,6 +53,7 @@ import { LoadingProvider } from './src/contexts/LoadingContext';
 import { OnboardingProvider, useOnboarding } from './src/contexts/OnboardingContext';
 import { ToastProvider } from './src/providers/ToastProvider';
 import LoadingOverlay from './src/components/LoadingOverlay';
+import BrandedLoading from './src/components/BrandedLoading';
 import NetworkStatus from './src/components/NetworkStatus';
 import HomeScreen from './src/screens/HomeScreen';
 import CreateInvoiceScreen from './src/screens/CreateInvoiceScreen';
@@ -89,18 +90,7 @@ function BootRouter() {
   }, [isHydrated]);
 
   if (!isHydrated && !loadingTimeout) {
-    // Show branded loading state during hydration instead of blank screen
-    return (
-      <View style={{
-        flex: 1,
-        backgroundColor: colors.surface,
-        justifyContent: 'center',
-        alignItems: 'center',
-      }}>
-        <Image source={require('./assets/icon-square.png')} style={{ width: 120, height: 120 }} resizeMode="contain" />
-        <ActivityIndicator style={{ marginTop: 16 }} size="small" color={colors.primary} />
-      </View>
-    );
+    return <BrandedLoading />;
   }
 
   return <AppNavigator />;
@@ -122,17 +112,7 @@ function AppNavigator() {
 
   // Show loading state while onboarding data loads from storage
   if (isLoading && !loadingTimeout) {
-    return (
-      <View style={{
-        flex: 1,
-        backgroundColor: colors.surface,
-        justifyContent: 'center',
-        alignItems: 'center',
-      }}>
-        <Image source={require('./assets/icon-square.png')} style={{ width: 120, height: 120 }} resizeMode="contain" />
-        <ActivityIndicator style={{ marginTop: 16 }} size="small" color={colors.primary} />
-      </View>
-    );
+    return <BrandedLoading />;
   }
 
   if (!isOnboardingComplete) {

@@ -171,12 +171,18 @@ function LivingBridgeHeader({
     transform: [{ scale: pulseScale.value }],
   }));
 
-  // Progress bar animation
-  const progressAnimatedStyle = useAnimatedStyle(() => ({
-    width: withSpring(`${Math.min(Math.max(progress, 0), 1) * 100}%`, {
+  // Progress bar animation — animate a number, map to string in style
+  const progressShared = useSharedValue(Math.min(Math.max(progress, 0), 1) * 100);
+
+  React.useEffect(() => {
+    progressShared.value = withSpring(Math.min(Math.max(progress, 0), 1) * 100, {
       damping: 15,
       stiffness: 100,
-    }),
+    });
+  }, [progress]);
+
+  const progressAnimatedStyle = useAnimatedStyle(() => ({
+    width: `${progressShared.value}%`,
   }));
 
   const displayTitle = title ?? t('common.taxbridgeName');

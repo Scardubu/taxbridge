@@ -24,8 +24,6 @@ import {
   Dimensions,
   Platform,
 } from 'react-native';
-import * as ExpoSplashScreen from 'expo-splash-screen';
-
 // 🔌 Boot services (existing or to be added)
 import { warmUpSyncEngine } from '../sync/syncEngine';
 import { hydrateFeatureFlags } from '../services/featureFlags';
@@ -52,8 +50,8 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
     let mounted = true;
 
     const boot = async () => {
-      // 0️⃣ Hide the native expo splash now that our custom splash is rendering
-      ExpoSplashScreen.hideAsync().catch(() => undefined);
+      // 0️⃣ Native splash stays visible (App.tsx hides it after boot).
+      //    Removing the premature hideAsync() here prevents the dual-logo flash.
 
       // 1️⃣ Fade in immediately (UX first)
       Animated.timing(opacity, {

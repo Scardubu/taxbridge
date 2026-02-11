@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   SafeAreaView,
-  TouchableOpacity,
   Alert,
   Platform,
   StatusBar,
@@ -13,22 +12,19 @@ import {
 } from 'react-native';
 import Animated, {
   useSharedValue,
-  useAnimatedStyle,
   withSpring,
   withTiming,
   FadeIn,
   FadeOut,
   SlideInRight,
   SlideOutLeft,
-  interpolate,
-  Extrapolation,
   runOnJS,
 } from 'react-native-reanimated';
 import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { useOnboarding, OnboardingStepId, UserProfile } from '../contexts/OnboardingContext';
 import { useNetwork } from '../contexts/NetworkContext';
-import { addBreadcrumb } from '../services/sentry';
+import { addBreadcrumb, captureException } from '../services/sentry';
 import {
   trackOnboardingStart,
   trackOnboardingStep,
@@ -318,20 +314,6 @@ function OnboardingScreen(props: OnboardingScreenProps = {}) {
   }, []);
 
   /**
-   * Animated progress bar style
-   */
-  const progressBarStyle = useAnimatedStyle(() => {
-    return {
-      width: `${interpolate(
-        progressValue.value,
-        [0, 1],
-        [0, 100],
-        Extrapolation.CLAMP
-      )}%`,
-    };
-  });
-
-  /**
    * Step transition animation callback
    */
   const onStepTransitionComplete = useCallback(() => {
@@ -339,23 +321,32 @@ function OnboardingScreen(props: OnboardingScreenProps = {}) {
   }, []);
 
   /**
-   * Handle next step progression
+   * Handle next step progression (crash-safe)
    */
   const handleNext = async () => {
-    // Dismiss keyboard
-    Keyboard.dismiss();
+    try {
+      // Dismiss keyboard
+      Keyboard.dismiss();
 
-    // Allow profile updates to flush before validation (avoids stale context state)
-    if (currentStep?.id === 'profile') {
-      await new Promise((resolve) => setTimeout(resolve, 0));
-    }
-
-    // Validate before proceeding (retry once after profile update)
-    if (!validateCurrentStep()) {
+      // Allow profile updates to flush before validation (avoids stale context state)
       if (currentStep?.id === 'profile') {
         await new Promise((resolve) => setTimeout(resolve, 0));
-        if (validateCurrentStep()) {
-          // fall through
+      }
+
+      // Validate before proceeding (retry once after profile update)
+      if (!validateCurrentStep()) {
+        if (currentStep?.id === 'profile') {
+          await new Promise((resolve) => setTimeout(resolve, 0));
+          if (validateCurrentStep()) {
+            // fall through
+          } else {
+            showToast({
+              type: 'error',
+              message: validationErrors[0] ?? t('onboarding.errors.tryAgain'),
+              haptic: 'error',
+            });
+            return;
+          }
         } else {
           showToast({
             type: 'error',
@@ -364,34 +355,30 @@ function OnboardingScreen(props: OnboardingScreenProps = {}) {
           });
           return;
         }
-      } else {
-        showToast({
-          type: 'error',
-          message: validationErrors[0] ?? t('onboarding.errors.tryAgain'),
-          haptic: 'error',
-        });
-        return;
       }
-    }
 
-    if (isTransitioning) return;
-    
-    const duration = Date.now() - stepStartTime;
-    
-    setIsTransitioning(true);
-    
-    // Animate transition
-    stepTransitionValue.value = withTiming(
-      1,
-      { duration: 300 },
-      (finished) => {
-        if (finished) {
-          runOnJS(onStepTransitionComplete)();
-        }
+      if (isTransitioning) return;
+
+      const duration = Date.now() - stepStartTime;
+
+      setIsTransitioning(true);
+
+      // Animate transition — wrapped safely so worklet errors don't crash
+      try {
+        stepTransitionValue.value = withTiming(
+          1,
+          { duration: 300 },
+          (finished) => {
+            if (finished) {
+              runOnJS(onStepTransitionComplete)();
+            }
+          }
+        );
+      } catch (animErr) {
+        // Reanimated worklet errors should not block step progression
+        if (__DEV__) console.warn('Step transition animation error:', animErr);
       }
-    );
 
-    try {
       addBreadcrumb({
         category: 'onboarding',
         message: `Completed step ${currentStepIndex + 1}`,
@@ -424,12 +411,17 @@ function OnboardingScreen(props: OnboardingScreenProps = {}) {
         }
       }
     } catch (error) {
+      captureException(error instanceof Error ? error : new Error(String(error)), {
+        context: 'OnboardingScreen.handleNext',
+        stepIndex: currentStepIndex,
+        stepId: currentStep?.id,
+      });
       if (__DEV__) console.error('Error progressing onboarding:', error);
-      
+
       if (!isMountedRef.current) return;
-      
+
       setIsTransitioning(false);
-      
+
       showToast({
         type: 'error',
         message: t('onboarding.errors.tryAgain'),

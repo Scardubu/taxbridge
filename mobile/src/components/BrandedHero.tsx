@@ -56,8 +56,14 @@ function BrandedHero({
     transform: [{ scale: pulseScale.value }],
   }));
 
+  const progressShared = useSharedValue(progress * 100);
+
+  React.useEffect(() => {
+    progressShared.value = withSpring(progress * 100, { damping: 15, stiffness: 100 });
+  }, [progress]);
+
   const progressAnimatedStyle = useAnimatedStyle(() => ({
-    width: withSpring(`${progress * 100}%`, { damping: 15, stiffness: 100 }),
+    width: `${progressShared.value}%`,
   }));
 
   const isCompact = variant === 'compact';

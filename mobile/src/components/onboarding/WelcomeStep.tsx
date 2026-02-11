@@ -45,6 +45,26 @@ const BENEFITS = [
  */
 export default function WelcomeStep({ onNext }: WelcomeStepProps) {
   const { t } = useTranslation();
+  const [pressing, setPressing] = React.useState(false);
+
+  const handlePress = React.useCallback(() => {
+    if (pressing) return;
+    setPressing(true);
+    try {
+      const result: unknown = onNext();
+      // If onNext returns a promise, catch any async errors
+      if (result && typeof (result as Record<string, unknown>).catch === 'function') {
+        (result as Promise<unknown>).catch((err: unknown) => {
+          if (__DEV__) console.error('WelcomeStep onNext error:', err);
+        }).finally(() => setPressing(false));
+      } else {
+        setPressing(false);
+      }
+    } catch (err) {
+      if (__DEV__) console.error('WelcomeStep onNext sync error:', err);
+      setPressing(false);
+    }
+  }, [onNext, pressing]);
 
   return (
     <View style={styles.container}>
@@ -110,9 +130,10 @@ export default function WelcomeStep({ onNext }: WelcomeStepProps) {
         entering={FadeInDown.delay(500).springify()}
       >
         <TouchableOpacity
-          style={styles.ctaButton}
-          onPress={onNext}
+          style={[styles.ctaButton, pressing && styles.ctaButtonDisabled]}
+          onPress={handlePress}
           activeOpacity={0.8}
+          disabled={pressing}
           accessibilityLabel={t('onboarding.welcome.letsStart')}
           accessibilityRole="button"
         >
@@ -224,6 +245,9 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md + 4,
     borderRadius: radii.lg,
     marginBottom: spacing.md,
+  },
+  ctaButtonDisabled: {
+    opacity: 0.7,
   },
   ctaText: {
     fontSize: typography.size.lg,
