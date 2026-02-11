@@ -9,7 +9,7 @@
  */
 
 import * as Sentry from '@sentry/node';
-import { getRedisConnection } from './redis';
+import { getRedisConnection } from '../queue/client';
 import { prisma } from './prisma';
 
 // =============================================================================
@@ -119,12 +119,13 @@ export async function getDatabaseMetrics(): Promise<{
   slowQueryCount: number;
 }> {
   try {
-    // Get connection pool metrics from Prisma
-    const poolMetrics = await prisma.$metrics.json();
-    
+    // Prisma $metrics requires the metrics preview feature to be enabled.
+    // Use a simple health check instead to avoid build errors.
+    await prisma.$queryRaw`SELECT 1`;
+
     return {
       connectionPoolSize: 10, // From config
-      activeConnections: poolMetrics.counters?.find((c: any) => c.key === 'prisma_client_queries_active')?.value || 0,
+      activeConnections: 0, // Requires $metrics preview feature
       idleConnections: 0, // Not directly available
       waitingRequests: 0, // Not directly available
       slowQueryCount: 0, // Tracked by query logger
@@ -267,7 +268,7 @@ export async function checkPerformanceAlerts(): Promise<{
 
 export function configureSentryPerformanceMonitoring() {
   // Set up custom performance monitoring
-  Sentry.addGlobalEventProcessor((event) => {
+  Sentry.addEventProcessor((event) => {
     // Add custom context to all events
     if (event.contexts) {
       event.contexts.performance = {
