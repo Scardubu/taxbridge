@@ -7,11 +7,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { HealthCard } from '@/components/HealthCard';
 import { DuploHealthChart } from '@/components/charts/DuploHealthChart';
 import { RemitaTransactionChart } from '@/components/charts/RemitaTransactionChart';
+import { InvoiceChart, InvoiceChartDataPoint } from '@/components/charts/InvoiceChart';
+import { PaymentChart, PaymentChartDataPoint } from '@/components/charts/PaymentChart';
 import { LaunchMetricsWidget, LaunchMetricsData } from '@/components/LaunchMetricsWidget';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { FetchError, fetchJson } from '@/lib/fetcher';
 import { useAdminI18n } from '@/lib/i18n';
+import { SkeletonCard } from '@/components/ui/skeleton-table';
 
 interface DashboardStats {
   totalUsers: number;
@@ -137,6 +140,32 @@ export default function DashboardPage() {
     return stats ? new Date().toLocaleTimeString() : '';
   }, [stats]);
 
+  // Mock data for invoice chart (last 6 months)
+  const invoiceChartData = useMemo<InvoiceChartDataPoint[]>(() => {
+    if (!stats) return [];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+    return months.map((month, idx) => ({
+      month,
+      draft: Math.floor(Math.random() * 20) + 5,
+      sent: Math.floor(Math.random() * 30) + 10,
+      paid: Math.floor(Math.random() * 40) + 15,
+      overdue: Math.floor(Math.random() * 10) + 2,
+    }));
+  }, [stats]);
+
+  // Mock data for payment chart (last 7 days)
+  const paymentChartData = useMemo<PaymentChartDataPoint[]>(() => {
+    if (!stats) return [];
+    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    return days.map((date, idx) => ({
+      date,
+      successful: Math.floor(Math.random() * 500000) + 100000,
+      failed: Math.floor(Math.random() * 50000) + 5000,
+      pending: Math.floor(Math.random() * 100000) + 10000,
+      volume: Math.floor(Math.random() * 650000) + 115000,
+    }));
+  }, [stats]);
+
   const lastLaunchRefresh = useMemo(() => {
     return launchMetrics ? new Date(launchMetrics.timestamp).toLocaleTimeString() : '';
   }, [launchMetrics]);
@@ -213,18 +242,22 @@ export default function DashboardPage() {
   if (!isStatsBlocked && (isLoading || !stats)) {
     return (
       <DashboardLayout>
-        <div className="space-y-4 animate-pulse">
-          <div className="h-8 bg-slate-200 rounded w-64" />
+        <div className="space-y-6" role="status" aria-label="Loading dashboard">
+          <div className="h-8 w-64 animate-pulse rounded bg-slate-200" />
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             {[1, 2, 3, 4].map(i => (
-              <div key={i} className="h-32 bg-slate-200 rounded-lg" />
+              <SkeletonCard key={i} />
             ))}
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             {[1, 2].map(i => (
-              <div key={i} className="h-48 bg-slate-200 rounded-lg" />
+              <div key={i} className="animate-pulse rounded-lg border border-slate-200 bg-white p-6">
+                <div className="mb-4 h-5 w-40 rounded bg-slate-200" />
+                <div className="h-48 rounded-lg bg-slate-100" />
+              </div>
             ))}
           </div>
+          <span className="sr-only">Loading dashboard data...</span>
         </div>
       </DashboardLayout>
     );
@@ -482,6 +515,29 @@ export default function DashboardPage() {
       <div>
         <h2 className="text-lg font-semibold text-slate-800 mb-4">{t('dashboard.section.charts.title')}</h2>
         <div className="grid gap-4 md:grid-cols-2">
+          {/* Invoice Trends */}
+          <Card className="hover:shadow-md transition-shadow">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base font-medium">Invoice Trends</CardTitle>
+              <p className="text-xs text-slate-500">Invoice status distribution over time</p>
+            </CardHeader>
+            <CardContent>
+              <InvoiceChart data={invoiceChartData} />
+            </CardContent>
+          </Card>
+
+          {/* Payment Analytics */}
+          <Card className="hover:shadow-md transition-shadow">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base font-medium">Payment Analytics</CardTitle>
+              <p className="text-xs text-slate-500">Payment volume and success rates</p>
+            </CardHeader>
+            <CardContent>
+              <PaymentChart data={paymentChartData} />
+            </CardContent>
+          </Card>
+
+          {/* Duplo Health */}
           <Card className="hover:shadow-md transition-shadow">
             <CardHeader className="pb-2">
               <CardTitle className="text-base font-medium">{t('dashboard.section.metrics.duplo.title')}</CardTitle>
@@ -492,6 +548,7 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
 
+          {/* Remita Transactions */}
           <Card className="hover:shadow-md transition-shadow">
             <CardHeader className="pb-2">
               <CardTitle className="text-base font-medium">{t('dashboard.section.metrics.remita.title')}</CardTitle>

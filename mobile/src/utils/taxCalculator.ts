@@ -7,11 +7,12 @@ export interface PITBand {
 }
 
 export const PIT_BANDS: PITBand[] = [
-  { limit: 800_000, rate: 0 },           // ₦0 - ₦800,000: 0%
-  { limit: 3_200_000, rate: 0.15 },      // ₦800,001 - ₦3,200,000: 15%
-  { limit: 8_000_000, rate: 0.19 },      // ₦3,200,001 - ₦8,000,000: 19%
-  { limit: 15_000_000, rate: 0.21 },     // ₦8,000,001 - ₦15,000,000: 21%
-  { limit: Infinity, rate: 0.25 },       // Above ₦15,000,000: 25%
+  { limit: 800_000, rate: 0 },           // ₦0 - ₦800,000: 0% (Tax-Free)
+  { limit: 3_000_000, rate: 0.15 },      // ₦800,001 - ₦3,000,000: 15%
+  { limit: 12_000_000, rate: 0.18 },     // ₦3,000,001 - ₦12,000,000: 18%
+  { limit: 25_000_000, rate: 0.21 },     // ₦12,000,001 - ₦25,000,000: 21%
+  { limit: 50_000_000, rate: 0.23 },     // ₦25,000,001 - ₦50,000,000: 23%
+  { limit: Infinity, rate: 0.25 },       // Above ₦50,000,000: 25%
 ];
 
 export interface BandBreakdown {
@@ -168,7 +169,7 @@ export interface CITRateResult {
 }
 
 export function checkCITRate(annualTurnover: number): CITRateResult {
-  if (annualTurnover <= 50_000_000) {
+  if (annualTurnover <= 25_000_000) {
     return {
       rate: 0,
       descriptionCode: 'small',

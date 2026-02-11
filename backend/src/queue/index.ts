@@ -190,7 +190,7 @@ export const invoiceSyncWorker = new Worker(
     }
   },
   {
-    connection: getRedisConnection(),
+    connection: getRedisConnection() as any,
     concurrency: Number.isFinite(invoiceSyncConcurrency) && invoiceSyncConcurrency > 0 ? invoiceSyncConcurrency : 5,
     limiter: {
       max: Number.isFinite(invoiceSyncRateLimit) && invoiceSyncRateLimit > 0 ? invoiceSyncRateLimit : 8,

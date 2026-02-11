@@ -39,6 +39,11 @@ async function run() {
   console.log('Created invoice', invoice.id);
 
   const queue = getInvoiceSyncQueue();
+  if (!queue) {
+    console.warn('Queue unavailable - invoice will be processed synchronously');
+    return;
+  }
+  
   await queue.add('sync', { invoiceId: invoice.id });
 
   console.log('Enqueued invoice job for', invoice.id);

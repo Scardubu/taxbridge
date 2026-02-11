@@ -400,11 +400,11 @@ const styles = StyleSheet.create({
     borderColor: colors.primary,
   },
   optionEmoji: {
-    fontSize: 24,
-    marginBottom: 6,
+    fontSize: typography.size.xxl,
+    marginBottom: spacing.xs + 2,
   },
   optionEmojiColumn: {
-    fontSize: 20,
+    fontSize: typography.size.xl,
     marginRight: spacing.md,
   },
   optionText: {

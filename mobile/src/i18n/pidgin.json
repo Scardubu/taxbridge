@@ -479,7 +479,9 @@
       "taxExplainerExemptPoint2": "Travel reimbursement (real expenses)",
       "taxExplainerExemptPoint3": "Medical expenses",
       "taxExplainerExemptPoint4": "Basic food items",
-      "tapToEdit": "Touch any amount make you edit and see how tax go change sharp sharp"
+      "tapToEdit": "Touch any amount make you edit and see how tax go change sharp sharp",
+      "markExempt": "Mark dis item say e no get tax",
+      "markTaxable": "Mark dis item say tax dey for am"
     },
     "scanner": {
       "title": "Scan Receipt Sharp Sharp",

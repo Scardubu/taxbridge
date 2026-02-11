@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Text, View } from 'react-native';
+import { Text, View, Image, ActivityIndicator } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import * as ExpoSplashScreen from 'expo-splash-screen';
 import { NavigationContainer, type NavigationContainerRef, DefaultTheme } from '@react-navigation/native';
@@ -61,6 +61,10 @@ import SettingsScreen from './src/screens/SettingsScreen';
 import PaymentScreen from './src/screens/PaymentScreen';
 import OnboardingScreen from './src/screens/OnboardingScreen';
 import TaxGuideScreen from './src/screens/TaxGuideScreen';
+import PayrollListScreen from './src/screens/Payroll/PayrollListScreen';
+import ComplianceRemindersScreen from './src/screens/Compliance/ComplianceRemindersScreen';
+import CryptoTaxScreen from './src/screens/Crypto/CryptoTaxScreen';
+import ReconciliationScreen from './src/screens/Reconciliation/ReconciliationScreen';
 import { colors, spacing, typography } from './src/theme/tokens';
 import { screenTransitions } from './src/navigation/transitions';
 
@@ -93,10 +97,8 @@ function BootRouter() {
         justifyContent: 'center',
         alignItems: 'center',
       }}>
-        <Text style={{ fontSize: 48 }}>📊</Text>
-        <Text style={{ marginTop: 16, color: colors.textSecondary, fontSize: 14 }}>
-          Loading...
-        </Text>
+        <Image source={require('./assets/icon-square.png')} style={{ width: 120, height: 120 }} resizeMode="contain" />
+        <ActivityIndicator style={{ marginTop: 16 }} size="small" color={colors.primary} />
       </View>
     );
   }
@@ -127,10 +129,8 @@ function AppNavigator() {
         justifyContent: 'center',
         alignItems: 'center',
       }}>
-        <Text style={{ fontSize: 48 }}>📊</Text>
-        <Text style={{ marginTop: 16, color: colors.textSecondary, fontSize: 14 }}>
-          Preparing your experience...
-        </Text>
+        <Image source={require('./assets/icon-square.png')} style={{ width: 120, height: 120 }} resizeMode="contain" />
+        <ActivityIndicator style={{ marginTop: 16 }} size="small" color={colors.primary} />
       </View>
     );
   }
@@ -154,6 +154,26 @@ function AppNavigator() {
       <Stack.Screen
         name="TaxGuide"
         component={TaxGuideScreen}
+        options={screenTransitions.slideFromRight}
+      />
+      <Stack.Screen
+        name="Payroll"
+        component={PayrollListScreen}
+        options={screenTransitions.slideFromRight}
+      />
+      <Stack.Screen
+        name="Compliance"
+        component={ComplianceRemindersScreen}
+        options={screenTransitions.slideFromRight}
+      />
+      <Stack.Screen
+        name="Crypto"
+        component={CryptoTaxScreen}
+        options={screenTransitions.slideFromRight}
+      />
+      <Stack.Screen
+        name="Reconciliation"
+        component={ReconciliationScreen}
         options={screenTransitions.slideFromRight}
       />
     </Stack.Navigator>

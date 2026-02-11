@@ -34,6 +34,18 @@ class MetricsService {
     webhook: { processed: 0, failed: 0 }
   };
 
+  private paystack = {
+    payment: { total: 0, success: 0, failures: 0, amountSum: 0, latency: createLatencyTracker() },
+    status: { total: 0, failures: 0, latency: createLatencyTracker() },
+    webhook: { processed: 0, failed: 0 }
+  };
+
+  private flutterwave = {
+    payment: { total: 0, success: 0, failures: 0, amountSum: 0, latency: createLatencyTracker() },
+    status: { total: 0, failures: 0, latency: createLatencyTracker() },
+    webhook: { processed: 0, failed: 0 }
+  };
+
   private ubl = {
     validations: 0,
     failures: 0,
@@ -164,6 +176,85 @@ class MetricsService {
     });
   }
 
+  // --- Paystack metrics ---
+
+  recordPaystackPayment(success: boolean, amount: number, durationMs: number): void {
+    this.paystack.payment.total += 1;
+    recordLatency(this.paystack.payment.latency, durationMs);
+    if (success) {
+      this.paystack.payment.success += 1;
+      this.paystack.payment.amountSum += amount;
+    } else {
+      this.paystack.payment.failures += 1;
+    }
+    this.withSentryMetrics(() => {
+      Sentry.metrics.increment('paystack.payment.total', 1, { tags: { success: success.toString() } });
+      if (durationMs >= 0) {
+        Sentry.metrics.distribution('paystack.payment.latency_ms', durationMs, { unit: 'millisecond' });
+      }
+    });
+  }
+
+  recordPaystackStatus(success: boolean, durationMs: number): void {
+    this.paystack.status.total += 1;
+    recordLatency(this.paystack.status.latency, durationMs);
+    if (!success) {
+      this.paystack.status.failures += 1;
+    }
+    this.withSentryMetrics(() => {
+      Sentry.metrics.increment('paystack.status.total', 1, { tags: { success: success.toString() } });
+    });
+  }
+
+  recordPaystackWebhook(success: boolean): void {
+    if (success) {
+      this.paystack.webhook.processed += 1;
+    } else {
+      this.paystack.webhook.failed += 1;
+    }
+    this.withSentryMetrics(() => {
+      Sentry.metrics.increment('paystack.webhook.total', 1, { tags: { success: success.toString() } });
+    });
+  }
+
+  // --- Flutterwave metrics ---
+
+  recordFlutterwavePayment(success: boolean, amount: number, durationMs: number): void {
+    this.flutterwave.payment.total += 1;
+    recordLatency(this.flutterwave.payment.latency, durationMs);
+    if (success) {
+      this.flutterwave.payment.success += 1;
+      this.flutterwave.payment.amountSum += amount;
+    } else {
+      this.flutterwave.payment.failures += 1;
+    }
+    this.withSentryMetrics(() => {
+      Sentry.metrics.increment('flutterwave.payment.total', 1, { tags: { success: success.toString() } });
+    });
+  }
+
+  recordFlutterwaveStatus(success: boolean, durationMs: number): void {
+    this.flutterwave.status.total += 1;
+    recordLatency(this.flutterwave.status.latency, durationMs);
+    if (!success) {
+      this.flutterwave.status.failures += 1;
+    }
+    this.withSentryMetrics(() => {
+      Sentry.metrics.increment('flutterwave.status.total', 1, { tags: { success: success.toString() } });
+    });
+  }
+
+  recordFlutterwaveWebhook(success: boolean): void {
+    if (success) {
+      this.flutterwave.webhook.processed += 1;
+    } else {
+      this.flutterwave.webhook.failed += 1;
+    }
+    this.withSentryMetrics(() => {
+      Sentry.metrics.increment('flutterwave.webhook.total', 1, { tags: { success: success.toString() } });
+    });
+  }
+
   recordUBLValidation(result: { valid: boolean; missingCount: number }): void {
     this.ubl.validations += 1;
     this.ubl.lastRunAt = Date.now();
@@ -246,7 +337,25 @@ class MetricsService {
       `ubl_validation_missing_fields ${this.ubl.lastMissingFields}`,
       '# HELP ubl_validation_last_run Timestamp of last automated UBL validation (unix seconds)',
       '# TYPE ubl_validation_last_run gauge',
-      `ubl_validation_last_run ${this.ubl.lastRunAt ? Math.floor(this.ubl.lastRunAt / 1000) : 0}`
+      `ubl_validation_last_run ${this.ubl.lastRunAt ? Math.floor(this.ubl.lastRunAt / 1000) : 0}`,
+      '# HELP paystack_payment_total Total Paystack transactions',
+      '# TYPE paystack_payment_total counter',
+      `paystack_payment_total ${this.paystack.payment.total}`,
+      '# HELP paystack_payment_success_total Successful Paystack transactions',
+      '# TYPE paystack_payment_success_total counter',
+      `paystack_payment_success_total ${this.paystack.payment.success}`,
+      '# HELP paystack_webhook_processed_total Paystack webhook events processed',
+      '# TYPE paystack_webhook_processed_total counter',
+      `paystack_webhook_processed_total ${this.paystack.webhook.processed}`,
+      '# HELP flutterwave_payment_total Total Flutterwave transactions',
+      '# TYPE flutterwave_payment_total counter',
+      `flutterwave_payment_total ${this.flutterwave.payment.total}`,
+      '# HELP flutterwave_payment_success_total Successful Flutterwave transactions',
+      '# TYPE flutterwave_payment_success_total counter',
+      `flutterwave_payment_success_total ${this.flutterwave.payment.success}`,
+      '# HELP flutterwave_webhook_processed_total Flutterwave webhook events processed',
+      '# TYPE flutterwave_webhook_processed_total counter',
+      `flutterwave_webhook_processed_total ${this.flutterwave.webhook.processed}`
     ];
 
     return lines.join('\n');

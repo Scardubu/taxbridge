@@ -113,6 +113,8 @@ export default function WelcomeStep({ onNext }: WelcomeStepProps) {
           style={styles.ctaButton}
           onPress={onNext}
           activeOpacity={0.8}
+          accessibilityLabel={t('onboarding.welcome.letsStart')}
+          accessibilityRole="button"
         >
           <Text style={styles.ctaText}>{t('onboarding.welcome.letsStart')}</Text>
           <Ionicons name="arrow-forward" size={20} color={colors.textOnPrimary} />

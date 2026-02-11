@@ -31,6 +31,8 @@ const sanitizePhone = (phone: string): string => {
 
 // Rate limiting helper
 async function checkRateLimit(phoneNumber: string): Promise<boolean> {
+  if (!redis) return true; // Skip rate limiting if Redis unavailable
+  
   const key = `ussd:rate:${sanitizePhone(phoneNumber)}`;
   const current = await redis.incr(key);
   
@@ -55,7 +57,9 @@ export class USSDHandler {
     const now = Date.now();
     if (now - this.lastHealthCheck > 60000) { // Check every minute
       try {
-        await redis.ping();
+        if (redis) {
+          await redis.ping();
+        }
         await this.prisma.$queryRaw`SELECT 1`;
         this.lastHealthCheck = now;
       } catch (error) {
@@ -108,11 +112,16 @@ export class USSDHandler {
         return endResponse('Invalid phone number. Please contact support.');
       }
       
-      const raw = (await redis.get(`ussd:${sessionId}`)) || '{}';
-      let session = JSON.parse(raw);
+      let session: any = {};
+      if (redis) {
+        const raw = (await redis.get(`ussd:${sessionId}`)) || '{}';
+        session = JSON.parse(raw);
+      }
       if (!session.stage) {
         session = { stage: 'menu', data: {}, phoneNumber: sanitizedPhone, startTime: Date.now() };
-        await redis.set(`ussd:${sessionId}`, JSON.stringify(session), 'EX', 300);
+        if (redis) {
+          await redis.set(`ussd:${sessionId}`, JSON.stringify(session), 'EX', 300);
+        }
         await this.logUssdEvent('session_start', sanitizedPhone, { sessionId });
       }
 
@@ -127,7 +136,9 @@ export class USSDHandler {
       // pidgin toggle
       if (lastInput === '0') {
         session.pidgin = !session.pidgin;
-        await redis.set(`ussd:${sessionId}`, JSON.stringify(session));
+        if (redis) {
+          await redis.set(`ussd:${sessionId}`, JSON.stringify(session));
+        }
         await this.logUssdEvent('pidgin_toggle', sanitizedPhone, { pidgin: session.pidgin });
         return continueResponse(session.pidgin ? 'CON Pidgin mode on. Dial * for menu.' : 'CON English mode on. Dial * for menu.');
       }

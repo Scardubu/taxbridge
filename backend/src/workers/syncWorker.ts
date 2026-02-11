@@ -350,6 +350,6 @@ export function createDeviceSyncWorker(): Worker {
         throw err;
       }
     },
-    { connection: getRedisConnection() }
+    { connection: getRedisConnection() as any }
   );
 }

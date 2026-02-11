@@ -1,9 +1,15 @@
+// Load environment variables FIRST before any other imports
+import dotenv from 'dotenv';
+dotenv.config();
+
 import Fastify from 'fastify';
 import path from 'path';
 import cors from '@fastify/cors';
 import fastifyCompress from '@fastify/compress';
 import fastifyEnv from '@fastify/env';
 import helmet from '@fastify/helmet';
+import fastifySwagger from '@fastify/swagger';
+import fastifySwaggerUi from '@fastify/swagger-ui';
 import { Prisma, PrismaClient } from '@prisma/client';
 import { z, ZodError } from 'zod';
 import { serializerCompiler, validatorCompiler, ZodTypeProvider } from 'fastify-type-provider-zod';
@@ -20,6 +26,18 @@ import authRoutes from './routes/auth';
 import privacyRoutes from './routes/privacy';
 import syncRoutes from './routes/sync';
 import adminSyncRoutes from './routes/adminSync';
+import taxRoutes from './routes/tax';
+import webhookRoutes from './routes/webhooks';
+import businessRoutes from './routes/business';
+import invoiceManagementRoutes from './routes/invoiceManagement';
+import expenseRoutes from './routes/expenses';
+import payrollRoutes from './routes/payroll';
+import complianceRoutes from './routes/compliance';
+import cryptoRoutes from './routes/crypto';
+import reconciliationRoutes from './routes/reconciliation';
+import bulkRoutes from './routes/bulk';
+import { validateSecrets, logSecretsSummary } from './config/secrets';
+import { Queue } from 'bullmq';
 import {
   closeInvoiceSyncQueue,
   closeRedisConnection,
@@ -42,6 +60,12 @@ import { setupSentry, checkDuploHealth as observeDuploHealth, checkRemitaHealth 
 import { metrics } from './services/metrics';
 import { initializeDLQMonitoring, shutdownDLQMonitoring, getDLQMonitor } from './services/dlq-monitor';
 import { initializePoolMonitoring, shutdownPoolMonitoring, getPoolMonitor } from './services/pool-metrics';
+import { 
+  startProductionMonitoring, 
+  stopProductionMonitoring, 
+  configureSentryPerformanceMonitoring,
+  getProductionHealthMetrics 
+} from './lib/production-monitoring';
 
 const log = createLogger('server');
 const prisma = getPrismaClient();
@@ -206,7 +230,25 @@ const envSchema = {
     METRICS_INTERVAL: { type: 'string', default: '60000' }, // 1 minute
     // Development/testing convenience (MUST remain disabled in production)
     ALLOW_DEBUG_USER_ID_HEADER: { type: 'string', default: 'false' },
-    NODE_ENV: { type: 'string', default: 'development' }
+    NODE_ENV: { type: 'string', default: 'development' },
+    // Flutterwave
+    FLW_PUBLIC_KEY: { type: 'string' },
+    FLW_SECRET_KEY: { type: 'string' },
+    FLW_SECRET_HASH: { type: 'string' },
+    FLW_ENCRYPTION_KEY: { type: 'string' },
+    FLW_BASE_URL: { type: 'string', default: 'https://api.flutterwave.com' },
+    FLW_MOCK_MODE: { type: 'string', default: 'true' },
+    // Paystack
+    PAYSTACK_SECRET_KEY: { type: 'string' },
+    PAYSTACK_PUBLIC_KEY: { type: 'string' },
+    PAYSTACK_MOCK_MODE: { type: 'string', default: 'true' },
+    // Payment gateway selection
+    PRIMARY_PAYMENT_GATEWAY: { type: 'string', default: 'flutterwave' },
+    FALLBACK_PAYMENT_GATEWAY: { type: 'string', default: 'paystack' },
+    // Youverify
+    YOUVERIFY_API_KEY: { type: 'string' },
+    YOUVERIFY_BASE_URL: { type: 'string', default: 'https://api.youverify.co' },
+    YOUVERIFY_SANDBOX: { type: 'string', default: 'true' }
   }
 } as const;
 
@@ -217,6 +259,16 @@ async function bootstrap() {
     schema: envSchema,
     dotenv: { path: path.resolve(process.cwd(), '.env') }
   });
+
+  // Validate secrets and log summary at startup
+  const secretsResult = validateSecrets();
+  logSecretsSummary();
+  if (!secretsResult.valid) {
+    log.warn('Secret validation issues detected', {
+      missing: secretsResult.missing,
+      weak: secretsResult.weak,
+    });
+  }
 
   // Register helmet for security headers
   await app.register(helmet, {
@@ -262,6 +314,82 @@ async function bootstrap() {
     inflateIfDeflated: true
   });
 
+  // Register Swagger/OpenAPI documentation
+  await app.register(fastifySwagger, {
+    openapi: {
+      info: {
+        title: 'TaxBridge API',
+        description: 'Comprehensive Nigerian Tax Compliance Platform API - NTA 2025 Compliant',
+        version: '1.0.0',
+        contact: {
+          name: 'TaxBridge Support',
+          email: 'support@taxbridge.ng',
+          url: 'https://taxbridge.ng'
+        },
+        license: {
+          name: 'Proprietary',
+          url: 'https://taxbridge.ng/license'
+        }
+      },
+      servers: [
+        {
+          url: 'https://api.taxbridge.ng',
+          description: 'Production server'
+        },
+        {
+          url: 'https://staging-api.taxbridge.ng',
+          description: 'Staging server'
+        },
+        {
+          url: 'http://localhost:3000',
+          description: 'Development server'
+        }
+      ],
+      tags: [
+        { name: 'Authentication', description: 'User authentication and authorization' },
+        { name: 'Business', description: 'Business registration and verification' },
+        { name: 'Tax Calculations', description: 'PIT, VAT, CIT, CGT, WHT, PAYE calculations' },
+        { name: 'Invoices', description: 'NRS-compliant invoice management' },
+        { name: 'Payments', description: 'Multi-gateway payment processing' },
+        { name: 'Expenses', description: 'Expense tracking with OCR' },
+        { name: 'Payroll', description: 'Payroll and PAYE management' },
+        { name: 'Compliance', description: 'Tax compliance reminders and alerts' },
+        { name: 'Crypto Tax', description: 'Digital asset tax calculations' },
+        { name: 'Reconciliation', description: 'Invoice-payment reconciliation' },
+        { name: 'Health', description: 'Health check and monitoring endpoints' }
+      ],
+      components: {
+        securitySchemes: {
+          bearerAuth: {
+            type: 'http',
+            scheme: 'bearer',
+            bearerFormat: 'JWT',
+            description: 'JWT token obtained from /api/v1/auth/login'
+          }
+        }
+      }
+    }
+  });
+
+  // Register Swagger UI
+  await app.register(fastifySwaggerUi, {
+    routePrefix: '/docs',
+    uiConfig: {
+      docExpansion: 'list',
+      deepLinking: true,
+      displayRequestDuration: true,
+      filter: true,
+      showExtensions: true,
+      showCommonExtensions: true,
+      tryItOutEnabled: true
+    },
+    staticCSP: true,
+    transformStaticCSP: (header) => header,
+    transformSpecification: (swaggerObject) => {
+      return swaggerObject;
+    }
+  });
+
   const sentryReady = setupSentry(app);
   if (sentryReady) {
     log.info('Sentry monitoring enabled');
@@ -299,14 +427,14 @@ async function bootstrap() {
       // Critical dependencies: database and queue/cache
       await prisma.$queryRaw`SELECT 1`;
       const redis = getRedisConnection();
-      await redis.ping();
+      const redisStatus = redis ? await redis.ping().then(() => 'healthy').catch(() => 'unavailable') : 'unavailable';
 
       return reply.send({
         status: 'ready',
         timestamp: new Date().toISOString(),
         dependencies: {
           database: 'healthy',
-          redis: 'healthy'
+          redis: redisStatus
         }
       });
     } catch (error) {
@@ -328,8 +456,7 @@ async function bootstrap() {
       
       const redisStart = Date.now();
       const redis = getRedisConnection();
-      await redis.ping();
-      const redisLatency = Date.now() - redisStart;
+      const redisLatency = redis ? await redis.ping().then(() => Date.now() - redisStart).catch(() => -1) : -1;
       
       // Update component status
       serverMetrics.componentStatus.database = dbLatency < 100 ? 'healthy' : 'degraded';
@@ -744,7 +871,7 @@ taxbridge_component_status{component="sms"} ${serverMetrics.componentStatus.sms 
     }
   });
 
-  // Combined integrations health check (DigiTax + Remita)
+  // Combined integrations health check (DigiTax + Remita + Youverify + Payment Gateways)
   app.get('/health/integrations', async (_req, reply) => {
     const now = new Date().toISOString();
 
@@ -756,6 +883,30 @@ taxbridge_component_status{component="sms"} ${serverMetrics.componentStatus.sms 
 
       const digitax = digitaxInjected.json() as any;
       const remita = remitaInjected.json() as any;
+
+      // Youverify: configured check (no live ping needed)
+      const youverifyConfigured = Boolean(process.env.YOUVERIFY_API_KEY);
+      const youverify = {
+        status: youverifyConfigured ? 'healthy' : 'degraded',
+        provider: 'youverify',
+        configured: youverifyConfigured,
+        sandbox: String(process.env.YOUVERIFY_SANDBOX || 'true').toLowerCase() === 'true',
+        timestamp: now,
+      };
+
+      // Payment gateways: configured check
+      const paystack = {
+        status: Boolean(process.env.PAYSTACK_SECRET_KEY) ? 'healthy' : 'not_configured',
+        provider: 'paystack',
+        configured: Boolean(process.env.PAYSTACK_SECRET_KEY),
+        timestamp: now,
+      };
+      const flutterwave = {
+        status: Boolean(process.env.FLW_SECRET_KEY) ? 'healthy' : 'not_configured',
+        provider: 'flutterwave',
+        configured: Boolean(process.env.FLW_SECRET_KEY),
+        timestamp: now,
+      };
 
       const digitaxStatus = (digitax?.status as string) || 'error';
       const remitaStatus = (remita?.status as string) || 'error';
@@ -777,6 +928,9 @@ taxbridge_component_status{component="sms"} ${serverMetrics.componentStatus.sms 
             // Backward-compatible alias (older dashboards/monitors)
             duplo: digitax,
             remita,
+            youverify,
+            paystack,
+            flutterwave,
           },
           timestamp: now,
         });
@@ -788,6 +942,7 @@ taxbridge_component_status{component="sms"} ${serverMetrics.componentStatus.sms 
           digitax: { status: 'error', provider: 'digitax', error: 'Check failed', timestamp: now },
           duplo: { status: 'error', provider: 'digitax', error: 'Check failed', timestamp: now },
           remita: { status: 'error', provider: 'remita', error: 'Check failed', timestamp: now },
+          youverify: { status: 'error', provider: 'youverify', error: 'Check failed', timestamp: now },
         },
         error: error?.message || 'Failed to check integrations health',
         timestamp: now,
@@ -828,15 +983,21 @@ taxbridge_component_status{component="sms"} ${serverMetrics.componentStatus.sms 
     }
   });
 
-  // Queue health check (BullMQ job counts)
+  // Queue health check
   app.get('/health/queues', async (_req, reply) => {
     try {
       const redis = getRedisConnection();
+      if (!redis) {
+        return reply.status(503).send({
+          status: 'unavailable',
+          message: 'Redis not available - queues disabled in development mode'
+        });
+      }
+      
       const pong = await redis.ping();
       if (pong !== 'PONG') throw new Error('Redis ping failed');
 
       // Retrieve queue job counts via BullMQ Queue class
-      const { Queue } = await import('bullmq');
       const invoiceSyncQueue = new Queue('invoice-sync', { connection: redis });
       const paymentQueue = new Queue('payment-webhook', { connection: redis });
 
@@ -884,6 +1045,16 @@ taxbridge_component_status{component="sms"} ${serverMetrics.componentStatus.sms 
   await app.register(authRoutes);
   await app.register(privacyRoutes);
   await app.register(syncRoutes);
+  await app.register(taxRoutes);
+  await app.register(webhookRoutes, { prisma });
+  await app.register(businessRoutes, { prisma });
+  await app.register(invoiceManagementRoutes, { prisma });
+  await app.register(expenseRoutes, { prisma });
+  await app.register(payrollRoutes, { prisma });
+  await app.register(complianceRoutes, { prisma });
+  await app.register(cryptoRoutes, { prisma });
+  await app.register(reconciliationRoutes, { prisma });
+  await app.register(bulkRoutes, { prisma });
   
   // Phase 3: Feature flags endpoint for mobile app
   const featureFlagsModule = await import('./routes/feature-flags');
@@ -912,6 +1083,13 @@ taxbridge_component_status{component="sms"} ${serverMetrics.componentStatus.sms 
   // Start health monitoring
   if (process.env.ENABLE_METRICS === 'true') {
     startHealthMonitoring();
+  }
+  
+  // Configure and start production monitoring
+  if (process.env.NODE_ENV === 'production') {
+    configureSentryPerformanceMonitoring();
+    startProductionMonitoring(60000); // Every 60 seconds
+    log.info('Production monitoring started', { interval: 60000 });
   }
   
   // Start SMS provider health checks
@@ -996,9 +1174,13 @@ function startHealthMonitoring() {
     try {
       const redisStart = Date.now();
       const redis = getRedisConnection();
-      await redis.ping();
-      redisLatency = Date.now() - redisStart;
-      serverMetrics.componentStatus.redis = redisLatency < 50 ? 'healthy' : redisLatency < 200 ? 'degraded' : 'error';
+      if (redis) {
+        await redis.ping();
+        redisLatency = Date.now() - redisStart;
+        serverMetrics.componentStatus.redis = redisLatency < 50 ? 'healthy' : redisLatency < 200 ? 'degraded' : 'error';
+      } else {
+        serverMetrics.componentStatus.redis = 'degraded';
+      }
     } catch (error) {
       redisError = error;
       serverMetrics.componentStatus.redis = 'error';
@@ -1081,6 +1263,7 @@ async function gracefulShutdown(signal: string) {
     log.info('Shutting down monitoring services');
     shutdownDLQMonitoring();
     shutdownPoolMonitoring();
+    stopProductionMonitoring();
     
     // Close database connections
     log.info('Closing database connections');

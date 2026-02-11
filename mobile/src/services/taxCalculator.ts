@@ -214,18 +214,18 @@ export function determineCITRate(turnover: number): CITCheckResult {
   let category: CITCheckResult['category'];
   let message: string;
 
-  if (turnover <= 50_000_000) {
+  if (turnover <= 25_000_000) {
     rate = 0;
     category = 'small';
-    message = 'Small company relief: 0% CIT';
+    message = 'Small company relief: 0% CIT (≤₦25M)';
   } else if (turnover <= 100_000_000) {
     rate = 0.2;
     category = 'medium';
-    message = 'Medium company rate: 20% CIT';
+    message = 'Medium company rate: 20% CIT (≤₦100M)';
   } else {
     rate = 0.3;
     category = 'large';
-    message = 'Standard rate: 30% CIT on profits';
+    message = 'Standard rate: 30% CIT on profits (>₦100M)';
   }
 
   return {

@@ -585,7 +585,9 @@ export async function healthCheckWithRecovery(): Promise<void> {
     
     await circuitBreakers.redis.execute(async () => {
       const redis = getRedisConnection();
-      await redis.ping();
+      if (redis) {
+        await redis.ping();
+      }
     });
     
     await healthCheckAllProviders();

@@ -41,6 +41,11 @@ export class DLQMonitor {
   constructor(queueNames: string[]) {
     const redis = getRedisConnection();
     
+    if (!redis) {
+      log.warn('Redis unavailable, DLQ monitoring disabled');
+      return;
+    }
+    
     for (const name of queueNames) {
       this.queues.set(name, new Queue(name, { connection: redis }));
     }

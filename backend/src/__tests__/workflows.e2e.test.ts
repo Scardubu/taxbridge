@@ -9,7 +9,7 @@ import {
   mockRemitaStatusResponse,
   createMockInvoiceData,
   createMockPaymentData
-} from '../jest.setup';
+} from '../../jest.setup';
 import axios from 'axios';
 
 // Mock external APIs

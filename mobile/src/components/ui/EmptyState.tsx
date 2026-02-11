@@ -35,6 +35,10 @@ export const EmptyState = memo<EmptyStateProps>(({
     <Animated.View 
       style={styles.container}
       entering={FadeIn}
+      testID="empty-state"
+      accessible
+      accessibilityLabel={title}
+      accessibilityHint={message}
     >
       {illustration || (
         <View style={styles.iconContainer}>
@@ -50,6 +54,9 @@ export const EmptyState = memo<EmptyStateProps>(({
           style={styles.button}
           onPress={action.onPress}
           activeOpacity={0.8}
+          testID="empty-state-action"
+          accessibilityRole="button"
+          accessibilityLabel={action.label}
         >
           <Text style={styles.buttonText}>{action.label}</Text>
         </TouchableOpacity>
@@ -71,7 +78,7 @@ const styles = StyleSheet.create({
   iconContainer: {
     width: 120,
     height: 120,
-    borderRadius: 60,
+    borderRadius: radii.full,
     backgroundColor: colors.surfaceSecondary,
     justifyContent: 'center',
     alignItems: 'center',

@@ -1,8 +1,12 @@
 import { getRedisConnection } from '../queue/client';
 import { createLogger } from '../lib/logger';
 
-const redis = getRedisConnection();
 const log = createLogger('cache');
+
+// Get Redis connection (may be null in development)
+function getRedis() {
+  return getRedisConnection();
+}
 
 // Cache configuration
 const CACHE_CONFIG = {
@@ -85,6 +89,12 @@ export class CacheManager {
     data: T,
     ttl: number = CACHE_CONFIG.defaultTTL
   ): Promise<void> {
+    const redis = getRedis();
+    if (!redis) {
+      log.debug('Redis unavailable, skipping cache set', { namespace: this.namespace, key });
+      return;
+    }
+
     const cacheKey = generateKey(this.namespace, key);
     const entry: CacheEntry<T> = {
       data,
@@ -112,6 +122,11 @@ export class CacheManager {
 
   // Get cache value
   async get<T>(key: string): Promise<T | null> {
+    const redis = getRedis();
+    if (!redis) {
+      return null;
+    }
+
     const cacheKey = generateKey(this.namespace, key);
 
     try {
@@ -157,6 +172,11 @@ export class CacheManager {
 
   // Delete cache value
   async delete(key: string): Promise<void> {
+    const redis = getRedis();
+    if (!redis) {
+      return;
+    }
+
     const cacheKey = generateKey(this.namespace, key);
 
     try {
@@ -170,6 +190,11 @@ export class CacheManager {
 
   // Check if key exists
   async exists(key: string): Promise<boolean> {
+    const redis = getRedis();
+    if (!redis) {
+      return false;
+    }
+
     const cacheKey = generateKey(this.namespace, key);
 
     try {
@@ -183,6 +208,11 @@ export class CacheManager {
 
   // Get multiple values (mget)
   async mget<T>(keys: string[]): Promise<(T | null)[]> {
+    const redis = getRedis();
+    if (!redis) {
+      return keys.map(() => null);
+    }
+
     const cacheKeys = keys.map(key => generateKey(this.namespace, key));
 
     try {
@@ -220,6 +250,12 @@ export class CacheManager {
 
   // Set multiple values (mset)
   async mset<T>(entries: Array<{ key: string; data: T; ttl?: number }>): Promise<void> {
+    const redis = getRedis();
+    if (!redis) {
+      log.debug('Redis unavailable, skipping cache mset', { namespace: this.namespace, count: entries.length });
+      return;
+    }
+
     const pipeline = redis.pipeline();
 
     try {
@@ -251,6 +287,12 @@ export class CacheManager {
 
   // Clear all cache entries for namespace
   async clear(): Promise<void> {
+    const redis = getRedis();
+    if (!redis) {
+      log.debug('Redis unavailable, skipping cache clear', { namespace: this.namespace });
+      return;
+    }
+
     const pattern = generateKey(this.namespace, '*');
 
     try {
@@ -274,6 +316,15 @@ export class CacheManager {
     memoryUsage: number;
     hitRate: number;
   }> {
+    const redis = getRedis();
+    if (!redis) {
+      return {
+        keyCount: 0,
+        memoryUsage: 0,
+        hitRate: 0
+      };
+    }
+
     const pattern = generateKey(this.namespace, '*');
 
     try {
@@ -389,6 +440,12 @@ export async function warmupCache(): Promise<void> {
 
 // Cache cleanup utilities
 export async function cleanupExpiredCache(): Promise<void> {
+  const redis = getRedis();
+  if (!redis) {
+    log.debug('Redis unavailable, skipping cache cleanup');
+    return;
+  }
+
   log.info('Starting expired cache cleanup');
 
   try {
@@ -410,7 +467,9 @@ export async function cleanupExpiredCache(): Promise<void> {
         }
 
         // Check if actually expired by getting the entry
-        const cached = await redis.get(key);
+        const redisConn = getRedis();
+        if (!redisConn) continue;
+        const cached = await redisConn.get(key);
         if (cached) {
           const entry = deserialize<CacheEntry<any>>(cached);
           if (entry) {
@@ -418,7 +477,10 @@ export async function cleanupExpiredCache(): Promise<void> {
             const age = now - entry.timestamp;
 
             if (age > entry.ttl * 1000) {
-              await redis.del(key);
+              const redisConn = getRedis();
+              if (redisConn) {
+                await redisConn.del(key);
+              }
               cleanedCount++;
             }
           }

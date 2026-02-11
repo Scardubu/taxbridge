@@ -200,20 +200,22 @@ export default async function invoicesRoutes(app: FastifyInstance, opts: { prism
       });
 
       const queue = getInvoiceSyncQueue();
-      const maxAttempts = Number.parseInt(process.env.INVOICE_SYNC_MAX_ATTEMPTS || '5', 10);
-      const backoffMs = Number.parseInt(process.env.INVOICE_SYNC_BACKOFF_MS || '1000', 10);
-      const removeOnComplete = Number.parseInt(process.env.INVOICE_SYNC_REMOVE_ON_COMPLETE || '200', 10);
+      if (queue) {
+        const maxAttempts = Number.parseInt(process.env.INVOICE_SYNC_MAX_ATTEMPTS || '5', 10);
+        const backoffMs = Number.parseInt(process.env.INVOICE_SYNC_BACKOFF_MS || '1000', 10);
+        const removeOnComplete = Number.parseInt(process.env.INVOICE_SYNC_REMOVE_ON_COMPLETE || '200', 10);
 
-      await queue.add(
-        'sync',
-        { invoiceId: invoice.id },
-        {
-          attempts: Number.isFinite(maxAttempts) && maxAttempts > 0 ? maxAttempts : 5,
-          backoff: { type: 'exponential', delay: Number.isFinite(backoffMs) && backoffMs > 0 ? backoffMs : 1000 },
-          removeOnComplete: Number.isFinite(removeOnComplete) ? removeOnComplete : true,
-          removeOnFail: false
-        }
-      );
+        await queue.add(
+          'sync',
+          { invoiceId: invoice.id },
+          {
+            attempts: Number.isFinite(maxAttempts) && maxAttempts > 0 ? maxAttempts : 5,
+            backoff: { type: 'exponential', delay: Number.isFinite(backoffMs) && backoffMs > 0 ? backoffMs : 1000 },
+            removeOnComplete: Number.isFinite(removeOnComplete) ? removeOnComplete : true,
+            removeOnFail: false
+          }
+        );
+      }
 
       const responseBody = { invoiceId: invoice.id, status: invoice.status };
 
@@ -396,9 +398,10 @@ export default async function invoicesRoutes(app: FastifyInstance, opts: { prism
       });
 
       const queue = getInvoiceSyncQueue();
-      await queue.add(
-        'sync',
-        { invoiceId: updated.id },
+      if (queue) {
+        await queue.add(
+          'sync',
+          { invoiceId: updated.id },
         {
           attempts: 3,
           backoff: { type: 'exponential', delay: 1000 },
@@ -406,6 +409,7 @@ export default async function invoicesRoutes(app: FastifyInstance, opts: { prism
           removeOnFail: false
         }
       );
+      }
 
       return reply.send({ invoiceId: updated.id, status: updated.status });
     }

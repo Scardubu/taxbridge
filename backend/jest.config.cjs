@@ -2,7 +2,6 @@ module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'node',
   roots: ['<rootDir>/src'],
-  testMatch: ['**/__tests__/**/*.test.ts', '**/?(*.)+(spec|test).ts'],
   testPathIgnorePatterns: ['/node_modules/', '<rootDir>/dist/'],
   collectCoverageFrom: [
     'src/**/*.ts',
@@ -12,16 +11,14 @@ module.exports = {
     '!src/tools/**',
     '!src/mocks/**'
   ],
-  // Coverage thresholds temporarily disabled - focus on optimization pass
-  // TODO: Restore thresholds after test suite stabilization
-  // coverageThreshold: {
-  //   global: {
-  //     branches: 80,
-  //     functions: 80,
-  //     lines: 80,
-  //     statements: 80
-  //   }
-  // },
+  coverageThreshold: {
+    global: {
+      branches: 60,
+      functions: 60,
+      lines: 65,
+      statements: 65
+    }
+  },
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
   transform: { 
     '^.+\\.tsx?$': ['ts-jest', {
@@ -40,8 +37,9 @@ module.exports = {
       displayName: 'unit',
       preset: 'ts-jest',
       testEnvironment: 'node',
-      testMatch: ['<rootDir>/src/**/__tests__/*.unit.test.ts'],
-      testPathIgnorePatterns: ['/integration/', '/e2e/', '<rootDir>/dist/'],
+      roots: ['<rootDir>/src'],
+      testRegex: '__tests__/.*\\.unit\\.test\\.ts$',
+      testPathIgnorePatterns: ['/integration/', '/e2e/', '/dist/', 'tools'],
       setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
       transform: {
         '^.+\\.tsx?$': ['ts-jest', {
@@ -53,8 +51,23 @@ module.exports = {
       displayName: 'integration',
       preset: 'ts-jest',
       testEnvironment: 'node',
-      testMatch: ['<rootDir>/src/**/__tests__/*.integration.test.ts', '<rootDir>/src/**/*.integration.test.ts'],
-      testPathIgnorePatterns: ['/unit/', '/e2e/', '<rootDir>/dist/'],
+      roots: ['<rootDir>/src'],
+      testRegex: '\\.integration\\.test\\.ts$',
+      testPathIgnorePatterns: ['/unit/', '/e2e/', '/dist/', 'tools'],
+      setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
+      transform: {
+        '^.+\\.tsx?$': ['ts-jest', {
+          tsconfig: 'tsconfig.json'
+        }]
+      }
+    },
+    {
+      displayName: 'e2e',
+      preset: 'ts-jest',
+      testEnvironment: 'node',
+      roots: ['<rootDir>/src'],
+      testRegex: '(\.e2e\.test\.ts$|critical-journeys)',
+      testPathIgnorePatterns: ['/unit/', '/integration/', '/dist/', 'workflows\\.e2e\\.test', 'tools'],
       setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
       transform: {
         '^.+\\.tsx?$': ['ts-jest', {

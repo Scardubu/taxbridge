@@ -675,9 +675,9 @@ const styles = StyleSheet.create({
     marginVertical: spacing.md,
   },
   itemsTitle: {
-    fontSize: 20,
+    fontSize: typography.size.xl,
     lineHeight: 28,
-    fontWeight: '600' as const,
+    fontWeight: typography.weight.semibold,
     color: colors.textPrimary,
     marginBottom: spacing.sm,
   },

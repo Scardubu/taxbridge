@@ -13,7 +13,12 @@
     "noImplicitAny": false,
     "allowJs": true,
     "resolveJsonModule": true,
-    "declaration": true
+    "declaration": true,
+    "baseUrl": ".",
+    "paths": {
+      "@taxbridge/contracts": ["../packages/contracts/src/index"],
+      "@taxbridge/contracts/*": ["../packages/contracts/src/*"]
+    }
   },
   "include": ["src", "db", "integrations"],
   "exclude": [

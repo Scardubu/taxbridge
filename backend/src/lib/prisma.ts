@@ -2,6 +2,7 @@ import { PrismaClient } from '@prisma/client';
 import { attachEncryptionMiddleware } from '../services/encryption';
 import { createLogger } from './logger';
 import { recordSlowQuery } from '../services/pool-metrics';
+import { createQueryLoggingMiddleware } from './query-logger';
 
 const log = createLogger('prisma');
 
@@ -101,6 +102,9 @@ export function getPrismaClient(): PrismaClient {
 
     // Attach encryption middleware
     attachEncryptionMiddleware(prismaInstance);
+
+    // Attach query logging middleware for performance monitoring
+    prismaInstance.$use(createQueryLoggingMiddleware());
 
     // Log Prisma warnings and errors
     prismaInstance.$on('warn' as never, (e: any) => {

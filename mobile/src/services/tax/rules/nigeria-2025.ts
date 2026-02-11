@@ -5,7 +5,7 @@
  * Updated for Tax Act 2025 amendments and NRS/DigiTax requirements
  */
 
-import { PIT_BRACKETS, VAT_RATE, CIT_RATE_LARGE, CIT_RATE_SMALL } from '../engine';
+import { PIT_BRACKETS, VAT_RATE, CIT_RATE_LARGE, CIT_RATE_MEDIUM, CIT_RATE_SMALL } from '../engine';
 
 // ============================================================================
 // Tax Exemptions & Reliefs
@@ -198,7 +198,7 @@ export const SME_RELIEFS: Record<'micro' | 'small' | 'medium', SMERelief> = {
     category: 'micro',
     benefits: [
       'Simplified tax filing',
-      'Lower CIT rate (20%)',
+      'CIT exempt (0%)',
       'Optional VAT registration',
       'Reduced compliance requirements',
     ],
@@ -208,9 +208,9 @@ export const SME_RELIEFS: Record<'micro' | 'small' | 'medium', SMERelief> = {
   small: {
     category: 'small',
     benefits: [
-      'Lower CIT rate (20%)',
+      'CIT exempt (0%)',
       'Accelerated depreciation',
-      'Optional VAT registration below ₦25M turnover',
+      'Optional VAT registration below ₦100M turnover',
     ],
     citRate: CIT_RATE_SMALL,
     vatRegistrationMandatory: false,
@@ -218,11 +218,11 @@ export const SME_RELIEFS: Record<'micro' | 'small' | 'medium', SMERelief> = {
   medium: {
     category: 'medium',
     benefits: [
-      'Standard CIT rate (30%)',
+      'Medium CIT rate (20%)',
       'Investment allowances',
       'Mandatory VAT registration',
     ],
-    citRate: CIT_RATE_LARGE,
+    citRate: CIT_RATE_MEDIUM,
     vatRegistrationMandatory: true,
   },
 };

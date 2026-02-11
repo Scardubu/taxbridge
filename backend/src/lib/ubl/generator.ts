@@ -228,6 +228,7 @@ export function generateUBL(invoice: InvoiceData): string {
     .txt(invoice.total.toFixed(2))
     .up()
     .ele('cbc:PayableAmount', { currencyID: CURRENCY_CODE })
+    .txt(invoice.total.toFixed(2))
     .up();
 
   return doc.end({ prettyPrint: true });

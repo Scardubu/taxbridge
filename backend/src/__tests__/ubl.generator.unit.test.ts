@@ -214,9 +214,13 @@ describe('UBL Generator (Peppol BIS Billing 3.0)', () => {
       if (err) throw err;
       
       // Extract values from xml2js result (handles both object and string formats)
-      const getNumericValue = (val: any) => {
+      const getNumericValue = (val: any): number => {
         if (typeof val === 'string') return parseFloat(val);
-        if (val && typeof val === 'object' && val._) return parseFloat(val._);
+        if (typeof val === 'number') return val;
+        if (val && typeof val === 'object') {
+          if (val._ !== undefined) return parseFloat(String(val._));
+          if (Array.isArray(val) && val.length > 0) return getNumericValue(val[0]);
+        }
         return NaN;
       };
       
@@ -245,9 +249,13 @@ describe('UBL Generator (Peppol BIS Billing 3.0)', () => {
       if (err) throw err;
       
       // Helper to extract numeric values
-      const getNumericValue = (val: any) => {
+      const getNumericValue = (val: any): number => {
         if (typeof val === 'string') return parseFloat(val);
-        if (val && typeof val === 'object' && val._) return parseFloat(val._);
+        if (typeof val === 'number') return val;
+        if (val && typeof val === 'object') {
+          if (val._ !== undefined) return parseFloat(String(val._));
+          if (Array.isArray(val) && val.length > 0) return getNumericValue(val[0]);
+        }
         return NaN;
       };
       
@@ -288,9 +296,13 @@ describe('UBL Generator (Peppol BIS Billing 3.0)', () => {
       if (err) throw err;
       
       // Helper to extract numeric values
-      const getNumericValue = (val: any) => {
+      const getNumericValue = (val: any): number => {
         if (typeof val === 'string') return parseFloat(val);
-        if (val && typeof val === 'object' && val._) return parseFloat(val._);
+        if (typeof val === 'number') return val;
+        if (val && typeof val === 'object') {
+          if (val._ !== undefined) return parseFloat(String(val._));
+          if (Array.isArray(val) && val.length > 0) return getNumericValue(val[0]);
+        }
         return NaN;
       };
       
