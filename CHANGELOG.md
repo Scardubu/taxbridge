@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.0.1] - 2026-02-11 - Production Deployment Success 🚀
+
+### 🎯 Critical Fixes
+- **Backend Build Paths:** Fixed TypeScript output paths in package.json (`dist/backend/src/` instead of `dist/src/`)
+  - Updated `start`, `start:prod`, `worker`, and `ubl:validate:prod` scripts
+  - Resolved MODULE_NOT_FOUND error on Render deployment
+- **Mobile Crash Prevention:** Rewrote OnboardingScreen with crash-safe async handlers and Sentry error reporting
+- **Animation Fixes:** Replaced string-based Reanimated animations with numeric shared values in LivingBridgeHeader and BrandedHero
+- **Splash Screen:** Removed premature native splash hiding to prevent dual-logo flash
+- **TypeScript Errors:** Fixed TS2686 React UMD global errors and TS1345 void casting issues
+
+### ✅ Production Deployments
+- **Backend (Render):** Live at https://taxbridge-api-ker8.onrender.com
+  - Build time: 1m 42s
+  - All health checks passing
+  - Database and Redis connections established
+- **Admin Dashboard (Vercel):** Live at https://taxbridge.vercel.app
+  - Build time: 1m
+  - Successfully deployed and redirecting to dashboard
+
+### 📝 Operational Notes
+- FAQ file path needs verification: `/backend/dist/backend/src/data/tax_faqs.json`
+- Redis eviction policy: `volatile-lru` (consider `noeviction` for production)
+- Cache hit rate: 4.04% (initial deployment baseline)
+
+### 🔧 Technical Details
+- **Commit:** daf5a97809f378c9b5e6da53ea8087d7aee29c2e
+- **Branch:** master
+- **Node Version:** 20.19.4
+- **Prisma Client:** v5.22.0
+
+---
+
 ## [1.0.0] - 2026-02-10 - Phase 10: Repository Cleanup & Final Polish ✨
 
 ### 🧹 Repository Cleanup
