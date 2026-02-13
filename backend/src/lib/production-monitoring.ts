@@ -62,6 +62,18 @@ export async function getCacheMetrics(): Promise<{
     };
   }
 
+  // Check if Redis is connected (status can be 'ready', 'connecting', 'reconnecting', 'end', 'close')
+  if (redis.status !== 'ready') {
+    return {
+      hitRate: 0,
+      missRate: 0,
+      totalRequests: 0,
+      evictions: 0,
+      memoryUsage: '0MB',
+      keyCount: 0,
+    };
+  }
+
   try {
     const info = await redis.info('stats');
     const memory = await redis.info('memory');
