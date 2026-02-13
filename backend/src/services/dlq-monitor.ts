@@ -47,7 +47,7 @@ export class DLQMonitor {
     }
     
     for (const name of queueNames) {
-      this.queues.set(name, new Queue(name, { connection: redis }));
+      this.queues.set(name, new Queue(name, { connection: redis as any }));
     }
   }
 

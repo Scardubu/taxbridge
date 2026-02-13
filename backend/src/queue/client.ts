@@ -106,7 +106,7 @@ export function getInvoiceSyncQueue(): Queue | null {
   if (!redis) return null;
 
   if (!invoiceSyncQueue) {
-    invoiceSyncQueue = new Queue('invoice-sync', { connection: redis });
+    invoiceSyncQueue = new Queue('invoice-sync', { connection: redis as any });
   }
 
   return invoiceSyncQueue;
@@ -117,7 +117,7 @@ export function getPaymentQueue(): Queue | null {
   if (!redis) return null;
 
   if (!paymentQueue) {
-    paymentQueue = new Queue('payment-webhook', { connection: redis });
+    paymentQueue = new Queue('payment-webhook', { connection: redis as any });
   }
 
   return paymentQueue;
@@ -128,7 +128,7 @@ export function getDeviceSyncQueue(): Queue | null {
   if (!redis) return null;
 
   if (!deviceSyncQueue) {
-    deviceSyncQueue = new Queue('device-sync', { connection: redis });
+    deviceSyncQueue = new Queue('device-sync', { connection: redis as any });
   }
 
   return deviceSyncQueue;

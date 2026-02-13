@@ -998,8 +998,8 @@ taxbridge_component_status{component="sms"} ${serverMetrics.componentStatus.sms 
       if (pong !== 'PONG') throw new Error('Redis ping failed');
 
       // Retrieve queue job counts via BullMQ Queue class
-      const invoiceSyncQueue = new Queue('invoice-sync', { connection: redis });
-      const paymentQueue = new Queue('payment-webhook', { connection: redis });
+      const invoiceSyncQueue = new Queue('invoice-sync', { connection: redis as any });
+      const paymentQueue = new Queue('payment-webhook', { connection: redis as any });
 
       const [invoiceCounts, paymentCounts] = await Promise.all([
         invoiceSyncQueue.getJobCounts(),
