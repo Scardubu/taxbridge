@@ -111,8 +111,29 @@ export function getPrismaClient(): PrismaClient {
       log.warn('Prisma warning', { message: e.message });
     });
 
+    // Throttle identical Prisma errors (e.g. P1001 when DB is unreachable)
+    let lastPrismaErrorMsg = '';
+    let lastPrismaErrorAt = 0;
+    let suppressedCount = 0;
+
     prismaInstance.$on('error' as never, (e: any) => {
-      log.error('Prisma error', { message: e.message });
+      const msg = String(e.message || '').split('\n')[0];
+      const now = Date.now();
+
+      if (msg === lastPrismaErrorMsg && now - lastPrismaErrorAt < 300_000) {
+        // Same error within 5 minutes — suppress
+        suppressedCount++;
+        return;
+      }
+
+      // New error or cooldown expired — log it
+      if (suppressedCount > 0) {
+        log.warn('Suppressed repeated Prisma errors', { count: suppressedCount, lastError: lastPrismaErrorMsg });
+      }
+      lastPrismaErrorMsg = msg;
+      lastPrismaErrorAt = now;
+      suppressedCount = 0;
+      log.error('Prisma error', { message: msg });
     });
 
     // Surface slow queries for easier performance tuning

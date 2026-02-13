@@ -1166,6 +1166,9 @@ function startHealthMonitoring() {
   const logThrottleMs = Number(process.env.HEALTH_LOG_THROTTLE_MS || '300000'); // 5 minutes
   let lastLogKey: string | null = null;
   let lastLogAt = 0;
+  // Local DB skip tracker — avoids hammering unreachable DB every interval
+  let dbLastFailAt = 0;
+  const dbCooldownMs = 5 * 60 * 1000; // 5 minutes
   
   healthCheckInterval = setInterval(async () => {
     if (isShuttingDown) return;
@@ -1176,15 +1179,22 @@ function startHealthMonitoring() {
     let dbError: unknown;
     let redisError: unknown;
 
-    // Check database (non-fatal)
-    try {
-      const dbStart = Date.now();
-      await prisma.$queryRaw`SELECT 1`;
-      dbLatency = Date.now() - dbStart;
-      serverMetrics.componentStatus.database = dbLatency < 100 ? 'healthy' : dbLatency < 500 ? 'degraded' : 'error';
-    } catch (error) {
-      dbError = error;
+    // Check database (non-fatal) — skip during cooldown to avoid log flooding
+    const dbSkip = dbLastFailAt > 0 && (now - dbLastFailAt) < dbCooldownMs;
+    if (dbSkip) {
       serverMetrics.componentStatus.database = 'error';
+    } else {
+      try {
+        const dbStart = Date.now();
+        await prisma.$queryRaw`SELECT 1`;
+        dbLatency = Date.now() - dbStart;
+        dbLastFailAt = 0; // Reset on success
+        serverMetrics.componentStatus.database = dbLatency < 100 ? 'healthy' : dbLatency < 500 ? 'degraded' : 'error';
+      } catch (error) {
+        dbError = error;
+        dbLastFailAt = now;
+        serverMetrics.componentStatus.database = 'error';
+      }
     }
 
     // Check Redis (non-fatal)

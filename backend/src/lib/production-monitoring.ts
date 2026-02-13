@@ -11,6 +11,55 @@
 import * as Sentry from '@sentry/node';
 import { getRedisConnection } from '../queue/client';
 import { prisma } from './prisma';
+import { createLogger } from './logger';
+
+const log = createLogger('production-monitoring');
+
+// =============================================================================
+// Database Circuit Breaker
+// =============================================================================
+
+const dbCircuitBreaker = {
+  isOpen: false,
+  lastFailure: 0,
+  failureCount: 0,
+  cooldownMs: 5 * 60 * 1000, // 5 minutes between retries when DB is down
+  lastErrorMessage: '',
+
+  recordFailure(errorMessage: string) {
+    this.isOpen = true;
+    this.failureCount++;
+    this.lastFailure = Date.now();
+    // Only log if this is a NEW error or first occurrence
+    if (this.failureCount === 1 || errorMessage !== this.lastErrorMessage) {
+      log.error('Database unreachable — circuit breaker OPEN, suppressing further DB queries', {
+        failureCount: this.failureCount,
+        cooldownMs: this.cooldownMs,
+        error: errorMessage,
+      });
+    }
+    this.lastErrorMessage = errorMessage;
+  },
+
+  recordSuccess() {
+    if (this.isOpen) {
+      log.info('Database connection restored — circuit breaker CLOSED', {
+        previousFailures: this.failureCount,
+      });
+    }
+    this.isOpen = false;
+    this.failureCount = 0;
+    this.lastErrorMessage = '';
+  },
+
+  shouldSkip(): boolean {
+    if (!this.isOpen) return false;
+    const elapsed = Date.now() - this.lastFailure;
+    // Allow a retry after cooldown
+    if (elapsed >= this.cooldownMs) return false;
+    return true;
+  },
+};
 
 // =============================================================================
 // Performance Metrics
@@ -106,8 +155,8 @@ export async function getCacheMetrics(): Promise<{
       memoryUsage,
       keyCount,
     };
-  } catch (error) {
-    console.error('Error fetching cache metrics:', error);
+  } catch (error: any) {
+    log.debug('Error fetching cache metrics', { error: error?.message?.split('\n')[0] });
     return {
       hitRate: 0,
       missRate: 0,
@@ -123,34 +172,37 @@ export async function getCacheMetrics(): Promise<{
 // Database Performance Monitoring
 // =============================================================================
 
-export async function getDatabaseMetrics(): Promise<{
-  connectionPoolSize: number;
-  activeConnections: number;
-  idleConnections: number;
-  waitingRequests: number;
-  slowQueryCount: number;
-}> {
-  try {
-    // Prisma $metrics requires the metrics preview feature to be enabled.
-    // Use a simple health check instead to avoid build errors.
-    await prisma.$queryRaw`SELECT 1`;
+const DB_METRICS_DEFAULTS = {
+  connectionPoolSize: 10,
+  activeConnections: 0,
+  idleConnections: 0,
+  waitingRequests: 0,
+  slowQueryCount: 0,
+  reachable: false,
+};
 
-    return {
-      connectionPoolSize: 10, // From config
-      activeConnections: 0, // Requires $metrics preview feature
-      idleConnections: 0, // Not directly available
-      waitingRequests: 0, // Not directly available
-      slowQueryCount: 0, // Tracked by query logger
-    };
-  } catch (error) {
-    console.error('Error fetching database metrics:', error);
+export async function getDatabaseMetrics(): Promise<typeof DB_METRICS_DEFAULTS> {
+  // Circuit breaker: skip DB queries during cooldown
+  if (dbCircuitBreaker.shouldSkip()) {
+    return { ...DB_METRICS_DEFAULTS };
+  }
+
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    dbCircuitBreaker.recordSuccess();
+
     return {
       connectionPoolSize: 10,
       activeConnections: 0,
       idleConnections: 0,
       waitingRequests: 0,
       slowQueryCount: 0,
+      reachable: true,
     };
+  } catch (error: any) {
+    const msg = error?.message?.split('\n')[0] || 'Unknown DB error';
+    dbCircuitBreaker.recordFailure(msg);
+    return { ...DB_METRICS_DEFAULTS };
   }
 }
 
@@ -165,6 +217,9 @@ export async function analyzeIndexUsage(): Promise<Array<{
   indexSize: string;
   recommendation: string;
 }>> {
+  // Skip if DB is known to be unreachable
+  if (dbCircuitBreaker.shouldSkip()) return [];
+
   try {
     const result = await prisma.$queryRaw<Array<{
       schemaname: string;
@@ -191,15 +246,16 @@ export async function analyzeIndexUsage(): Promise<Array<{
       tableName: row.tablename,
       indexName: row.indexname,
       indexScans: Number(row.idx_scan),
-      indexSize: 'N/A', // Would need additional query
+      indexSize: 'N/A',
       recommendation: Number(row.idx_scan) === 0 
         ? 'Consider removing unused index' 
         : Number(row.idx_scan) < 100 
         ? 'Low usage - monitor for removal' 
         : 'Index is being used effectively',
     }));
-  } catch (error) {
-    console.error('Error analyzing index usage:', error);
+  } catch (error: any) {
+    const msg = error?.message?.split('\n')[0] || 'Unknown error';
+    dbCircuitBreaker.recordFailure(msg);
     return [];
   }
 }
@@ -208,7 +264,9 @@ export async function analyzeIndexUsage(): Promise<Array<{
 // Performance Alerts
 // =============================================================================
 
-export async function checkPerformanceAlerts(): Promise<{
+export async function checkPerformanceAlerts(
+  cachedDbMetrics?: Awaited<ReturnType<typeof getDatabaseMetrics>>,
+): Promise<{
   alerts: Array<{
     severity: 'critical' | 'warning' | 'info';
     category: string;
@@ -253,9 +311,11 @@ export async function checkPerformanceAlerts(): Promise<{
     });
   }
 
-  // Check database connection pool
-  const dbMetrics = await getDatabaseMetrics();
-  const poolUsage = (dbMetrics.activeConnections / dbMetrics.connectionPoolSize) * 100;
+  // Check database connection pool (reuse cached metrics if provided)
+  const dbMetrics = cachedDbMetrics ?? await getDatabaseMetrics();
+  const poolUsage = dbMetrics.connectionPoolSize > 0
+    ? (dbMetrics.activeConnections / dbMetrics.connectionPoolSize) * 100
+    : 0;
   
   if (poolUsage > 80) {
     alerts.push({
@@ -291,7 +351,7 @@ export function configureSentryPerformanceMonitoring() {
     return event;
   });
 
-  console.log('✅ Sentry performance monitoring configured');
+  log.info('Sentry performance monitoring configured');
 }
 
 // =============================================================================
@@ -307,11 +367,13 @@ export async function getProductionHealthMetrics(): Promise<{
     alerts: Awaited<ReturnType<typeof checkPerformanceAlerts>>;
   };
 }> {
-  const [cache, database, alerts] = await Promise.all([
+  // Fetch cache and DB metrics first, then pass DB metrics to alerts check
+  // to avoid duplicate DB queries (checkPerformanceAlerts also calls getDatabaseMetrics)
+  const [cache, database] = await Promise.all([
     getCacheMetrics(),
     getDatabaseMetrics(),
-    checkPerformanceAlerts(),
   ]);
+  const alerts = await checkPerformanceAlerts(database);
 
   const criticalAlerts = alerts.alerts.filter(a => a.severity === 'critical');
   const warningAlerts = alerts.alerts.filter(a => a.severity === 'warning');
@@ -339,14 +401,16 @@ export async function getProductionHealthMetrics(): Promise<{
 // =============================================================================
 
 let monitoringInterval: NodeJS.Timeout | null = null;
+let lastMetricsKey = '';
+let lastMetricsLogAt = 0;
 
 export function startProductionMonitoring(intervalMs: number = 60000) {
   if (monitoringInterval) {
-    console.log('⚠️  Production monitoring already running');
+    log.warn('Production monitoring already running');
     return;
   }
 
-  console.log(`🔍 Starting production monitoring (interval: ${intervalMs}ms)`);
+  log.info('Starting production monitoring', { intervalMs });
 
   // Initial check
   void checkAndReportMetrics();
@@ -361,7 +425,7 @@ export function stopProductionMonitoring() {
   if (monitoringInterval) {
     clearInterval(monitoringInterval);
     monitoringInterval = null;
-    console.log('🛑 Production monitoring stopped');
+    log.info('Production monitoring stopped');
   }
 }
 
@@ -369,14 +433,21 @@ async function checkAndReportMetrics() {
   try {
     const health = await getProductionHealthMetrics();
     
-    // Log metrics
-    console.log('📊 Production Metrics:', {
-      status: health.status,
-      cacheHitRate: `${health.metrics.cache.hitRate}%`,
-      cacheKeys: health.metrics.cache.keyCount,
-      dbConnections: health.metrics.database.activeConnections,
-      alerts: health.metrics.alerts.alerts.length,
-    });
+    // Log metrics (throttle: only log when status changes or every 5 minutes)
+    const metricsKey = `${health.status}:${health.metrics.alerts.alerts.length}`;
+    const now = Date.now();
+    if (metricsKey !== lastMetricsKey || now - lastMetricsLogAt >= 300_000) {
+      lastMetricsKey = metricsKey;
+      lastMetricsLogAt = now;
+      log.info('Production metrics', {
+        status: health.status,
+        cacheHitRate: `${health.metrics.cache.hitRate}%`,
+        cacheKeys: health.metrics.cache.keyCount,
+        dbReachable: health.metrics.database.reachable,
+        dbConnections: health.metrics.database.activeConnections,
+        alerts: health.metrics.alerts.alerts.length,
+      });
+    }
 
     // Send critical alerts to Sentry
     for (const alert of health.metrics.alerts.alerts) {
@@ -406,8 +477,9 @@ async function checkAndReportMetrics() {
         alert_count: health.metrics.alerts.alerts.length,
       },
     });
-  } catch (error) {
-    console.error('❌ Error checking production metrics:', error);
+  } catch (error: any) {
+    const msg = error?.message?.split('\n')[0] || 'Unknown monitoring error';
+    log.error('Error checking production metrics', { error: msg });
     Sentry.captureException(error);
   }
 }
