@@ -13,9 +13,9 @@ $global:testsFailed = 0
 
 function Write-TestHeader {
     param([string]$Title)
-    Write-Host "`n═══════════════════════════════════════" -ForegroundColor Cyan
+    Write-Host "`n=======================================" -ForegroundColor Cyan
     Write-Host "  $Title" -ForegroundColor Cyan
-    Write-Host "═══════════════════════════════════════" -ForegroundColor Cyan
+    Write-Host "=======================================" -ForegroundColor Cyan
 }
 
 function Test-Endpoint {
@@ -39,7 +39,7 @@ function Test-Endpoint {
         $response = Invoke-WebRequest @params -ErrorAction Stop
         
         if ($response.StatusCode -eq $ExpectedStatus) {
-            Write-Host "  ✓ $Name" -ForegroundColor Green -NoNewline
+            Write-Host "  [PASS] $Name" -ForegroundColor Green -NoNewline
             Write-Host " ($($response.StatusCode))" -ForegroundColor Gray
             $global:testsPassed++
             
@@ -50,7 +50,7 @@ function Test-Endpoint {
             
             return @{ Success = $true; Response = $response }
         } else {
-            Write-Host "  ✗ $Name" -ForegroundColor Red -NoNewline
+            Write-Host "  [FAIL] $Name" -ForegroundColor Red -NoNewline
             Write-Host " (Expected: $ExpectedStatus, Got: $($response.StatusCode))" -ForegroundColor Yellow
             $global:testsFailed++
             return @{ Success = $false; Response = $response }
@@ -62,24 +62,24 @@ function Test-Endpoint {
         }
         
         if ($statusCode -eq $ExpectedStatus) {
-            Write-Host "  ✓ $Name" -ForegroundColor Green -NoNewline
+            Write-Host "  [PASS] $Name" -ForegroundColor Green -NoNewline
             Write-Host " ($statusCode)" -ForegroundColor Gray
             $global:testsPassed++
             return @{ Success = $true }
         }
         
-        Write-Host "  ✗ $Name" -ForegroundColor Red -NoNewline
+        Write-Host "  [FAIL] $Name" -ForegroundColor Red -NoNewline
         Write-Host " (Error: $($_.Exception.Message))" -ForegroundColor Yellow
         $global:testsFailed++
         return @{ Success = $false; Error = $_.Exception.Message }
     }
 }
 
-# ═══════════════════════════════════════════════════════════
+# ===========================================================
 # START SMOKE TESTS
-# ═══════════════════════════════════════════════════════════
+# ===========================================================
 
-Write-Host "🔥 TaxBridge Post-Deployment Smoke Tests" -ForegroundColor Cyan
+Write-Host ">>> TaxBridge Post-Deployment Smoke Tests <<<" -ForegroundColor Cyan
 Write-Host "Timestamp: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" -ForegroundColor Gray
 Write-Host "API: $ApiUrl" -ForegroundColor Gray
 Write-Host "Admin: $AdminUrl" -ForegroundColor Gray
@@ -128,16 +128,16 @@ foreach ($endpoint in $endpoints) {
         $responseTime = $stopwatch.ElapsedMilliseconds
         
         if ($responseTime -le $endpoint.Target) {
-            Write-Host "  ✓ $($endpoint.Name)" -ForegroundColor Green -NoNewline
+            Write-Host "  [PASS] $($endpoint.Name)" -ForegroundColor Green -NoNewline
             Write-Host " (${responseTime}ms, target: $($endpoint.Target)ms)" -ForegroundColor Gray
             $global:testsPassed++
         } else {
-            Write-Host "  ⚠ $($endpoint.Name)" -ForegroundColor Yellow -NoNewline
+            Write-Host "  [WARN] $($endpoint.Name)" -ForegroundColor Yellow -NoNewline
             Write-Host " (${responseTime}ms, target: $($endpoint.Target)ms)" -ForegroundColor Yellow
         }
     } catch {
         $stopwatch.Stop()
-        Write-Host "  ✗ $($endpoint.Name)" -ForegroundColor Red -NoNewline
+        Write-Host "  [FAIL] $($endpoint.Name)" -ForegroundColor Red -NoNewline
         Write-Host " (Failed to measure)" -ForegroundColor Yellow
         $global:testsFailed++
     }
@@ -161,23 +161,23 @@ try {
     foreach ($header in $securityHeaders) {
         if ($headers.ContainsKey($header)) {
             $headerValue = $headers[$header]
-            Write-Host "  ✓ $header" -ForegroundColor Green -NoNewline
+            Write-Host "  [PASS] $header" -ForegroundColor Green -NoNewline
             Write-Host " ($headerValue)" -ForegroundColor Gray
             $global:testsPassed++
         } else {
-            Write-Host "  ✗ $header" -ForegroundColor Red -NoNewline
+            Write-Host "  [FAIL] $header" -ForegroundColor Red -NoNewline
             Write-Host " (Missing)" -ForegroundColor Yellow
             $global:testsFailed++
         }
     }
 } catch {
-    Write-Host "  ✗ Unable to verify security headers" -ForegroundColor Red
+    Write-Host "  [FAIL] Unable to verify security headers" -ForegroundColor Red
     $global:testsFailed++
 }
 
-# ═══════════════════════════════════════════════════════════
+# ===========================================================
 # SUMMARY
-# ═══════════════════════════════════════════════════════════
+# ===========================================================
 
 Write-TestHeader "Test Summary"
 
@@ -196,11 +196,11 @@ Write-Host "  Pass Rate:    $passRate%" -ForegroundColor $(if ($passRate -ge 90)
 Write-Host ""
 
 if ($global:testsFailed -eq 0) {
-    Write-Host "✅ All smoke tests passed! Deployment verified." -ForegroundColor Green
+    Write-Host "[OK] All smoke tests passed! Deployment verified." -ForegroundColor Green
     exit 0
 } else {
-    Write-Host "⚠️  $global:testsFailed smoke test(s) failed. Review and investigate." -ForegroundColor Yellow
-    Write-Host "`n🔧 Troubleshooting:" -ForegroundColor Yellow
+    Write-Host "[WARN] $global:testsFailed smoke test(s) failed. Review and investigate." -ForegroundColor Yellow
+    Write-Host "`nTroubleshooting:" -ForegroundColor Yellow
     Write-Host "  1. Check Render.com logs: https://dashboard.render.com" -ForegroundColor White
     Write-Host "  2. Check Vercel logs: https://vercel.com/dashboard" -ForegroundColor White
     Write-Host "  3. Verify environment variables are set correctly" -ForegroundColor White

@@ -27,14 +27,41 @@ function main() {
   const backendDir = path.resolve(__dirname, '..');
 
   const srcDataDir = path.join(backendDir, 'src', 'data');
-  const distDataDir = path.join(backendDir, 'dist', 'src', 'data');
+
+  // TypeScript may output to dist/src/ or dist/backend/src/ depending on
+  // rootDir inference (monorepo path imports can expand rootDir to repo root).
+  // Detect the actual structure by checking for the compiled server entry point.
+  const nestedServerPath = path.join(backendDir, 'dist', 'backend', 'src', 'server.js');
+  const flatServerPath = path.join(backendDir, 'dist', 'src', 'server.js');
+
+  const destinations = [];
+
+  if (fs.existsSync(nestedServerPath)) {
+    // tsc produced dist/backend/src/ structure
+    destinations.push(path.join(backendDir, 'dist', 'backend', 'src', 'data'));
+  }
+  if (fs.existsSync(flatServerPath)) {
+    // tsc produced dist/src/ structure
+    destinations.push(path.join(backendDir, 'dist', 'src', 'data'));
+  }
+
+  // Fallback: always include both so it works regardless
+  if (destinations.length === 0) {
+    destinations.push(path.join(backendDir, 'dist', 'src', 'data'));
+    destinations.push(path.join(backendDir, 'dist', 'backend', 'src', 'data'));
+  }
 
   try {
-    const result = copyDir(srcDataDir, distDataDir);
-    if (result.copied) {
-      console.log(`✅ Copied static assets: ${srcDataDir} → ${distDataDir}`);
-    } else {
-      console.log(`ℹ️  No static assets copied (${result.reason})`);
+    let copied = false;
+    for (const distDataDir of destinations) {
+      const result = copyDir(srcDataDir, distDataDir);
+      if (result.copied) {
+        console.log(`✅ Copied static assets: ${srcDataDir} → ${distDataDir}`);
+        copied = true;
+      }
+    }
+    if (!copied) {
+      console.log(`ℹ️  No static assets copied (source missing: ${srcDataDir})`);
     }
   } catch (err) {
     console.error('❌ Failed to copy static assets', err);

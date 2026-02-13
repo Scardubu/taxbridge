@@ -230,7 +230,7 @@ export async function checkPerformanceAlerts(): Promise<{
 
   // Check cache hit rate
   const cacheMetrics = await getCacheMetrics();
-  if (cacheMetrics.hitRate < 70 && cacheMetrics.totalRequests > 100) {
+  if (cacheMetrics.hitRate < 70 && cacheMetrics.totalRequests > 1000) {
     alerts.push({
       severity: 'warning',
       category: 'cache',
