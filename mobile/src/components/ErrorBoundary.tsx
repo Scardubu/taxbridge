@@ -18,6 +18,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   SafeAreaView,
+  Linking,
 } from 'react-native';
 import { captureException, addBreadcrumb } from '../services/sentry';
 import { colors, spacing, radii, typography } from '../theme/tokens';
@@ -32,6 +33,7 @@ interface State {
   hasError: boolean;
   error: Error | null;
   errorInfo: ErrorInfo | null;
+  errorId: string | null;
 }
 
 export class ErrorBoundary extends Component<Props, State> {
@@ -41,11 +43,13 @@ export class ErrorBoundary extends Component<Props, State> {
       hasError: false,
       error: null,
       errorInfo: null,
+      errorId: null,
     };
   }
 
   static getDerivedStateFromError(error: Error): Partial<State> {
-    return { hasError: true, error };
+    const errorId = `TB-${Date.now().toString(36).toUpperCase()}`;
+    return { hasError: true, error, errorId };
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
@@ -60,6 +64,7 @@ export class ErrorBoundary extends Component<Props, State> {
     captureException(error, {
       componentStack: errorInfo.componentStack,
       errorBoundary: true,
+      errorId: this.state.errorId,
     });
 
     this.setState({ errorInfo });
@@ -76,11 +81,19 @@ export class ErrorBoundary extends Component<Props, State> {
       hasError: false,
       error: null,
       errorInfo: null,
+      errorId: null,
     });
   };
 
+  handleContactSupport = (): void => {
+    const { errorId } = this.state;
+    const message = `Hi TaxBridge Support, I encountered an error in the app.\nError ID: ${errorId || 'unknown'}\nPlease help me resolve this.`;
+    const whatsappUrl = `https://wa.me/2348012345678?text=${encodeURIComponent(message)}`;
+    Linking.openURL(whatsappUrl).catch(() => {});
+  };
+
   render(): ReactNode {
-    const { hasError, error } = this.state;
+    const { hasError, error, errorId } = this.state;
     const { children, fallback } = this.props;
 
     if (hasError) {
@@ -109,6 +122,14 @@ export class ErrorBoundary extends Component<Props, State> {
             <TouchableOpacity style={styles.button} onPress={this.handleRetry}>
               <Text style={styles.buttonText}>{i18n.t('errors.boundary.tryAgain')}</Text>
             </TouchableOpacity>
+
+            <TouchableOpacity style={styles.supportButton} onPress={this.handleContactSupport}>
+              <Text style={styles.supportButtonText}>Contact Support</Text>
+            </TouchableOpacity>
+
+            {errorId && (
+              <Text style={styles.errorId}>Error ID: {errorId}</Text>
+            )}
 
             <Text style={styles.hint}>
               {i18n.t('errors.boundary.hint')}
@@ -182,6 +203,26 @@ const styles = StyleSheet.create({
     color: colors.textOnPrimary,
     fontSize: typography.size.md,
     fontWeight: typography.weight.semibold as any,
+  },
+  supportButton: {
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.sm,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    marginBottom: spacing.md,
+  },
+  supportButtonText: {
+    color: colors.primary,
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.semibold as any,
+    textAlign: 'center',
+  },
+  errorId: {
+    fontSize: typography.size.xs,
+    fontFamily: 'monospace',
+    color: colors.textMuted,
+    marginBottom: spacing.sm,
   },
   hint: {
     fontSize: typography.size.sm,

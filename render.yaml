@@ -97,7 +97,7 @@ services:
       
       # CORS Configuration
       - key: ALLOWED_ORIGINS
-        value: https://taxbridge.ng,https://admin.taxbridge.ng,https://www.taxbridge.ng,https://taxbridge-api-ker8.onrender.com
+        value: https://taxbridge.ng,https://admin.taxbridge.ng,https://www.taxbridge.ng,https://taxbridge.vercel.app,https://taxbridge-api-ker8.onrender.com
       
       # UBL Validation
       - key: UBL_XSD_PATH
