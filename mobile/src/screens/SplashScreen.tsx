@@ -21,8 +21,6 @@ import {
   Image,
   StatusBar,
   Animated,
-  Dimensions,
-  Platform,
 } from 'react-native';
 // 🔌 Boot services (existing or to be added)
 import { warmUpSyncEngine } from '../sync/syncEngine';
@@ -30,8 +28,7 @@ import { hydrateFeatureFlags } from '../services/featureFlags';
 import { colors } from '../theme/tokens';
 import i18n from '../i18n';
 
-const { width, height } = Dimensions.get('window');
-const LOGO_SIZE = Math.min(width, height) * 0.42;
+const LOGO_SIZE = 200;
 const BOOT_TIMEOUT_MS = 8000;
 
 interface SplashScreenProps {
@@ -43,7 +40,7 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
   onFinish,
   minDurationMs = 1800,
 }) => {
-  const opacity = useRef(new Animated.Value(0)).current;
+  const opacity = useRef(new Animated.Value(1)).current;
   const startedAt = useRef(Date.now());
 
   useEffect(() => {
@@ -53,12 +50,8 @@ const SplashScreen: React.FC<SplashScreenProps> = ({
       // 0️⃣ Native splash stays visible (App.tsx hides it after boot).
       //    Removing the premature hideAsync() here prevents the dual-logo flash.
 
-      // 1️⃣ Fade in immediately (UX first)
-      Animated.timing(opacity, {
-        toValue: 1,
-        duration: 550,
-        useNativeDriver: Platform.OS !== 'web',
-      }).start();
+      // 1️⃣ Custom splash starts at full opacity to match native splash exactly.
+      //    No fade-in needed — this prevents the dual-logo flash.
 
       // 2️⃣ Parallel warm-ups (never serial)
       let timeoutId: ReturnType<typeof setTimeout> | undefined;

@@ -293,13 +293,10 @@ function OnboardingScreen(props: OnboardingScreenProps = {}) {
   }, [activeSteps.length, currentStepIndex]);
 
   /**
-   * Navigate to main app when onboarding is complete
+   * Navigate to main app when onboarding is complete.
+   * NOTE: Navigation is handled automatically by AppNavigator's conditional
+   * rendering when isOnboardingComplete changes — no manual replace needed.
    */
-  useEffect(() => {
-    if (progress.completedAt) {
-      navigation.replace?.('MainTabs');
-    }
-  }, [progress.completedAt, navigation]);
 
   /**
    * Handle Android back button
@@ -322,8 +319,9 @@ function OnboardingScreen(props: OnboardingScreenProps = {}) {
 
   /**
    * Handle next step progression (crash-safe)
+   * Wrapped in useCallback to prevent stale closure references in child components.
    */
-  const handleNext = async () => {
+  const handleNext = useCallback(async () => {
     try {
       // Dismiss keyboard
       Keyboard.dismiss();
@@ -405,7 +403,7 @@ function OnboardingScreen(props: OnboardingScreenProps = {}) {
       } else {
         await completeOnboarding(latestProgress);
         void trackOnboardingComplete();
-        navigation.replace?.('MainTabs');
+        // AppNavigator handles the transition automatically
         if (isMountedRef.current) {
           setIsTransitioning(false);
         }
@@ -428,12 +426,12 @@ function OnboardingScreen(props: OnboardingScreenProps = {}) {
         haptic: 'error',
       });
     }
-  };
+  }, [currentStep, currentStepIndex, activeSteps.length, isTransitioning, stepStartTime, stepTransitionValue, validateCurrentStep, validationErrors, t, updateProgress, completeOnboarding, onStepTransitionComplete]);
 
   /**
    * Handle step skip
    */
-  const handleSkip = async () => {
+  const handleSkip = useCallback(async () => {
     if (isTransitioning) return;
     
     const duration = Date.now() - stepStartTime;
@@ -463,7 +461,7 @@ function OnboardingScreen(props: OnboardingScreenProps = {}) {
       } else {
         await completeOnboarding(latestProgress);
         void trackOnboardingComplete();
-        navigation.replace?.('MainTabs');
+        // AppNavigator handles the transition automatically
       }
     } catch (error) {
       if (__DEV__) console.error('Error skipping step:', error);
@@ -480,7 +478,7 @@ function OnboardingScreen(props: OnboardingScreenProps = {}) {
         setIsTransitioning(false);
       }
     }
-  };
+  }, [currentStep, currentStepIndex, activeSteps.length, isTransitioning, stepStartTime, t, updateProgress, completeOnboarding]);
 
   /**
    * Handle skip all with confirmation
@@ -511,7 +509,7 @@ function OnboardingScreen(props: OnboardingScreenProps = {}) {
               
               await completeOnboarding(latestProgress);
               void trackOnboardingComplete();
-              navigation.replace?.('MainTabs');
+              // AppNavigator handles the transition automatically
             } catch (error) {
               if (__DEV__) console.error('Error skipping all:', error);
               
@@ -556,17 +554,18 @@ function OnboardingScreen(props: OnboardingScreenProps = {}) {
               if (currentStep?.id) {
                 await updateProgress(currentStep.id, false, false);
               }
-              navigation.replace?.('MainTabs');
+              // Complete onboarding so AppNavigator switches to MainTabs
+              await completeOnboarding();
             } catch (error) {
               if (__DEV__) console.error('Error saving progress:', error);
-              // Still navigate even if save fails
-              navigation.replace?.('MainTabs');
+              // Force complete even if save fails so user isn't stuck
+              try { await completeOnboarding(); } catch { /* ignore */ }
             }
           },
         },
       ]
     );
-  }, [currentStep?.id, currentStepIndex, navigation, t, updateProgress]);
+  }, [completeOnboarding, currentStep?.id, currentStepIndex, navigation, t, updateProgress]);
 
   /**
    * Render loading state

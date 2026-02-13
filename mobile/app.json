@@ -51,7 +51,7 @@
       "predictiveBackGestureEnabled": false,
       "splash": {
         "image": "./assets/icon-square.png",
-        "resizeMode": "cover",
+        "resizeMode": "contain",
         "backgroundColor": "#FFFFFF"
       }
     },
@@ -76,7 +76,7 @@
         {
           "image": "./assets/icon-square.png",
           "imageWidth": 200,
-          "resizeMode": "cover",
+          "resizeMode": "contain",
           "backgroundColor": "#FFFFFF"
         }
       ]

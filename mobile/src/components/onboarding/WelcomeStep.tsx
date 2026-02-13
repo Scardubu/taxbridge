@@ -50,18 +50,27 @@ export default function WelcomeStep({ onNext }: WelcomeStepProps) {
   const handlePress = React.useCallback(() => {
     if (pressing) return;
     setPressing(true);
+
+    // Safety timeout: reset pressing after 5s to prevent permanently disabled button
+    const safetyTimer = setTimeout(() => setPressing(false), 5000);
+
     try {
       const result: unknown = onNext();
       // If onNext returns a promise, catch any async errors
       if (result && typeof (result as Record<string, unknown>).catch === 'function') {
         (result as Promise<unknown>).catch((err: unknown) => {
           if (__DEV__) console.error('WelcomeStep onNext error:', err);
-        }).finally(() => setPressing(false));
+        }).finally(() => {
+          clearTimeout(safetyTimer);
+          setPressing(false);
+        });
       } else {
+        clearTimeout(safetyTimer);
         setPressing(false);
       }
     } catch (err) {
       if (__DEV__) console.error('WelcomeStep onNext sync error:', err);
+      clearTimeout(safetyTimer);
       setPressing(false);
     }
   }, [onNext, pressing]);

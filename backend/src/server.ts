@@ -1034,6 +1034,23 @@ taxbridge_component_status{component="sms"} ${serverMetrics.componentStatus.sms 
     }
   });
 
+  // Root route — prevents 404 for browsers, bots, and uptime monitors hitting /
+  app.get('/', async (_req, reply) => {
+    return reply.send({
+      name: 'TaxBridge API',
+      version: process.env.npm_package_version || '1.0.0',
+      status: 'running',
+      docs: '/docs',
+      health: '/health',
+      timestamp: new Date().toISOString(),
+    });
+  });
+
+  // Favicon — prevents noisy 404 logs from browsers
+  app.get('/favicon.ico', async (_req, reply) => {
+    return reply.code(204).send();
+  });
+
   await app.register(invoicesRoutes, { prisma });
   await app.register(ocrRoutes);
   await app.register(paymentsRoutes, { prisma });
