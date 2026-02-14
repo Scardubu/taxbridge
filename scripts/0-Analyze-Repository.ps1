@@ -123,6 +123,42 @@ foreach ($file in $crashProtectionFiles) {
     }
 }
 
+# Android build compatibility
+Write-Host "`n🤖 Android Build Compatibility" -ForegroundColor Cyan
+Write-Host "────────────────────────────────────────" -ForegroundColor Gray
+
+if (Test-Path "mobile/app.json") {
+    try {
+        $mobileAppJson = Get-Content "mobile/app.json" -Raw | ConvertFrom-Json
+        $kotlinVer = $null
+        foreach ($plugin in $mobileAppJson.expo.plugins) {
+            if ($plugin -is [System.Array] -and $plugin[0] -eq "expo-build-properties") {
+                $kotlinVer = $plugin[1].android.kotlinVersion
+            }
+        }
+        if ($kotlinVer) {
+            Write-Host "  Kotlin Version: $kotlinVer" -ForegroundColor White
+            if ($kotlinVer -match "^1\.") {
+                Write-Host "  ✗ KSP incompatible! Must be 2.0.0+. Update app.json." -ForegroundColor Red
+            } else {
+                Write-Host "  ✓ KSP compatible" -ForegroundColor Green
+            }
+        } else {
+            Write-Host "  kotlinVersion: not set (Expo default)" -ForegroundColor Gray
+        }
+
+        $expoSdk = $mobileAppJson.expo.plugins | ForEach-Object { $_ } | Out-Null
+        $rnVersion = (Get-Content "mobile/package.json" -Raw | ConvertFrom-Json).dependencies.'react-native'
+        $expoVersion = (Get-Content "mobile/package.json" -Raw | ConvertFrom-Json).dependencies.expo
+        Write-Host "  Expo SDK: $expoVersion" -ForegroundColor White
+        Write-Host "  React Native: $rnVersion" -ForegroundColor White
+    } catch {
+        Write-Host "  ⚠️  Could not parse mobile/app.json" -ForegroundColor Yellow
+    }
+} else {
+    Write-Host "  ⚠️  mobile/app.json not found" -ForegroundColor Yellow
+}
+
 # Summary
 Write-Host "`n═══════════════════════════════════════" -ForegroundColor Cyan
 Write-Host "  Analysis Complete!" -ForegroundColor Green

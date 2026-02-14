@@ -89,6 +89,62 @@ if (Test-Path "eas.json") {
     exit 1
 }
 
+# Kotlin/KSP compatibility guard
+Write-Host "  Checking Kotlin/KSP compatibility..." -NoNewline
+$kotlinVersionApp = $null
+$kotlinVersionRoot = $null
+
+# Check app.json expo-build-properties
+try {
+    $plugins = $appJson.expo.plugins
+    foreach ($plugin in $plugins) {
+        if ($plugin -is [System.Array] -and $plugin[0] -eq "expo-build-properties") {
+            $kotlinVersionApp = $plugin[1].android.kotlinVersion
+        }
+    }
+} catch {}
+
+# Check android/build.gradle ext.kotlinVersion
+try {
+    $buildGradlePath = Join-Path $mobileDir "android\build.gradle"
+    if (Test-Path $buildGradlePath) {
+        $buildGradleContent = Get-Content $buildGradlePath -Raw
+        if ($buildGradleContent -match "kotlinVersion\s*=\s*['""]([^'""]+)['""]") {
+            $kotlinVersionRoot = $matches[1]
+        }
+    }
+} catch {}
+
+# Validate both are set and match
+if ($kotlinVersionApp -and $kotlinVersionRoot) {
+    if ($kotlinVersionApp -ne $kotlinVersionRoot) {
+        Write-Host " ✗" -ForegroundColor Red
+        Write-Host "    Kotlin version mismatch:" -ForegroundColor Red
+        Write-Host "      app.json: $kotlinVersionApp" -ForegroundColor Yellow
+        Write-Host "      android/build.gradle: $kotlinVersionRoot" -ForegroundColor Yellow
+        Write-Host "    Both must be identical to avoid KSP conflicts." -ForegroundColor Yellow
+        Pop-Location
+        exit 1
+    }
+    if ($kotlinVersionApp -match "^1\.") {
+        Write-Host " ✗" -ForegroundColor Red
+        Write-Host "    kotlinVersion '$kotlinVersionApp' is NOT supported by KSP." -ForegroundColor Red
+        Write-Host "    Supported: 2.0.0 - 2.2.x. Update both app.json and android/build.gradle." -ForegroundColor Yellow
+        Pop-Location
+        exit 1
+    }
+    Write-Host " ✓ (Kotlin $kotlinVersionApp)" -ForegroundColor Green
+} elseif ($kotlinVersionApp -or $kotlinVersionRoot) {
+    Write-Host " ✗" -ForegroundColor Red
+    Write-Host "    Kotlin version must be set in BOTH app.json and android/build.gradle." -ForegroundColor Red
+    Write-Host "      app.json: $($kotlinVersionApp ?? 'NOT SET')" -ForegroundColor Yellow
+    Write-Host "      android/build.gradle: $($kotlinVersionRoot ?? 'NOT SET')" -ForegroundColor Yellow
+    Pop-Location
+    exit 1
+} else {
+    Write-Host " ⚠️  (kotlinVersion not set, using Expo default)" -ForegroundColor Yellow
+}
+
 # Check node_modules
 Write-Host "  Checking dependencies..." -NoNewline
 if (Test-Path "node_modules") {

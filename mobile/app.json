@@ -71,7 +71,7 @@
             "compileSdkVersion": 35,
             "targetSdkVersion": 35,
             "minSdkVersion": 24,
-            "kotlinVersion": "1.9.25"
+            "kotlinVersion": "2.1.20"
           },
           "ios": {
             "deploymentTarget": "15.1"
@@ -103,7 +103,7 @@
     },
     "extra": {
       "eas": {
-        "projectId": "ab92bfbb-8bf0-44c7-848f-76e717be26b7"
+        "projectId": "292108c3-5c50-4a57-a79d-1648ef5e2e03"
       }
     }
   }

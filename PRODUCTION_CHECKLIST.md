@@ -96,6 +96,9 @@
 ### 10. Mobile Build
 
 - [ ] `app.json` version bumped
+- [ ] Kotlin version is KSP-compatible (2.x, matching expo-updates): currently `2.1.20`
+  - Must be set in BOTH `mobile/app.json` expo-build-properties AND `mobile/android/build.gradle` ext.kotlinVersion
+  - Both values must match to prevent KSP version conflicts
 - [ ] `eas.json` production profile configured
 - [ ] EAS build triggered: `.\scripts\8-Build-Mobile-App.ps1 -Profile production`
 - [ ] APK/AAB tested on physical device
@@ -179,6 +182,7 @@ Run: `.\scripts\7-Post-Deployment-Smoke-Tests.ps1`
 - [ ] DigiTax integration healthy
 - [ ] Remita integration healthy
 - [ ] Admin console loads
+- [ ] Admin favicon returns 200
 - [ ] Security headers present
 - [ ] Response times within targets (health < 500ms, liveness < 200ms)
 
@@ -229,3 +233,17 @@ If critical issues are detected post-deployment:
 4. **Database**: Restore from latest backup (< 1 hour RPO)
 
 See `docs/INCIDENT_RESPONSE.md` for full incident response procedures.
+
+---
+
+## Version Pins (for regression prevention)
+
+| Component | Version | Notes |
+|-----------|---------|-------|
+| Expo SDK | ~54.0.32 | mobile/package.json |
+| React Native | 0.81.5 | mobile/package.json |
+| Kotlin | 2.1.20 | mobile/app.json expo-build-properties |
+| Node.js | 20.x | root package.json engines |
+| compileSdkVersion | 35 | mobile/app.json |
+| targetSdkVersion | 35 | mobile/app.json |
+| minSdkVersion | 24 | mobile/app.json |

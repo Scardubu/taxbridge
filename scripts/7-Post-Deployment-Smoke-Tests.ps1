@@ -43,7 +43,7 @@ function Test-Endpoint {
             Write-Host " ($($response.StatusCode))" -ForegroundColor Gray
             $global:testsPassed++
             
-            if ($Verbose -and $response.Content) {
+            if ($Verbose -and $response.Content -and $response.Content -is [string]) {
                 $preview = $response.Content.Substring(0, [Math]::Min(100, $response.Content.Length))
                 Write-Host "    Response: $preview..." -ForegroundColor Gray
             }
@@ -109,6 +109,7 @@ Test-Endpoint -Name "Remita Health" -Url "$ApiUrl/health/remita"
 Write-TestHeader "Admin Console Availability"
 
 Test-Endpoint -Name "Admin Homepage" -Url $AdminUrl
+Test-Endpoint -Name "Admin Favicon" -Url "$AdminUrl/favicon.ico"
 
 # 5. PERFORMANCE BENCHMARKS
 Write-TestHeader "Performance Benchmarks"
