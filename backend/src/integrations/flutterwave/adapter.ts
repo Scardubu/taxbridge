@@ -8,10 +8,8 @@
  */
 
 import crypto from 'crypto';
-import { createLogger } from '../../lib/logger';
-
-const log = createLogger('flutterwave');
 import axios, { AxiosInstance } from 'axios';
+import { createLogger } from '../../lib/logger';
 import { metrics } from '../../services/metrics';
 import type {
   FlutterwaveConfig,
@@ -21,6 +19,8 @@ import type {
   FlutterwaveInitResult,
   FlutterwaveVerifyResult,
 } from './types';
+
+const log = createLogger('flutterwave');
 
 export class FlutterwaveAdapter {
   private client: AxiosInstance;

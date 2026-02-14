@@ -8,10 +8,8 @@
  */
 
 import crypto from 'crypto';
-import { createLogger } from '../../lib/logger';
-
-const log = createLogger('paystack');
 import axios, { AxiosInstance } from 'axios';
+import { createLogger } from '../../lib/logger';
 import { metrics } from '../../services/metrics';
 import type {
   PaystackConfig,
@@ -21,6 +19,8 @@ import type {
   PaystackInitResult,
   PaystackVerifyResult,
 } from './types';
+
+const log = createLogger('paystack');
 
 export class PaystackAdapter {
   private client: AxiosInstance;
