@@ -162,9 +162,28 @@ export async function initDB(): Promise<void> {
       value TEXT
     );`
     );
+
+    // Sync queue table for generic entity sync (device-sync feature)
+    await nativeExec(
+      `CREATE TABLE IF NOT EXISTS sync_queue (
+      id TEXT PRIMARY KEY,
+      device_id TEXT,
+      entity TEXT NOT NULL,
+      action TEXT NOT NULL,
+      client_version INTEGER DEFAULT 0,
+      payload TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      attempts INTEGER DEFAULT 0,
+      last_error TEXT,
+      next_retry TEXT
+    );`
+    );
+
     // Helpful indexes for queries (ordering and pending lookups)
     await nativeExec('CREATE INDEX IF NOT EXISTS idx_invoices_created_at ON invoices(created_at);');
     await nativeExec('CREATE INDEX IF NOT EXISTS idx_invoices_synced ON invoices(synced);');
+    await nativeExec('CREATE INDEX IF NOT EXISTS idx_sync_queue_next_retry ON sync_queue(next_retry);');
+    await nativeExec('CREATE INDEX IF NOT EXISTS idx_sync_queue_entity ON sync_queue(entity);');
     // Clean up old synced invoices to prevent storage quota issues
     await nativeExec(
       `DELETE FROM invoices WHERE synced = 1 AND created_at < datetime('now', '-30 days');`

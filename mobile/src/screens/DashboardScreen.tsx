@@ -20,6 +20,7 @@ import { getInvoices } from '../services/database';
 import { calculatePIT, getTaxOptimization, formatNaira, formatPercentage } from '../services/tax/engine';
 import { calculatePIT as calculateLegacyPIT } from '../services/taxCalculator';
 import { colors, spacing, radii, typography, shadows } from '../theme/tokens';
+import { getSyncQueueCount } from '../services/syncQueue';
 
 const { width } = Dimensions.get('window');
 
@@ -315,6 +316,8 @@ function DashboardScreen(props: any) {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [syncQueueCount, setSyncQueueCount] = useState(0);
+  const deviceSyncEnabled = String(process.env.EXPO_PUBLIC_FEATURE_DEVICE_SYNC || 'false').toLowerCase() === 'true';
 
   const stats = useMemo(() => calculateStats(invoices), [invoices]);
 
@@ -334,12 +337,15 @@ function DashboardScreen(props: any) {
         ...row,
         createdAt: new Date(row.createdAt).getTime(),
       })) as Invoice[]);
+      if (deviceSyncEnabled) {
+        getSyncQueueCount().then(setSyncQueueCount).catch(() => {});
+      }
     } catch (err) {
       if (__DEV__) console.error('Failed to load dashboard data:', err);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [deviceSyncEnabled]);
 
   useEffect(() => {
     loadData();
@@ -450,6 +456,19 @@ function DashboardScreen(props: any) {
           </Text>
           <Text style={styles.networkSync}>{t('sync.lastSync')}: {formatLastSync(lastSyncAt)}</Text>
         </Animated.View>
+
+        {/* Device Sync Queue Badge */}
+        {deviceSyncEnabled && syncQueueCount > 0 && (
+          <Animated.View
+            entering={FadeInDown.duration(300).delay(150)}
+            style={styles.syncQueueBadge}
+          >
+            <Text style={styles.syncQueueIcon}>📤</Text>
+            <Text style={styles.syncQueueText}>
+              {syncQueueCount} {syncQueueCount === 1 ? 'item' : 'items'} queued for sync
+            </Text>
+          </Animated.View>
+        )}
 
         {/* Quick Actions */}
         <Animated.View entering={FadeInDown.duration(300).delay(200)} style={styles.quickActionsSection}>
@@ -643,6 +662,27 @@ const styles = StyleSheet.create({
     fontSize: typography.size.xs,
     color: colors.textMuted,
     textAlign: 'right',
+  },
+
+  // Sync Queue Badge
+  syncQueueBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing.sm,
+    borderRadius: radii.md,
+    marginBottom: spacing.lg,
+    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+    gap: spacing.sm,
+  },
+  syncQueueIcon: {
+    fontSize: typography.size.sm,
+  },
+  syncQueueText: {
+    fontSize: typography.size.xs,
+    fontWeight: typography.weight.medium,
+    color: '#1E40AF',
   },
 
   // Section

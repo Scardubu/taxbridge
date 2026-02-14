@@ -32,6 +32,10 @@ module.exports = {
   testTimeout: 180000,
   forceExit: true,
   detectOpenHandles: true,
+  moduleNameMapper: {
+    '^@taxbridge/contracts$': '<rootDir>/../packages/contracts/dist/index.js',
+    '^@taxbridge/contracts/(.*)$': '<rootDir>/../packages/contracts/dist/$1',
+  },
   projects: [
     {
       displayName: 'unit',
@@ -41,6 +45,10 @@ module.exports = {
       testRegex: '__tests__/.*\\.unit\\.test\\.ts$',
       testPathIgnorePatterns: ['/integration/', '/e2e/', '/dist/', 'tools'],
       setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
+      moduleNameMapper: {
+        '^@taxbridge/contracts$': '<rootDir>/../packages/contracts/dist/index.js',
+        '^@taxbridge/contracts/(.*)$': '<rootDir>/../packages/contracts/dist/$1',
+      },
       transform: {
         '^.+\\.tsx?$': ['ts-jest', {
           tsconfig: 'tsconfig.json'
@@ -55,6 +63,10 @@ module.exports = {
       testRegex: '\\.integration\\.test\\.ts$',
       testPathIgnorePatterns: ['/unit/', '/e2e/', '/dist/', 'tools'],
       setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
+      moduleNameMapper: {
+        '^@taxbridge/contracts$': '<rootDir>/../packages/contracts/dist/index.js',
+        '^@taxbridge/contracts/(.*)$': '<rootDir>/../packages/contracts/dist/$1',
+      },
       transform: {
         '^.+\\.tsx?$': ['ts-jest', {
           tsconfig: 'tsconfig.json'
@@ -69,6 +81,10 @@ module.exports = {
       testRegex: '(\.e2e\.test\.ts$|critical-journeys)',
       testPathIgnorePatterns: ['/unit/', '/integration/', '/dist/', 'workflows\\.e2e\\.test', 'tools'],
       setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
+      moduleNameMapper: {
+        '^@taxbridge/contracts$': '<rootDir>/../packages/contracts/dist/index.js',
+        '^@taxbridge/contracts/(.*)$': '<rootDir>/../packages/contracts/dist/$1',
+      },
       transform: {
         '^.+\\.tsx?$': ['ts-jest', {
           tsconfig: 'tsconfig.json'

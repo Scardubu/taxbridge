@@ -93,7 +93,19 @@ export default function DevicesPage() {
           <h1 className="text-3xl font-bold tracking-tight">{t('devices.title')}</h1>
           <p className="text-slate-600 mt-2">{t('devices.subtitle')}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button asChild variant="outline" size="sm">
+            <Link href="/dashboard/devices/sync">
+              <RefreshCw className="h-4 w-4 mr-1" />
+              {t('sync.title')}
+            </Link>
+          </Button>
+          <Button asChild variant="outline" size="sm">
+            <Link href="/dashboard/devices/conflicts">
+              <AlertCircle className="h-4 w-4 mr-1" />
+              {t('conflicts.title')}
+            </Link>
+          </Button>
           <Button asChild variant="outline" size="sm">
             <Link href="/dashboard/devices/diagnostics">
               {t('devices.diagnostics.cta')}

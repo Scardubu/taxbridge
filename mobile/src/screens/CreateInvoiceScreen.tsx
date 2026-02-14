@@ -37,6 +37,7 @@ import { extractReceiptData, type OCRResult } from '../services/ocr';
 import { ExtractedDataReview, type EditedData } from '../components/ocr/ExtractedDataReview';
 import { ScanErrorModal, type ScanErrorType } from '../components/ocr/ScanErrorModal';
 import { getApiBaseUrl } from '../services/config';
+import { enqueueSyncQueueItem } from '../services/syncQueue';
 
 // Lazy load heavy components
 const CameraModal = lazy(() => import('../components/CameraModal'));
@@ -784,6 +785,23 @@ function CreateInvoiceScreen(props: any) {
       });
 
       void trackInvoiceCreated(items.length, totals.total, !isOnline);
+
+      // Enqueue to sync queue when device sync is enabled (fire-and-forget)
+      if (String(process.env.EXPO_PUBLIC_FEATURE_DEVICE_SYNC || 'false').toLowerCase() === 'true') {
+        enqueueSyncQueueItem({
+          entity: 'invoice',
+          action: 'create',
+          payload: {
+            id,
+            customerName: values.customerName.trim() || undefined,
+            customerTIN: values.customerTIN.trim() || undefined,
+            subtotal: totals.subtotal,
+            vat: totals.vat,
+            total: totals.total,
+            items,
+          },
+        }).catch(() => {});
+      }
 
       // Clear draft on successful save
       await AsyncStorage.removeItem(INVOICE_CONSTANTS.DRAFT_KEY);
