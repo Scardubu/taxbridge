@@ -4,6 +4,7 @@ import { useNetwork } from './NetworkContext';
 import { useDevice } from './DeviceContext';
 import { syncPendingInvoices } from '../services/sync';
 import { performFullSync, listConflicts, collectLocalChanges } from '../services/deviceSync';
+import { processQueueSync, getSyncQueueCount } from '../services/syncQueueAdapter';
 import { getAccessToken } from '../services/authTokens';
 import { createLogger } from '../utils/logger';
 import { trackSync } from '../services/analytics';
@@ -119,45 +120,46 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
         continue;
       }
       try {
-        // Try device sync first if enabled, fallback to legacy sync
         if (isDeviceSyncEnabled()) {
-          log.info('Using device sync');
-          const localChanges = await collectLocalChanges();
-          log.info('Collected local changes for sync', { count: localChanges.length });
-          
-          dispatch({ type: 'SYNC_PUSHING', payload: { total: localChanges.length } });
-          
-          const result = await performFullSync(localChanges);
-          
-          dispatch({ type: 'SYNC_PULLING', payload: { total: result.pulled.invoices.length } });
-          
-          // Check for conflicts
+          // ── Queue-based device sync (primary path) ─────────────
+          log.info('Using queue-based device sync');
+
+          const queueCount = await getSyncQueueCount();
+          dispatch({ type: 'SYNC_PUSHING', payload: { total: queueCount } });
+
+          const queueResult = await processQueueSync();
+
+          dispatch({ type: 'SYNC_PULLING', payload: { total: 0 } });
+
+          // Check for conflicts from the backend
           const conflictsResponse = await listConflicts();
-          
-          if (conflictsResponse.conflicts.length > 0) {
-            dispatch({ 
-              type: 'SYNC_RESOLVING', 
-              payload: { conflictCount: conflictsResponse.conflicts.length } 
+          const conflictCount = conflictsResponse.conflicts.length;
+
+          if (conflictCount > 0) {
+            dispatch({
+              type: 'SYNC_RESOLVING',
+              payload: { conflictCount },
             });
           }
-          
+
           lastResult = {
-            synced: result.pulled.invoices.length,
-            failed: 0,
-            deferred: result.pushed ? 1 : 0,
-            conflicts: conflictsResponse.conflicts.length
+            synced: queueResult.synced,
+            failed: queueResult.failed,
+            deferred: queueResult.deferred,
+            conflicts: conflictCount + queueResult.conflicts,
           };
-          
-          dispatch({ 
-            type: 'SYNC_SUCCESS', 
-            payload: { 
-              synced: lastResult.synced, 
-              conflictCount: lastResult.conflicts || 0 
-            } 
+
+          dispatch({
+            type: 'SYNC_SUCCESS',
+            payload: {
+              synced: lastResult.synced,
+              conflictCount: lastResult.conflicts || 0,
+            },
           });
-          
+
           return lastResult;
         } else {
+          // ── Legacy invoice sync (feature flag off) ─────────────
           log.info('Using legacy invoice sync');
           const res = await syncPendingInvoices();
           lastResult = { ...res, conflicts: 0 };

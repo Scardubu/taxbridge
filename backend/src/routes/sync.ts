@@ -169,6 +169,33 @@ export default async function syncRoutes(app: FastifyInstance) {
       // Process each sync job
       for (const job of body.jobs) {
         try {
+          // ── Idempotency guard ──────────────────────────────────
+          // If this clientId was already submitted by this device and
+          // is not in a terminal-failed state, return the prior outcome
+          // instead of creating a duplicate SyncJob.
+          const existingJob = await prisma.syncJob.findFirst({
+            where: {
+              deviceId: device.id,
+              clientId: job.clientId,
+              status: { notIn: ['failed'] }
+            },
+            orderBy: { createdAt: 'desc' }
+          });
+
+          if (existingJob) {
+            if (existingJob.status === 'conflict') {
+              results.conflicts.push(job.clientId);
+            } else {
+              // pending, processing, or completed — treat as synced
+              results.synced.push(job.clientId);
+            }
+            log.info('Idempotent push: skipping duplicate', {
+              clientId: job.clientId,
+              existingStatus: existingJob.status
+            });
+            continue;
+          }
+
           // Create SyncJob audit record
           const syncJob = await prisma.syncJob.create({
             data: {
