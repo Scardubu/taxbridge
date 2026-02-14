@@ -12,16 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { tokens } from '../../constants/tokens';
 import { useCompliance } from '../../hooks/useCompliance';
 import { formatDate, formatCurrency } from '../../utils/formatters';
-
-interface ComplianceReminder {
-  id: string;
-  taxType: string;
-  dueDate: string;
-  amount?: number;
-  status: 'pending' | 'filed' | 'overdue' | 'dismissed';
-  priority: 'low' | 'medium' | 'high' | 'critical';
-  description: string;
-}
+import type { Reminder } from '../../services/complianceApi';
 
 export default function ComplianceRemindersScreen() {
   const [filter, setFilter] = useState<'all' | 'pending' | 'overdue'>('pending');
@@ -34,7 +25,7 @@ export default function ComplianceRemindersScreen() {
     setRefreshing(false);
   };
 
-  const getPriorityColor = (priority: ComplianceReminder['priority']) => {
+  const getPriorityColor = (priority: string) => {
     switch (priority) {
       case 'critical':
         return tokens.colors.danger;
@@ -49,7 +40,7 @@ export default function ComplianceRemindersScreen() {
     }
   };
 
-  const getStatusIcon = (status: ComplianceReminder['status']) => {
+  const getStatusIcon = (status: string) => {
     switch (status) {
       case 'filed':
         return 'checkmark-circle';
@@ -71,7 +62,7 @@ export default function ComplianceRemindersScreen() {
     return Math.ceil(diff / (1000 * 60 * 60 * 24));
   };
 
-  const renderReminderCard = ({ item }: { item: ComplianceReminder }) => {
+  const renderReminderCard = ({ item }: { item: Reminder }) => {
     const daysUntilDue = getDaysUntilDue(item.dueDate);
     const isOverdue = daysUntilDue < 0;
     const isUrgent = daysUntilDue <= 7 && daysUntilDue >= 0;
@@ -206,7 +197,7 @@ export default function ComplianceRemindersScreen() {
         </TouchableOpacity>
       </View>
 
-      <FlatList
+      <FlatList<Reminder>
         data={filteredReminders}
         renderItem={renderReminderCard}
         keyExtractor={(item) => item.id}
