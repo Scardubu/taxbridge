@@ -12,27 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { tokens } from '../../constants/tokens';
 import { useCrypto } from '../../hooks/useCrypto';
 import { formatCurrency, formatDate } from '../../utils/formatters';
-
-interface CryptoTransaction {
-  id: string;
-  type: 'buy' | 'sell' | 'trade' | 'transfer';
-  asset: string;
-  amount: number;
-  priceNGN: number;
-  totalNGN: number;
-  costBasis?: number;
-  platform?: string;
-  date: string;
-  taxYear: number;
-}
-
-interface TaxSummary {
-  totalGains: number;
-  totalLosses: number;
-  netGains: number;
-  taxableGains: number;
-  estimatedTax: number;
-}
+import type { CryptoTransaction, CryptoTaxReport } from '../../services/cryptoApi';
 
 export default function CryptoTaxScreen() {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
@@ -76,8 +56,8 @@ export default function CryptoTaxScreen() {
   };
 
   const renderTransactionCard = ({ item }: { item: CryptoTransaction }) => {
-    const gainLoss = item.costBasis ? item.totalNGN - item.costBasis : 0;
-    const hasGainLoss = item.type === 'sell' && item.costBasis;
+    const gainLoss = item.costBasis != null ? item.totalNGN - item.costBasis : 0;
+    const hasGainLoss = item.type === 'sell' && item.costBasis != null;
 
     return (
       <View style={[styles.card, tokens.shadows.md]}>
@@ -139,36 +119,36 @@ export default function CryptoTaxScreen() {
         <Text style={styles.summaryTitle}>Tax Summary {selectedYear}</Text>
         
         <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>Total Gains</Text>
+          <Text style={styles.summaryLabel}>Total Sells</Text>
           <Text style={[styles.summaryValue, styles.gainText]}>
-            {formatCurrency(taxSummary.totalGains)}
+            {formatCurrency(taxSummary.totalSellValue)}
           </Text>
         </View>
 
         <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>Total Losses</Text>
+          <Text style={styles.summaryLabel}>Total Cost Basis</Text>
           <Text style={[styles.summaryValue, styles.lossText]}>
-            {formatCurrency(taxSummary.totalLosses)}
+            {formatCurrency(taxSummary.totalCostBasis)}
           </Text>
         </View>
 
         <View style={[styles.summaryRow, styles.summaryDivider]}>
-          <Text style={styles.summaryLabel}>Net Gains</Text>
+          <Text style={styles.summaryLabel}>Net {taxSummary.isLoss ? 'Loss' : 'Gain'}</Text>
           <Text style={[styles.summaryValue, styles.summaryBold]}>
-            {formatCurrency(taxSummary.netGains)}
+            {formatCurrency(taxSummary.netGain)}
           </Text>
         </View>
 
         <View style={styles.summaryRow}>
-          <Text style={styles.summaryLabel}>Taxable Gains (10%)</Text>
+          <Text style={styles.summaryLabel}>CGT Rate</Text>
           <Text style={[styles.summaryValue, styles.summaryBold]}>
-            {formatCurrency(taxSummary.taxableGains)}
+            {(taxSummary.cgtRate * 100).toFixed(0)}%
           </Text>
         </View>
 
         <View style={[styles.summaryRow, styles.taxRow]}>
           <Text style={styles.taxLabel}>Estimated CGT</Text>
-          <Text style={styles.taxValue}>{formatCurrency(taxSummary.estimatedTax)}</Text>
+          <Text style={styles.taxValue}>{formatCurrency(taxSummary.cgtAmount)}</Text>
         </View>
 
         <Text style={styles.disclaimer}>
@@ -217,7 +197,7 @@ export default function CryptoTaxScreen() {
         <Text style={styles.headerTitle}>Crypto Tax</Text>
       </View>
 
-      <FlatList
+      <FlatList<CryptoTransaction>
         data={transactions}
         renderItem={renderTransactionCard}
         keyExtractor={(item) => item.id}

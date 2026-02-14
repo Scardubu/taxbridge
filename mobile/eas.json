@@ -1,8 +1,7 @@
 {
   "cli": {
     "version": ">= 6.0.0",
-    "appVersionSource": "remote",
-    "packageManager": "npm"
+    "appVersionSource": "remote"
   },
   "build": {
     "development": {

@@ -13,17 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { tokens } from '../../constants/tokens';
 import { usePayroll } from '../../hooks/usePayroll';
 import { formatCurrency, formatDate } from '../../utils/formatters';
-
-interface PayrollItem {
-  id: string;
-  period: string;
-  status: 'draft' | 'processing' | 'completed' | 'cancelled';
-  totalGross: number;
-  totalNet: number;
-  totalTax: number;
-  employeeCount: number;
-  processedAt?: string;
-}
+import type { PayrollSummary } from '../../services/payrollApi';
 
 export default function PayrollListScreen() {
   const navigation = useNavigation();
@@ -36,7 +26,7 @@ export default function PayrollListScreen() {
     setRefreshing(false);
   };
 
-  const getStatusColor = (status: PayrollItem['status']) => {
+  const getStatusColor = (status: string) => {
     switch (status) {
       case 'completed':
         return tokens.colors.success;
@@ -51,7 +41,7 @@ export default function PayrollListScreen() {
     }
   };
 
-  const getStatusLabel = (status: PayrollItem['status']) => {
+  const getStatusLabel = (status: string) => {
     switch (status) {
       case 'completed':
         return 'Completed';
@@ -66,10 +56,10 @@ export default function PayrollListScreen() {
     }
   };
 
-  const renderPayrollCard = ({ item }: { item: PayrollItem }) => (
+  const renderPayrollCard = ({ item }: { item: PayrollSummary }) => (
     <TouchableOpacity
       style={[styles.card, tokens.shadows.md]}
-      onPress={() => navigation.navigate('PayrollDetail', { id: item.id })}
+      onPress={() => (navigation as any).navigate('PayrollDetail', { id: item.id })}
       activeOpacity={0.7}
     >
       <View style={styles.cardHeader}>
@@ -120,7 +110,7 @@ export default function PayrollListScreen() {
       </Text>
       <TouchableOpacity
         style={styles.createButton}
-        onPress={() => navigation.navigate('CreatePayroll')}
+        onPress={() => (navigation as any).navigate('CreatePayroll')}
       >
         <Text style={styles.createButtonText}>Create Payroll</Text>
       </TouchableOpacity>
@@ -156,13 +146,13 @@ export default function PayrollListScreen() {
         <Text style={styles.headerTitle}>Payroll</Text>
         <TouchableOpacity
           style={styles.addButton}
-          onPress={() => navigation.navigate('CreatePayroll')}
+          onPress={() => (navigation as any).navigate('CreatePayroll')}
         >
           <Ionicons name="add-circle" size={32} color={tokens.colors.primary} />
         </TouchableOpacity>
       </View>
 
-      <FlatList
+      <FlatList<PayrollSummary>
         data={payrolls}
         renderItem={renderPayrollCard}
         keyExtractor={(item) => item.id}
