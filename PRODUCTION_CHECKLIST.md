@@ -14,9 +14,9 @@
 - [ ] All unit tests passing (`cd backend && node ../node_modules/jest/bin/jest.js --forceExit`)
 - [ ] Code coverage > 80%
 - [ ] ESLint shows 0 errors (warnings acceptable)
-- [ ] No `console.log` in production code
+- [x] No `console.log` in production code (replaced with structured logger in queue/client, performOCR, payment adapters)
 - [ ] No commented-out code blocks
-- [ ] No hardcoded secrets or API keys
+- [x] No hardcoded secrets or API keys (audited — all use env vars)
 - [ ] TypeScript strict mode — no `any` in new code
 
 ### 2. Environment Configuration
@@ -44,7 +44,7 @@
 - [ ] Vercel admin dashboard deployed
 - [ ] SSL/TLS certificates valid
 - [ ] DNS records configured
-- [ ] CORS origins set correctly in `ALLOWED_ORIGINS`
+- [x] CORS origins set correctly in `ALLOWED_ORIGINS` (wildcard warning in production, explicit methods/headers, preflight cache)
 
 ---
 
@@ -146,19 +146,19 @@
 
 ### 15. Security Headers
 
-- [ ] `X-Content-Type-Options: nosniff`
-- [ ] `X-Frame-Options: DENY`
-- [ ] `X-XSS-Protection: 1; mode=block`
-- [ ] `Strict-Transport-Security` with `includeSubDomains`
-- [ ] `Content-Security-Policy` configured
-- [ ] `Referrer-Policy: strict-origin-when-cross-origin`
+- [x] `X-Content-Type-Options: nosniff`
+- [x] `X-Frame-Options: DENY`
+- [x] `X-XSS-Protection: 1; mode=block`
+- [x] `Strict-Transport-Security` with `includeSubDomains`
+- [x] `Content-Security-Policy` configured
+- [x] `Referrer-Policy: strict-origin-when-cross-origin`
 
 ### 16. Authentication & Authorization
 
-- [ ] JWT tokens expire in 24h
-- [ ] Rate limiting enabled in production
-- [ ] Secrets validation passes at startup (`validateSecrets()`)
-- [ ] No debug headers in production: `ALLOW_DEBUG_USER_ID_HEADER=false`
+- [x] JWT tokens expire in 24h
+- [x] Rate limiting enabled in production (Redis-backed, 5 rate limit tiers)
+- [x] Secrets validation passes at startup (`validateSecrets()` + `logSecretsSummary()`)
+- [x] No debug headers in production: `ALLOW_DEBUG_USER_ID_HEADER=false` (default)
 
 ### 17. Data Protection
 
@@ -175,16 +175,16 @@
 
 Run: `.\scripts\7-Post-Deployment-Smoke-Tests.ps1`
 
-- [ ] Backend liveness check passes
-- [ ] Backend readiness check passes
-- [ ] Full health check passes
-- [ ] Metrics endpoint responds
-- [ ] DigiTax integration healthy
-- [ ] Remita integration healthy
-- [ ] Admin console loads
-- [ ] Admin favicon returns 200
-- [ ] Security headers present
-- [ ] Response times within targets (health < 500ms, liveness < 200ms)
+- [x] Backend liveness check passes
+- [x] Backend readiness check passes
+- [x] Full health check passes
+- [x] Metrics endpoint responds
+- [x] DigiTax integration healthy
+- [x] Remita integration healthy
+- [x] Admin console loads
+- [x] Admin favicon returns 200
+- [x] Security headers present (all 6 headers verified on backend + admin dashboard)
+- [x] Response times within targets (health < 500ms, liveness < 200ms)
 
 ### 19. Monitoring Dashboard
 
