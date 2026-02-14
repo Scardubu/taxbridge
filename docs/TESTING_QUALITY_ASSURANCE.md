@@ -22,14 +22,14 @@ This document outlines the comprehensive testing infrastructure and quality gate
 
 ## Enhanced Quality Gates Checklist
 
-### ✅ Current Test Status (January 2026)
+### ✅ Current Test Status (February 2026)
 
 | Component | Tests | Status | Framework |
 |-----------|-------|--------|-----------|
-| **Backend** | 68 | ✅ All Passing | Jest 29.7 + Supertest |
+| **Backend** | 324 | ✅ All Passing (14 suites) | Jest 29.7 + ts-jest |
 | **Admin Dashboard** | 8 | ✅ All Passing | Jest 29.7 + @testing-library/react |
-| **Mobile** | 38 | ✅ All Passing | Jest 30 + jest-expo 54 + @testing-library/react-native |
-| **Total** | **114+** | ✅ All Passing | - |
+| **Mobile** | 64+ | ✅ All Passing | Jest 30 + jest-expo 54 + @testing-library/react-native |
+| **Total** | **396+** | ✅ All Passing | - |
 
 ### ✅ Code Coverage Requirements
 
@@ -100,8 +100,19 @@ This document outlines the comprehensive testing infrastructure and quality gate
 
 **Key Test Files**:
 - `src/__tests__/ubl.generator.unit.test.ts` - UBL 3.0 generation with full Peppol BIS compliance
-- `src/lib/tax/calculator.unit.test.ts` - Tax calculations
-- `src/lib/ocr/processor.unit.test.ts` - OCR functions
+- `src/__tests__/tax-engine.unit.test.ts` - PIT/VAT/CIT/WHT/CGT/PAYE calculations
+- `src/__tests__/auth-service.unit.test.ts` - Registration, login, MFA, token refresh
+- `src/__tests__/security.unit.test.ts` - Password validation, XSS sanitization, PBKDF2
+- `src/__tests__/encryption-service.unit.test.ts` - AES-256-GCM encrypt/decrypt
+- `src/__tests__/errors.unit.test.ts` - All 14 error classes, retryable errors
+- `src/__tests__/payment-gateway.unit.test.ts` - Paystack/Flutterwave adapters
+- `src/__tests__/invoice-service.unit.test.ts` - Invoice CRUD, PDF generation
+- `src/__tests__/expense-service.unit.test.ts` - Category detection, VAT eligibility
+- `src/__tests__/phase6-services.unit.test.ts` - Payroll, compliance, crypto, reconciliation
+- `src/__tests__/sync-idempotency.unit.test.ts` - Device sync push idempotency guard
+- `src/workers/__tests__/syncWorker.unit.test.ts` - Sync job processing
+- `src/__tests__/youverify.unit.test.ts` - Business verification
+- `src/__tests__/basic.unit.test.ts` - Basic health checks
 
 **Enhanced Coverage** (January 2026 Update):
 - ✅ All 55 mandatory UBL fields validated
@@ -414,6 +425,54 @@ npm run test -- --verbose
 
 # Run specific test file
 npm test -- src/lib/ubl/generator.unit.test.ts
+```
+
+## Device Sync Testing
+
+### Backend Sync Tests
+
+**Sync Idempotency Guard** (`src/__tests__/sync-idempotency.unit.test.ts`):
+- Duplicate SyncJob detection by clientId + deviceId
+- Skip processing for non-failed existing jobs
+- Allow retry for previously failed jobs
+- Correct status propagation for existing jobs
+
+**Sync Worker** (`src/workers/__tests__/syncWorker.unit.test.ts`):
+- Invoice creation from sync job payload
+- Conflict detection for version mismatches
+- Job status transitions (pending → processing → synced/failed)
+
+### Mobile Sync Tests
+
+**Sync Queue CRUD** (`mobile/__tests__/services/syncQueue.test.ts`):
+- Enqueue items with auto-generated ID and timestamps
+- Get pending items sorted by creation time
+- Update item status, attempts, and error tracking
+- Remove completed items
+- Count and clear operations
+- AsyncStorage fallback when SQLite unavailable
+
+**Sync Queue Adapter** (`mobile/__tests__/services/syncQueueAdapter.test.ts`):
+- Heartbeat → push → pull orchestration cycle
+- Batch push with retry/backoff on failure
+- Graceful handling of network errors
+- Empty queue short-circuit optimization
+- Sync cycle result reporting (pushed/pulled/failed counts)
+
+### Feature Flags
+
+- **Backend**: `FEATURE_DEVICE_SYNC=true` enables idempotency guard
+- **Mobile**: `EXPO_PUBLIC_FEATURE_DEVICE_SYNC=true` enables queue-based sync
+- Both flags default to `false` — legacy sync remains active as fallback
+
+### Running Device Sync Tests
+
+```bash
+# Backend sync tests
+cd backend && node ../node_modules/jest/bin/jest.js --forceExit --selectProjects unit --testPathPattern sync
+
+# Mobile sync tests
+cd mobile && npx jest --testPathPattern syncQueue
 ```
 
 ## Continuous Improvement
