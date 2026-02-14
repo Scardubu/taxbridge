@@ -22,14 +22,9 @@ import { useNetwork } from '../contexts/NetworkContext';
 import { addBreadcrumb } from '../services/sentry';
 import { SkeletonLoader } from '../components/ui/SkeletonLoader';
 
-// Optional imports - graceful degradation
-let Icon: React.ComponentType<any> | null = null;
-try {
-  // @ts-ignore
-  Icon = require('react-native-vector-icons/MaterialIcons').default;
-} catch {
-  if (__DEV__) console.warn('MaterialIcons not installed - using text fallbacks');
-}
+// Use Expo's bundled vector icons (always available, no extra native dep)
+import { MaterialIcons } from '@expo/vector-icons';
+const Icon: React.ComponentType<any> = MaterialIcons;
 
 let Voice: any | null = null;
 try {
