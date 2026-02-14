@@ -26,6 +26,20 @@ Write-Host ""
 # Navigate to admin dashboard directory
 Set-Location $PSScriptRoot
 
+# Preflight: check for uncommitted changes
+Write-Host "🔍 Checking git status..." -ForegroundColor Yellow
+$gitStatus = git status --porcelain 2>$null
+if ($gitStatus) {
+    Write-Host "⚠️  Uncommitted changes detected:" -ForegroundColor Yellow
+    git status --short
+    Write-Host ""
+    $proceed = Read-Host "Deploy with uncommitted changes? (y/N)"
+    if ($proceed -ne 'y') {
+        Write-Host "Aborting. Commit changes first." -ForegroundColor Red
+        exit 1
+    }
+}
+
 # Verify build exists
 if (-not (Test-Path ".next")) {
     Write-Host "❌ Build not found. Running build first..." -ForegroundColor Red
@@ -48,9 +62,15 @@ Write-Host ""
 Write-Host "🚀 Deploying to Vercel..." -ForegroundColor Yellow
 Write-Host ""
 
-# Set production environment variables
-$env:VERCEL_ORG_ID = "your-org-id"  # Replace with actual org ID
-$env:VERCEL_PROJECT_ID = "your-project-id"  # Replace with actual project ID
+# Validate Vercel project linkage
+if (-not (Test-Path ".vercel/project.json")) {
+    Write-Host "⚠️  Vercel project not linked. Run 'vercel link' first." -ForegroundColor Yellow
+    vercel link
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "❌ Vercel link failed" -ForegroundColor Red
+        exit 1
+    }
+}
 
 Write-Host "📋 Deployment Configuration:" -ForegroundColor Cyan
 Write-Host "  API URL: https://taxbridge-api-ker8.onrender.com" -ForegroundColor Gray
@@ -74,15 +94,38 @@ if ($LASTEXITCODE -eq 0) {
     Write-Host ""
     Write-Host "✅ Admin Dashboard Deployed Successfully!" -ForegroundColor Green
     Write-Host ""
+    
+    # Post-deploy verification: check security headers
+    Write-Host "🔍 Verifying security headers..." -ForegroundColor Yellow
+    try {
+        $adminUrl = "https://taxbridge.vercel.app"
+        $response = Invoke-WebRequest -Uri $adminUrl -Method HEAD -UseBasicParsing -TimeoutSec 10 -ErrorAction Stop
+        $headers = $response.Headers
+        $checks = @(
+            @{ Name = 'X-Content-Type-Options'; Expected = 'nosniff' },
+            @{ Name = 'X-Frame-Options'; Expected = 'DENY' },
+            @{ Name = 'Strict-Transport-Security'; Expected = $null }
+        )
+        foreach ($check in $checks) {
+            $val = $headers[$check.Name]
+            if ($val) {
+                Write-Host "  [PASS] $($check.Name): $val" -ForegroundColor Green
+            } else {
+                Write-Host "  [WARN] $($check.Name) not present" -ForegroundColor Yellow
+            }
+        }
+    } catch {
+        Write-Host "  ⚠️  Could not verify security headers: $($_.Exception.Message)" -ForegroundColor Yellow
+    }
+    Write-Host ""
+    
     Write-Host "📋 Post-Deployment Checklist:" -ForegroundColor Cyan
     Write-Host "  [ ] Verify dashboard loads at production URL" -ForegroundColor Gray
     Write-Host "  [ ] Test backend health integration" -ForegroundColor Gray
-    Write-Host "  [ ] Verify all 20 routes are accessible" -ForegroundColor Gray
+    Write-Host "  [ ] Verify all routes are accessible" -ForegroundColor Gray
     Write-Host "  [ ] Test invoice management flows" -ForegroundColor Gray
     Write-Host "  [ ] Verify user authentication" -ForegroundColor Gray
-    Write-Host "  [ ] Test analytics dashboard" -ForegroundColor Gray
-    Write-Host "  [ ] Configure custom domain (if applicable)" -ForegroundColor Gray
-    Write-Host "  [ ] Set up monitoring alerts" -ForegroundColor Gray
+    Write-Host "  [ ] Run smoke tests: .\scripts\7-Post-Deployment-Smoke-Tests.ps1" -ForegroundColor Gray
     Write-Host ""
 } else {
     Write-Host "❌ Deployment failed" -ForegroundColor Red
