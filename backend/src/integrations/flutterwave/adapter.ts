@@ -8,6 +8,9 @@
  */
 
 import crypto from 'crypto';
+import { createLogger } from '../../lib/logger';
+
+const log = createLogger('flutterwave');
 import axios, { AxiosInstance } from 'axios';
 import { metrics } from '../../services/metrics';
 import type {
@@ -122,7 +125,7 @@ export class FlutterwaveAdapter {
     } catch (error: any) {
       const duration = Date.now() - startTime;
       metrics.recordFlutterwavePayment(false, params.amount, duration);
-      console.error('Flutterwave initialization error:', error?.message || error);
+      log.error('Flutterwave initialization error', { error: error?.message || String(error) });
       return {
         success: false,
         error: error.response?.data?.message || error.message || 'Network error',
@@ -169,7 +172,7 @@ export class FlutterwaveAdapter {
       };
     } catch (error: any) {
       metrics.recordFlutterwaveStatus(false, Date.now() - startTime);
-      console.error('Flutterwave verification error:', error?.message || error);
+      log.error('Flutterwave verification error', { error: error?.message || String(error) });
       return {
         status: 'pending',
         error: error.response?.data?.message || error.message || 'Verification failed',

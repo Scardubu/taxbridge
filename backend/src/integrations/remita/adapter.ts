@@ -2,6 +2,9 @@ import crypto from 'crypto';
 import axios from 'axios';
 import { getRedisConnection } from '../../queue/client';
 import { metrics } from '../../services/metrics';
+import { createLogger } from '../../lib/logger';
+
+const log = createLogger('remita');
 
 interface RemitaConfig {
   merchantId: string;
@@ -117,7 +120,7 @@ export class RemitaAdapter {
       }
     } catch (error: any) {
       metrics.recordRemitaPayment(false, amount, Date.now() - startTime);
-      console.error('Remita RRR generation error:', error?.message || error);
+      log.error('Remita RRR generation error', { error: error?.message || String(error) });
       return {
         success: false,
         error: error.response?.data?.statusMessage || 'Network error'
@@ -142,7 +145,7 @@ export class RemitaAdapter {
           return JSON.parse(cached);
         }
       } catch (err) {
-        console.warn('Redis cache read failed for Remita verifyPayment', err);
+        log.warn('Redis cache read failed for Remita verifyPayment', { error: (err as Error)?.message });
       }
     }
 
@@ -179,7 +182,7 @@ export class RemitaAdapter {
       }
     } catch (error: any) {
       metrics.recordRemitaStatus(false, Date.now() - verifyStart);
-      console.error('Remita verification error:', error?.message || error);
+      log.error('Remita verification error', { error: error?.message || String(error) });
       return { status: 'failed' };
     }
   }

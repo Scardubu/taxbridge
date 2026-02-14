@@ -248,7 +248,16 @@ const envSchema = {
     // Youverify
     YOUVERIFY_API_KEY: { type: 'string' },
     YOUVERIFY_BASE_URL: { type: 'string', default: 'https://api.youverify.co' },
-    YOUVERIFY_SANDBOX: { type: 'string', default: 'true' }
+    YOUVERIFY_SANDBOX: { type: 'string', default: 'true' },
+    // DLQ + pool monitoring
+    ENABLE_DLQ_MONITORING: { type: 'string', default: 'true' },
+    ENABLE_POOL_MONITORING: { type: 'string', default: 'true' },
+    // Production monitoring
+    SENTRY_DSN: { type: 'string' },
+    HEALTH_LOG_THROTTLE_MS: { type: 'string', default: '300000' },
+    // Port fallback (dev only)
+    ALLOW_PORT_FALLBACK: { type: 'string', default: 'false' },
+    START_PAYMENT_WORKER: { type: 'string', default: 'false' }
   }
 } as const;
 
@@ -300,9 +309,17 @@ async function bootstrap() {
         .map((o) => o.trim())
         .filter(Boolean);
 
+  if (isProduction && corsOrigins === '*') {
+    log.warn('CORS is set to wildcard (*) in production — set ALLOWED_ORIGINS to restrict access');
+  }
+
   await app.register(cors, { 
     origin: corsOrigins,
-    credentials: true
+    credentials: corsOrigins !== '*',
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-ID', 'X-Correlation-ID', 'X-Admin-API-Key'],
+    exposedHeaders: ['X-Request-ID', 'X-Correlation-ID'],
+    maxAge: 86400
   });
 
   // Enable response compression for bandwidth reduction
@@ -371,7 +388,8 @@ async function bootstrap() {
     }
   });
 
-  // Register Swagger UI
+  // Register Swagger UI (disable tryItOut in production to prevent accidental mutations)
+  const isProduction = process.env.NODE_ENV === 'production';
   await app.register(fastifySwaggerUi, {
     routePrefix: '/docs',
     uiConfig: {
@@ -381,7 +399,7 @@ async function bootstrap() {
       filter: true,
       showExtensions: true,
       showCommonExtensions: true,
-      tryItOutEnabled: true
+      tryItOutEnabled: !isProduction
     },
     staticCSP: true,
     transformStaticCSP: (header) => header,

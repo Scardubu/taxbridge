@@ -1,5 +1,8 @@
 import { Queue } from 'bullmq';
 import Redis from 'ioredis';
+import { createLogger } from '../lib/logger';
+
+const log = createLogger('redis');
 
 let redisConnection: Redis | undefined;
 let invoiceSyncQueue: Queue | undefined;
@@ -28,7 +31,7 @@ export function getRedisConnection(): Redis | null {
         const [, username, password, host, port] = urlMatch;
         
         // Try connection without TLS first (some Redis Cloud instances don't use TLS)
-        console.log(`🔄 Connecting to Redis Cloud: ${host}:${port}`);
+        log.info('Connecting to Redis Cloud', { host, port });
         
         redisConnection = new Redis({
           host,
@@ -39,7 +42,7 @@ export function getRedisConnection(): Redis | null {
           maxRetriesPerRequest: null,
           retryStrategy: (times: number) => {
             if (isDevelopment && times > 3) {
-              console.warn('⚠️  Redis Cloud unavailable - running in degraded mode');
+              log.warn('Redis Cloud unavailable - running in degraded mode');
               redisAvailable = false;
               return null;
             }
@@ -59,7 +62,7 @@ export function getRedisConnection(): Redis | null {
         maxRetriesPerRequest: null,
         retryStrategy: (times: number) => {
           if (isDevelopment && times > 3) {
-            console.warn('⚠️  Redis unavailable - running in degraded mode (queues disabled)');
+            log.warn('Redis unavailable - running in degraded mode (queues disabled)');
             redisAvailable = false;
             return null;
           }
@@ -74,25 +77,25 @@ export function getRedisConnection(): Redis | null {
     // Handle connection errors gracefully
     redisConnection.on('error', (err) => {
       if (isDevelopment) {
-        console.warn('⚠️  Redis connection error (development mode):', err.message);
+        log.warn('Redis connection error (development mode)', { error: err.message });
         redisAvailable = false;
       } else {
-        console.error('❌ Redis connection error:', err);
+        log.error('Redis connection error', { error: err.message });
       }
     });
 
     redisConnection.on('connect', () => {
-      console.log('✅ Redis connected successfully');
+      log.info('Redis connected successfully');
       redisAvailable = true;
     });
 
     // Attempt to connect
     redisConnection.connect().catch((err) => {
       if (isDevelopment) {
-        console.warn('⚠️  Redis not available - continuing without queue support');
+        log.warn('Redis not available - continuing without queue support');
         redisAvailable = false;
       } else {
-        console.error('❌ Failed to connect to Redis:', err);
+        log.error('Failed to connect to Redis', { error: err.message || String(err) });
         throw err;
       }
     });
@@ -169,7 +172,7 @@ export async function enqueueInvoiceSync(invoiceId: string): Promise<void> {
   const queue = getInvoiceSyncQueue();
   if (!queue) {
     if (isDevelopment) {
-      console.warn('⚠️  Queue unavailable - invoice sync will be processed synchronously');
+      log.warn('Queue unavailable - invoice sync will be processed synchronously');
       return;
     }
     throw new Error('Invoice sync queue unavailable');
@@ -193,7 +196,7 @@ export async function enqueueDeviceSync(syncJobId: string): Promise<void> {
   const queue = getDeviceSyncQueue();
   if (!queue) {
     if (isDevelopment) {
-      console.warn('⚠️  Queue unavailable - device sync will be processed synchronously');
+      log.warn('Queue unavailable - device sync will be processed synchronously');
       return;
     }
     throw new Error('Device sync queue unavailable');

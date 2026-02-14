@@ -1,4 +1,7 @@
 import { Buffer } from 'buffer';
+import { createLogger } from './logger';
+
+const log = createLogger('ocr');
 
 type OCRResult = {
   amount?: number;
@@ -237,7 +240,7 @@ export async function performOCR(base64Image: string, mimeType: string): Promise
         if (variantsCount) methodUsed = 'jimp';
         else if (imageBuffer && imageBuffer !== buffer) methodUsed = 'opencv';
       } catch (_) {}
-      console.log('[performOCR] preprocess', { method: methodUsed, variants: variantsCount, preprocessMs: __ocrPreprocessMs });
+      log.debug('[performOCR] preprocess', { method: methodUsed, variants: variantsCount, preprocessMs: __ocrPreprocessMs });
     }
   }
 

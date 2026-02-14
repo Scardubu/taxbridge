@@ -8,6 +8,9 @@
  */
 
 import crypto from 'crypto';
+import { createLogger } from '../../lib/logger';
+
+const log = createLogger('paystack');
 import axios, { AxiosInstance } from 'axios';
 import { metrics } from '../../services/metrics';
 import type {
@@ -115,7 +118,7 @@ export class PaystackAdapter {
     } catch (error: any) {
       const duration = Date.now() - startTime;
       try { metrics.recordPaystackPayment(false, params.amount, duration); } catch {}
-      console.error('Paystack initialization error:', error?.message || error);
+      log.error('Paystack initialization error', { error: error?.message || String(error) });
       return {
         success: false,
         error: error.response?.data?.message || error.message || 'Network error',
@@ -162,7 +165,7 @@ export class PaystackAdapter {
       };
     } catch (error: any) {
       try { metrics.recordPaystackStatus(false, Date.now() - startTime); } catch {}
-      console.error('Paystack verification error:', error?.message || error);
+      log.error('Paystack verification error', { error: error?.message || String(error) });
       return {
         status: 'pending',
         error: error.response?.data?.message || error.message || 'Verification failed',
