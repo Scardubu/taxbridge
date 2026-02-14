@@ -15,13 +15,13 @@ function Get-HealthStatus {
     try {
         $response = Invoke-RestMethod -Uri "$Url/health" -TimeoutSec 10 -ErrorAction Stop
         return @{
-            Status = "✓"
+            Status = "[OK]"
             Color = "Green"
             Data = $response
         }
     } catch {
         return @{
-            Status = "✗"
+            Status = "[FAIL]"
             Color = "Red"
             Data = $null
             Error = $_.Exception.Message
@@ -43,14 +43,14 @@ function Get-DetailedHealth {
 function Show-Dashboard {
     Clear-Host
     
-    Write-Host "═══════════════════════════════════════════════════════════" -ForegroundColor Cyan
+    Write-Host "=============================================================" -ForegroundColor Cyan
     Write-Host "  TaxBridge Production Monitoring Dashboard" -ForegroundColor Cyan
     Write-Host "  $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')" -ForegroundColor Gray
-    Write-Host "═══════════════════════════════════════════════════════════" -ForegroundColor Cyan
+    Write-Host "=============================================================" -ForegroundColor Cyan
     
     # Backend API Status
-    Write-Host "`n🔧 Backend API Status" -ForegroundColor Yellow
-    Write-Host "──────────────────────────────────────────────────────────" -ForegroundColor Gray
+    Write-Host "`n[*] Backend API Status" -ForegroundColor Yellow
+    Write-Host "-------------------------------------------------------------" -ForegroundColor Gray
     
     $backendHealth = Get-HealthStatus -Url $apiUrl
     Write-Host "  Status: " -NoNewline
@@ -149,23 +149,23 @@ function Show-Dashboard {
     }
     
     # Admin Console Status
-    Write-Host "`n🖥️  Admin Console Status" -ForegroundColor Yellow
-    Write-Host "──────────────────────────────────────────────────────────" -ForegroundColor Gray
+    Write-Host "`n[*] Admin Console Status" -ForegroundColor Yellow
+    Write-Host "-------------------------------------------------------------" -ForegroundColor Gray
     
     try {
         $adminResponse = Invoke-WebRequest -Uri $adminUrl -TimeoutSec 10 -UseBasicParsing
         if ($adminResponse.StatusCode -eq 200) {
-            Write-Host "  Status: ✓" -ForegroundColor Green
+            Write-Host "  Status: [OK]" -ForegroundColor Green
             Write-Host "  Response Code: 200 OK" -ForegroundColor White
         }
     } catch {
-        Write-Host "  Status: ✗" -ForegroundColor Red
+        Write-Host "  Status: [FAIL]" -ForegroundColor Red
         Write-Host "  Error: $($_.Exception.Message)" -ForegroundColor Red
     }
     
     # Quick Metrics
-    Write-Host "`n📊 Quick Metrics" -ForegroundColor Yellow
-    Write-Host "──────────────────────────────────────────────────────────" -ForegroundColor Gray
+    Write-Host "`n[*] Quick Metrics" -ForegroundColor Yellow
+    Write-Host "-------------------------------------------------------------" -ForegroundColor Gray
     
     try {
         $metricsData = Invoke-RestMethod -Uri "$apiUrl/metrics" -TimeoutSec 10 -ErrorAction Stop
@@ -194,7 +194,7 @@ function Show-Dashboard {
     }
     
     # Footer
-    Write-Host "`n═══════════════════════════════════════════════════════════" -ForegroundColor Cyan
+    Write-Host "`n=============================================================" -ForegroundColor Cyan
     if ($Continuous) {
         Write-Host "  Auto-refresh in $RefreshInterval seconds... (Ctrl+C to exit)" -ForegroundColor Gray
     }
