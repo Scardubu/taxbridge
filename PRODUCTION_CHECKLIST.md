@@ -236,6 +236,167 @@ See `docs/INCIDENT_RESPONSE.md` for full incident response procedures.
 
 ---
 
+## 🚨 Emergency Contacts
+
+**Critical Issues (P1 - Production Down)**
+
+| Role | Name | Phone | Email | Availability |
+|------|------|-------|-------|--------------|
+| Technical Lead | [Name] | +234-XXX-XXX-XXXX | tech-lead@taxbridge.ng | 24/7 |
+| DevOps Engineer | [Name] | +234-XXX-XXX-XXXX | devops@taxbridge.ng | 24/7 |
+| Backend Lead | [Name] | +234-XXX-XXX-XXXX | backend@taxbridge.ng | 24/7 |
+| Mobile Lead | [Name] | +234-XXX-XXX-XXXX | mobile@taxbridge.ng | On-call |
+
+**Business Contacts**
+
+| Role | Name | Phone | Email |
+|------|------|-------|-------|
+| Product Owner | [Name] | +234-XXX-XXX-XXXX | product@taxbridge.ng |
+| CTO | [Name] | +234-XXX-XXX-XXXX | cto@taxbridge.ng |
+| Customer Support | [Name] | +234-XXX-XXX-XXXX | support@taxbridge.ng |
+
+**Vendor Contacts**
+
+| Service | Contact | Support URL |
+|---------|---------|-------------|
+| Render.com | support@render.com | https://render.com/support |
+| Vercel | support@vercel.com | https://vercel.com/support |
+| Supabase | support@supabase.io | https://supabase.com/support |
+| Paystack | support@paystack.com | https://paystack.com/support |
+| Flutterwave | support@flutterwave.com | https://flutterwave.com/support |
+
+---
+
+## 📅 Post-Launch Monitoring Schedule
+
+### Day 1-3 (Critical Period)
+- **Monitoring Frequency**: Every 4 hours
+- **On-Call**: 24/7 rotation
+- **Focus Areas**:
+  - Crash-free rate (target: >99.9%)
+  - API error rate (target: <1%)
+  - Database connection pool utilization
+  - Payment gateway success rate
+  - User onboarding completion rate
+
+**Actions**:
+- Run smoke tests every 4 hours: `.\scripts\7-Post-Deployment-Smoke-Tests.ps1`
+- Check Sentry for new error patterns
+- Monitor user feedback channels (WhatsApp, email)
+- Review server logs for anomalies
+
+### Day 4-7 (Stabilization)
+- **Monitoring Frequency**: Twice daily (9 AM, 6 PM WAT)
+- **On-Call**: Business hours + evening check
+- **Focus Areas**:
+  - User retention (D1, D3, D7)
+  - Feature adoption rates
+  - Sync success rate
+  - Payment conversion rate
+
+**Actions**:
+- Daily metrics review meeting (15 min)
+- Address any P2/P3 bugs
+- Gather user feedback
+- Optimize slow queries
+
+### Week 2 (Optimization)
+- **Monitoring Frequency**: Daily (9 AM WAT)
+- **On-Call**: Business hours
+- **Focus Areas**:
+  - Performance optimization opportunities
+  - Cost optimization (API calls, database queries)
+  - User experience improvements
+
+**Actions**:
+- Weekly retrospective meeting
+- Plan feature iterations based on feedback
+- Review and optimize infrastructure costs
+
+### Week 3+ (Steady State)
+- **Monitoring Frequency**: Weekly + automated alerts
+- **On-Call**: Rotating schedule
+- **Focus Areas**:
+  - Long-term KPIs
+  - Feature requests prioritization
+  - Technical debt management
+
+**Actions**:
+- Weekly metrics dashboard review
+- Monthly infrastructure health check
+- Quarterly security audit
+
+---
+
+## 📊 7-Day Success Metrics Tracking
+
+| Metric | Target | Day 1 | Day 2 | Day 3 | Day 4 | Day 5 | Day 6 | Day 7 | Status |
+|--------|--------|-------|-------|-------|-------|-------|-------|-------|--------|
+| Crash-free rate | >99.9% | _____ | _____ | _____ | _____ | _____ | _____ | _____ | ☐ |
+| API uptime | >99.5% | _____ | _____ | _____ | _____ | _____ | _____ | _____ | ☐ |
+| Onboarding completion | >60% | _____ | _____ | _____ | _____ | _____ | _____ | _____ | ☐ |
+| Invoice creation rate | >50% | _____ | _____ | _____ | _____ | _____ | _____ | _____ | ☐ |
+| Sync success rate | >95% | _____ | _____ | _____ | _____ | _____ | _____ | _____ | ☐ |
+| User retention (D1) | >70% | _____ | _____ | _____ | _____ | _____ | _____ | _____ | ☐ |
+| Payment success rate | >95% | _____ | _____ | _____ | _____ | _____ | _____ | _____ | ☐ |
+| Avg session duration | >5 min | _____ | _____ | _____ | _____ | _____ | _____ | _____ | ☐ |
+| API p95 latency | <500ms | _____ | _____ | _____ | _____ | _____ | _____ | _____ | ☐ |
+| Support tickets | <10/day | _____ | _____ | _____ | _____ | _____ | _____ | _____ | ☐ |
+
+**Notes Section:**
+```
+Day 1: _______________________________________________________________
+Day 2: _______________________________________________________________
+Day 3: _______________________________________________________________
+Day 4: _______________________________________________________________
+Day 5: _______________________________________________________________
+Day 6: _______________________________________________________________
+Day 7: _______________________________________________________________
+```
+
+---
+
+## ⚖️ Legal & Compliance
+
+### Data Protection (NDPC Compliance)
+- [ ] Privacy Policy published and accessible
+- [ ] Terms of Service published and accessible
+- [ ] User consent mechanism for data collection implemented
+- [ ] Data retention policy documented (max 7 years for tax records)
+- [ ] Right to erasure (GDPR-style) mechanism implemented
+- [ ] Data breach notification procedure documented
+- [ ] Data Processing Agreement (DPA) with vendors signed
+
+### Nigerian Tax Compliance
+- [ ] FIRS integration approved and documented
+- [ ] NRS e-invoicing compliance verified
+- [ ] Tax calculation accuracy certified by tax consultant
+- [ ] VAT rate (7.5%) correctly implemented
+- [ ] CIT 3-tier system (0%/20%/30%) correctly implemented
+- [ ] WHT rates verified against FIRS guidelines
+- [ ] Tax remittance procedures documented
+
+### Financial Regulations
+- [ ] Payment gateway agreements signed (Paystack, Flutterwave)
+- [ ] PCI DSS compliance verified (no card data stored)
+- [ ] Anti-money laundering (AML) checks implemented
+- [ ] Know Your Customer (KYC) verification via Youverify
+- [ ] Transaction limits documented and enforced
+
+### Intellectual Property
+- [ ] TaxBridge trademark registration filed
+- [ ] Open source licenses compliance verified
+- [ ] Third-party API terms of service reviewed
+- [ ] Code ownership and contributor agreements signed
+
+### Insurance & Liability
+- [ ] Professional indemnity insurance obtained
+- [ ] Cyber liability insurance obtained
+- [ ] Limitation of liability clause in Terms of Service
+- [ ] Service Level Agreement (SLA) defined
+
+---
+
 ## Version Pins (for regression prevention)
 
 | Component | Version | Notes |

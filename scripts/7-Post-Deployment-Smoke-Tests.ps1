@@ -99,7 +99,104 @@ Write-TestHeader "Backend API Routes"
 Test-Endpoint -Name "404 Not Found Handler" -Url "$ApiUrl/nonexistent-route" -ExpectedStatus 404
 Test-Endpoint -Name "Swagger Docs" -Url "$ApiUrl/docs"
 
-# 3. INTEGRATION HEALTH
+# CORS Preflight Test
+Write-Host "  Testing CORS Preflight..." -NoNewline
+try {
+    $corsResponse = Invoke-WebRequest -Uri "$ApiUrl/health" -Method OPTIONS -UseBasicParsing -TimeoutSec 10 -ErrorAction Stop
+    $hasAccessControl = $corsResponse.Headers.ContainsKey("Access-Control-Allow-Origin") -or $corsResponse.Headers.ContainsKey("access-control-allow-origin")
+    
+    if ($hasAccessControl) {
+        Write-Host " [PASS]" -ForegroundColor Green
+        $global:testsPassed++
+    } else {
+        Write-Host " [WARN] (No CORS headers)" -ForegroundColor Yellow
+    }
+} catch {
+    Write-Host " [FAIL] ($($_.Exception.Message))" -ForegroundColor Red
+    $global:testsFailed++
+}
+
+# POST Body Test (Tax Calculation)
+Write-Host "  Testing POST with Body..." -NoNewline
+try {
+    $body = @{
+        grossIncome = 5000000
+        reliefs = @{
+            cra = $true
+            pension = 400000
+            nhf = 125000
+        }
+    } | ConvertTo-Json
+    
+    $postResponse = Invoke-RestMethod -Uri "$ApiUrl/api/v1/tax/calculate/pit" -Method POST -Body $body -ContentType "application/json" -TimeoutSec 10 -ErrorAction Stop
+    
+    if ($postResponse.success -and $postResponse.data) {
+        Write-Host " [PASS]" -ForegroundColor Green
+        $global:testsPassed++
+    } else {
+        Write-Host " [WARN] (Unexpected response)" -ForegroundColor Yellow
+    }
+} catch {
+    # Expected to fail without auth, but should return proper error
+    $statusCode = $null
+    if ($_.Exception.Response) {
+        $statusCode = [int]$_.Exception.Response.StatusCode
+    }
+    
+    if ($statusCode -eq 401 -or $statusCode -eq 403) {
+        Write-Host " [PASS] (Auth required)" -ForegroundColor Green
+        $global:testsPassed++
+    } else {
+        Write-Host " [FAIL] ($($_.Exception.Message))" -ForegroundColor Red
+        $global:testsFailed++
+    }
+}
+
+# 3. DATABASE & REDIS CONNECTIVITY
+Write-TestHeader "Database & Redis Connectivity"
+
+try {
+    $detailedHealth = Invoke-RestMethod -Uri "$ApiUrl/health/detailed" -TimeoutSec 10 -ErrorAction Stop
+    
+    # Database connectivity
+    if ($detailedHealth.checks.database) {
+        $dbStatus = $detailedHealth.checks.database.status
+        if ($dbStatus -eq "healthy") {
+            Write-Host "  [PASS] Database Connection" -ForegroundColor Green -NoNewline
+            Write-Host " ($($detailedHealth.checks.database.responseTime)ms)" -ForegroundColor Gray
+            $global:testsPassed++
+        } else {
+            Write-Host "  [FAIL] Database Connection" -ForegroundColor Red -NoNewline
+            Write-Host " (Status: $dbStatus)" -ForegroundColor Yellow
+            $global:testsFailed++
+        }
+    } else {
+        Write-Host "  [WARN] Database Connection" -ForegroundColor Yellow -NoNewline
+        Write-Host " (Unable to verify)" -ForegroundColor Gray
+    }
+    
+    # Redis connectivity
+    if ($detailedHealth.checks.redis) {
+        $redisStatus = $detailedHealth.checks.redis.status
+        if ($redisStatus -eq "healthy") {
+            Write-Host "  [PASS] Redis Connection" -ForegroundColor Green -NoNewline
+            Write-Host " ($($detailedHealth.checks.redis.responseTime)ms)" -ForegroundColor Gray
+            $global:testsPassed++
+        } else {
+            Write-Host "  [FAIL] Redis Connection" -ForegroundColor Red -NoNewline
+            Write-Host " (Status: $redisStatus)" -ForegroundColor Yellow
+            $global:testsFailed++
+        }
+    } else {
+        Write-Host "  [WARN] Redis Connection" -ForegroundColor Yellow -NoNewline
+        Write-Host " (Unable to verify)" -ForegroundColor Gray
+    }
+} catch {
+    Write-Host "  [FAIL] Unable to check connectivity" -ForegroundColor Red
+    $global:testsFailed++
+}
+
+# 4. INTEGRATION HEALTH
 Write-TestHeader "Integration Health Checks"
 
 Test-Endpoint -Name "DigiTax Health" -Url "$ApiUrl/health/digitax"

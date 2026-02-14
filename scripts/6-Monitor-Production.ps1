@@ -29,6 +29,17 @@ function Get-HealthStatus {
     }
 }
 
+function Get-DetailedHealth {
+    param([string]$Url)
+    
+    try {
+        $response = Invoke-RestMethod -Uri "$Url/health/detailed" -TimeoutSec 10 -ErrorAction Stop
+        return $response
+    } catch {
+        return $null
+    }
+}
+
 function Show-Dashboard {
     Clear-Host
     
@@ -53,29 +64,84 @@ function Show-Dashboard {
         if ($data.version) {
             Write-Host "  Version: $($data.version)" -ForegroundColor White
         }
-        if ($data.latency) {
-            $dbLatency = $data.latency.database
-            $redisLatency = $data.latency.redis
-            $dbColor = if ($dbLatency -lt 100) { "Green" } elseif ($dbLatency -lt 500) { "Yellow" } else { "Red" }
-            $redisColor = if ($redisLatency -lt 50) { "Green" } elseif ($redisLatency -lt 200) { "Yellow" } else { "Red" }
-            Write-Host "  Database Latency: " -NoNewline
-            Write-Host "${dbLatency}ms" -ForegroundColor $dbColor
-            Write-Host "  Redis Latency: " -NoNewline
-            Write-Host "${redisLatency}ms" -ForegroundColor $redisColor
+        if ($data.environment) {
+            Write-Host "  Environment: $($data.environment)" -ForegroundColor White
         }
-        if ($data.integrations) {
-            Write-Host "`n  Integrations:" -ForegroundColor Cyan
-            if ($data.integrations.digitax) {
-                $dtStatus = $data.integrations.digitax.status
-                $dtColor = if ($dtStatus -eq "healthy") { "Green" } else { "Yellow" }
-                Write-Host "    DigiTax: " -NoNewline
-                Write-Host $dtStatus -ForegroundColor $dtColor
+        
+        # Get detailed health information
+        $detailedHealth = Get-DetailedHealth -Url $apiUrl
+        if ($detailedHealth) {
+            Write-Host "`n  Component Health:" -ForegroundColor Cyan
+            
+            # Database
+            if ($detailedHealth.checks.database) {
+                $dbStatus = $detailedHealth.checks.database.status
+                $dbLatency = $detailedHealth.checks.database.responseTime
+                $dbColor = if ($dbStatus -eq "healthy") { "Green" } elseif ($dbStatus -eq "degraded") { "Yellow" } else { "Red" }
+                $latencyColor = if ($dbLatency -lt 100) { "Green" } elseif ($dbLatency -lt 500) { "Yellow" } else { "Red" }
+                Write-Host "    Database: " -NoNewline
+                Write-Host $dbStatus -ForegroundColor $dbColor -NoNewline
+                Write-Host " (" -NoNewline -ForegroundColor Gray
+                Write-Host "${dbLatency}ms" -NoNewline -ForegroundColor $latencyColor
+                Write-Host ")" -ForegroundColor Gray
             }
-            if ($data.integrations.remita) {
-                $rmStatus = $data.integrations.remita.status
-                $rmColor = if ($rmStatus -eq "healthy") { "Green" } else { "Yellow" }
-                Write-Host "    Remita: " -NoNewline
-                Write-Host $rmStatus -ForegroundColor $rmColor
+            
+            # Redis
+            if ($detailedHealth.checks.redis) {
+                $redisStatus = $detailedHealth.checks.redis.status
+                $redisLatency = $detailedHealth.checks.redis.responseTime
+                $redisColor = if ($redisStatus -eq "healthy") { "Green" } elseif ($redisStatus -eq "degraded") { "Yellow" } else { "Red" }
+                $latencyColor = if ($redisLatency -lt 50) { "Green" } elseif ($redisLatency -lt 200) { "Yellow" } else { "Red" }
+                Write-Host "    Redis: " -NoNewline
+                Write-Host $redisStatus -ForegroundColor $redisColor -NoNewline
+                Write-Host " (" -NoNewline -ForegroundColor Gray
+                Write-Host "${redisLatency}ms" -NoNewline -ForegroundColor $latencyColor
+                Write-Host ")" -ForegroundColor Gray
+            }
+            
+            # System Metrics
+            if ($detailedHealth.system) {
+                Write-Host "`n  System Metrics:" -ForegroundColor Cyan
+                
+                # Memory
+                if ($detailedHealth.system.memory) {
+                    $memUsagePercent = [math]::Round($detailedHealth.system.memory.usagePercent, 1)
+                    $memColor = if ($memUsagePercent -lt 70) { "Green" } elseif ($memUsagePercent -lt 85) { "Yellow" } else { "Red" }
+                    Write-Host "    Memory Usage: " -NoNewline
+                    Write-Host "$memUsagePercent%" -ForegroundColor $memColor
+                    
+                    $heapUsedMB = [math]::Round($detailedHealth.system.memory.heapUsed / 1MB, 1)
+                    $heapTotalMB = [math]::Round($detailedHealth.system.memory.heapTotal / 1MB, 1)
+                    Write-Host "    Heap: ${heapUsedMB}MB / ${heapTotalMB}MB" -ForegroundColor White
+                }
+                
+                # CPU
+                if ($detailedHealth.system.cpu) {
+                    Write-Host "    CPU Cores: $($detailedHealth.system.cpu.cores)" -ForegroundColor White
+                    if ($detailedHealth.system.cpu.loadAverage) {
+                        $loadAvg = $detailedHealth.system.cpu.loadAverage -join ', '
+                        Write-Host "    Load Average: $loadAvg" -ForegroundColor White
+                    }
+                }
+            }
+            
+            # External APIs
+            if ($detailedHealth.checks.externalApis) {
+                Write-Host "`n  External API Connectivity:" -ForegroundColor Cyan
+                
+                foreach ($api in $detailedHealth.checks.externalApis.PSObject.Properties) {
+                    $apiName = $api.Name
+                    $apiData = $api.Value
+                    $apiStatus = $apiData.status
+                    $apiColor = if ($apiStatus -eq "healthy") { "Green" } elseif ($apiStatus -eq "degraded") { "Yellow" } else { "Red" }
+                    
+                    Write-Host "    ${apiName}: " -NoNewline
+                    Write-Host $apiStatus -ForegroundColor $apiColor
+                    
+                    if ($apiData.latency) {
+                        Write-Host "      Latency: $($apiData.latency)ms" -ForegroundColor Gray
+                    }
+                }
             }
         }
     } else {

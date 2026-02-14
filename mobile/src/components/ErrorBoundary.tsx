@@ -19,10 +19,15 @@ import {
   TouchableOpacity,
   SafeAreaView,
   Linking,
+  Share,
+  ScrollView,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { captureException, addBreadcrumb } from '../services/sentry';
 import { colors, spacing, radii, typography } from '../theme/tokens';
 import i18n from '../i18n';
+
+const ERROR_LOGS_KEY = '@taxbridge:error_logs';
 
 interface Props {
   children: ReactNode;
@@ -69,10 +74,36 @@ export class ErrorBoundary extends Component<Props, State> {
 
     this.setState({ errorInfo });
 
+    // Save error to AsyncStorage for later reporting
+    const errorDetails = {
+      errorId: this.state.errorId,
+      message: error.message,
+      stack: error.stack,
+      componentStack: errorInfo.componentStack,
+      timestamp: new Date().toISOString(),
+    };
+    this.saveErrorLog(errorDetails);
+
     // Also log to console in dev
     if (__DEV__) {
       console.error('ErrorBoundary caught an error:', error);
       console.error('Component stack:', errorInfo.componentStack);
+    }
+  }
+
+  async saveErrorLog(errorDetails: any): Promise<void> {
+    try {
+      const existingLogs = await AsyncStorage.getItem(ERROR_LOGS_KEY);
+      const logs = existingLogs ? JSON.parse(existingLogs) : [];
+      
+      logs.push(errorDetails);
+      
+      // Keep only last 10 errors
+      const recentLogs = logs.slice(-10);
+      
+      await AsyncStorage.setItem(ERROR_LOGS_KEY, JSON.stringify(recentLogs));
+    } catch (error) {
+      console.error('[ErrorBoundary] Failed to save error log:', error);
     }
   }
 
@@ -92,6 +123,19 @@ export class ErrorBoundary extends Component<Props, State> {
     Linking.openURL(whatsappUrl).catch(() => {});
   };
 
+  handleShareError = async (): Promise<void> => {
+    const { error, errorId } = this.state;
+    
+    try {
+      await Share.share({
+        message: `TaxBridge Error Report\n\nError ID: ${errorId || 'unknown'}\nMessage: ${error?.message || 'Unknown error'}\nTime: ${new Date().toLocaleString()}\n\nPlease share this with TaxBridge support.`,
+        title: 'TaxBridge Error Report',
+      });
+    } catch (error) {
+      console.error('[ErrorBoundary] Failed to share error:', error);
+    }
+  };
+
   render(): ReactNode {
     const { hasError, error, errorId } = this.state;
     const { children, fallback } = this.props;
@@ -103,12 +147,30 @@ export class ErrorBoundary extends Component<Props, State> {
 
       return (
         <SafeAreaView style={styles.container}>
-          <View style={styles.content}>
+          <ScrollView contentContainerStyle={styles.content}>
             <Text style={styles.emoji}>😔</Text>
             <Text style={styles.title}>{i18n.t('errors.boundary.title')}</Text>
             <Text style={styles.subtitle}>
               {i18n.t('errors.boundary.subtitle')}
             </Text>
+
+            {/* Reassurance Box */}
+            <View style={styles.reassuranceBox}>
+              <Text style={styles.reassuranceIcon}>✓</Text>
+              <View style={styles.reassuranceContent}>
+                <Text style={styles.reassuranceTitle}>Your data is safe</Text>
+                <Text style={styles.reassuranceText}>
+                  All your invoices and business data are saved securely on your device.
+                </Text>
+              </View>
+            </View>
+
+            {errorId && (
+              <View style={styles.errorIdBox}>
+                <Text style={styles.errorIdLabel}>Error ID (for support):</Text>
+                <Text style={styles.errorIdText}>{errorId}</Text>
+              </View>
+            )}
 
             {__DEV__ && error && (
               <View style={styles.errorBox}>
@@ -124,17 +186,19 @@ export class ErrorBoundary extends Component<Props, State> {
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.supportButton} onPress={this.handleContactSupport}>
-              <Text style={styles.supportButtonText}>Contact Support</Text>
+              <Text style={styles.supportButtonText}>Contact Support via WhatsApp</Text>
             </TouchableOpacity>
 
-            {errorId && (
-              <Text style={styles.errorId}>Error ID: {errorId}</Text>
+            {__DEV__ && (
+              <TouchableOpacity style={styles.shareButton} onPress={this.handleShareError}>
+                <Text style={styles.shareButtonText}>Share Error Report</Text>
+              </TouchableOpacity>
             )}
 
             <Text style={styles.hint}>
               {i18n.t('errors.boundary.hint')}
             </Text>
-          </View>
+          </ScrollView>
         </SafeAreaView>
       );
     }
@@ -218,11 +282,73 @@ const styles = StyleSheet.create({
     fontWeight: typography.weight.semibold as any,
     textAlign: 'center',
   },
+  reassuranceBox: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#ECFDF5',
+    padding: spacing.md,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: '#10B981',
+    marginBottom: spacing.lg,
+    width: '100%',
+    maxWidth: 300,
+  },
+  reassuranceIcon: {
+    fontSize: 24,
+    marginRight: spacing.sm,
+  },
+  reassuranceContent: {
+    flex: 1,
+  },
+  reassuranceTitle: {
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.semibold as any,
+    color: '#047857',
+    marginBottom: 4,
+  },
+  reassuranceText: {
+    fontSize: typography.size.sm,
+    color: '#065F46',
+  },
+  errorIdBox: {
+    backgroundColor: colors.neutral?.[100] || '#F3F4F6',
+    borderRadius: radii.sm,
+    padding: spacing.sm,
+    marginBottom: spacing.md,
+    width: '100%',
+    maxWidth: 300,
+  },
+  errorIdLabel: {
+    fontSize: typography.size.xs,
+    color: colors.textMuted,
+    marginBottom: 4,
+  },
+  errorIdText: {
+    fontSize: typography.size.sm,
+    fontFamily: 'monospace',
+    color: colors.textPrimary,
+    fontWeight: typography.weight.semibold as any,
+  },
   errorId: {
     fontSize: typography.size.xs,
     fontFamily: 'monospace',
     color: colors.textMuted,
     marginBottom: spacing.sm,
+  },
+  shareButton: {
+    paddingHorizontal: spacing.xl,
+    paddingVertical: spacing.sm,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.neutral?.[300] || '#D1D5DB',
+    marginBottom: spacing.md,
+  },
+  shareButtonText: {
+    color: colors.textSecondary,
+    fontSize: typography.size.md,
+    fontWeight: typography.weight.medium as any,
+    textAlign: 'center',
   },
   hint: {
     fontSize: typography.size.sm,
