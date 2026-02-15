@@ -54,10 +54,6 @@
     },
     "production": {
       "channel": "production",
-      "cache": {
-        "disabled": false,
-        "clear": true
-      },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://taxbridge-api-ker8.onrender.com",
         "EXPO_PUBLIC_ENV": "production",
@@ -78,10 +74,6 @@
     "production-apk": {
       "channel": "production-apk",
       "distribution": "internal",
-      "cache": {
-        "disabled": false,
-        "clear": true
-      },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://taxbridge-api-ker8.onrender.com",
         "EXPO_PUBLIC_ENV": "production",
