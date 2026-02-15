@@ -2,55 +2,26 @@
   "name": "taxbridge",
   "version": "1.0.0",
   "private": true,
-  "packageManager": "yarn@1.22.22",
+  "packageManager": "npm@10",
   "engines": {
     "node": "20.x"
   },
-  "workspaces": {
-    "packages": [
-      "admin-dashboard",
-      "mobile",
-      "backend",
-      "ml",
-      "infra",
-      "packages/*"
-    ],
-    "nohoist": [
-      "**/expo",
-      "**/expo/**",
-      "**/react-native",
-      "**/react-native/**",
-      "**/react",
-      "**/react/**",
-      "**/react-dom",
-      "**/react-dom/**",
-      "**/expo-*",
-      "**/expo-*/**",
-      "**/react-native-*",
-      "**/react-native-*/**",
-      "**/@expo/**",
-      "**/@react-native/**",
-      "**/@react-native-async-storage/**",
-      "**/@react-native-community/**",
-      "**/lottie-react-native",
-      "**/lottie-react-native/**",
-      "**/@react-navigation/**"
-    ]
-  },
-  "resolutions": {
-    "expo-constants": "18.0.13",
-    "react": "19.1.0",
-    "react-dom": "19.1.0",
-    "use-sync-external-store": "1.6.0"
-  },
+  "workspaces": [
+    "admin-dashboard",
+    "mobile",
+    "backend",
+    "ml",
+    "infra",
+    "packages/*"
+  ],
   "scripts": {
-    "lint": "yarn workspaces run lint",
-    "test": "yarn workspaces run test",
-    "type-check": "cd mobile && yarn tsc --noEmit && cd ../admin-dashboard && yarn tsc --noEmit && cd ../backend && yarn tsc --noEmit",
-    "type-check:mobile": "cd mobile && yarn tsc --noEmit",
-    "type-check:admin": "cd admin-dashboard && yarn tsc --noEmit",
-    "type-check:backend": "cd backend && yarn tsc --noEmit",
-    "build": "yarn workspace @taxbridge/contracts build && yarn workspace @taxbridge/backend build && yarn workspace admin-dashboard build"
+    "lint": "npm run lint --workspaces",
+    "test": "npm run test --workspaces",
+    "type-check": "cd mobile && npm run type-check && cd ../admin-dashboard && npm run type-check && cd ../backend && npm run type-check",
+    "type-check:mobile": "cd mobile && npm run type-check",
+    "type-check:admin": "cd admin-dashboard && npm run type-check",
+    "type-check:backend": "cd backend && npm run type-check",
+    "build": "npm run build --workspace=@taxbridge/contracts && npm run build --workspace=@taxbridge/backend && npm run build --workspace=admin-dashboard"
   },
   "devDependencies": {
     "typescript": "~5.9.2"
