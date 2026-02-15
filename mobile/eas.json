@@ -54,12 +54,17 @@
     },
     "production": {
       "channel": "production",
+      "cache": {
+        "disabled": false,
+        "clear": true
+      },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://taxbridge-api-ker8.onrender.com",
         "EXPO_PUBLIC_ENV": "production",
         "EXPO_PUBLIC_SENTRY_DSN": "https://prod@sentry.io/project",
         "EXPO_PUBLIC_MIXPANEL_TOKEN": "prod_mixpanel_token",
-        "NODE_ENV": "production"
+        "NODE_ENV": "production",
+        "EAS_BUILD": "true"
       },
       "android": {
         "buildType": "app-bundle",
@@ -73,12 +78,17 @@
     "production-apk": {
       "channel": "production-apk",
       "distribution": "internal",
+      "cache": {
+        "disabled": false,
+        "clear": true
+      },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://taxbridge-api-ker8.onrender.com",
         "EXPO_PUBLIC_ENV": "production",
         "EXPO_PUBLIC_SENTRY_DSN": "https://prod@sentry.io/project",
         "EXPO_PUBLIC_MIXPANEL_TOKEN": "prod_mixpanel_token",
-        "NODE_ENV": "production"
+        "NODE_ENV": "production",
+        "EAS_BUILD": "true"
       },
       "android": {
         "buildType": "apk",

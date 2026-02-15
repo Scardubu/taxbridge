@@ -301,6 +301,9 @@ async function bootstrap() {
     }
   });
 
+  // Determine environment early for configuration decisions
+  const isProduction = process.env.NODE_ENV === 'production';
+
   const corsOriginsRaw = (process.env.ALLOWED_ORIGINS ?? process.env.CORS_ORIGINS ?? '*').trim();
   const corsOrigins = corsOriginsRaw === '*'
     ? '*'
@@ -389,7 +392,6 @@ async function bootstrap() {
   });
 
   // Register Swagger UI (disable tryItOut in production to prevent accidental mutations)
-  const isProduction = process.env.NODE_ENV === 'production';
   await app.register(fastifySwaggerUi, {
     routePrefix: '/docs',
     uiConfig: {
