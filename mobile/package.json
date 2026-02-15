@@ -25,7 +25,7 @@
     "@react-navigation/native": "^7.1.27",
     "@react-navigation/native-stack": "^7.9.1",
     "babel-plugin-transform-remove-console": "^6.9.4",
-    "expo": "~54.0.32",
+    "expo": "~54.0.0",
     "expo-application": "^7.0.8",
     "expo-build-properties": "~1.0.10",
     "expo-camera": "^17.0.10",
@@ -61,12 +61,20 @@
     "@testing-library/react-native": "^13.3.3",
     "@types/react": "~19.1.0",
     "babel-jest": "^29.7.0",
+    "babel-preset-expo": "~54.0.10",
     "cross-env": "^7.0.3",
     "jest": "^29.7.0",
     "jest-expo": "^54.0.16",
     "react-refresh": "^0.14.2",
     "react-test-renderer": "19.1.0",
     "typescript": "~5.9.2"
+  },
+  "expo": {
+    "install": {
+      "exclude": [
+        "react-test-renderer"
+      ]
+    }
   },
   "private": true
 }
