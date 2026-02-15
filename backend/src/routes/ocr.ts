@@ -23,7 +23,9 @@ const OCRResponseSchema = z.object({
   amount: z.number().optional(),
   date: z.string().optional(),
   items: z.array(z.object({ description: z.string(), quantity: z.number(), unitPrice: z.number() })).optional(),
-  confidence: z.number()
+  confidence: z.number(),
+  requiresReview: z.boolean(),
+  reviewReason: z.string().optional(),
 });
 
 /**
@@ -92,11 +94,37 @@ export default async function ocrRoutes(app: FastifyInstance) {
         // Process OCR
         const result = await performOCR(image, mimeType);
         
+        // Confidence-gated review logic
+        const CONFIDENCE_THRESHOLD = 0.7; // 70% confidence threshold
+        const requiresReview = result.confidence < CONFIDENCE_THRESHOLD;
+        let reviewReason: string | undefined;
+        
+        if (requiresReview) {
+          const reasons: string[] = [];
+          if (result.confidence < 0.5) {
+            reasons.push('Very low OCR confidence (<50%)');
+          } else if (result.confidence < CONFIDENCE_THRESHOLD) {
+            reasons.push('Low OCR confidence (<70%)');
+          }
+          if (!result.amount) {
+            reasons.push('No amount detected');
+          }
+          if (!result.date) {
+            reasons.push('No date detected');
+          }
+          if (!result.items || result.items.length === 0) {
+            reasons.push('No line items detected');
+          }
+          reviewReason = reasons.join('; ');
+        }
+        
         const processingTime = Date.now() - startTime;
         logger.info('OCR processing completed', { 
           requestId,
           processingTimeMs: processingTime,
           confidence: result.confidence,
+          requiresReview,
+          reviewReason,
           hasAmount: result.amount !== undefined,
           hasDate: result.date !== undefined,
           itemCount: result.items?.length || 0
@@ -106,7 +134,11 @@ export default async function ocrRoutes(app: FastifyInstance) {
         reply.header('X-Processing-Time-Ms', processingTime.toString());
         reply.header('X-Request-Id', requestId);
 
-        return reply.send(result);
+        return reply.send({
+          ...result,
+          requiresReview,
+          reviewReason,
+        });
       } catch (error) {
         const processingTime = Date.now() - startTime;
         const message = error instanceof Error ? error.message : 'Unknown error';

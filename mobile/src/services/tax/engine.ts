@@ -11,6 +11,19 @@
  * Complies with Nigeria Tax Act 2025 & NRS regulations
  */
 
+import {
+  PIT_BRACKETS,
+  VAT_RATE,
+  CIT_TIERS,
+  MINIMUM_WAGE_ANNUAL,
+  CRA_FIXED,
+  DEVELOPMENT_LEVY_RATE,
+  MINIMUM_ETR,
+  MINIMUM_ETR_THRESHOLD,
+  DIGITAL_TAX_THRESHOLD,
+  EDT_RATE,
+} from '@taxbridge/contracts';
+
 // ============================================================================
 // Types
 // ============================================================================
@@ -49,7 +62,10 @@ export interface CITCalculation {
   allowableDeductions: number;
   taxableProfit: number;
   citRate: number;
-  citAmount: number;
+  taxAmount: number;
+  effectiveRate: number;
+  netProfit: number;
+  category: string;
 }
 
 export interface TaxOptimization {
@@ -68,45 +84,15 @@ export interface TaxOptimization {
 // Constants - Nigeria Tax Act 2025
 // ============================================================================
 
-// PIT Brackets (Annual Income in ₦) — Updated NTA 2025 (Fourth Schedule, Section 58)
-export const PIT_BRACKETS: TaxBracket[] = [
-  { min: 0, max: 800000, rate: 0.00, label: 'Tax-Free: ₦0 - ₦800,000' },
-  { min: 800001, max: 3000000, rate: 0.15, label: 'Band 2: ₦800,001 - ₦3,000,000' },
-  { min: 3000001, max: 12000000, rate: 0.18, label: 'Band 3: ₦3,000,001 - ₦12,000,000' },
-  { min: 12000001, max: 25000000, rate: 0.21, label: 'Band 4: ₦12,000,001 - ₦25,000,000' },
-  { min: 25000001, max: 50000000, rate: 0.23, label: 'Band 5: ₦25,000,001 - ₦50,000,000' },
-  { min: 50000001, max: null, rate: 0.25, label: 'Band 6: Above ₦50,000,000' },
-];
+// Convert canonical PIT_BRACKETS to mobile TaxBracket format
+export const MOBILE_PIT_BRACKETS: TaxBracket[] = PIT_BRACKETS.map((bracket, index, arr) => ({
+  min: index === 0 ? 0 : arr[index - 1].limit + 1,
+  max: bracket.limit === Infinity ? null : bracket.limit,
+  rate: bracket.rate,
+  label: bracket.label,
+}));
 
-// Minimum wage (2025) - determines minimum tax exemption
-export const MINIMUM_WAGE = 70000; // ₦70,000 monthly = ₦840,000 annually
-export const ANNUAL_MINIMUM_WAGE = MINIMUM_WAGE * 12;
-
-// Consolidated Relief Allowance (CRA)
-// Higher of 1% of gross income or ₦200,000 + 20% of gross income
-export const CRA_FIXED = 200000;
-export const CRA_PERCENTAGE = 0.20;
-export const CRA_MIN_PERCENTAGE = 0.01;
-
-// VAT Rate (7.5% standard)
-export const VAT_RATE = 0.075;
-
-// VAT Threshold for mandatory registration (₦100 million annual turnover, Section 80)
-export const VAT_REGISTRATION_THRESHOLD = 100000000;
-
-// CIT Rate — 3-tier system (NTA 2025, Section 40/90)
-// Small (≤₦25M): 0%, Medium (≤₦100M): 20%, Large (>₦100M): 30%
-export const CIT_RATE_LARGE = 0.30;
-export const CIT_RATE_MEDIUM = 0.20;
-export const CIT_RATE_SMALL = 0.00;
-export const CIT_SMALL_THRESHOLD = 25000000;
-export const CIT_MEDIUM_THRESHOLD = 100000000;
-/** @deprecated Use CIT_SMALL_THRESHOLD instead */
-export const CIT_SMALL_BUSINESS_THRESHOLD = CIT_SMALL_THRESHOLD;
-
-// Educational development tax (2% on assessable profit for companies with 10+ employees)
-export const EDT_RATE = 0.02;
-export const EDT_EMPLOYEE_THRESHOLD = 10;
+export const MINIMUM_WAGE = MINIMUM_WAGE_ANNUAL;
 
 // ============================================================================
 // PIT Calculation Engine
@@ -118,63 +104,41 @@ export const EDT_EMPLOYEE_THRESHOLD = 10;
  * @param annualIncome - Gross annual income in ₦
  * @returns Detailed PIT calculation with breakdown
  */
-export function calculatePIT(annualIncome: number): PITCalculation {
-  // Apply minimum wage exemption
-  if (annualIncome <= ANNUAL_MINIMUM_WAGE) {
-    return {
-      income: annualIncome,
-      taxableIncome: 0,
-      cra: 0,
-      breakdown: [],
-      totalTax: 0,
-      effectiveRate: 0,
-      takeHome: annualIncome,
-    };
-  }
+export function calculatePIT(income: number): PITCalculation {
+  // Calculate CRA (higher of fixed or 20% of income, min 1%)
+  const cra = Math.max(CRA_FIXED, income * 0.20, income * 0.01);
+  const taxableIncome = Math.max(0, income - cra);
 
-  // Calculate Consolidated Relief Allowance (CRA)
-  const craOption1 = annualIncome * CRA_MIN_PERCENTAGE;
-  const craOption2 = CRA_FIXED + (annualIncome * CRA_PERCENTAGE);
-  const cra = Math.max(craOption1, craOption2);
-
-  // Taxable income after CRA
-  const taxableIncome = Math.max(0, annualIncome - cra);
-
-  // Calculate tax per bracket
   const breakdown: PITCalculation['breakdown'] = [];
   let totalTax = 0;
   let remainingIncome = taxableIncome;
 
-  for (const bracket of PIT_BRACKETS) {
+  for (const bracket of MOBILE_PIT_BRACKETS) {
     if (remainingIncome <= 0) break;
 
     const bracketMin = bracket.min;
-    const bracketMax = bracket.max || Infinity;
+    const bracketMax = bracket.max ?? Infinity;
     const bracketSize = bracketMax - bracketMin;
-    
-    // Amount of income in this bracket
-    const amountInBracket = Math.min(remainingIncome, bracketSize);
-    
-    if (amountInBracket > 0) {
-      const taxForBracket = amountInBracket * bracket.rate;
-      
+    const taxableInBracket = Math.min(remainingIncome, bracketSize);
+    const tax = taxableInBracket * bracket.rate;
+
+    if (taxableInBracket > 0) {
       breakdown.push({
         bracket: bracket.label,
-        amount: amountInBracket,
+        amount: taxableInBracket,
         rate: bracket.rate,
-        tax: taxForBracket,
+        tax,
       });
-      
-      totalTax += taxForBracket;
-      remainingIncome -= amountInBracket;
+      totalTax += tax;
+      remainingIncome -= taxableInBracket;
     }
   }
 
-  const effectiveRate = totalTax / annualIncome;
-  const takeHome = annualIncome - totalTax;
+  const effectiveRate = income > 0 ? totalTax / income : 0;
+  const takeHome = income - totalTax;
 
   return {
-    income: annualIncome,
+    income,
     taxableIncome,
     cra,
     breakdown,
@@ -182,68 +146,6 @@ export function calculatePIT(annualIncome: number): PITCalculation {
     effectiveRate,
     takeHome,
   };
-}
-
-/**
- * Calculates monthly PIT from monthly income
- */
-export function calculateMonthlyPIT(monthlyIncome: number) {
-  const annualIncome = monthlyIncome * 12;
-  const annualCalculation = calculatePIT(annualIncome);
-  
-  return {
-    ...annualCalculation,
-    monthlyTax: annualCalculation.totalTax / 12,
-    monthlyTakeHome: annualCalculation.takeHome / 12,
-  };
-}
-
-// ============================================================================
-// VAT Calculation Engine
-// ============================================================================
-
-/**
- * Calculates VAT (7.5%) on taxable amount
- * 
- * @param amount - Pre-VAT amount in ₦
- * @param isVATInclusive - Whether amount already includes VAT
- * @returns VAT calculation breakdown
- */
-export function calculateVAT(
-  amount: number, 
-  isVATInclusive: boolean = false
-): VATCalculation {
-  if (isVATInclusive) {
-    // Reverse calculate: amount = base + (base * 0.075)
-    // amount = base * 1.075
-    // base = amount / 1.075
-    const baseAmount = amount / (1 + VAT_RATE);
-    const vatAmount = amount - baseAmount;
-    
-    return {
-      amount: baseAmount,
-      vatRate: VAT_RATE,
-      vatAmount,
-      totalWithVAT: amount,
-    };
-  } else {
-    const vatAmount = amount * VAT_RATE;
-    const totalWithVAT = amount + vatAmount;
-    
-    return {
-      amount,
-      vatRate: VAT_RATE,
-      vatAmount,
-      totalWithVAT,
-    };
-  }
-}
-
-/**
- * Checks if business should register for VAT
- */
-export function shouldRegisterForVAT(annualTurnover: number): boolean {
-  return annualTurnover >= VAT_REGISTRATION_THRESHOLD;
 }
 
 // ============================================================================
@@ -254,33 +156,65 @@ export function shouldRegisterForVAT(annualTurnover: number): boolean {
  * Calculates Company Income Tax (CIT) for incorporated entities
  * 
  * @param revenue - Total annual revenue
- * @param allowableDeductions - Sum of allowable expenses
+ * @param expenses - Sum of allowable expenses
+ * @param employeeCount - Number of employees
+ * @param digitalIncome - Digital income
  * @returns CIT calculation
  */
 export function calculateCIT(
   revenue: number,
-  allowableDeductions: number
+  expenses: number,
+  employeeCount: number = 0,
+  digitalIncome: number = 0
 ): CITCalculation {
-  const taxableProfit = Math.max(0, revenue - allowableDeductions);
-  
-  // Determine rate based on turnover (3-tier system)
-  let citRate: number;
-  if (revenue <= CIT_SMALL_THRESHOLD) {
-    citRate = CIT_RATE_SMALL;
-  } else if (revenue <= CIT_MEDIUM_THRESHOLD) {
-    citRate = CIT_RATE_MEDIUM;
-  } else {
-    citRate = CIT_RATE_LARGE;
+  const profit = Math.max(0, revenue - expenses);
+
+  // Determine CIT tier based on revenue
+  let matchedTier = CIT_TIERS[CIT_TIERS.length - 1];
+  for (const tier of CIT_TIERS) {
+    if (revenue <= tier.maxRevenue) {
+      matchedTier = tier;
+      break;
+    }
   }
-  
-  const citAmount = taxableProfit * citRate;
+
+  const citRate = matchedTier.rate;
+  let taxAmount = profit * citRate;
+
+  // Development Levy (4% of assessable profits)
+  const developmentLevy = profit * DEVELOPMENT_LEVY_RATE;
+
+  // Educational Development Tax (2% if ≥10 employees)
+  const edt = employeeCount >= 10 ? profit * EDT_RATE : 0;
+
+  // Total tax before minimum ETR check
+  let totalTax = taxAmount + developmentLevy + edt;
+
+  // Minimum ETR check (15% for companies with turnover > ₦1B)
+  let minimumETRApplied = false;
+  if (revenue > MINIMUM_ETR_THRESHOLD) {
+    const minimumTax = profit * MINIMUM_ETR;
+    if (totalTax < minimumTax) {
+      totalTax = minimumTax;
+      minimumETRApplied = true;
+    }
+  }
+
+  // Digital tax applicability check
+  const digitalTaxApplicable = digitalIncome >= DIGITAL_TAX_THRESHOLD;
+
+  const effectiveRate = revenue > 0 ? totalTax / revenue : 0;
+  const netProfit = profit - totalTax;
 
   return {
     revenue,
-    allowableDeductions,
-    taxableProfit,
+    allowableDeductions: expenses,
+    taxableProfit: profit,
     citRate,
-    citAmount,
+    taxAmount: totalTax,
+    effectiveRate,
+    netProfit,
+    category: matchedTier.label,
   };
 }
 
@@ -316,7 +250,7 @@ export function getTaxOptimization(
   // Recommendation 2: Consider incorporation
   if (businessType === 'sole-prop' && annualIncome > 5000000) {
     const pitTax = currentPIT.totalTax;
-    const citTax = calculateCIT(annualIncome, annualIncome * 0.4).citAmount; // Assume 40% deductions
+    const citTax = calculateCIT(annualIncome, annualIncome * 0.4).taxAmount; // Assume 40% deductions
     const savings = Math.max(0, pitTax - citTax);
     
     if (savings > 100000) {
@@ -391,12 +325,12 @@ export function formatPercentage(rate: number): string {
  * Determines which tax bracket an income falls into
  */
 export function getTaxBracket(annualIncome: number): TaxBracket {
-  for (const bracket of PIT_BRACKETS) {
+  for (const bracket of MOBILE_PIT_BRACKETS) {
     if (annualIncome >= bracket.min && (bracket.max === null || annualIncome <= bracket.max)) {
       return bracket;
     }
   }
-  return PIT_BRACKETS[PIT_BRACKETS.length - 1]; // Default to highest bracket
+  return MOBILE_PIT_BRACKETS[MOBILE_PIT_BRACKETS.length - 1]; // Default to highest bracket
 }
 
 /**

@@ -1,19 +1,19 @@
 // Tax Calculator Utilities for TaxBridge
 // Nigeria Tax Act 2025 - Personal Income Tax Bands
+// Now using canonical rules from @taxbridge/contracts
+
+import { PIT_BRACKETS, RENT_RELIEF_CAP, RENT_RELIEF_RATE, PENSION_RATE, NHF_RATE, CIT_TIERS, VAT_RATE } from '@taxbridge/contracts';
 
 export interface PITBand {
   limit: number;
   rate: number;
 }
 
-export const PIT_BANDS: PITBand[] = [
-  { limit: 800_000, rate: 0 },           // ₦0 - ₦800,000: 0% (Tax-Free)
-  { limit: 3_000_000, rate: 0.15 },      // ₦800,001 - ₦3,000,000: 15%
-  { limit: 12_000_000, rate: 0.18 },     // ₦3,000,001 - ₦12,000,000: 18%
-  { limit: 25_000_000, rate: 0.21 },     // ₦12,000,001 - ₦25,000,000: 21%
-  { limit: 50_000_000, rate: 0.23 },     // ₦25,000,001 - ₦50,000,000: 23%
-  { limit: Infinity, rate: 0.25 },       // Above ₦50,000,000: 25%
-];
+// Convert canonical PIT_BRACKETS to mobile format
+export const PIT_BANDS: PITBand[] = PIT_BRACKETS.map(bracket => ({
+  limit: bracket.limit === Infinity ? Infinity : bracket.limit,
+  rate: bracket.rate,
+}));
 
 export interface BandBreakdown {
   band: number;
@@ -111,18 +111,18 @@ export function calculateFullPIT(input: FullPITInput): FullPITResult {
 
 /**
  * Calculate Rent Relief (Section 30(2) of Nigeria Tax Act 2025)
- * Lower of ₦500,000 or 20% of annual rent paid
+ * Lower of RENT_RELIEF_CAP or RENT_RELIEF_RATE of annual rent paid
  */
 export function calculateRentRelief(annualRent: number): number {
   if (annualRent <= 0) return 0;
-  return Math.min(500_000, annualRent * 0.2);
+  return Math.min(RENT_RELIEF_CAP, annualRent * RENT_RELIEF_RATE);
 }
 
 /**
- * Calculate National Housing Fund contribution (2.5% of gross income)
+ * Calculate National Housing Fund contribution (NHF_RATE of gross income)
  */
 export function calculateNHF(grossIncome: number): number {
-  return grossIncome * 0.025;
+  return grossIncome * NHF_RATE;
 }
 
 /**
@@ -139,7 +139,7 @@ export interface VATThresholdResult {
 }
 
 export function checkVATThreshold(annualTurnover: number): VATThresholdResult {
-  const threshold = 100_000_000;
+  const threshold = 100_000_000; // VAT_REGISTRATION_THRESHOLD from contracts
   const percentage = (annualTurnover / threshold) * 100;
   const isAboveThreshold = annualTurnover >= threshold;
   const isApproaching = annualTurnover >= threshold * 0.8;

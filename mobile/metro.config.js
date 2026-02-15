@@ -30,6 +30,12 @@ if (isEASBuild || process.platform !== 'win32') {
 // Deduplicate watch folders
 config.watchFolders = [...new Set(config.watchFolders)];
 
+// Disable Metro cache for production builds to ensure fresh bundles
+if (isEASBuild) {
+  config.resetCache = true;
+  config.cacheStores = [];
+}
+
 // Configure node modules resolution
 // Simplified for EAS build compatibility
 if (isEASBuild) {

@@ -1,0 +1,113 @@
+{
+  "version": "NTA 2025",
+  "effectiveDate": "2026-01-01",
+  "pit": {
+    "brackets": [
+      { "limit": 800000, "rate": 0.00, "label": "Tax-Free (₦0 – ₦800,000)" },
+      { "limit": 3000000, "rate": 0.15, "label": "15% (₦800,001 – ₦3,000,000)" },
+      { "limit": 12000000, "rate": 0.18, "label": "18% (₦3,000,001 – ₦12,000,000)" },
+      { "limit": 25000000, "rate": 0.21, "label": "21% (₦12,000,001 – ₦25,000,000)" },
+      { "limit": 50000000, "rate": 0.23, "label": "23% (₦25,000,001 – ₦50,000,000)" },
+      { "limit": null, "rate": 0.25, "label": "25% (Above ₦50,000,000)" }
+    ],
+    "minimumWageAnnual": 720000,
+    "cra": {
+      "fixed": 200000,
+      "percentage": 0.20,
+      "minPercentage": 0.01
+    },
+    "reliefs": {
+      "rentReliefCap": 2400000,
+      "rentReliefRate": 0.20,
+      "pensionRate": 0.08,
+      "nhfRate": 0.025
+    }
+  },
+  "vat": {
+    "rate": 0.075,
+    "registrationThreshold": 100000000,
+    "exempt": [
+      "basic-food-items",
+      "medical-services",
+      "educational-services",
+      "books-newspapers",
+      "baby-products",
+      "agricultural-equipment",
+      "exports",
+      "pharmaceuticals",
+      "rent"
+    ],
+    "zeroRated": [
+      "exports",
+      "goods-in-free-trade-zones",
+      "plant-machinery-for-export-production"
+    ]
+  },
+  "cit": {
+    "tiers": [
+      { "maxRevenue": 25000000, "rate": 0.00, "label": "Small Company (≤₦25M) — 0%" },
+      { "maxRevenue": 100000000, "rate": 0.20, "label": "Medium Company (≤₦100M) — 20%" },
+      { "maxRevenue": null, "rate": 0.30, "label": "Large Company (>₦100M) — 30%" }
+    ],
+    "edt": {
+      "rate": 0.02,
+      "employeeThreshold": 10
+    },
+    "developmentLevy": 0.04,
+    "minimumETR": {
+      "rate": 0.15,
+      "threshold": 1000000000
+    },
+    "digitalTaxThreshold": 25000000
+  },
+  "cgt": {
+    "rate": 0.10,
+    "assetTypes": [
+      "crypto",
+      "nfts",
+      "stocks",
+      "bonds",
+      "property",
+      "land",
+      "shares"
+    ]
+  },
+  "wht": {
+    "dividend": 0.10,
+    "interest": 0.10,
+    "rent": 0.10,
+    "royalty": 0.10,
+    "consultancy": 0.10,
+    "construction": 0.05,
+    "contractServices": 0.05,
+    "professionalFees": 0.10
+  },
+  "paye": {
+    "brackets": [
+      { "limit": 800000, "rate": 0.00, "label": "Tax-Free (₦0 – ₦800,000)" },
+      { "limit": 3000000, "rate": 0.15, "label": "15% (₦800,001 – ₦3,000,000)" },
+      { "limit": 12000000, "rate": 0.18, "label": "18% (₦3,000,001 – ₦12,000,000)" },
+      { "limit": 25000000, "rate": 0.21, "label": "21% (₦12,000,001 – ₦25,000,000)" },
+      { "limit": 50000000, "rate": 0.23, "label": "23% (₦25,000,001 – ₦50,000,000)" },
+      { "limit": null, "rate": 0.25, "label": "25% (Above ₦50,000,000)" }
+    ],
+    "employerPension": 0.10,
+    "employeePension": 0.08,
+    "nhf": 0.025
+  },
+  "penalties": {
+    "lateReturn": 25000,
+    "latePaymentPerMonth": 0.10,
+    "understatement": 0.20,
+    "fraudulentReturn": 3.00
+  },
+  "compliance": {
+    "calendar": {
+      "monthlyPAYE": { "day": 10, "description": "PAYE remittance" },
+      "monthlyWHT": { "day": 21, "description": "WHT remittance" },
+      "monthlyVAT": { "day": 21, "description": "VAT remittance" },
+      "annualCIT": { "month": 6, "day": 30, "description": "CIT return filing" },
+      "annualPIT": { "month": 3, "day": 31, "description": "PIT return filing" }
+    }
+  }
+}

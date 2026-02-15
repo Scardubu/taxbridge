@@ -13,6 +13,7 @@ export class DigiTaxError extends Error {
 interface SubmitArgs {
   invoiceId: string;
   ublXml: string;
+  idempotencyKey?: string;
 }
 
 interface SubmitConfig {
@@ -22,12 +23,22 @@ interface SubmitConfig {
   mockMode?: boolean;
 }
 
+export interface NRSSubmissionStatus {
+  status: 'pending' | 'submitted' | 'accepted' | 'rejected' | 'failed';
+  nrsReference?: string;
+  csid?: string;
+  irn?: string;
+  qrCode?: string;
+  submittedAt?: Date;
+  error?: string;
+}
+
 export async function submitToDigiTax(
   args: SubmitArgs,
   config: SubmitConfig
 ): Promise<{ nrsReference: string; csid?: string; irn?: string; qrCode?: string }>
 {
-  const { invoiceId, ublXml } = args;
+  const { invoiceId, ublXml, idempotencyKey } = args;
   const { apiUrl, apiKey, hmacSecret, mockMode } = config;
 
   const validation = validateUblXml(ublXml);
@@ -52,7 +63,9 @@ export async function submitToDigiTax(
   }
 
   const timestamp = Date.now().toString();
-  const payload = JSON.stringify({ invoiceId, ublXml, timestamp });
+  // Use idempotency key to prevent duplicate submissions
+  const effectiveIdempotencyKey = idempotencyKey || `inv-${invoiceId}-${timestamp}`;
+  const payload = JSON.stringify({ invoiceId, ublXml, timestamp, idempotencyKey: effectiveIdempotencyKey });
 
   const signature = ((): string => {
     if (!hmacSecret) return '';
@@ -65,7 +78,8 @@ export async function submitToDigiTax(
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       'X-API-Key': apiKey,
-      'X-Timestamp': timestamp
+      'X-Timestamp': timestamp,
+      'X-Idempotency-Key': effectiveIdempotencyKey,
     };
     if (signature) headers['X-Signature'] = signature;
 
@@ -76,7 +90,7 @@ export async function submitToDigiTax(
     const resp = await fetch(url, {
       method: 'POST',
       headers,
-      body: JSON.stringify({ invoiceId, ublXml }),
+      body: JSON.stringify({ invoiceId, ublXml, idempotencyKey: effectiveIdempotencyKey }),
       signal: controller.signal
     });
     clearTimeout(timeout);

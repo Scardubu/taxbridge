@@ -164,7 +164,11 @@ describe('calculateCIT', () => {
     expect(result.taxRate).toBe(0);
     expect(result.taxAmount).toBe(0);
     expect(result.profit).toBe(10_000_000);
-    expect(result.netProfit).toBe(10_000_000);
+    // Net profit = profit - (CIT + Development Levy)
+    // = 10M - (0 + 400K) = 9.6M
+    expect(result.developmentLevy).toBe(400_000);
+    expect(result.totalTax).toBe(400_000);
+    expect(result.netProfit).toBe(9_600_000);
   });
 
   it('should return 20% for medium companies (₦25M < revenue ≤₦100M)', () => {
@@ -172,7 +176,11 @@ describe('calculateCIT', () => {
     expect(result.taxRate).toBe(0.20);
     expect(result.profit).toBe(20_000_000);
     expect(result.taxAmount).toBe(4_000_000);
-    expect(result.netProfit).toBe(16_000_000);
+    // Net profit = profit - (CIT + Development Levy)
+    // = 20M - (4M + 800K) = 15.2M
+    expect(result.developmentLevy).toBe(800_000);
+    expect(result.totalTax).toBe(4_800_000);
+    expect(result.netProfit).toBe(15_200_000);
   });
 
   it('should return 30% for large companies (revenue >₦100M)', () => {
@@ -225,10 +233,14 @@ describe('calculateCIT', () => {
       employeeCount: 5, // No EDT
     });
     const profit = 100_000_000;
+    const regularCIT = profit * 0.30; // ₦30M
+    const devLevy = profit * 0.04; // ₦4M
+    const regularTotal = regularCIT + devLevy; // ₦34M
     const minimumTax = profit * 0.15; // ₦15M
     
-    expect(result.minimumETRApplied).toBe(true);
-    expect(result.totalTax).toBe(minimumTax);
+    // Regular tax (34M) exceeds minimum (15M), so minimum ETR should NOT be applied
+    expect(result.minimumETRApplied).toBe(false);
+    expect(result.totalTax).toBe(regularTotal);
     expect(result.effectiveRate).toBeGreaterThanOrEqual(0.01); // At least 1% of revenue
   });
 

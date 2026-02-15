@@ -1,0 +1,42 @@
+﻿node.exe : npm warn config ignoring workspace config at C:\Users\USR\Documents\taxbridge\mobile/.npmrc
+At C:\Users\USR\AppData\Roaming\npm\npx.ps1:24 char:5
++     & "node$exe"  "$basedir/node_modules/npm/bin/npx-cli.js" $args
++     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (npm warn config...e\mobile/.npmrc:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+env: load .env
+env: export EXPO_PUBLIC_API_URL FIRS_API_KEY FIRS_API_BASE_URL ENABLE_AI_CLASSIFICATION ENABLE_TAX_OPTIMIZATION
+Running 17 checks on your project...
+Ô£ö Check package.json for common issues
+Ô£ö Check Expo config for common issues
+Ô£ö Check if the project meets version requirements for submission to app stores
+Ô£ö Check for lock file
+Ô£ö Check dependencies for packages that should not be installed directly
+Ô£ö Check for app config fields that may not be synced in a non-CNG project
+Ô£ö Check for issues with Metro config
+Ô£ö Check native tooling versions
+Ô£ö Check npm/yarn versions
+Ô£û Check Expo config (app.json/ app.config.js) schema
+Unexpected error while running 'Check Expo config (app.json/ app.config.js) schema' check:
+TypeError: fetch failed
+ConnectTimeoutError: Connect Timeout Error
+This check requires a connection to the Expo API. Ensure your network connection is stable.
+Ô£ö Check for common project setup issues
+Ô£ö Check that required peer dependencies are installed
+Ô£ö Check that no duplicate dependencies are installed
+Ô£ö Validate packages against React Native Directory package metadata
+Ô£ö Check that native modules do not use incompatible support packages
+Ô£û Check that packages match versions required by installed Expo SDK
+Ô£ö Check for legacy global CLI installed locally
+
+15/17 checks passed. 2 checks failed. Possible issues detected:
+
+Ô£û Check Expo config (app.json/ app.config.js) schema
+Ô£û Check that packages match versions required by installed Expo SDK
+npm warn config ignoring workspace config at C:\Users\USR\Documents\taxbridge\mobile/.npmrc
+Advice:
+Use 'npx expo install --check' to review and upgrade your dependencies.
+To ignore specific packages, add them to "expo.install.exclude" in package.json. Learn more: https://expo.fyi/dependency-validation
+
+2 checks failed, indicating possible issues with the project.

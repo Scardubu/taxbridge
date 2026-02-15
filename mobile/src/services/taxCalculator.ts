@@ -1,5 +1,17 @@
 // PIT Tax Calculator Service - Nigeria Tax Act 2025
 // Implements full progressive tax bands with reliefs and deductions
+// Now using canonical rules from @taxbridge/contracts
+
+import {
+  PIT_BRACKETS,
+  RENT_RELIEF_CAP,
+  RENT_RELIEF_RATE,
+  PENSION_RATE,
+  NHF_RATE,
+  CRA_FIXED,
+  CRA_PERCENTAGE,
+  MINIMUM_WAGE_ANNUAL,
+} from '@taxbridge/contracts';
 
 export interface PITInputs {
   annualGrossIncome: number;
@@ -51,22 +63,19 @@ export interface PITResult {
 }
 
 // Full Progressive PIT Rate Bands (Fourth Schedule – Section 58)
-export const PIT_BANDS: TaxBand[] = [
-  { limit: 800_000, rate: 0, bandName: 'Tax-Free (0-₦800k)' },
-  { limit: 3_000_000, rate: 0.15, bandName: 'Next ₦2.2M (15%)' },
-  { limit: 12_000_000, rate: 0.18, bandName: 'Next ₦9M (18%)' },
-  { limit: 25_000_000, rate: 0.21, bandName: 'Next ₦13M (21%)' },
-  { limit: 50_000_000, rate: 0.23, bandName: 'Next ₦25M (23%)' },
-  { limit: Infinity, rate: 0.25, bandName: 'Above ₦50M (25%)' },
-];
+// Convert canonical PIT_BRACKETS to mobile TaxBand format
+export const PIT_BANDS: TaxBand[] = PIT_BRACKETS.map(bracket => ({
+  limit: bracket.limit === Infinity ? Infinity : bracket.limit,
+  rate: bracket.rate,
+  bandName: bracket.label,
+}));
 
 /**
  * Calculate Rent Relief per Section 30(2)
  * Lower of ₦500,000 or 20% of annual rent paid
  */
 export function calculateRentRelief(annualRent: number): number {
-  const twentyPercent = annualRent * 0.2;
-  return Math.min(500_000, twentyPercent);
+  return Math.min(RENT_RELIEF_CAP, annualRent * RENT_RELIEF_RATE);
 }
 
 /**
@@ -74,7 +83,7 @@ export function calculateRentRelief(annualRent: number): number {
  * 2.5% of gross income
  */
 export function calculateNHFDeduction(grossIncome: number): number {
-  return grossIncome * 0.025;
+  return grossIncome * NHF_RATE;
 }
 
 /**
