@@ -200,6 +200,100 @@ describe('calculateCIT', () => {
     expect(atBoundary.taxRate).toBe(0.20);
     expect(aboveBoundary.taxRate).toBe(0.30);
   });
+
+  it('should apply Development Levy (4%) to all companies', () => {
+    const result = calculateCIT({ revenue: 50_000_000, expenses: 30_000_000 });
+    const profit = 20_000_000;
+    expect(result.developmentLevy).toBe(profit * 0.04); // ₦800,000
+    expect(result.totalTax).toBeGreaterThan(result.taxAmount);
+  });
+
+  it('should apply EDT (2%) only for companies with ≥10 employees', () => {
+    const withoutEDT = calculateCIT({ revenue: 50_000_000, expenses: 30_000_000, employeeCount: 5 });
+    const withEDT = calculateCIT({ revenue: 50_000_000, expenses: 30_000_000, employeeCount: 10 });
+    const profit = 20_000_000;
+    
+    expect(withoutEDT.edt).toBe(0);
+    expect(withEDT.edt).toBe(profit * 0.02); // ₦400,000
+  });
+
+  it('should apply Minimum ETR (15%) for companies with turnover > ₦1B', () => {
+    // Large company with low effective tax rate
+    const result = calculateCIT({ 
+      revenue: 1_500_000_000, // ₦1.5B
+      expenses: 1_400_000_000, // ₦1.4B
+      employeeCount: 5, // No EDT
+    });
+    const profit = 100_000_000;
+    const minimumTax = profit * 0.15; // ₦15M
+    
+    expect(result.minimumETRApplied).toBe(true);
+    expect(result.totalTax).toBe(minimumTax);
+    expect(result.effectiveRate).toBeGreaterThanOrEqual(0.01); // At least 1% of revenue
+  });
+
+  it('should not apply Minimum ETR if regular tax exceeds 15%', () => {
+    const result = calculateCIT({ 
+      revenue: 1_500_000_000, // ₦1.5B
+      expenses: 500_000_000, // ₦500M
+      employeeCount: 15, // With EDT
+    });
+    const profit = 1_000_000_000;
+    const regularTax = profit * 0.30; // ₦300M CIT
+    const devLevy = profit * 0.04; // ₦40M
+    const edt = profit * 0.02; // ₦20M
+    const totalRegular = regularTax + devLevy + edt; // ₦360M
+    
+    expect(result.minimumETRApplied).toBe(false);
+    expect(result.totalTax).toBe(totalRegular);
+  });
+
+  it('should flag digital tax applicability for digital income ≥ ₦25M', () => {
+    const belowThreshold = calculateCIT({ 
+      revenue: 50_000_000, 
+      expenses: 30_000_000,
+      digitalIncome: 20_000_000,
+    });
+    const atThreshold = calculateCIT({ 
+      revenue: 50_000_000, 
+      expenses: 30_000_000,
+      digitalIncome: 25_000_000,
+    });
+    
+    expect(belowThreshold.digitalTaxApplicable).toBe(false);
+    expect(atThreshold.digitalTaxApplicable).toBe(true);
+  });
+
+  it('should include all tax components in breakdown', () => {
+    const result = calculateCIT({ 
+      revenue: 200_000_000, 
+      expenses: 100_000_000,
+      employeeCount: 20,
+    });
+    
+    expect(result.breakdown.length).toBeGreaterThanOrEqual(3); // CIT + Dev Levy + EDT
+    expect(result.breakdown.some(b => b.bracket.includes('Development Levy'))).toBe(true);
+    expect(result.breakdown.some(b => b.bracket.includes('Educational Development'))).toBe(true);
+  });
+
+  it('should calculate correct total tax with all components', () => {
+    const result = calculateCIT({ 
+      revenue: 200_000_000, 
+      expenses: 100_000_000,
+      employeeCount: 15,
+    });
+    const profit = 100_000_000;
+    const expectedCIT = profit * 0.30; // ₦30M
+    const expectedDevLevy = profit * 0.04; // ₦4M
+    const expectedEDT = profit * 0.02; // ₦2M
+    const expectedTotal = expectedCIT + expectedDevLevy + expectedEDT; // ₦36M
+    
+    expect(result.taxAmount).toBe(expectedCIT);
+    expect(result.developmentLevy).toBe(expectedDevLevy);
+    expect(result.edt).toBe(expectedEDT);
+    expect(result.totalTax).toBe(expectedTotal);
+    expect(result.netProfit).toBe(profit - expectedTotal);
+  });
 });
 
 // =============================================================================

@@ -27,6 +27,10 @@ import {
   CIT_TIERS,
   CITTier,
   EDT_RATE,
+  DEVELOPMENT_LEVY_RATE,
+  MINIMUM_ETR,
+  MINIMUM_ETR_THRESHOLD,
+  DIGITAL_TAX_THRESHOLD,
   CGT_RATE,
   CGTAssetType,
   WHT_RATES,
@@ -143,6 +147,8 @@ export interface VATResult {
 export interface CITInput {
   revenue: number;
   expenses: number;
+  employeeCount?: number;
+  digitalIncome?: number;
 }
 
 export interface CITResult {
@@ -151,10 +157,15 @@ export interface CITResult {
   profit: number;
   taxRate: number;
   taxAmount: number;
+  developmentLevy: number;
+  edt: number;
+  totalTax: number;
   effectiveRate: number;
   netProfit: number;
   category: string;
   breakdown: BracketBreakdown[];
+  minimumETRApplied: boolean;
+  digitalTaxApplicable: boolean;
 }
 
 // --- CGT ---
@@ -314,7 +325,7 @@ export function calculateVAT(input: VATInput): VATResult {
 // =============================================================================
 
 export function calculateCIT(input: CITInput): CITResult {
-  const { revenue, expenses } = input;
+  const { revenue, expenses, employeeCount = 0, digitalIncome = 0 } = input;
   const profit = Math.max(0, round2(revenue - expenses));
 
   // Determine tier based on revenue
@@ -327,16 +338,65 @@ export function calculateCIT(input: CITInput): CITResult {
   }
 
   const taxRate = matchedTier.rate;
-  const taxAmount = round2(profit * taxRate);
-  const effectiveRate = revenue > 0 ? round2((taxAmount / revenue) * 100) / 100 : 0;
-  const netProfit = round2(profit - taxAmount);
+  let taxAmount = round2(profit * taxRate);
 
-  const breakdown: BracketBreakdown[] = [{
-    bracket: matchedTier.label,
-    rate: taxRate,
-    taxableAmount: profit,
-    taxAmount,
-  }];
+  // Development Levy (4% of assessable profits)
+  const developmentLevy = round2(profit * DEVELOPMENT_LEVY_RATE);
+
+  // Educational Development Tax (2% if ≥10 employees)
+  const edt = employeeCount >= 10 ? round2(profit * EDT_RATE) : 0;
+
+  // Total tax before minimum ETR check
+  let totalTax = round2(taxAmount + developmentLevy + edt);
+
+  // Minimum ETR check (15% for companies with turnover > ₦1B)
+  let minimumETRApplied = false;
+  if (revenue > MINIMUM_ETR_THRESHOLD) {
+    const minimumTax = round2(profit * MINIMUM_ETR);
+    if (totalTax < minimumTax) {
+      totalTax = minimumTax;
+      minimumETRApplied = true;
+    }
+  }
+
+  // Digital tax applicability check
+  const digitalTaxApplicable = digitalIncome >= DIGITAL_TAX_THRESHOLD;
+
+  const effectiveRate = revenue > 0 ? round2((totalTax / revenue) * 100) / 100 : 0;
+  const netProfit = round2(profit - totalTax);
+
+  const breakdown: BracketBreakdown[] = [
+    {
+      bracket: matchedTier.label,
+      rate: taxRate,
+      taxableAmount: profit,
+      taxAmount,
+    },
+    {
+      bracket: 'Development Levy (4%)',
+      rate: DEVELOPMENT_LEVY_RATE,
+      taxableAmount: profit,
+      taxAmount: developmentLevy,
+    },
+  ];
+
+  if (edt > 0) {
+    breakdown.push({
+      bracket: 'Educational Development Tax (2%)',
+      rate: EDT_RATE,
+      taxableAmount: profit,
+      taxAmount: edt,
+    });
+  }
+
+  if (minimumETRApplied) {
+    breakdown.push({
+      bracket: 'Minimum ETR Adjustment (15%)',
+      rate: MINIMUM_ETR,
+      taxableAmount: profit,
+      taxAmount: round2(totalTax - taxAmount - developmentLevy - edt),
+    });
+  }
 
   return {
     revenue,
@@ -344,10 +404,15 @@ export function calculateCIT(input: CITInput): CITResult {
     profit,
     taxRate,
     taxAmount,
+    developmentLevy,
+    edt,
+    totalTax,
     effectiveRate,
     netProfit,
     category: matchedTier.label,
     breakdown,
+    minimumETRApplied,
+    digitalTaxApplicable,
   };
 }
 

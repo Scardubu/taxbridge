@@ -44,6 +44,8 @@ const VATBodySchema = z.object({
 const CITBodySchema = z.object({
   revenue: z.number().min(0),
   expenses: z.number().min(0),
+  employeeCount: z.number().int().min(0).optional(),
+  digitalIncome: z.number().min(0).optional(),
 });
 
 const CGTBodySchema = z.object({

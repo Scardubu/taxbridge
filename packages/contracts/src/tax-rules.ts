@@ -107,6 +107,16 @@ export const CIT_TIERS: readonly CITTier[] = [
 export const EDT_RATE = 0.02;
 export const EDT_EMPLOYEE_THRESHOLD = 10;
 
+/** Development Levy rate (4% of assessable profits for companies) */
+export const DEVELOPMENT_LEVY_RATE = 0.04;
+
+/** Minimum Effective Tax Rate (15% for large companies with turnover > ₦1B) */
+export const MINIMUM_ETR = 0.15;
+export const MINIMUM_ETR_THRESHOLD = 1_000_000_000; // ₦1B
+
+/** Digital Tax threshold (₦25M annual digital income triggers digital tax obligations) */
+export const DIGITAL_TAX_THRESHOLD = 25_000_000;
+
 // =============================================================================
 // CGT — Capital Gains Tax
 // =============================================================================
@@ -233,6 +243,9 @@ export const NTA_2025_RULES = {
   cit: {
     tiers: CIT_TIERS,
     edt: { rate: EDT_RATE, employeeThreshold: EDT_EMPLOYEE_THRESHOLD },
+    developmentLevy: DEVELOPMENT_LEVY_RATE,
+    minimumETR: { rate: MINIMUM_ETR, threshold: MINIMUM_ETR_THRESHOLD },
+    digitalTaxThreshold: DIGITAL_TAX_THRESHOLD,
   },
   cgt: {
     rate: CGT_RATE,

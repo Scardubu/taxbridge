@@ -27,6 +27,7 @@ import privacyRoutes from './routes/privacy';
 import syncRoutes from './routes/sync';
 import adminSyncRoutes from './routes/adminSync';
 import taxRoutes from './routes/tax';
+import taxRulesRoutes from './routes/tax-rules';
 import webhookRoutes from './routes/webhooks';
 import businessRoutes from './routes/business';
 import invoiceManagementRoutes from './routes/invoiceManagement';
@@ -1083,6 +1084,7 @@ taxbridge_component_status{component="sms"} ${serverMetrics.componentStatus.sms 
   await app.register(privacyRoutes);
   await app.register(syncRoutes);
   await app.register(taxRoutes);
+  await app.register(taxRulesRoutes);
   await app.register(webhookRoutes, { prisma });
   await app.register(businessRoutes, { prisma });
   await app.register(invoiceManagementRoutes, { prisma });
