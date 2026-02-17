@@ -140,30 +140,20 @@ export default function DashboardPage() {
     return stats ? new Date().toLocaleTimeString() : '';
   }, [stats]);
 
-  // Mock data for invoice chart (last 6 months)
+  // Invoice chart data derived from real stats when available
   const invoiceChartData = useMemo<InvoiceChartDataPoint[]>(() => {
     if (!stats) return [];
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
-    return months.map((month, idx) => ({
-      month,
-      draft: Math.floor(Math.random() * 20) + 5,
-      sent: Math.floor(Math.random() * 30) + 10,
-      paid: Math.floor(Math.random() * 40) + 15,
-      overdue: Math.floor(Math.random() * 10) + 2,
-    }));
+    // Real chart data should come from backend analytics endpoint
+    // Currently no per-month breakdown is available in stats — show empty state
+    return [];
   }, [stats]);
 
-  // Mock data for payment chart (last 7 days)
+  // Payment chart data derived from real stats when available
   const paymentChartData = useMemo<PaymentChartDataPoint[]>(() => {
     if (!stats) return [];
-    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    return days.map((date, idx) => ({
-      date,
-      successful: Math.floor(Math.random() * 500000) + 100000,
-      failed: Math.floor(Math.random() * 50000) + 5000,
-      pending: Math.floor(Math.random() * 100000) + 10000,
-      volume: Math.floor(Math.random() * 650000) + 115000,
-    }));
+    // Real chart data should come from backend analytics endpoint
+    // Currently no per-day breakdown is available in stats — show empty state
+    return [];
   }, [stats]);
 
   const lastLaunchRefresh = useMemo(() => {
@@ -269,8 +259,8 @@ export default function DashboardPage() {
         {/* Page Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-slate-900">{t('dashboard.title')}</h1>
-            <p className="text-slate-600 mt-1">
+            <h1 className="text-3xl font-bold">{t('dashboard.title')}</h1>
+            <p className="text-muted-foreground mt-1">
               {t('dashboard.subtitle')}
             </p>
           </div>
@@ -393,7 +383,7 @@ export default function DashboardPage() {
 
       {/* API Health Status */}
       <div>
-        <h2 className="text-lg font-semibold text-slate-800 mb-4">{t('dashboard.section.integrationHealth')}</h2>
+        <h2 className="text-lg font-semibold mb-4">{t('dashboard.section.integrationHealth')}</h2>
         <div className="grid gap-4 md:grid-cols-2">
           <HealthCard
             title={t('dashboard.integration.duplo.title')}
@@ -513,13 +503,13 @@ export default function DashboardPage() {
 
       {/* Charts */}
       <div>
-        <h2 className="text-lg font-semibold text-slate-800 mb-4">{t('dashboard.section.charts.title')}</h2>
+        <h2 className="text-lg font-semibold mb-4">{t('dashboard.section.charts.title')}</h2>
         <div className="grid gap-4 md:grid-cols-2">
           {/* Invoice Trends */}
           <Card className="hover:shadow-md transition-shadow">
             <CardHeader className="pb-2">
-              <CardTitle className="text-base font-medium">Invoice Trends</CardTitle>
-              <p className="text-xs text-slate-500">Invoice status distribution over time</p>
+              <CardTitle className="text-base font-medium">{t('dashboard.invoiceTrends')}</CardTitle>
+              <p className="text-xs text-muted-foreground">{t('dashboard.invoiceTrends.desc')}</p>
             </CardHeader>
             <CardContent>
               <InvoiceChart data={invoiceChartData} />
@@ -529,8 +519,8 @@ export default function DashboardPage() {
           {/* Payment Analytics */}
           <Card className="hover:shadow-md transition-shadow">
             <CardHeader className="pb-2">
-              <CardTitle className="text-base font-medium">Payment Analytics</CardTitle>
-              <p className="text-xs text-slate-500">Payment volume and success rates</p>
+              <CardTitle className="text-base font-medium">{t('dashboard.paymentAnalytics')}</CardTitle>
+              <p className="text-xs text-muted-foreground">{t('dashboard.paymentAnalytics.desc')}</p>
             </CardHeader>
             <CardContent>
               <PaymentChart data={paymentChartData} />

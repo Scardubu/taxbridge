@@ -1,6 +1,7 @@
 'use client';
 
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import type { NameType, ValueType } from 'recharts/types/component/DefaultTooltipContent';
 import { useAdminI18n } from '@/lib/i18n';
 import { chartColors } from '@/lib/colors';
 
@@ -24,6 +25,17 @@ export function RemitaTransactionChart({ data }: RemitaTransactionChartProps) {
     failed: t('analytics.chart.failed'),
   };
 
+  const tooltipFormatter = (value: ValueType, name: NameType): [number | string, string] => {
+    const normalizedValue = Array.isArray(value) ? value[0] : value;
+    const displayValue =
+      typeof normalizedValue === 'number' || typeof normalizedValue === 'string'
+        ? normalizedValue
+        : 0;
+    const normalizedName = typeof name === 'string' ? name : String(name ?? '');
+    const label = labels[normalizedName] || normalizedName;
+    return [displayValue, label];
+  };
+
   return (
     <ResponsiveContainer width="100%" height={300}>
       <BarChart data={data}>
@@ -36,10 +48,7 @@ export function RemitaTransactionChart({ data }: RemitaTransactionChartProps) {
         <YAxis tick={{ fontSize: 12 }} />
         <Tooltip
           labelFormatter={(value) => new Date(value).toLocaleDateString()}
-          formatter={(value: number | undefined, name: string | undefined) => {
-            const label = name ? labels[name] || name : '';
-            return [value || 0, label];
-          }}
+          formatter={tooltipFormatter}
         />
         <Bar dataKey="successful" stackId="a" fill={chartColors.success} name={labels.successful} />
         <Bar dataKey="pending" stackId="a" fill={chartColors.warning} name={labels.pending} />

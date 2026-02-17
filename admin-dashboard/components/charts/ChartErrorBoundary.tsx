@@ -2,10 +2,12 @@
 
 import React, { Component, ReactNode } from 'react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { useAdminI18n } from '@/lib/i18n';
 
-interface Props {
+interface InnerProps {
   children: ReactNode;
   fallback?: ReactNode;
+  t: (key: string, vars?: Record<string, string | number | undefined>) => string;
 }
 
 interface State {
@@ -13,8 +15,8 @@ interface State {
   error?: Error;
 }
 
-export class ChartErrorBoundary extends Component<Props, State> {
-  constructor(props: Props) {
+class ChartErrorBoundaryInner extends Component<InnerProps, State> {
+  constructor(props: InnerProps) {
     super(props);
     this.state = { hasError: false };
   }
@@ -24,7 +26,9 @@ export class ChartErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error('Chart rendering error:', error, errorInfo);
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('Chart rendering error:', error, errorInfo);
+    }
   }
 
   render() {
@@ -33,12 +37,14 @@ export class ChartErrorBoundary extends Component<Props, State> {
         return this.props.fallback;
       }
 
+      const { t } = this.props;
+
       return (
         <div className="flex h-64 items-center justify-center rounded-lg border border-rose-200 bg-rose-50/60 p-6">
           <Alert variant="destructive" className="max-w-md">
-            <AlertTitle className="text-base font-semibold">Chart Error</AlertTitle>
+            <AlertTitle className="text-base font-semibold">{t('chart.error.title')}</AlertTitle>
             <AlertDescription className="text-sm">
-              Unable to display chart data. {this.state.error?.message || 'Please try refreshing the page.'}
+              {t('chart.error.message')} {this.state.error?.message || t('chart.error.help')}
             </AlertDescription>
           </Alert>
         </div>
@@ -47,4 +53,18 @@ export class ChartErrorBoundary extends Component<Props, State> {
 
     return this.props.children;
   }
+}
+
+interface Props {
+  children: ReactNode;
+  fallback?: ReactNode;
+}
+
+export function ChartErrorBoundary({ children, fallback }: Props) {
+  const { t } = useAdminI18n();
+  return (
+    <ChartErrorBoundaryInner fallback={fallback} t={t}>
+      {children}
+    </ChartErrorBoundaryInner>
+  );
 }

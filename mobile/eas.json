@@ -1,121 +1,108 @@
 {
   "cli": {
-    "version": ">= 6.0.0",
-    "appVersionSource": "remote"
+    "version": ">= 13.2.3",
+    "appVersionSource": "remote",
+    "requireCommit": true,
+    "promptToConfigurePushNotifications": false
   },
   "build": {
-    "development": {
-      "channel": "development",
-      "developmentClient": true,
-      "distribution": "internal",
-      "env": {
-        "EXPO_PUBLIC_API_URL": "http://localhost:3000",
-        "EXPO_PUBLIC_ENV": "development",
-        "NODE_ENV": "development"
+    "base": {
+      "cache": {
+        "disabled": true,
+        "key": "v6-{{os}}-{{arch}}-{{runtimeVersion}}-{{workflow}}-{{checksum:package-lock.json}}-{{checksum:app.json}}-{{timestamp}}"
       },
-      "android": {
-        "buildType": "apk"
-      }
-    },
-    "staging": {
-      "channel": "staging",
-      "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://taxbridge-api-35w0.onrender.com",
-        "EXPO_PUBLIC_ENV": "staging",
-        "EXPO_PUBLIC_SENTRY_DSN": "https://staging@sentry.io/project",
-        "EXPO_PUBLIC_MIXPANEL_TOKEN": "staging_mixpanel_token",
-        "NODE_ENV": "production"
+        "EAS_BUILD_DISABLE_NPM_CACHE": "1",
+        "EAS_BUILD_DISABLE_MAVEN_CACHE": "1",
+        "EAS_BUILD_DISABLE_GRADLE_CACHE": "1",
+        "METRO_CACHE_DISABLED": "1",
+        "EXPO_USE_FAST_RESOLVER": "1",
+        "CI": "1"
+      },
+      "distribution": "internal",
+      "channel": "development"
+    },
+    "development": {
+      "extends": "base",
+      "developmentClient": true,
+      "env": {
+        "EXPO_PUBLIC_ENV": "development",
+        "EXPO_PUBLIC_API_URL": "${EXPO_PUBLIC_DEV_API_URL}"
       },
       "android": {
         "buildType": "apk",
-        "gradleCommand": ":app:assembleRelease"
+        "gradleCommand": ":app:assembleDebug --no-daemon --no-build-cache --stacktrace"
       },
       "ios": {
-        "simulator": false,
-        "buildConfiguration": "Release",
-        "resourceClass": "m-medium"
+        "buildConfiguration": "Debug",
+        "simulator": true
       }
     },
     "preview": {
+      "extends": "base",
+      "cache": {
+        "disabled": true,
+        "clear": true
+      },
       "channel": "preview",
       "distribution": "internal",
-      "node": "20.11.0",
-      "env": {
-        "EXPO_PUBLIC_API_URL": "https://taxbridge-api-ker8.onrender.com",
-        "EXPO_PUBLIC_ENV": "preview",
-        "NODE_ENV": "production",
-        "EAS_BUILD": "true",
-        "EAS_SKIP_AUTO_FINGERPRINT": "1"
-      },
       "android": {
-        "buildType": "apk"
+        "buildType": "apk",
+        "gradleCommand": ":app:assembleRelease --no-daemon --no-build-cache --rerun-tasks --refresh-dependencies --stacktrace"
+      },
+      "ios": {
+        "buildConfiguration": "Release"
+      },
+      "env": {
+        "EXPO_PUBLIC_ENV": "preview",
+        "EXPO_PUBLIC_API_URL": "${EXPO_PUBLIC_PREVIEW_API_URL}"
       }
     },
     "production": {
+      "extends": "base",
       "channel": "production",
       "cache": {
-        "disabled": true
+        "disabled": true,
+        "clear": true
       },
-      "env": {
-        "EXPO_PUBLIC_API_URL": "https://taxbridge-api-ker8.onrender.com",
-        "EXPO_PUBLIC_ENV": "production",
-        "EXPO_PUBLIC_SENTRY_DSN": "https://prod@sentry.io/project",
-        "EXPO_PUBLIC_MIXPANEL_TOKEN": "prod_mixpanel_token",
-        "NODE_ENV": "production",
-        "EAS_BUILD": "true"
-      },
+      "distribution": "store",
       "android": {
         "buildType": "app-bundle",
-        "autoIncrement": true
+        "gradleCommand": ":app:bundleRelease --no-daemon --no-build-cache --rerun-tasks --refresh-dependencies --stacktrace --warning-mode all"
       },
       "ios": {
-        "resourceClass": "m-medium",
-        "buildConfiguration": "Release"
-      }
-    },
-    "production-apk": {
-      "channel": "production-apk",
-      "distribution": "internal",
-      "cache": {
-        "disabled": true
+        "buildConfiguration": "Release",
+        "autoIncrement": "buildNumber"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://taxbridge-api-ker8.onrender.com",
-        "EXPO_PUBLIC_ENV": "production",
-        "EXPO_PUBLIC_SENTRY_DSN": "https://prod@sentry.io/project",
-        "EXPO_PUBLIC_MIXPANEL_TOKEN": "prod_mixpanel_token",
         "NODE_ENV": "production",
-        "EAS_BUILD": "true"
-      },
-      "android": {
-        "buildType": "apk",
-        "autoIncrement": true,
-        "gradleCommand": ":app:assembleRelease"
+        "EXPO_PUBLIC_ENV": "production",
+        "EXPO_PUBLIC_API_URL": "https://taxbridge-api-ker8.onrender.com",
+        "CI": "1"
       }
     }
   },
   "submit": {
-    "staging": {
-      "android": {
-        "track": "internal"
-      },
-      "ios": {
-        "appleId": "your-apple-id@example.com",
-        "ascAppId": "1234567890",
-        "appleTeamId": "TEAM_ID"
-      }
-    },
     "production": {
-      "ios": {
-        "appleId": "your-apple-id@example.com",
-        "ascAppId": "1234567890",
-        "appleTeamId": "TEAM_ID"
-      },
       "android": {
-        "serviceAccountKeyPath": "./google-play-service-account.json",
-        "track": "production"
+        "serviceAccountKeyPath": "./android/service-account.json",
+        "track": "internal",
+        "releaseStatus": "draft",
+        "changesNotSentForReview": false
+      },
+      "ios": {
+        "ascAppId": "YOUR_APP_STORE_CONNECT_APP_ID",
+        "appleId": "your-apple-id@taxbridge.ng",
+        "appleTeamId": "YOUR_TEAM_ID"
       }
+    }
+  },
+  "update": {
+    "production": {
+      "channel": "production"
+    },
+    "preview": {
+      "channel": "preview"
     }
   }
 }

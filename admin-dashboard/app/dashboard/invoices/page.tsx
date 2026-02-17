@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { UBLViewer } from '@/components/UBLViewer';
-import { MoreHorizontal, Eye, RefreshCw } from 'lucide-react';
+import { MoreHorizontal, Eye, RefreshCw, FileText } from 'lucide-react';
 import { logError } from '@/lib/logger';
 import { FetchError, fetchJson } from '@/lib/fetcher';
 import { useAdminI18n } from '@/lib/i18n';
@@ -142,8 +142,39 @@ export default function InvoicesPage() {
     return (
       <DashboardLayout>
         <div className="space-y-4 animate-pulse">
-          <div className="h-8 bg-slate-200 rounded w-64" />
-          <div className="h-96 bg-slate-200 rounded-lg" />
+          <div className="h-8 bg-muted rounded w-64" />
+          <div className="grid gap-4 md:grid-cols-4">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="h-24 bg-muted rounded-lg" />
+            ))}
+          </div>
+          <div className="h-96 bg-muted rounded-lg" />
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (invoices.length === 0) {
+    return (
+      <DashboardLayout>
+        <div className="space-y-6">
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-3xl font-bold">{t('invoices.title')}</h1>
+              <p className="text-muted-foreground">{t('invoices.subtitle')}</p>
+            </div>
+            <Button onClick={() => mutate()}>
+              <RefreshCw className="mr-2 h-4 w-4" />
+              {t('common.refresh')}
+            </Button>
+          </div>
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center py-16">
+              <FileText className="h-12 w-12 text-muted-foreground mb-4" />
+              <h2 className="text-xl font-semibold mb-2">{t('invoices.empty.title')}</h2>
+              <p className="text-muted-foreground text-center max-w-md">{t('invoices.empty.message')}</p>
+            </CardContent>
+          </Card>
         </div>
       </DashboardLayout>
     );

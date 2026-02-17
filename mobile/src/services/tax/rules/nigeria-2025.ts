@@ -316,10 +316,10 @@ export function calculateLatePenalty(
  * Withholding tax rates by transaction type
  */
 export const WHT_RATES = {
-  dividends: 0.10,
+  dividend: 0.10,
   interest: 0.10,
   rent: 0.10,
-  royalties: 0.10,
+  royalty: 0.10,
   consultancy: 0.10,
   construction: 0.05,
   contractServices: 0.05,

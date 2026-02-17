@@ -2,7 +2,7 @@
 // Nigeria Tax Act 2025 - Personal Income Tax Bands
 // Now using canonical rules from @taxbridge/contracts
 
-import { PIT_BRACKETS, RENT_RELIEF_CAP, RENT_RELIEF_RATE, PENSION_RATE, NHF_RATE, CIT_TIERS, VAT_RATE } from '@taxbridge/contracts';
+import { PIT_BRACKETS, RENT_RELIEF_CAP, RENT_RELIEF_RATE, PENSION_RATE, NHF_RATE, CIT_TIERS, VAT_RATE, VAT_REGISTRATION_THRESHOLD } from '@taxbridge/contracts';
 
 export interface PITBand {
   limit: number;
@@ -139,7 +139,7 @@ export interface VATThresholdResult {
 }
 
 export function checkVATThreshold(annualTurnover: number): VATThresholdResult {
-  const threshold = 100_000_000; // VAT_REGISTRATION_THRESHOLD from contracts
+  const threshold = VAT_REGISTRATION_THRESHOLD;
   const percentage = (annualTurnover / threshold) * 100;
   const isAboveThreshold = annualTurnover >= threshold;
   const isApproaching = annualTurnover >= threshold * 0.8;

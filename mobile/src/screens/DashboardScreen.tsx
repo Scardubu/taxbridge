@@ -18,6 +18,7 @@ import { useFeatureFlag } from '../contexts/FeatureFlagContext';
 import { SkeletonLoader } from '../components/ui/SkeletonLoader';
 import { getInvoices } from '../services/database';
 import { calculatePIT, getTaxOptimization, formatNaira, formatPercentage } from '../services/tax/engine';
+import { VAT_RATE } from '@taxbridge/contracts';
 import { calculatePIT as calculateLegacyPIT } from '../services/taxCalculator';
 import { colors, spacing, radii, typography, shadows } from '../theme/tokens';
 import { getSyncQueueCount } from '../services/syncQueue';
@@ -77,7 +78,7 @@ const calculateStats = (invoices: Invoice[]): DashboardStats => {
   invoices.forEach((inv) => {
     const items = parseItems(inv.items);
     const invoiceTotal = items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
-    const vat = inv.vat || invoiceTotal * 0.075;
+    const vat = inv.vat || invoiceTotal * VAT_RATE;
 
     totalRevenue += invoiceTotal;
     totalVAT += vat;
@@ -465,7 +466,7 @@ function DashboardScreen(props: any) {
           >
             <Text style={styles.syncQueueIcon}>📤</Text>
             <Text style={styles.syncQueueText}>
-              {syncQueueCount} {syncQueueCount === 1 ? 'item' : 'items'} queued for sync
+              {t('dashboard.queuedForSync', { count: syncQueueCount })}
             </Text>
           </Animated.View>
         )}

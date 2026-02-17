@@ -17,6 +17,8 @@ import {
   CIT_TIERS,
   MINIMUM_WAGE_ANNUAL,
   CRA_FIXED,
+  CRA_PERCENTAGE,
+  CRA_MIN_PERCENTAGE,
   DEVELOPMENT_LEVY_RATE,
   MINIMUM_ETR,
   MINIMUM_ETR_THRESHOLD,
@@ -94,6 +96,11 @@ export const MOBILE_PIT_BRACKETS: TaxBracket[] = PIT_BRACKETS.map((bracket, inde
 
 export const MINIMUM_WAGE = MINIMUM_WAGE_ANNUAL;
 
+// Re-export CIT tier rates for consumers that need individual constants
+export const CIT_RATE_SMALL = CIT_TIERS[0].rate;  // 0%
+export const CIT_RATE_MEDIUM = CIT_TIERS[1].rate; // 20%
+export const CIT_RATE_LARGE = CIT_TIERS[2].rate;  // 30%
+
 // ============================================================================
 // PIT Calculation Engine
 // ============================================================================
@@ -105,8 +112,8 @@ export const MINIMUM_WAGE = MINIMUM_WAGE_ANNUAL;
  * @returns Detailed PIT calculation with breakdown
  */
 export function calculatePIT(income: number): PITCalculation {
-  // Calculate CRA (higher of fixed or 20% of income, min 1%)
-  const cra = Math.max(CRA_FIXED, income * 0.20, income * 0.01);
+  // Calculate CRA per Section 33(1): higher of (1% of gross) OR (₦200,000 + 20% of gross)
+  const cra = Math.max(income * CRA_MIN_PERCENTAGE, CRA_FIXED + income * CRA_PERCENTAGE);
   const taxableIncome = Math.max(0, income - cra);
 
   const breakdown: PITCalculation['breakdown'] = [];

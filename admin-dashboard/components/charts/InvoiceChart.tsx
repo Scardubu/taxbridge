@@ -11,6 +11,7 @@ import {
   ResponsiveContainer,
   Legend,
 } from 'recharts';
+import { useAdminI18n } from '@/lib/i18n';
 
 export interface InvoiceChartDataPoint {
   month: string;
@@ -32,12 +33,13 @@ const COLORS = {
 };
 
 export const InvoiceChart = memo<InvoiceChartProps>(function InvoiceChart({ data }) {
+  const { t } = useAdminI18n();
   const isEmpty = useMemo(() => !data || data.length === 0, [data]);
 
   if (isEmpty) {
     return (
       <div className="flex h-64 items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50/60">
-        <p className="text-sm text-slate-500">No invoice data available yet</p>
+        <p className="text-sm text-slate-500">{t('chart.empty.invoices')}</p>
       </div>
     );
   }
@@ -68,10 +70,10 @@ export const InvoiceChart = memo<InvoiceChartProps>(function InvoiceChart({ data
         <Legend
           wrapperStyle={{ fontSize: '12px', paddingTop: '8px' }}
         />
-        <Bar dataKey="draft" name="Draft" fill={COLORS.draft} radius={[2, 2, 0, 0]} />
-        <Bar dataKey="sent" name="Sent" fill={COLORS.sent} radius={[2, 2, 0, 0]} />
-        <Bar dataKey="paid" name="Paid" fill={COLORS.paid} radius={[2, 2, 0, 0]} />
-        <Bar dataKey="overdue" name="Overdue" fill={COLORS.overdue} radius={[2, 2, 0, 0]} />
+        <Bar dataKey="draft" name={t('chart.legend.draft')} fill={COLORS.draft} radius={[2, 2, 0, 0]} />
+        <Bar dataKey="sent" name={t('chart.legend.sent')} fill={COLORS.sent} radius={[2, 2, 0, 0]} />
+        <Bar dataKey="paid" name={t('chart.legend.paid')} fill={COLORS.paid} radius={[2, 2, 0, 0]} />
+        <Bar dataKey="overdue" name={t('chart.legend.overdue')} fill={COLORS.overdue} radius={[2, 2, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>
   );

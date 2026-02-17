@@ -11,6 +11,7 @@ import {
   ResponsiveContainer,
   Cell,
 } from 'recharts';
+import { useAdminI18n } from '@/lib/i18n';
 
 export interface SyncHealthDataPoint {
   hour: string;
@@ -30,6 +31,7 @@ const getBarColor = (successRate: number): string => {
 };
 
 export const SyncHealthChart = memo<SyncHealthChartProps>(function SyncHealthChart({ data }) {
+  const { t } = useAdminI18n();
   const isEmpty = useMemo(() => !data || data.length === 0, [data]);
 
   const enrichedData = useMemo(() => {
@@ -44,7 +46,7 @@ export const SyncHealthChart = memo<SyncHealthChartProps>(function SyncHealthCha
   if (isEmpty) {
     return (
       <div className="flex h-64 items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50/60">
-        <p className="text-sm text-slate-500">No sync health data available yet</p>
+        <p className="text-sm text-slate-500">{t('chart.empty.syncHealth')}</p>
       </div>
     );
   }
@@ -73,11 +75,11 @@ export const SyncHealthChart = memo<SyncHealthChartProps>(function SyncHealthCha
             boxShadow: '0 2px 4px rgba(0,0,0,0.06)',
           }}
           formatter={((value: number, name: string) => {
-            if (name === 'Success Rate') return [`${value.toFixed(1)}%`, name];
+            if (name === t('chart.legend.successRate')) return [`${value.toFixed(1)}%`, name];
             return [value, name];
           }) as any}
         />
-        <Bar dataKey="successRate" name="Success Rate" radius={[4, 4, 0, 0]}>
+        <Bar dataKey="successRate" name={t('chart.legend.successRate')} radius={[4, 4, 0, 0]}>
           {enrichedData.map((entry, index) => (
             <Cell key={`cell-${index}`} fill={getBarColor(entry.successRate)} />
           ))}

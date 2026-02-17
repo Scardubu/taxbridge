@@ -10,7 +10,10 @@ import {
   NHF_RATE,
   CRA_FIXED,
   CRA_PERCENTAGE,
+  CRA_MIN_PERCENTAGE,
   MINIMUM_WAGE_ANNUAL,
+  CIT_TIERS,
+  VAT_REGISTRATION_THRESHOLD,
 } from '@taxbridge/contracts';
 
 export interface PITInputs {
@@ -108,7 +111,14 @@ export function calculatePIT(inputs: PITInputs): PITResult {
   const lifeInsuranceRelief = lifeInsurance || 0;
   const housingLoanRelief = housingLoanInterest || 0;
 
+  // CRA per Section 33(1): higher of (1% of gross) OR (₦200,000 + 20% of gross)
+  const cra = Math.max(
+    annualGrossIncome * CRA_MIN_PERCENTAGE,
+    CRA_FIXED + annualGrossIncome * CRA_PERCENTAGE,
+  );
+
   const totalDeductions =
+    cra +
     rentRelief +
     nhfDeduction +
     pensionDeduction +
@@ -180,8 +190,8 @@ export interface VATCheckResult {
 }
 
 export function checkVATThreshold(turnover: number): VATCheckResult {
-  const threshold = 100_000_000; // ₦100M
-  const approachingThreshold = threshold * 0.8; // 80% = ₦80M
+  const threshold = VAT_REGISTRATION_THRESHOLD;
+  const approachingThreshold = threshold * 0.8; // 80%
 
   let status: VATCheckResult['status'];
   let message: string;
@@ -219,22 +229,24 @@ export interface CITCheckResult {
 }
 
 export function determineCITRate(turnover: number): CITCheckResult {
+  // Use canonical CIT_TIERS from @taxbridge/contracts
+  const [small, medium, large] = CIT_TIERS;
   let rate: number;
   let category: CITCheckResult['category'];
   let message: string;
 
-  if (turnover <= 25_000_000) {
-    rate = 0;
+  if (turnover <= small.maxRevenue) {
+    rate = small.rate;
     category = 'small';
-    message = 'Small company relief: 0% CIT (≤₦25M)';
-  } else if (turnover <= 100_000_000) {
-    rate = 0.2;
+    message = `Small company relief: ${small.rate * 100}% CIT (≤₦${(small.maxRevenue / 1_000_000).toFixed(0)}M)`;
+  } else if (turnover <= medium.maxRevenue) {
+    rate = medium.rate;
     category = 'medium';
-    message = 'Medium company rate: 20% CIT (≤₦100M)';
+    message = `Medium company rate: ${medium.rate * 100}% CIT (≤₦${(medium.maxRevenue / 1_000_000).toFixed(0)}M)`;
   } else {
-    rate = 0.3;
+    rate = large.rate;
     category = 'large';
-    message = 'Standard rate: 30% CIT on profits (>₦100M)';
+    message = `Standard rate: ${large.rate * 100}% CIT on profits (>₦${(medium.maxRevenue / 1_000_000).toFixed(0)}M)`;
   }
 
   return {

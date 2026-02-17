@@ -125,7 +125,7 @@ if ($LASTEXITCODE -eq 0) {
     Write-Host "  [ ] Verify all routes are accessible" -ForegroundColor Gray
     Write-Host "  [ ] Test invoice management flows" -ForegroundColor Gray
     Write-Host "  [ ] Verify user authentication" -ForegroundColor Gray
-    Write-Host "  [ ] Run smoke tests: .\scripts\7-Post-Deployment-Smoke-Tests.ps1" -ForegroundColor Gray
+    Write-Host "  [ ] Run smoke tests: .\scripts\smoke-tests.ps1 -ApiUrl \"https://taxbridge-api-ker8.onrender.com\" -Verbose" -ForegroundColor Gray
     Write-Host ""
 } else {
     Write-Host "❌ Deployment failed" -ForegroundColor Red

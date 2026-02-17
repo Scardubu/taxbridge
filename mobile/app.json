@@ -5,7 +5,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "jsEngine": "hermes",
     "scheme": "taxbridge",
@@ -15,7 +15,7 @@
       "backgroundColor": "#FFFFFF"
     },
     "assetBundlePatterns": [
-      "**/*"
+      "assets/**/*"
     ],
     "primaryColor": "#FFFFFF",
     "description": "Nigeria's first offline-first, NRS-compliant e-invoicing platform. Create tax-compliant invoices anywhere, sync later. Built for Nigerian SMEs.",
@@ -24,8 +24,12 @@
       "bundleIdentifier": "ng.taxbridge.app",
       "buildNumber": "1",
       "infoPlist": {
-        "NSCameraUsageDescription": "TaxBridge needs camera access to scan receipts and invoices for OCR processing.",
-        "NSPhotoLibraryUsageDescription": "TaxBridge needs photo library access to import receipt images for tax documentation."
+        "NSCameraUsageDescription": "TaxBridge needs camera access to scan receipts and invoices with AI-powered OCR",
+        "NSPhotoLibraryUsageDescription": "TaxBridge needs photo library access to import receipts and invoices",
+        "NSPhotoLibraryAddUsageDescription": "TaxBridge needs permission to save scanned receipts to your photo library"
+      },
+      "config": {
+        "usesNonExemptEncryption": false
       },
       "splash": {
         "image": "./assets/icon-square.png",
@@ -40,12 +44,10 @@
       },
       "package": "ng.taxbridge.app",
       "permissions": [
-        "android.permission.CAMERA",
-        "android.permission.READ_EXTERNAL_STORAGE",
-        "android.permission.WRITE_EXTERNAL_STORAGE",
-        "android.permission.INTERNET",
-        "android.permission.ACCESS_NETWORK_STATE",
-        "android.permission.RECORD_AUDIO"
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "READ_MEDIA_IMAGES"
       ],
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
@@ -68,22 +70,33 @@
         "expo-build-properties",
         {
           "android": {
-            "compileSdkVersion": 35,
-            "targetSdkVersion": 35,
-            "minSdkVersion": 24,
-            "kotlinVersion": "2.1.20"
+            "compileSdkVersion": 34,
+            "targetSdkVersion": 34,
+            "buildToolsVersion": "34.0.0",
+            "enableProguardInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true,
+            "usesCleartextTraffic": false
           },
           "ios": {
-            "deploymentTarget": "15.1"
+            "deploymentTarget": "13.4",
+            "useFrameworks": "static"
           }
         }
       ],
       [
         "expo-camera",
         {
-          "cameraPermission": "TaxBridge needs camera access to scan receipts and invoices."
+          "cameraPermission": "Allow TaxBridge to scan receipts and invoices with AI-powered OCR"
         }
       ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow TaxBridge to import receipts from your photo library"
+        }
+      ],
+      "expo-localization",
+      "expo-secure-store",
       [
         "expo-splash-screen",
         {
@@ -99,7 +112,9 @@
       "policy": "appVersion"
     },
     "updates": {
-      "enabled": false
+      "enabled": true,
+      "fallbackToCacheTimeout": 0,
+      "checkAutomatically": "ON_LOAD"
     },
     "extra": {
       "eas": {

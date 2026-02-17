@@ -5,6 +5,7 @@ import { getPrismaClient } from '../lib/prisma';
 import { HeartbeatSchema, PushSyncSchema, type HeartbeatPayload } from '@taxbridge/contracts';
 import { createLogger } from '../lib/logger';
 import { enqueueDeviceSync } from '../queue/client';
+import { AuthenticationError } from '../lib/errors';
 
 const log = createLogger('sync-routes');
 const prisma = getPrismaClient();
@@ -18,7 +19,7 @@ function isDeviceSyncEnabled(): boolean {
 async function authenticate(request: FastifyRequest): Promise<string> {
   const authHeader = request.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    throw new Error('Missing or invalid authorization header');
+    throw new AuthenticationError('Missing or invalid authorization header');
   }
 
   const token = authHeader.substring(7);

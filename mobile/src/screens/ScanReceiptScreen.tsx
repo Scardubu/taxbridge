@@ -8,17 +8,21 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  TextInput,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { extractReceiptData, validateOCRResult, type OCRResult } from '../services/ocr';
 import { useAuth } from '../contexts/AuthContext';
-import { expenseApi } from '../services/expenseApi';
+import { createExpense, type ExpenseCategory } from '../services/expenseApi';
+import { colors, radii, spacing, typography } from '../theme/tokens';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://taxbridge-api-ker8.onrender.com';
 
 export default function ScanReceiptScreen({ navigation }: any) {
-  const { token } = useAuth();
+  const { t } = useTranslation();
+  const { isAuthenticated } = useAuth();
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [ocrResult, setOcrResult] = useState<OCRResult | null>(null);
@@ -29,12 +33,12 @@ export default function ScanReceiptScreen({ navigation }: any) {
   const [editedVendor, setEditedVendor] = useState('');
   const [editedAmount, setEditedAmount] = useState('');
   const [editedDate, setEditedDate] = useState('');
-  const [editedCategory, setEditedCategory] = useState('other');
+  const [editedCategory, setEditedCategory] = useState<ExpenseCategory>('other');
 
   const requestPermissions = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('Permission Required', 'Camera permission is needed to scan receipts.');
+      Alert.alert(t('scanReceipt.permissionRequired'), t('scanReceipt.permissionDesc'));
       return false;
     }
     return true;
@@ -91,17 +95,17 @@ export default function ScanReceiptScreen({ navigation }: any) {
         const warningMessages = validation.warnings.map(code => {
           switch (code) {
             case 'lowConfidence':
-              return `Low confidence (${Math.round(result.confidence * 100)}%)`;
+              return t('scanReceipt.lowConfidenceWarning', { percent: Math.round(result.confidence * 100) });
             case 'noAmountOrItems':
-              return 'No amount or items detected';
+              return t('scanReceipt.noAmountOrItems');
             case 'invalidAmount':
-              return 'Invalid amount detected';
+              return t('scanReceipt.invalidAmount');
             case 'invalidDate':
-              return 'Invalid date format';
+              return t('scanReceipt.invalidDate');
             case 'unparseableDate':
-              return 'Unable to parse date';
+              return t('scanReceipt.unparseableDate');
             default:
-              return 'Unknown warning';
+              return t('scanReceipt.unknownWarning');
           }
         });
         setValidationWarnings(warningMessages);
@@ -113,7 +117,7 @@ export default function ScanReceiptScreen({ navigation }: any) {
       setEditedDate(result.date || new Date().toISOString().split('T')[0]);
       
       // Auto-categorize based on vendor
-      const category = categorizeVendor(result.vendor || '');
+      const category = categorizeVendor(result.vendor || '') as ExpenseCategory;
       setEditedCategory(category);
 
       // Show review mode if confidence is low or warnings exist
@@ -121,13 +125,13 @@ export default function ScanReceiptScreen({ navigation }: any) {
         setShowReviewMode(true);
       }
     } catch (error) {
-      console.error('OCR processing failed:', error);
+      if (__DEV__) console.error('OCR processing failed:', error);
       Alert.alert(
-        'Processing Failed',
-        'Unable to extract data from receipt. Please try again or enter details manually.',
+        t('scanReceipt.processingFailed'),
+        t('scanReceipt.processingFailedDesc'),
         [
-          { text: 'Retry', onPress: () => processImage(uri) },
-          { text: 'Manual Entry', onPress: () => setShowReviewMode(true) },
+          { text: t('scanReceipt.retry'), onPress: () => processImage(uri) },
+          { text: t('ocr.manualEntry'), onPress: () => setShowReviewMode(true) },
         ]
       );
     } finally {
@@ -156,26 +160,26 @@ export default function ScanReceiptScreen({ navigation }: any) {
 
   const saveExpense = async () => {
     if (!editedVendor || !editedAmount) {
-      Alert.alert('Missing Information', 'Please provide vendor name and amount.');
+      Alert.alert(t('scanReceipt.missingInfo'), t('scanReceipt.missingInfoDesc'));
       return;
     }
 
     try {
-      await expenseApi.createExpense({
+      await createExpense({
+        businessId: '', // TODO: resolve from user context
         amount: parseFloat(editedAmount),
         category: editedCategory,
         description: editedVendor,
         date: editedDate,
         receiptImage: imageUri || undefined,
-        ocrData: ocrResult ? JSON.stringify(ocrResult) : undefined,
       });
 
-      Alert.alert('Success', 'Expense saved successfully!', [
-        { text: 'OK', onPress: () => navigation.goBack() },
+      Alert.alert(t('scanReceipt.success'), t('scanReceipt.expenseSaved'), [
+        { text: t('scanReceipt.ok'), onPress: () => navigation.goBack() },
       ]);
     } catch (error) {
-      console.error('Failed to save expense:', error);
-      Alert.alert('Error', 'Failed to save expense. Please try again.');
+      if (__DEV__) console.error('Failed to save expense:', error);
+      Alert.alert(t('scanReceipt.error'), t('scanReceipt.saveError'));
     }
   };
 
@@ -186,28 +190,28 @@ export default function ScanReceiptScreen({ navigation }: any) {
   };
 
   const getConfidenceLabel = (confidence: number): string => {
-    if (confidence >= 0.8) return 'High Confidence';
-    if (confidence >= 0.6) return 'Medium Confidence';
-    return 'Low Confidence';
+    if (confidence >= 0.8) return t('scanReceipt.highConfidence');
+    if (confidence >= 0.6) return t('scanReceipt.mediumConfidence');
+    return t('scanReceipt.lowConfidence');
   };
 
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Scan Receipt</Text>
-        <Text style={styles.subtitle}>Capture or upload a receipt to track expenses</Text>
+        <Text style={styles.title}>{t('scanReceipt.title')}</Text>
+        <Text style={styles.subtitle}>{t('scanReceipt.subtitle')}</Text>
       </View>
 
       {!imageUri && (
         <View style={styles.actionButtons}>
           <TouchableOpacity style={styles.primaryButton} onPress={captureImage}>
             <Ionicons name="camera" size={24} color="#FFF" />
-            <Text style={styles.buttonText}>Take Photo</Text>
+            <Text style={styles.buttonText}>{t('scanReceipt.takePhoto')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.secondaryButton} onPress={pickImage}>
             <Ionicons name="images" size={24} color="#16A34A" />
-            <Text style={styles.secondaryButtonText}>Choose from Gallery</Text>
+            <Text style={styles.secondaryButtonText}>{t('scanReceipt.chooseFromGallery')}</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -224,7 +228,7 @@ export default function ScanReceiptScreen({ navigation }: any) {
             }}
           >
             <Ionicons name="refresh" size={20} color="#FFF" />
-            <Text style={styles.retakeText}>Retake</Text>
+            <Text style={styles.retakeText}>{t('scanReceipt.retake')}</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -232,7 +236,7 @@ export default function ScanReceiptScreen({ navigation }: any) {
       {isProcessing && (
         <View style={styles.processingContainer}>
           <ActivityIndicator size="large" color="#16A34A" />
-          <Text style={styles.processingText}>Processing receipt...</Text>
+          <Text style={styles.processingText}>{t('scanReceipt.processing')}</Text>
         </View>
       )}
 
@@ -264,7 +268,7 @@ export default function ScanReceiptScreen({ navigation }: any) {
             <View style={styles.warningsContainer}>
               <View style={styles.warningHeader}>
                 <Ionicons name="warning" size={20} color="#F59E0B" />
-                <Text style={styles.warningTitle}>Review Needed</Text>
+                <Text style={styles.warningTitle}>{t('scanReceipt.reviewNeeded')}</Text>
               </View>
               {validationWarnings.map((warning, index) => (
                 <Text key={index} style={styles.warningText}>
@@ -275,62 +279,121 @@ export default function ScanReceiptScreen({ navigation }: any) {
                 style={styles.reviewButton}
                 onPress={() => setShowReviewMode(true)}
               >
-                <Text style={styles.reviewButtonText}>Review & Edit</Text>
+                <Text style={styles.reviewButtonText}>{t('scanReceipt.reviewAndEdit')}</Text>
               </TouchableOpacity>
             </View>
           )}
 
           {!showReviewMode && validationWarnings.length === 0 && (
             <View style={styles.extractedData}>
-              <Text style={styles.sectionTitle}>Extracted Data</Text>
+              <Text style={styles.sectionTitle}>{t('scanReceipt.extractedData')}</Text>
               
               <View style={styles.dataRow}>
-                <Text style={styles.dataLabel}>Vendor:</Text>
-                <Text style={styles.dataValue}>{ocrResult.vendor || 'N/A'}</Text>
+                <Text style={styles.dataLabel}>{t('scanReceipt.vendor')}</Text>
+                <Text style={styles.dataValue}>{ocrResult.vendor || t('scanReceipt.na')}</Text>
               </View>
               
               <View style={styles.dataRow}>
-                <Text style={styles.dataLabel}>Amount:</Text>
+                <Text style={styles.dataLabel}>{t('scanReceipt.amount')}</Text>
                 <Text style={styles.dataValue}>
-                  ₦{ocrResult.amount?.toLocaleString() || 'N/A'}
+                  ₦{ocrResult.amount?.toLocaleString() || t('scanReceipt.na')}
                 </Text>
               </View>
               
               <View style={styles.dataRow}>
-                <Text style={styles.dataLabel}>Date:</Text>
-                <Text style={styles.dataValue}>{ocrResult.date || 'N/A'}</Text>
+                <Text style={styles.dataLabel}>{t('scanReceipt.date')}</Text>
+                <Text style={styles.dataValue}>{ocrResult.date || t('scanReceipt.na')}</Text>
               </View>
 
               <TouchableOpacity
                 style={styles.saveButton}
                 onPress={saveExpense}
               >
-                <Text style={styles.saveButtonText}>Save Expense</Text>
+                <Text style={styles.saveButtonText}>{t('scanReceipt.saveExpense')}</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={styles.editButton}
                 onPress={() => setShowReviewMode(true)}
               >
-                <Text style={styles.editButtonText}>Edit Details</Text>
+                <Text style={styles.editButtonText}>{t('scanReceipt.editDetails')}</Text>
               </TouchableOpacity>
             </View>
           )}
 
           {showReviewMode && (
             <View style={styles.reviewContainer}>
-              <Text style={styles.sectionTitle}>Review & Edit</Text>
+              <Text style={styles.sectionTitle}>{t('scanReceipt.reviewAndEdit')}</Text>
               
-              {/* Manual editing UI would go here - simplified for brevity */}
-              <Text style={styles.reviewNote}>
-                Manual review mode - implement full editing UI
-              </Text>
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>{t('scanReceipt.vendor')}</Text>
+                <TextInput
+                  style={styles.fieldInput}
+                  value={editedVendor}
+                  onChangeText={setEditedVendor}
+                  placeholder={t('scanReceipt.vendorPlaceholder')}
+                  placeholderTextColor="#9CA3AF"
+                  accessibilityLabel={t('scanReceipt.vendor')}
+                />
+              </View>
+
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>{t('scanReceipt.amount')}</Text>
+                <TextInput
+                  style={styles.fieldInput}
+                  value={editedAmount}
+                  onChangeText={setEditedAmount}
+                  placeholder={t('scanReceipt.amountPlaceholder')}
+                  placeholderTextColor="#9CA3AF"
+                  keyboardType="decimal-pad"
+                  accessibilityLabel={t('scanReceipt.amount')}
+                />
+              </View>
+
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>{t('scanReceipt.date')}</Text>
+                <TextInput
+                  style={styles.fieldInput}
+                  value={editedDate}
+                  onChangeText={setEditedDate}
+                  placeholder={t('scanReceipt.datePlaceholder')}
+                  placeholderTextColor="#9CA3AF"
+                  accessibilityLabel={t('scanReceipt.date')}
+                />
+              </View>
+
+              <View style={styles.fieldGroup}>
+                <Text style={styles.fieldLabel}>{t('scanReceipt.category')}</Text>
+                <View style={styles.categoryRow}>
+                  {(['fuel', 'meals', 'office-supplies', 'travel', 'other'] as const).map((cat) => (
+                    <TouchableOpacity
+                      key={cat}
+                      style={[
+                        styles.categoryChip,
+                        editedCategory === cat && styles.categoryChipActive,
+                      ]}
+                      onPress={() => setEditedCategory(cat)}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected: editedCategory === cat }}
+                    >
+                      <Text
+                        style={[
+                          styles.categoryChipText,
+                          editedCategory === cat && styles.categoryChipTextActive,
+                        ]}
+                      >
+                        {t(`scanReceipt.categories.${cat}`)}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
               
               <TouchableOpacity
                 style={styles.saveButton}
                 onPress={saveExpense}
               >
-                <Text style={styles.saveButtonText}>Save Expense</Text>
+                <Text style={styles.saveButtonText}>{t('scanReceipt.saveExpense')}</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -572,10 +635,47 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 12,
   },
-  reviewNote: {
-    fontSize: 14,
-    color: '#6B7280',
-    fontStyle: 'italic',
+  fieldGroup: {
     marginBottom: 16,
+  },
+  fieldLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 6,
+  },
+  fieldInput: {
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 8,
+    padding: 12,
+    fontSize: 16,
+    color: '#111827',
+    backgroundColor: '#F9FAFB',
+  },
+  categoryRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  categoryChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    backgroundColor: '#FFF',
+  },
+  categoryChipActive: {
+    backgroundColor: '#16A34A',
+    borderColor: '#16A34A',
+  },
+  categoryChipText: {
+    fontSize: 13,
+    color: '#374151',
+    fontWeight: '500',
+  },
+  categoryChipTextActive: {
+    color: '#FFF',
   },
 });

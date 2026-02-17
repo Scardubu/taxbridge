@@ -318,7 +318,7 @@ export default function AnalyticsPage() {
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="status" />
                     <YAxis />
-                    <Tooltip formatter={(value: number | undefined) => [`₦${(value || 0).toLocaleString()}`, 'Amount']} />
+                    <Tooltip formatter={(value: any) => [`₦${Number(value || 0).toLocaleString()}`, 'Amount']} />
                     <Bar dataKey="amount" fill={chartColors.success} />
                   </BarChart>
                 </ResponsiveContainer>
@@ -368,8 +368,8 @@ export default function AnalyticsPage() {
                     <YAxis yAxisId="left" />
                     <YAxis yAxisId="right" orientation="right" />
                     <Tooltip 
-                      formatter={(value: number | undefined, name: string | undefined) => [
-                        name === 'wthAmount' ? `₦${(value || 0).toLocaleString()}` : value,
+                      formatter={(value: any, name: any) => [
+                        name === 'wthAmount' ? `₦${Number(value || 0).toLocaleString()}` : value,
                         name === 'wthAmount' ? t('analytics.chart.wthAmount') : t('analytics.chart.invoiceCount')
                       ]}
                     />
@@ -432,8 +432,8 @@ export default function AnalyticsPage() {
                     <YAxis yAxisId="left" />
                     <YAxis yAxisId="right" orientation="right" />
                     <Tooltip 
-                      formatter={(value: number | undefined, name: string | undefined) => [
-                        name === 'volume' ? `₦${(value || 0).toLocaleString()}` : value,
+                      formatter={(value: any, name: any) => [
+                        name === 'volume' ? `₦${Number(value || 0).toLocaleString()}` : value,
                         name === 'volume' ? 'Volume' : 'Count'
                       ]}
                     />

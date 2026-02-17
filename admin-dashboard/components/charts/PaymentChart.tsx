@@ -11,6 +11,7 @@ import {
   ResponsiveContainer,
   Legend,
 } from 'recharts';
+import { useAdminI18n } from '@/lib/i18n';
 
 export interface PaymentChartDataPoint {
   date: string;
@@ -37,12 +38,13 @@ const formatCurrency = (value: number) => {
 };
 
 export const PaymentChart = memo<PaymentChartProps>(function PaymentChart({ data }) {
+  const { t } = useAdminI18n();
   const isEmpty = useMemo(() => !data || data.length === 0, [data]);
 
   if (isEmpty) {
     return (
       <div className="flex h-64 items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50/60">
-        <p className="text-sm text-slate-500">No payment data available yet</p>
+        <p className="text-sm text-slate-500">{t('chart.empty.payments')}</p>
       </div>
     );
   }
@@ -92,7 +94,7 @@ export const PaymentChart = memo<PaymentChartProps>(function PaymentChart({ data
         <Area
           type="monotone"
           dataKey="successful"
-          name="Successful"
+          name={t('chart.legend.successful')}
           stroke={COLORS.successful}
           fill="url(#colorSuccessful)"
           strokeWidth={2}
@@ -100,7 +102,7 @@ export const PaymentChart = memo<PaymentChartProps>(function PaymentChart({ data
         <Area
           type="monotone"
           dataKey="failed"
-          name="Failed"
+          name={t('chart.legend.failed')}
           stroke={COLORS.failed}
           fill="url(#colorFailed)"
           strokeWidth={2}
@@ -108,7 +110,7 @@ export const PaymentChart = memo<PaymentChartProps>(function PaymentChart({ data
         <Area
           type="monotone"
           dataKey="pending"
-          name="Pending"
+          name={t('chart.legend.pending')}
           stroke={COLORS.pending}
           fill="url(#colorPending)"
           strokeWidth={2}

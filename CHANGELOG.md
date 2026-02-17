@@ -7,6 +7,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.0.2] - 2026-02-17 - Production UI Polish & Final Hardening 🎨
+
+### 🎨 Critical UI/UX Fixes (Deployment Blockers Resolved)
+- **ScanReceiptScreen (CRITICAL):** Replaced TODO placeholder with complete receipt review/edit UI
+  - Added TextInput fields for vendor name, amount, and date
+  - Added accessible category chip selector (fuel, meals, office-supplies, travel, other)
+  - Full i18n support with 50+ keys in both English and Nigerian Pidgin
+  - Proper validation and error handling with OCR confidence-based review mode
+  - Fixed 3 compile errors: expenseApi imports, AuthContextValue token, ExpenseCategory type safety
+- **ErrorBoundary:** Full i18n with `errors.boundary.*` keys, production-safe console guards
+- **DashboardScreen:** Sync queue text now uses i18next pluralization
+
+### 📊 Admin Dashboard Production Fixes
+- **Charts:**
+  - Removed fabricated `Math.random()` mock data from InvoiceChart and PaymentChart
+  - All 4 chart components (Invoice, Payment, UserGrowth, SyncHealth) now fully i18n'd
+  - Added 11 `chart.legend.*` i18n keys (draft, sent, paid, overdue, successful, failed, pending, etc.)
+- **ChartErrorBoundary:** Converted to hook-based pattern with i18n and production-safe logging
+- **Health API:** Fixed hardcoded mock data
+  - Removed fabricated 99.95% uptime → honest `null` metric
+  - Environment-aware integration labels (mock/sandbox in dev, live in production)
+  - Replaced hardcoded `recentEvents` with dynamic generation from actual health check failures
+- **Route Loading/Error States:** Added 12 new files for 6 route segments
+  - loading.tsx: Uses PageLoader component for consistent skeleton states
+  - error.tsx: i18n'd error boundaries with retry buttons and production-safe logging
+  - Routes: analytics, compliance, devices, invoices, system, users
+
+### 🔧 Scripts & Infrastructure
+- **verify-tax-compliance.ps1:** Fixed regex patterns to match actual tax-rules.ts exports
+  - Now checks DEVELOPMENT_LEVY_RATE, EDT_RATE, MINIMUM_ETR, VAT_RATE, etc.
+  - Aligned with canonical source of truth in packages/contracts
+- **metro.config.js:** Confirmed React deduplication NOT needed (@taxbridge/contracts has no React dependency)
+
+### 🌐 i18n Additions
+- **Mobile:** 57+ new keys (scanReceipt section, ErrorBoundary, DashboardScreen pluralization)
+- **Admin:** 14 new keys (chart.legend.*, route.error.*)
+- **Coverage:** All user-facing text now translatable in English + Nigerian Pidgin
+
+### ✅ Validation Results
+- Zero compile errors across all modified files
+- All TypeScript types verified (ExpenseCategory, CreateExpenseInput, AuthContextValue)
+- Production console guards in place (process.env.NODE_ENV !== 'production', __DEV__)
+- Pre-deployment checks passing (tax compliance, health endpoints)
+
+### 📝 Technical Details
+- **Files Modified:** 38 (10 from this session, 28 from prior hardening pass)
+- **Files Added:** 17 (12 route loading/error states, 5 scripts/workflow)
+- **Lines Changed:** ~2000+ (largest: ScanReceiptScreen full rewrite)
+- **i18n Keys Added:** 71 (57 mobile, 14 admin)
+
+---
+
 ## [1.0.1] - 2026-02-11 - Production Deployment Success 🚀
 
 ### 🎯 Critical Fixes

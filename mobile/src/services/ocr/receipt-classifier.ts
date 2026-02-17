@@ -11,6 +11,7 @@
 
 import * as FileSystem from 'expo-file-system';
 import { Platform } from 'react-native';
+import { VAT_RATE } from '@taxbridge/contracts';
 
 // ============================================================================
 // Types
@@ -36,15 +37,14 @@ export interface ReceiptData {
 export interface OCRResult {
   success: boolean;
   data?: ReceiptData;
-  error?: string;
-  processingTimeMs: number;
+  error?: string;  requiresReview?: boolean;
+  reviewReason?: string;  processingTimeMs: number;
 }
 
 // ============================================================================
 // Constants
 // ============================================================================
 
-const VAT_RATE = 0.075; // 7.5% Nigeria VAT
 const CONFIDENCE_THRESHOLD = 0.7;
 const MAX_ITEMS = 50;
 const MAX_PROCESSING_TIME_MS = 30000; // 30 seconds timeout
@@ -102,11 +102,13 @@ export async function classifyReceipt(imageUri: string): Promise<OCRResult> {
     // Apply business rules and validation
     const validatedData = validateAndEnhance(extractedData);
 
-    // Check confidence threshold
+    // Check confidence threshold — return data with review flag instead of discarding
     if (validatedData.confidence < CONFIDENCE_THRESHOLD) {
       return {
-        success: false,
-        error: OCR_ERROR_CODES.LOW_CONFIDENCE,
+        success: true,
+        data: validatedData,
+        requiresReview: true,
+        reviewReason: `Low confidence (${Math.round(validatedData.confidence * 100)}%). Please verify extracted data.`,
         processingTimeMs: Date.now() - startTime,
       };
     }
@@ -114,6 +116,7 @@ export async function classifyReceipt(imageUri: string): Promise<OCRResult> {
     return {
       success: true,
       data: validatedData,
+      requiresReview: false,
       processingTimeMs: Date.now() - startTime,
     };
   } catch (error) {

@@ -81,19 +81,19 @@ export default function UserDetailPage() {
       case 'active':
         return (
           <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200">
-            <CheckCircle2 className="w-3 h-3 mr-1" />Active
+            <CheckCircle2 className="w-3 h-3 mr-1" />{t('userDetail.status.active')}
           </Badge>
         );
       case 'pending':
         return (
           <Badge className="bg-amber-100 text-amber-800 border-amber-200">
-            <Clock className="w-3 h-3 mr-1" />Pending
+            <Clock className="w-3 h-3 mr-1" />{t('userDetail.status.pending')}
           </Badge>
         );
       case 'suspended':
         return (
           <Badge className="bg-rose-100 text-rose-800 border-rose-200">
-            <XCircle className="w-3 h-3 mr-1" />Suspended
+            <XCircle className="w-3 h-3 mr-1" />{t('userDetail.status.suspended')}
           </Badge>
         );
       default:
@@ -123,13 +123,13 @@ export default function UserDetailPage() {
       <DashboardLayout>
         <div className="space-y-4">
           <Button variant="ghost" onClick={() => router.back()}>
-            <ArrowLeft className="w-4 h-4 mr-2" />Back
+            <ArrowLeft className="w-4 h-4 mr-2" />{t('userDetail.back')}
           </Button>
           <Alert variant="destructive">
             <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>Error</AlertTitle>
+            <AlertTitle>{t('userDetail.error.title')}</AlertTitle>
             <AlertDescription>
-              {error instanceof FetchError ? error.message : 'Failed to load user details'}
+              {error instanceof FetchError ? error.message : t('userDetail.error.loadFailed')}
             </AlertDescription>
           </Alert>
         </div>
@@ -142,13 +142,13 @@ export default function UserDetailPage() {
       <DashboardLayout>
         <div className="space-y-4">
           <Button variant="ghost" onClick={() => router.back()}>
-            <ArrowLeft className="w-4 h-4 mr-2" />Back
+            <ArrowLeft className="w-4 h-4 mr-2" />{t('userDetail.back')}
           </Button>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {[1, 2, 3, 4].map((i) => (
               <Card key={i} className="animate-pulse">
-                <CardHeader><div className="h-4 bg-slate-200 rounded w-1/3" /></CardHeader>
-                <CardContent><div className="h-8 bg-slate-200 rounded w-1/2" /></CardContent>
+                <CardHeader><div className="h-4 bg-muted rounded w-1/3" /></CardHeader>
+                <CardContent><div className="h-8 bg-muted rounded w-1/2" /></CardContent>
               </Card>
             ))}
           </div>
@@ -164,16 +164,16 @@ export default function UserDetailPage() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Button variant="ghost" size="sm" onClick={() => router.back()}>
-              <ArrowLeft className="w-4 h-4 mr-2" />Back
+              <ArrowLeft className="w-4 h-4 mr-2" />{t('userDetail.back')}
             </Button>
             <div>
-              <h1 className="text-2xl font-bold text-slate-900">{data.businessName}</h1>
-              <p className="text-sm text-slate-500">{data.email}</p>
+              <h1 className="text-2xl font-bold">{data.businessName}</h1>
+              <p className="text-sm text-muted-foreground">{data.email}</p>
             </div>
             {getStatusBadge(data.status)}
           </div>
           <Button variant="outline" size="sm" onClick={() => mutate()}>
-            <RefreshCw className="w-4 h-4 mr-2" />Refresh
+            <RefreshCw className="w-4 h-4 mr-2" />{t('userDetail.refresh')}
           </Button>
         </div>
 
@@ -182,17 +182,17 @@ export default function UserDetailPage() {
           <Card>
             <CardHeader>
               <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <Building2 className="w-4 h-4" />Business Information
+                <Building2 className="w-4 h-4" />{t('userDetail.section.businessInfo')}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <InfoRow label="Business Name" value={data.businessName} />
-              <InfoRow label="Business Type" value={data.businessType} />
-              <InfoRow label="TIN" value={data.tin || '—'} />
-              <InfoRow label="CAC Number" value={data.cacNumber || '—'} />
+              <InfoRow label={t('userDetail.label.businessName')} value={data.businessName} />
+              <InfoRow label={t('userDetail.label.businessType')} value={data.businessType} />
+              <InfoRow label={t('userDetail.label.tin')} value={data.tin || '—'} />
+              <InfoRow label={t('userDetail.label.cacNumber')} value={data.cacNumber || '—'} />
               {data.address && (
                 <InfoRow
-                  label="Address"
+                  label={t('userDetail.label.address')}
                   value={[data.address.street, data.address.city, data.address.state]
                     .filter(Boolean)
                     .join(', ') || '—'}
@@ -204,20 +204,20 @@ export default function UserDetailPage() {
           <Card>
             <CardHeader>
               <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <Shield className="w-4 h-4" />Account Details
+                <Shield className="w-4 h-4" />{t('userDetail.section.accountDetails')}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <InfoRow label="Email" value={data.email} icon={<Mail className="w-3 h-3" />} />
-              <InfoRow label="Phone" value={data.phone} icon={<Phone className="w-3 h-3" />} />
-              <InfoRow label="Registered" value={formatDate(data.createdAt)} icon={<Calendar className="w-3 h-3" />} />
-              <InfoRow label="Last Active" value={data.lastActive ? formatDate(data.lastActive) : '—'} />
+              <InfoRow label={t('userDetail.label.email')} value={data.email} icon={<Mail className="w-3 h-3" />} />
+              <InfoRow label={t('userDetail.label.phone')} value={data.phone} icon={<Phone className="w-3 h-3" />} />
+              <InfoRow label={t('userDetail.label.registered')} value={formatDate(data.createdAt)} icon={<Calendar className="w-3 h-3" />} />
+              <InfoRow label={t('userDetail.label.lastActive')} value={data.lastActive ? formatDate(data.lastActive) : '—'} />
               <InfoRow
-                label="Onboarding"
-                value={data.onboardingComplete ? 'Complete' : 'Incomplete'}
+                label={t('userDetail.label.onboarding')}
+                value={data.onboardingComplete ? t('userDetail.label.complete') : t('userDetail.label.incomplete')}
               />
               {data.verifiedAt && (
-                <InfoRow label="Verified" value={formatDate(data.verifiedAt)} />
+                <InfoRow label={t('userDetail.label.verified')} value={formatDate(data.verifiedAt)} />
               )}
             </CardContent>
           </Card>
@@ -225,31 +225,31 @@ export default function UserDetailPage() {
 
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          <StatCard icon={<FileText className="w-5 h-5 text-blue-600" />} label="Invoices" value={data.stats.invoiceCount} />
-          <StatCard icon={<CreditCard className="w-5 h-5 text-emerald-600" />} label="Revenue" value={formatCurrency(data.stats.totalRevenue)} />
-          <StatCard icon={<Receipt className="w-5 h-5 text-purple-600" />} label="Payments" value={data.stats.paymentCount} />
-          <StatCard icon={<Receipt className="w-5 h-5 text-orange-600" />} label="Expenses" value={data.stats.expenseCount} />
-          <StatCard icon={<Building2 className="w-5 h-5 text-slate-600" />} label="Employees" value={data.stats.employeeCount} />
+          <StatCard icon={<FileText className="w-5 h-5 text-blue-600" />} label={t('userDetail.stats.invoices')} value={data.stats.invoiceCount} />
+          <StatCard icon={<CreditCard className="w-5 h-5 text-emerald-600" />} label={t('userDetail.stats.revenue')} value={formatCurrency(data.stats.totalRevenue)} />
+          <StatCard icon={<Receipt className="w-5 h-5 text-purple-600" />} label={t('userDetail.stats.payments')} value={data.stats.paymentCount} />
+          <StatCard icon={<Receipt className="w-5 h-5 text-orange-600" />} label={t('userDetail.stats.expenses')} value={data.stats.expenseCount} />
+          <StatCard icon={<Building2 className="w-5 h-5 text-muted-foreground" />} label={t('userDetail.stats.employees')} value={data.stats.employeeCount} />
         </div>
 
         {/* Recent Activity */}
         <Card>
           <CardHeader>
             <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Activity className="w-4 h-4" />Recent Activity
+              <Activity className="w-4 h-4" />{t('userDetail.activity.title')}
             </CardTitle>
           </CardHeader>
           <CardContent>
             {data.recentActivity.length === 0 ? (
-              <p className="text-sm text-slate-500 py-4 text-center">No recent activity</p>
+              <p className="text-sm text-muted-foreground py-4 text-center">{t('userDetail.activity.empty')}</p>
             ) : (
               <div className="space-y-3">
                 {data.recentActivity.map((event) => (
                   <div key={event.id} className="flex items-start gap-3 py-2 border-b border-slate-100 last:border-0">
                     <div className="w-2 h-2 rounded-full bg-blue-400 mt-2 shrink-0" />
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm text-slate-700">{event.description}</p>
-                      <p className="text-xs text-slate-400 mt-0.5">{formatDate(event.timestamp)}</p>
+                      <p className="text-sm">{event.description}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{formatDate(event.timestamp)}</p>
                     </div>
                     <Badge variant="outline" className="text-xs shrink-0">{event.type}</Badge>
                   </div>
@@ -274,10 +274,10 @@ function InfoRow({
 }) {
   return (
     <div className="flex justify-between items-center text-sm">
-      <span className="text-slate-500 flex items-center gap-1.5">
+      <span className="text-muted-foreground flex items-center gap-1.5">
         {icon}{label}
       </span>
-      <span className="font-medium text-slate-900 text-right max-w-[60%] truncate">{value}</span>
+      <span className="font-medium text-right max-w-[60%] truncate">{value}</span>
     </div>
   );
 }
@@ -294,8 +294,8 @@ function StatCard({
   return (
     <Card>
       <CardContent className="pt-4 pb-3 px-4">
-        <div className="flex items-center gap-2 mb-1">{icon}<span className="text-xs text-slate-500">{label}</span></div>
-        <p className="text-xl font-bold text-slate-900">{value}</p>
+        <div className="flex items-center gap-2 mb-1">{icon}<span className="text-xs text-muted-foreground">{label}</span></div>
+        <p className="text-xl font-bold">{value}</p>
       </CardContent>
     </Card>
   );

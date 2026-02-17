@@ -10,6 +10,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
+import { useAdminI18n } from '@/lib/i18n';
 
 export interface UserGrowthDataPoint {
   date: string;
@@ -29,12 +30,13 @@ const COLORS = {
 };
 
 export const UserGrowthChart = memo<UserGrowthChartProps>(function UserGrowthChart({ data }) {
+  const { t } = useAdminI18n();
   const isEmpty = useMemo(() => !data || data.length === 0, [data]);
 
   if (isEmpty) {
     return (
       <div className="flex h-64 items-center justify-center rounded-lg border border-dashed border-slate-200 bg-slate-50/60">
-        <p className="text-sm text-slate-500">No user growth data available yet</p>
+        <p className="text-sm text-slate-500">{t('chart.empty.userGrowth')}</p>
       </div>
     );
   }
@@ -65,7 +67,7 @@ export const UserGrowthChart = memo<UserGrowthChartProps>(function UserGrowthCha
         <Line
           type="monotone"
           dataKey="totalUsers"
-          name="Total Users"
+          name={t('chart.legend.totalUsers')}
           stroke={COLORS.totalUsers}
           strokeWidth={2}
           dot={false}
@@ -74,7 +76,7 @@ export const UserGrowthChart = memo<UserGrowthChartProps>(function UserGrowthCha
         <Line
           type="monotone"
           dataKey="newUsers"
-          name="New Users"
+          name={t('chart.legend.newUsers')}
           stroke={COLORS.newUsers}
           strokeWidth={2}
           dot={false}
@@ -83,7 +85,7 @@ export const UserGrowthChart = memo<UserGrowthChartProps>(function UserGrowthCha
         <Line
           type="monotone"
           dataKey="activeUsers"
-          name="Active Users"
+          name={t('chart.legend.activeUsers')}
           stroke={COLORS.activeUsers}
           strokeWidth={2}
           strokeDasharray="5 5"

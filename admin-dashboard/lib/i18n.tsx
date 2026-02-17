@@ -474,6 +474,8 @@ const messages: Record<AdminLanguage, Messages> = {
     'conflicts.resolve.resolving': 'Resolving…',
     'conflicts.resolve.success': 'Conflict resolved successfully! Refreshing list…',
     'conflicts.resolve.error': 'Failed to resolve conflict',
+    'conflicts.validation.adminRequired': 'Admin User ID is required',
+    'conflicts.validation.reasonMinLength': 'Admin reason must be at least 10 characters',
     // Sync Monitoring
     'sync.title': 'Sync Monitor',
     'sync.subtitle': 'Real-time sync activity and statistics',
@@ -564,6 +566,94 @@ const messages: Record<AdminLanguage, Messages> = {
     'common.export': 'Export',
     'common.import': 'Import',
     'common.actions': 'Actions',
+
+    // Not Found page
+    'notFound.title': 'Page Not Found',
+    'notFound.subtitle': 'The page you\'re looking for doesn\'t exist or has been moved.',
+    'notFound.goToDashboard': 'Go to Dashboard',
+    'notFound.goHome': 'Go Home',
+    'notFound.systemStatus': 'System Status: Operational',
+    'notFound.errorHelp': 'If you believe this is an error, please contact the system administrator.',
+
+    // User detail page
+    'userDetail.back': 'Back',
+    'userDetail.refresh': 'Refresh',
+    'userDetail.error.title': 'Error',
+    'userDetail.error.loadFailed': 'Failed to load user details',
+    'userDetail.section.businessInfo': 'Business Information',
+    'userDetail.section.accountDetails': 'Account Details',
+    'userDetail.label.businessName': 'Business Name',
+    'userDetail.label.businessType': 'Business Type',
+    'userDetail.label.tin': 'TIN',
+    'userDetail.label.cacNumber': 'CAC Number',
+    'userDetail.label.address': 'Address',
+    'userDetail.label.email': 'Email',
+    'userDetail.label.phone': 'Phone',
+    'userDetail.label.registered': 'Registered',
+    'userDetail.label.lastActive': 'Last Active',
+    'userDetail.label.onboarding': 'Onboarding',
+    'userDetail.label.complete': 'Complete',
+    'userDetail.label.incomplete': 'Incomplete',
+    'userDetail.label.verified': 'Verified',
+    'userDetail.status.active': 'Active',
+    'userDetail.status.pending': 'Pending',
+    'userDetail.status.suspended': 'Suspended',
+    'userDetail.stats.invoices': 'Invoices',
+    'userDetail.stats.revenue': 'Revenue',
+    'userDetail.stats.payments': 'Payments',
+    'userDetail.stats.expenses': 'Expenses',
+    'userDetail.stats.employees': 'Employees',
+    'userDetail.activity.title': 'Recent Activity',
+    'userDetail.activity.empty': 'No recent activity',
+
+    // Dashboard chart sections
+    'dashboard.invoiceTrends': 'Invoice Trends',
+    'dashboard.invoiceTrends.desc': 'Invoice status distribution over time',
+    'dashboard.paymentAnalytics': 'Payment Analytics',
+    'dashboard.paymentAnalytics.desc': 'Payment volume and success rates',
+
+    // Chart empty/error states
+    'chart.empty.invoices': 'No invoice data available yet',
+    'chart.empty.payments': 'No payment data available yet',
+    'chart.empty.userGrowth': 'No user growth data available yet',
+    'chart.empty.syncHealth': 'No sync health data available yet',
+    'chart.empty.noData': 'No data available',
+    'chart.error.title': 'Chart Error',
+    'chart.error.message': 'Unable to display chart data.',
+    'chart.error.help': 'Please try refreshing the page.',
+
+    // Route-level error states
+    'route.error.title': 'Something went wrong',
+    'route.error.message': 'An unexpected error occurred while loading this page.',
+    'route.error.retry': 'Try again',
+
+    // Chart legend labels
+    'chart.legend.draft': 'Draft',
+    'chart.legend.sent': 'Sent',
+    'chart.legend.paid': 'Paid',
+    'chart.legend.overdue': 'Overdue',
+    'chart.legend.successful': 'Successful',
+    'chart.legend.failed': 'Failed',
+    'chart.legend.pending': 'Pending',
+    'chart.legend.totalUsers': 'Total Users',
+    'chart.legend.newUsers': 'New Users',
+    'chart.legend.activeUsers': 'Active Users',
+    'chart.legend.successRate': 'Success Rate',
+
+    // Invoices page states
+    'invoices.loading': 'Loading invoices…',
+    'invoices.empty.title': 'No invoices yet',
+    'invoices.empty.message': 'Invoices will appear here once users start submitting them.',
+
+    // Conflict resolution
+    'conflicts.error.adminRequired': 'Admin User ID is required',
+    'conflicts.error.reasonLength': 'Admin reason must be at least 10 characters',
+    'conflicts.error.resolveFailed': 'Failed to resolve conflict',
+
+    // Tooltip labels
+    'analytics.tooltip.amount': 'Amount',
+    'analytics.tooltip.volume': 'Volume',
+    'analytics.tooltip.count': 'Count',
   },
   pidgin: {
     // Navigation
@@ -892,6 +982,94 @@ const messages: Record<AdminLanguage, Messages> = {
     'system.error.unexpected': 'An unexpected error occurred',
     'system.labels.latency': '{latency}ms',
     'system.labels.lastChecked': 'Last checked: {time}',
+
+    // Not Found page
+    'notFound.title': 'Page No Dey',
+    'notFound.subtitle': 'The page wey you dey find no dey or dem don move am.',
+    'notFound.goToDashboard': 'Go Dashboard',
+    'notFound.goHome': 'Go Home',
+    'notFound.systemStatus': 'System Status: E Dey Work',
+    'notFound.errorHelp': 'If you believe say na mistake, abeg contact admin.',
+
+    // User detail page
+    'userDetail.back': 'Back',
+    'userDetail.refresh': 'Refresh',
+    'userDetail.error.title': 'Error',
+    'userDetail.error.loadFailed': 'E no fit load user details',
+    'userDetail.section.businessInfo': 'Business Information',
+    'userDetail.section.accountDetails': 'Account Details',
+    'userDetail.label.businessName': 'Business Name',
+    'userDetail.label.businessType': 'Business Type',
+    'userDetail.label.tin': 'TIN',
+    'userDetail.label.cacNumber': 'CAC Number',
+    'userDetail.label.address': 'Address',
+    'userDetail.label.email': 'Email',
+    'userDetail.label.phone': 'Phone',
+    'userDetail.label.registered': 'Registered',
+    'userDetail.label.lastActive': 'Last Active',
+    'userDetail.label.onboarding': 'Onboarding',
+    'userDetail.label.complete': 'Complete',
+    'userDetail.label.incomplete': 'Incomplete',
+    'userDetail.label.verified': 'Verified',
+    'userDetail.status.active': 'Active',
+    'userDetail.status.pending': 'Pending',
+    'userDetail.status.suspended': 'Suspended',
+    'userDetail.stats.invoices': 'Invoices',
+    'userDetail.stats.revenue': 'Revenue',
+    'userDetail.stats.payments': 'Payments',
+    'userDetail.stats.expenses': 'Expenses',
+    'userDetail.stats.employees': 'Employees',
+    'userDetail.activity.title': 'Recent Activity',
+    'userDetail.activity.empty': 'No recent activity',
+
+    // Dashboard chart sections
+    'dashboard.invoiceTrends': 'Invoice Trends',
+    'dashboard.invoiceTrends.desc': 'Invoice status distribution over time',
+    'dashboard.paymentAnalytics': 'Payment Analytics',
+    'dashboard.paymentAnalytics.desc': 'Payment volume and success rates',
+
+    // Chart empty/error states
+    'chart.empty.invoices': 'No invoice data dey yet',
+    'chart.empty.payments': 'No payment data dey yet',
+    'chart.empty.userGrowth': 'No user growth data dey yet',
+    'chart.empty.syncHealth': 'No sync health data dey yet',
+    'chart.empty.noData': 'No data dey available',
+    'chart.error.title': 'Chart Error',
+    'chart.error.message': 'E no fit show chart data.',
+    'chart.error.help': 'Try refresh the page.',
+
+    // Route-level error states
+    'route.error.title': 'Something no work well',
+    'route.error.message': 'Wahala happen when we dey load this page.',
+    'route.error.retry': 'Try again',
+
+    // Chart legend labels
+    'chart.legend.draft': 'Draft',
+    'chart.legend.sent': 'Sent',
+    'chart.legend.paid': 'Paid',
+    'chart.legend.overdue': 'Overdue',
+    'chart.legend.successful': 'Successful',
+    'chart.legend.failed': 'Failed',
+    'chart.legend.pending': 'Pending',
+    'chart.legend.totalUsers': 'Total Users',
+    'chart.legend.newUsers': 'New Users',
+    'chart.legend.activeUsers': 'Active Users',
+    'chart.legend.successRate': 'Success Rate',
+
+    // Invoices page states
+    'invoices.loading': 'Dey load invoices…',
+    'invoices.empty.title': 'No invoices yet',
+    'invoices.empty.message': 'Invoices go show here when users start to submit dem.',
+
+    // Conflict resolution
+    'conflicts.error.adminRequired': 'Admin User ID dey required',
+    'conflicts.error.reasonLength': 'Admin reason must dey at least 10 characters',
+    'conflicts.error.resolveFailed': 'E no fit resolve conflict',
+
+    // Tooltip labels
+    'analytics.tooltip.amount': 'Amount',
+    'analytics.tooltip.volume': 'Volume',
+    'analytics.tooltip.count': 'Count',
   },
 };
 

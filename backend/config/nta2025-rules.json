@@ -10,37 +10,34 @@
       { "limit": 50000000, "rate": 0.23, "label": "23% (₦25,000,001 – ₦50,000,000)" },
       { "limit": null, "rate": 0.25, "label": "25% (Above ₦50,000,000)" }
     ],
-    "minimumWageAnnual": 720000,
+    "minimumWageAnnual": 840000,
     "cra": {
       "fixed": 200000,
       "percentage": 0.20,
       "minPercentage": 0.01
     },
-    "reliefs": {
-      "rentReliefCap": 2400000,
-      "rentReliefRate": 0.20,
-      "pensionRate": 0.08,
-      "nhfRate": 0.025
-    }
+    "rentRelief": { "cap": 500000, "rate": 0.20 },
+    "pension": 0.08,
+    "nhf": 0.025,
+    "lifeInsurance": { "rate": 0.20, "maxRate": 0.07 }
   },
   "vat": {
     "rate": 0.075,
     "registrationThreshold": 100000000,
     "exempt": [
-      "basic-food-items",
       "medical-services",
-      "educational-services",
-      "books-newspapers",
-      "baby-products",
-      "agricultural-equipment",
-      "exports",
       "pharmaceuticals",
-      "rent"
+      "basic-food-items",
+      "books-newspapers",
+      "educational-services",
+      "agricultural-products",
+      "exported-goods"
     ],
     "zeroRated": [
       "exports",
-      "goods-in-free-trade-zones",
-      "plant-machinery-for-export-production"
+      "medical-services",
+      "basic-food-items",
+      "books"
     ]
   },
   "cit": {
@@ -96,18 +93,40 @@
     "nhf": 0.025
   },
   "penalties": {
+    "underDeduction": { "base": 0.10, "interest": 0.05 },
+    "lateRemittance": 0.10,
     "lateReturn": 25000,
-    "latePaymentPerMonth": 0.10,
-    "understatement": 0.20,
-    "fraudulentReturn": 3.00
+    "nonRemittance": 0.10,
+    "lateFiling": 0.05,
+    "latePayment": 0.10
   },
   "compliance": {
-    "calendar": {
-      "monthlyPAYE": { "day": 10, "description": "PAYE remittance" },
-      "monthlyWHT": { "day": 21, "description": "WHT remittance" },
-      "monthlyVAT": { "day": 21, "description": "VAT remittance" },
-      "annualCIT": { "month": 6, "day": 30, "description": "CIT return filing" },
-      "annualPIT": { "month": 3, "day": 31, "description": "PIT return filing" }
+    "VAT": {
+      "frequency": "monthly",
+      "dueDay": 21,
+      "description": "VAT Return and Payment"
+    },
+    "PAYE": {
+      "frequency": "monthly",
+      "dueDay": 10,
+      "description": "PAYE Remittance"
+    },
+    "CIT": {
+      "frequency": "annual",
+      "dueMonth": 6,
+      "dueDay": 30,
+      "description": "Company Income Tax Return"
+    },
+    "WHT": {
+      "frequency": "monthly",
+      "dueDay": 21,
+      "description": "Withholding Tax Remittance"
+    },
+    "PIT": {
+      "frequency": "annual",
+      "dueMonth": 3,
+      "dueDay": 31,
+      "description": "Personal Income Tax Annual Return"
     }
   }
 }

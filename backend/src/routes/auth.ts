@@ -1,8 +1,34 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { z } from 'zod';
+import { z, ZodError } from 'zod';
 import { authService } from '../services/auth';
 import { privacyService } from '../services/privacy';
 import { logSecurityEvent } from '../lib/security';
+
+/**
+ * Maps auth errors to appropriate HTTP status codes and safe messages.
+ * Prevents leaking internal error details to clients.
+ */
+function handleAuthError(error: unknown, reply: FastifyReply, defaultStatus = 400) {
+  if (error instanceof ZodError) {
+    return reply.status(422).send({
+      error: 'Validation failed',
+      details: error.errors.map(e => ({ path: e.path.join('.'), message: e.message })),
+    });
+  }
+  if (error instanceof Error) {
+    // Map known auth error messages to appropriate status codes
+    const message = error.message;
+    if (message.includes('not found') || message.includes('does not exist')) {
+      return reply.status(404).send({ error: 'Resource not found' });
+    }
+    if (message.includes('unauthorized') || message.includes('invalid') || message.includes('expired')) {
+      return reply.status(401).send({ error: message });
+    }
+    // Don't leak internal messages — return generic error
+    return reply.status(defaultStatus).send({ error: 'Authentication request failed' });
+  }
+  return reply.status(500).send({ error: 'Internal server error' });
+}
 
 const registerSchema = z.object({
   phone: z.string().regex(/^\+234[789]\d{9}$/, 'Invalid Nigerian phone number'),
@@ -51,9 +77,9 @@ export default async function authRoutes(app: FastifyInstance) {
         userId: result.userId,
         message: 'Verification code sent to your phone'
       });
-    } catch (error: any) {
-      await logSecurityEvent('REGISTRATION_FAILED', { error: error.message }, 'warning');
-      return reply.status(400).send({ error: error.message });
+    } catch (error: unknown) {
+      await logSecurityEvent('REGISTRATION_FAILED', { error: error instanceof Error ? error.message : 'unknown' }, 'warning');
+      return handleAuthError(error, reply);
     }
   });
 
@@ -67,8 +93,8 @@ export default async function authRoutes(app: FastifyInstance) {
         success: true,
         ...tokens
       });
-    } catch (error: any) {
-      return reply.status(400).send({ error: error.message });
+    } catch (error: unknown) {
+      return handleAuthError(error, reply);
     }
   });
 
@@ -91,8 +117,8 @@ export default async function authRoutes(app: FastifyInstance) {
         success: true,
         ...tokens
       });
-    } catch (error: any) {
-      return reply.status(401).send({ error: error.message });
+    } catch (error: unknown) {
+      return handleAuthError(error, reply, 401);
     }
   });
 
@@ -107,8 +133,8 @@ export default async function authRoutes(app: FastifyInstance) {
         secret: result.secret,
         qrCode: result.qrCode
       });
-    } catch (error: any) {
-      return reply.status(400).send({ error: error.message });
+    } catch (error: unknown) {
+      return handleAuthError(error, reply);
     }
   });
 
@@ -122,8 +148,8 @@ export default async function authRoutes(app: FastifyInstance) {
         success: true,
         message: 'MFA enabled successfully'
       });
-    } catch (error: any) {
-      return reply.status(400).send({ error: error.message });
+    } catch (error: unknown) {
+      return handleAuthError(error, reply);
     }
   });
 
@@ -137,8 +163,8 @@ export default async function authRoutes(app: FastifyInstance) {
         success: true,
         ...tokens
       });
-    } catch (error: any) {
-      return reply.status(401).send({ error: error.message });
+    } catch (error: unknown) {
+      return handleAuthError(error, reply, 401);
     }
   });
 
@@ -152,8 +178,8 @@ export default async function authRoutes(app: FastifyInstance) {
         success: true,
         accessToken: result.accessToken
       });
-    } catch (error: any) {
-      return reply.status(401).send({ error: error.message });
+    } catch (error: unknown) {
+      return handleAuthError(error, reply, 401);
     }
   });
 
@@ -169,8 +195,8 @@ export default async function authRoutes(app: FastifyInstance) {
         success: true,
         message: 'Logged out successfully'
       });
-    } catch (error: any) {
-      return reply.status(500).send({ error: error.message });
+    } catch (error: unknown) {
+      return handleAuthError(error, reply, 500);
     }
   });
 }

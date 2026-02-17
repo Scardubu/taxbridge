@@ -156,13 +156,16 @@ npm run dev
 # 2. Install dependencies
 .\scripts\1-Install-Dependencies.ps1
 
-# 3. Run smoke tests
-.\scripts\7-Post-Deployment-Smoke-Tests.ps1
+# 3. Validate production environment
+.\scripts\validate-production-env.ps1 -EnvFile .env.production
 
-# 4. Monitor production
+# 4. Run smoke tests
+.\scripts\smoke-tests.ps1 -ApiUrl "https://taxbridge-api-ker8.onrender.com" -Verbose
+
+# 5. Monitor production
 .\scripts\6-Monitor-Production.ps1 -Continuous
 
-# 5. Build mobile app
+# 6. Build mobile app
 .\scripts\8-Build-Mobile-App.ps1 -Profile production -Platform android
 ```
 

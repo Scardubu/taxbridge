@@ -5,13 +5,17 @@ import { logError } from '@/lib/logger';
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const page = searchParams.get('page') || '1';
-    const limit = searchParams.get('limit') || '50';
+    const rawPage = searchParams.get('page') || '1';
+    const rawLimit = searchParams.get('limit') || '50';
     const status = searchParams.get('status') || '';
 
+    // Validate and sanitize numeric params
+    const page = Math.max(1, Math.min(parseInt(rawPage, 10) || 1, 10000));
+    const limit = Math.max(1, Math.min(parseInt(rawLimit, 10) || 50, 100));
+
     const queryParams = new URLSearchParams({
-      page,
-      limit,
+      page: String(page),
+      limit: String(limit),
       ...(status && { status }),
     });
 

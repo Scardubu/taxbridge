@@ -1,6 +1,7 @@
 'use client';
 
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import type { NameType, ValueType } from 'recharts/types/component/DefaultTooltipContent';
 import { useAdminI18n } from '@/lib/i18n';
 import { chartColors } from '@/lib/colors';
 
@@ -22,6 +23,17 @@ export function DuploHealthChart({ data }: DuploHealthChartProps) {
     latency: t('analytics.chart.latency'),
   };
 
+  const tooltipFormatter = (value: ValueType, name: NameType): [number | string, string] => {
+    const normalizedValue = Array.isArray(value) ? value[0] : value;
+    const displayValue =
+      typeof normalizedValue === 'number' || typeof normalizedValue === 'string'
+        ? normalizedValue
+        : 0;
+    const normalizedName = typeof name === 'string' ? name : String(name ?? '');
+    const label = labels[normalizedName] || normalizedName;
+    return [displayValue, label];
+  };
+
   return (
     <ResponsiveContainer width="100%" height={300}>
       <LineChart data={data}>
@@ -35,10 +47,7 @@ export function DuploHealthChart({ data }: DuploHealthChartProps) {
         <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} />
         <Tooltip
           labelFormatter={(value) => new Date(value).toLocaleString()}
-          formatter={(value: number | undefined, name: string | undefined) => {
-            const label = name ? labels[name] || name : '';
-            return [value || 0, label];
-          }}
+          formatter={tooltipFormatter}
         />
         <Line
           yAxisId="left"

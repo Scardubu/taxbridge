@@ -103,7 +103,7 @@ export class ErrorBoundary extends Component<Props, State> {
       
       await AsyncStorage.setItem(ERROR_LOGS_KEY, JSON.stringify(recentLogs));
     } catch (error) {
-      console.error('[ErrorBoundary] Failed to save error log:', error);
+      if (__DEV__) console.error('[ErrorBoundary] Failed to save error log:', error);
     }
   }
 
@@ -132,7 +132,7 @@ export class ErrorBoundary extends Component<Props, State> {
         title: 'TaxBridge Error Report',
       });
     } catch (error) {
-      console.error('[ErrorBoundary] Failed to share error:', error);
+      if (__DEV__) console.error('[ErrorBoundary] Failed to share error:', error);
     }
   };
 
@@ -154,20 +154,19 @@ export class ErrorBoundary extends Component<Props, State> {
               {i18n.t('errors.boundary.subtitle')}
             </Text>
 
-            {/* Reassurance Box */}
             <View style={styles.reassuranceBox}>
               <Text style={styles.reassuranceIcon}>✓</Text>
               <View style={styles.reassuranceContent}>
-                <Text style={styles.reassuranceTitle}>Your data is safe</Text>
+                <Text style={styles.reassuranceTitle}>{i18n.t('errors.boundary.dataSafe')}</Text>
                 <Text style={styles.reassuranceText}>
-                  All your invoices and business data are saved securely on your device.
+                  {i18n.t('errors.boundary.dataSafeDesc')}
                 </Text>
               </View>
             </View>
 
             {errorId && (
               <View style={styles.errorIdBox}>
-                <Text style={styles.errorIdLabel}>Error ID (for support):</Text>
+                <Text style={styles.errorIdLabel}>{i18n.t('errors.boundary.errorIdLabel')}</Text>
                 <Text style={styles.errorIdText}>{errorId}</Text>
               </View>
             )}
@@ -186,12 +185,12 @@ export class ErrorBoundary extends Component<Props, State> {
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.supportButton} onPress={this.handleContactSupport}>
-              <Text style={styles.supportButtonText}>Contact Support via WhatsApp</Text>
+              <Text style={styles.supportButtonText}>{i18n.t('errors.boundary.contactSupport')}</Text>
             </TouchableOpacity>
 
             {__DEV__ && (
               <TouchableOpacity style={styles.shareButton} onPress={this.handleShareError}>
-                <Text style={styles.shareButtonText}>Share Error Report</Text>
+                <Text style={styles.shareButtonText}>{i18n.t('errors.boundary.shareReport')}</Text>
               </TouchableOpacity>
             )}
 

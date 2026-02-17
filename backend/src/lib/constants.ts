@@ -2,52 +2,44 @@
  * TaxBridge Backend Constants
  * Centralized constants for tax calculations, compliance, and business logic
  * 
+ * Tax rates are re-exported from @taxbridge/contracts (canonical source of truth).
+ * Backend-specific constants (UBL, API, etc.) are defined here.
+ * 
  * @module constants
- * @description Single source of truth for all configurable values
  */
 
 // =============================================================================
-// TAX RATES (Nigeria Tax Act 2025)
+// TAX RATES — Re-exported from canonical contracts (single source of truth)
 // =============================================================================
 
-/**
- * VAT (Value Added Tax) Rate
- * @const {number} VAT_RATE - Standard VAT rate in Nigeria (7.5%)
- * @see Nigeria Tax Act 2025, Section 46
- */
-export const VAT_RATE = 0.075;
+import {
+  VAT_RATE as _VAT_RATE,
+  CIT_TIERS,
+  VAT_REGISTRATION_THRESHOLD,
+} from '@taxbridge/contracts';
+
+/** @see Nigeria Tax Act 2025, Section 46 */
+export const VAT_RATE = _VAT_RATE;
+
+/** VAT Rate as Percentage (for display) */
+export const VAT_RATE_PERCENT = _VAT_RATE * 100;
 
 /**
- * VAT Rate as Percentage (for display)
- * @const {number} VAT_RATE_PERCENT - 7.5%
- */
-export const VAT_RATE_PERCENT = 7.5;
-
-/**
- * CIT (Companies Income Tax) Rates — 3-tier system
+ * CIT (Companies Income Tax) Rates — derived from canonical CIT_TIERS
  * @see Nigeria Tax Act 2025, Section 40/90
  */
 export const CIT_RATES = {
-  /** Small company rate (turnover ≤ ₦25M) — exempt */
-  SMALL: 0.00,
-  /** Medium company rate (₦25M < turnover ≤ ₦100M) */
-  MEDIUM: 0.20,
-  /** Large company rate (turnover > ₦100M) */
-  STANDARD: 0.30,
-  /** Small company threshold */
-  SMALL_THRESHOLD: 25_000_000,
-  /** Medium company threshold */
-  MEDIUM_THRESHOLD: 100_000_000,
+  SMALL: CIT_TIERS[0].rate,
+  MEDIUM: CIT_TIERS[1].rate,
+  STANDARD: CIT_TIERS[2].rate,
+  SMALL_THRESHOLD: CIT_TIERS[0].maxRevenue,
+  MEDIUM_THRESHOLD: CIT_TIERS[1].maxRevenue,
   /** @deprecated Use SMALL_THRESHOLD instead */
-  EXEMPTION_THRESHOLD: 25_000_000,
+  EXEMPTION_THRESHOLD: CIT_TIERS[0].maxRevenue,
 } as const;
 
-/**
- * VAT Registration Threshold
- * @const {number} VAT_THRESHOLD - ₦100M annual turnover
- * @see Nigeria Tax Act 2025, Section 80
- */
-export const VAT_THRESHOLD = 100_000_000;
+/** @see Nigeria Tax Act 2025, Section 80 */
+export const VAT_THRESHOLD = VAT_REGISTRATION_THRESHOLD;
 
 // =============================================================================
 // CURRENCY & LOCALIZATION

@@ -17,6 +17,14 @@ const NRSStatusSchema = z.object({
   invoiceId: z.string().uuid(),
 });
 
+const NRSStatusQuerySchema = z.object({
+  status: z.string().optional(),
+  nrsStatus: z.string().optional(),
+  fromDate: z.string().optional(),
+  toDate: z.string().optional(),
+  limit: z.string().optional(),
+});
+
 export default async function nrsStatusRoutes(app: FastifyInstance) {
   
   /**
@@ -27,7 +35,15 @@ export default async function nrsStatusRoutes(app: FastifyInstance) {
     Params: { invoiceId: string };
   }>('/api/v1/nrs/status/:invoiceId', async (req, reply) => {
     try {
-      const { invoiceId } = req.params;
+      const parsedParams = NRSStatusSchema.safeParse(req.params);
+      if (!parsedParams.success) {
+        return reply.status(400).send({
+          success: false,
+          error: 'Invalid invoiceId format',
+        });
+      }
+
+      const { invoiceId } = parsedParams.data;
       
       const invoice = await prisma.invoice.findUnique({
         where: { id: invoiceId },
@@ -118,7 +134,15 @@ export default async function nrsStatusRoutes(app: FastifyInstance) {
     };
   }>('/api/v1/nrs/status', async (req, reply) => {
     try {
-      const { status, nrsStatus, fromDate, toDate, limit } = req.query;
+      const parsedQuery = NRSStatusQuerySchema.safeParse(req.query);
+      if (!parsedQuery.success) {
+        return reply.status(400).send({
+          success: false,
+          error: 'Invalid query parameters',
+        });
+      }
+
+      const { status, nrsStatus, fromDate, toDate, limit } = parsedQuery.data;
       
       const where: any = {};
       
@@ -162,7 +186,7 @@ export default async function nrsStatusRoutes(app: FastifyInstance) {
           updatedAt: true,
         },
         orderBy: { createdAt: 'desc' },
-        take: limit ? parseInt(limit) : 50,
+        take: limit ? Math.min(200, Math.max(1, parseInt(limit, 10) || 50)) : 50,
       });
 
       // Aggregate statistics

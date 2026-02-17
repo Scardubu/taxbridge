@@ -18,6 +18,7 @@ import { useNavigation } from '@react-navigation/native';
 import Animated, { FadeIn, FadeInDown, FadeInRight, useSharedValue, withSpring } from 'react-native-reanimated';
 import * as Haptics from '../utils/safeHaptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { VAT_RATE } from '@taxbridge/contracts';
 
 import type { InvoiceItem } from '../types/invoice';
 import { saveInvoice } from '../services/database';
@@ -49,7 +50,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 // ============================================================================
 
 const INVOICE_CONSTANTS = {
-  VAT_RATE: 0.075,
+  VAT_RATE,
   MIN_QUANTITY: 1,
   MAX_QUANTITY: 99999,
   MIN_UNIT_PRICE: 0,
