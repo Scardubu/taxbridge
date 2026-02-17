@@ -1,10 +1,21 @@
 #!/usr/bin/env pwsh
 <#
 .SYNOPSIS
-    TaxBridge Production Deployment Script
+    [DEPRECATED] TaxBridge Production Deployment Script
 .DESCRIPTION
-    Automated deployment script for TaxBridge production environment.
-    Validates environment, runs tests, builds all workspaces, and deploys to production.
+    ⚠️  DEPRECATED: Use the root deploy-production.ps1 instead.
+    
+    This script has been superseded by the canonical deployment script at:
+        .\deploy-production.ps1 -Environment production
+    
+    For mobile-only deployments, use:
+        .\scripts\deploy-mobile-production.ps1
+        
+    For admin dashboard, use:
+        .\admin-dashboard\deploy-vercel.ps1
+        
+    Keeping this file temporarily for backward compatibility.
+    
 .PARAMETER SkipTests
     Skip running test suite (not recommended for production)
 .PARAMETER SkipBuild
@@ -12,9 +23,13 @@
 .PARAMETER DryRun
     Simulate deployment without actually deploying
 .EXAMPLE
-    .\scripts\deploy-production.ps1
-    .\scripts\deploy-production.ps1 -DryRun
+    # DEPRECATED - use root script instead:
+    .\deploy-production.ps1 -Environment production
 #>
+
+Write-Host "⚠️  WARNING: This script is DEPRECATED" -ForegroundColor Yellow
+Write-Host "    Use: .\deploy-production.ps1 -Environment production" -ForegroundColor Yellow
+Write-Host ""
 
 param(
     [switch]$SkipTests,

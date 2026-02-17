@@ -1,5 +1,5 @@
-// Mock FIRS API Service for Educational Purposes Only
-// This service simulates NRS e-invoicing API calls for onboarding demonstrations
+// Mock NRS API Service for Educational Purposes Only
+// This service simulates DigiTax (APP) e-invoicing API calls for onboarding demonstrations
 // ALL RESPONSES ARE SIMULATED - NEVER USE IN PRODUCTION
 
 export interface MockInvoiceData {
@@ -25,7 +25,7 @@ export interface MockStampResponse {
 }
 
 /**
- * Simulate FIRS NRS invoice stamping (EDUCATIONAL ONLY)
+ * Simulate NRS/DigiTax invoice stamping (EDUCATIONAL ONLY)
  * @param invoice Invoice data to stamp
  * @returns Mocked stamp response with QR code
  */
@@ -52,7 +52,7 @@ export async function stampInvoiceMock(invoice: MockInvoiceData): Promise<MockSt
     qrCode,
     timestamp: new Date().toISOString(),
     isMock: true,
-    disclaimer: 'THIS IS AN EDUCATIONAL SIMULATION ONLY - NOT AN OFFICIAL FIRS STAMP',
+    disclaimer: 'THIS IS AN EDUCATIONAL SIMULATION ONLY - NOT AN OFFICIAL NRS/DIGITAX STAMP',
   };
 }
 

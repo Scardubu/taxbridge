@@ -226,7 +226,7 @@ const DEFAULT_ACHIEVEMENTS: Achievement[] = [
   },
   {
     id: 'firs_explorer',
-    name: 'FIRS Navigator',
+    name: 'NRS Navigator',
     description: 'Tried the mock e-invoicing demo',
     icon: '📱',
     unlockedAt: null,

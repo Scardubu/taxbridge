@@ -13,14 +13,14 @@
     "allSynced": "All don sync",
     "nrsReady": "NRS Ready",
     "ndprSafe": "NDPR Safe",
-    "offlineFirst": "Offline First",
+    "offlineNRSt": "Offline NRSt",
     "worksOffline": "E Dey Work Offline",
     "taxTip": "Tax Tip",
     "onlineSync": "Online & Dey Sync",
     "offlineStatus": "Offline Mode",
     "noInvoicesTitle": "No Invoice Yet",
-    "noInvoicesText": "Make your first invoice begin dey track your sales",
-    "createFirstInvoice": "Make First Invoice",
+    "noInvoicesText": "Make your NRSt invoice begin dey track your sales",
+    "createNRStInvoice": "Make NRSt Invoice",
     "weekendMorning": "Good Morning",
     "weekendVibes": "Weekend Vibes",
     "lunchTime": "Lunch Time",
@@ -354,7 +354,7 @@
     "total": "{{count}} invoice",
     "total_plural": "{{count}} invoices",
     "totalLabel": "total",
-    "noInvoicesAll": "No invoice yet. Make your first one!",
+    "noInvoicesAll": "No invoice yet. Make your NRSt one!",
     "noInvoicesPending": "No invoice dey wait. All don sync!",
     "noInvoicesFilter": "No {{filter}} invoice dey",
     "retrySync": "Try Again",
@@ -397,15 +397,15 @@
     "securityComplianceTitle": "Security & Compliance",
     "ndprCompliant": "NDPR Compliant",
     "ndprText": "Your data dey protected under Nigeria Data Protection Regulation. We no go share your info with anybody without your say so.",
-    "localFirstStorage": "Local-first storage",
-    "offlineArchitecture": "Offline-first architecture",
+    "localNRStStorage": "Local-NRSt storage",
+    "offlineArchitecture": "Offline-NRSt architecture",
     "nrsReady": "NRS e-invoicing ready",
     "signedInTitle": "You Don Sign In",
     "signedInSubtitle": "Sync and payment dey work for this device",
     "signIn": "Sign in",
     "createAccount": "Create account",
     "offline": "Offline",
-    "offlineSignInMsg": "Connect internet first make you fit sign in. You fit still dey make invoices offline.",
+    "offlineSignInMsg": "Connect internet NRSt make you fit sign in. You fit still dey make invoices offline.",
     "validationError": "Validation Error",
     "enterValidPhone": "Enter correct phone number",
     "enterPassword": "Enter your password (at least {{count}} letters)",
@@ -484,11 +484,11 @@
       "subtitle": "Your smart tax partner wey dey help you",
       "benefit1": "Make invoice even when you no get network",
       "benefit2": "Scan receipt with AI sharp sharp",
-      "benefit3": "Stay FIRS compliant automatically",
+      "benefit3": "Stay tax compliant automatically",
       "letsStart": "Make We Start",
       "timeEstimate": "E go take only 2 minutes",
       "ndpcCompliant": "NDPC Compliant",
-      "firsApproved": "FIRS Ready"
+      "nrsReady": "NRS Ready"
     },
     "taxEngine": {
       "title": "See Your Tax Calculator",
@@ -505,7 +505,7 @@
       "vat": "VAT",
       "wht": "Withholding Tax",
       "total": "Total",
-      "vatExplainer": "7.5% VAT on taxable items per FIRS",
+      "vatExplainer": "7.5% VAT on taxable items per NRS",
       "whtExplainer": "5% WHT on professional services",
       "autoApply": "We go apply correct tax rates based on Nigerian tax law",
       "tryYourOwn": "Try With Your Own Numbers",
@@ -562,7 +562,7 @@
         "item2": "Tomato (basket)",
         "item3": "Cooking Oil - 5L"
       },
-      "tryScan": "Scan My First Receipt",
+      "tryScan": "Scan My NRSt Receipt",
       "skipForNow": "Skip For Now"
     },
     "scannerTitle": "Scan Receipt Sharp Sharp",
@@ -588,7 +588,7 @@
     "analyzingReceipt": "We dey check receipt...",
     "extractingData": "AI dey pull data...",
     "reviewExtractedData": "Check di data wey AI don extract",
-    "scanFirst": "Finish Setup",
+    "scanNRSt": "Finish Setup",
     "tryAgain": "Try Again",
     "stepNumber": "Step {{number}}",
     "skip": "Skip am",
@@ -626,7 +626,7 @@
     "helperPill1": "✅ Compliance tips",
     "helperPill2": "🤝 WhatsApp support",
     "helperPill3": "📈 SME insights",
-    "trustLocalFirst": "📍 Local-first, e go sync when you online",
+    "trustLocalNRSt": "📍 Local-NRSt, e go sync when you online",
     "trustOffline": "📵 E dey work without internet",
     "continue": "Continue",
     "back": "Go back",
@@ -731,7 +731,7 @@
       "deductionsHint": "These ones go reduce your tax",
       "annualRent": "House Rent Wey You Pay for Year",
       "pensionContribution": "Pension Money",
-      "selectIncome": "Pick income first",
+      "selectIncome": "Pick income NRSt",
       "calculateTax": "🎯 Calculate My Tax",
       "recalculate": "← Calculate Again",
       "estimatedPIT": "Your Estimated PIT",
@@ -778,7 +778,7 @@
       "vatExplanation": "Once your yearly turnover pass ₦100M, VAT registration dey compulsory. TaxBridge dey track your turnover and go alert you early.",
       "vatBullet1": "Register once your annual turnover pass ₦100M",
       "vatBullet2": "Charge 7.5% VAT for goods and services wey VAT apply",
-      "vatBullet3": "File VAT returns as FIRS require",
+      "vatBullet3": "File VAT returns as NRS require",
       "vatQuizTitle": "VAT Quiz",
       "vatQuizQuestion": "When you go register for VAT?",
       "vatQuizOptionA": "Above ₦50M turnover",
@@ -827,12 +827,12 @@
       "citQuizC": "30%",
       "timeEstimate": "⏱️ About 60 seconds"
     },
-    "firs": {
-      "title": "FIRS e-Invoicing Demo",
-      "subtitle": "See how NRS invoice stamping dey work (na demo)",
+    "nrs": {
+      "title": "NRS e-Invoicing Demo",
+      "subtitle": "See how DigiTax invoice stamping dey work (na demo)",
       "animationTitle": "Invoice Stamping Flow",
       "stepInvoice": "📄 Your Invoice",
-      "stepAPI": "🌐 FIRS API",
+      "stepAPI": "🌐 DigiTax API",
       "stepStamped": "✅ Stamped",
       "endpointsTitle": "API Endpoints (Demo)",
       "endpointsDesc": "Na fake ones for learn purpose only",
@@ -877,7 +877,25 @@
       "days": "days",
       "currentStreak": "Your Streak Now",
       "streakDesc": "Log at least one invoice everyday to keep your streak. E dey help you build good tax habit!",
-      "timeEstimate": "⏱️ About 20 seconds"
+      "timeEstimate": "⏱️ About 20 seconds",
+      "achievementNames": {
+        "first_calculator": "Tax Calculator Pro",
+        "pit_exempt": "Tax-Free Champion",
+        "vat_aware": "VAT Expert",
+        "cit_explorer": "CIT Explorer",
+        "firs_explorer": "NRS Navigator",
+        "onboarding_complete": "Onboarding Master",
+        "seven_day_streak": "7-Day Streak"
+      },
+      "achievementDesc": {
+        "first_calculator": "You don do your first tax calculation",
+        "pit_exempt": "You don discover your tax-free threshold",
+        "vat_aware": "You don learn about VAT thresholds",
+        "cit_explorer": "You don explore Corporate Income Tax",
+        "firs_explorer": "You don try the mock e-invoicing demo",
+        "onboarding_complete": "You don finish full tax onboarding",
+        "seven_day_streak": "You don use TaxBridge for 7 days straight"
+      }
     },
     "community": {
       "title": "Join the Community",
@@ -1114,7 +1132,7 @@
     "deleteInvoiceDesc": "This invoice don sync. You sure say you wan delete am?",
     "delete": "Delete",
     "validationError": "Error Dey",
-    "fixErrorsBeforeAdding": "Fix the errors first before you add item",
+    "fixErrorsBeforeAdding": "Fix the errors NRSt before you add item",
     "noItems": "No Item Dey",
     "addItemBeforeProceeding": "Add at least one item before you continue",
     "addItemToInvoice": "Add at least one item to the invoice",
@@ -1177,7 +1195,7 @@
     "finish": "Finish",
     "skipStep": "Skip this step",
     "invoiceWizard": {
-      "title": "Make Your First Invoice",
+      "title": "Make Your NRSt Invoice",
       "step1Title": "Add Customer",
       "step1Desc": "Put customer details or skip if na walk-in",
       "step2Title": "Add Items",
@@ -1197,7 +1215,7 @@
       "vat": "VAT (7.5%)",
       "total": "Total"
     },
-    "vatExplainer": "7.5% VAT dey apply for goods and services based on FIRS guidelines",
+    "vatExplainer": "7.5% VAT dey apply for goods and services based on NRS guidelines",
     "whtExplainer": "5% withholding tax wey dem take comot for professional services",
     "exemptions": "Tax Exemptions",
     "learnMore": "Learn More About Nigerian Taxes",
@@ -1209,7 +1227,7 @@
     "vatStatusMandatory": "You must register now",
     "vatStatusApproaching": "You dey near the limit",
     "vatStatusExempt": "You no need register yet",
-    "vatDisclaimerMandatory": "Go ask FIRS for proper advice",
+    "vatDisclaimerMandatory": "Go ask NRS for proper advice",
     "vatDisclaimerEstimate": "Na just estimate - check your real numbers",
     "guide": {
       "title": "Tax Guide",
@@ -1232,7 +1250,7 @@
         "exempt1": "Basic food items and some farm produce",
         "exempt2": "Medical and pharmaceutical products",
         "exempt3": "Educational materials and services",
-        "firsLink": "For official VAT guide, check firs.gov.ng/vat."
+        "NRSLink": "For official VAT guide, check NRS.gov.ng/vat."
       },
       "wht": {
         "title": "Withholding Tax (WHT)",
@@ -1241,7 +1259,7 @@
         "applies1": "Professional services like consulting and legal work",
         "applies2": "Contract payments and commission",
         "applies3": "Rent and some interest payments",
-        "remember": "Dem dey remove WHT from payment and remit am give FIRS."
+        "remember": "Dem dey remove WHT from payment and remit am give NRS."
       },
       "pit": {
         "title": "Personal Income Tax (PIT)",
@@ -1259,7 +1277,7 @@
         "why1": "Need am for compliant invoices and tax payment",
         "why2": "E help track your tax history and filing",
         "why3": "Plenty business registration need am",
-        "howTo": "You fit collect TIN from FIRS or your local tax office."
+        "howTo": "You fit collect TIN from NRS or your local tax office."
       },
       "nrs": {
         "title": "NRS e-Invoicing",
@@ -1292,7 +1310,7 @@
     "rate": "Rate",
     "rateLabel": "{{rate}}% tax rate",
     "amount": "Amount",
-    "firstAmount": "First {{amount}}",
+    "NRStAmount": "NRSt {{amount}}",
     "nextAmount": "Next {{amount}}",
     "aboveAmount": "Above {{amount}}",
     "noTaxDue": "No Tax To Pay",
@@ -1343,7 +1361,7 @@
     "registered1Title": "Company Income Tax (CIT)",
     "registered1Desc": "Registered companies pay CIT: 0% (≤₦25M), 20% (₦25-100M), or 30% (>₦100M) turnover.",
     "registered2Title": "VAT Collection",
-    "registered2Desc": "If VAT-registered, charge 7.5% on eligible goods/services and remit to FIRS.",
+    "registered2Desc": "If VAT-registered, charge 7.5% on eligible goods/services and remit to NRS.",
     "registered3Title": "e-Invoicing Compliance",
     "registered3Desc": "Use NRS-compliant invoices. TaxBridge go generate am automatically!",
     "default1Title": "Getting Started",

@@ -13,14 +13,14 @@
     "allSynced": "All synced",
     "nrsReady": "NRS Ready",
     "ndprSafe": "NDPR Safe",
-    "offlineFirst": "Offline First",
+    "offlineNRSt": "Offline NRSt",
     "worksOffline": "Works Offline",
     "taxTip": "Tax Tip",
     "onlineSync": "Online & Syncing",
     "offlineStatus": "Offline Mode",
     "noInvoicesTitle": "No Invoices Yet",
-    "noInvoicesText": "Create your first invoice to get started tracking your sales",
-    "createFirstInvoice": "Create First Invoice",
+    "noInvoicesText": "Create your NRSt invoice to get started tracking your sales",
+    "createNRStInvoice": "Create NRSt Invoice",
     "weekendMorning": "Good Morning",
     "weekendVibes": "Weekend Vibes",
     "lunchTime": "Lunch Time",
@@ -288,7 +288,7 @@
     "total": "{{count}} invoice",
     "total_plural": "{{count}} invoices",
     "totalLabel": "total",
-    "noInvoicesAll": "No invoices yet. Create your first one!",
+    "noInvoicesAll": "No invoices yet. Create your NRSt one!",
     "noInvoicesPending": "No pending invoices. All synced!",
     "noInvoicesFilter": "No {{filter}} invoices found",
     "retrySync": "Retry Sync",
@@ -383,8 +383,8 @@
     "securityComplianceTitle": "Security & Compliance",
     "ndprCompliant": "NDPR Compliant",
     "ndprText": "Your data is protected under Nigeria Data Protection Regulation. We never share your information with third parties without consent.",
-    "localFirstStorage": "Local-first storage",
-    "offlineArchitecture": "Offline-first architecture",
+    "localNRStStorage": "Local-NRSt storage",
+    "offlineArchitecture": "Offline-NRSt architecture",
     "nrsReady": "NRS e-invoicing ready",
     "languageAndAccessibility": "Language & Accessibility",
     "languageHelperText": "Choose your preferred language for the app interface",
@@ -418,11 +418,11 @@
       "subtitle": "Your intelligent tax compliance partner",
       "benefit1": "Create invoices offline",
       "benefit2": "Scan receipts with AI",
-      "benefit3": "Stay FIRS compliant automatically",
+      "benefit3": "Stay tax compliant automatically",
       "letsStart": "Let's Start",
       "timeEstimate": "Takes only 2 minutes",
       "ndpcCompliant": "NDPC Compliant",
-      "firsApproved": "FIRS Ready"
+      "nrsReady": "NRS Ready"
     },
     "taxEngine": {
       "title": "Meet Your Tax Calculator",
@@ -439,7 +439,7 @@
       "vat": "VAT",
       "wht": "Withholding Tax",
       "total": "Total",
-      "vatExplainer": "7.5% VAT on taxable items per FIRS",
+      "vatExplainer": "7.5% VAT on taxable items per NRS",
       "whtExplainer": "5% WHT on professional services",
       "autoApply": "We automatically apply correct tax rates based on Nigerian tax law",
       "tryYourOwn": "Try With Your Own Numbers",
@@ -496,7 +496,7 @@
         "item2": "Tomatoes (basket)",
         "item3": "Cooking Oil - 5L"
       },
-      "tryScan": "Scan My First Receipt",
+      "tryScan": "Scan My NRSt Receipt",
       "skipForNow": "Skip For Now"
     },
     "scannerTitle": "Scan Receipts Instantly",
@@ -522,7 +522,7 @@
     "analyzingReceipt": "Analyzing receipt...",
     "extractingData": "AI extracting data...",
     "reviewExtractedData": "Review extracted data",
-    "scanFirst": "Complete Setup",
+    "scanNRSt": "Complete Setup",
     "tryAgain": "Try Again",
     "stepNumber": "Step {{number}}",
     "finishLater": "Save",
@@ -558,7 +558,7 @@
     "helperPill1": "✅ Compliance tips",
     "helperPill2": "🤝 WhatsApp support",
     "helperPill3": "📈 SME insights",
-    "trustLocalFirst": "📍 Local-first, syncs when online",
+    "trustLocalNRSt": "📍 Local-NRSt, syncs when online",
     "trustOffline": "📵 Works without internet",
     "skip": "Skip",
     "of": "of",
@@ -665,7 +665,7 @@
       "deductionsHint": "These reduce your taxable income",
       "annualRent": "Annual Rent Paid",
       "pensionContribution": "Pension Contribution",
-      "selectIncome": "Select income first",
+      "selectIncome": "Select income NRSt",
       "calculateTax": "🎯 Calculate My Tax",
       "recalculate": "← Recalculate",
       "estimatedPIT": "Your Estimated PIT",
@@ -712,7 +712,7 @@
       "vatExplanation": "VAT registration becomes mandatory once your annual turnover crosses ₦100M. TaxBridge tracks your turnover and helps you prepare in time.",
       "vatBullet1": "Register once you exceed ₦100M in annual turnover",
       "vatBullet2": "Charge 7.5% VAT on eligible goods and services",
-      "vatBullet3": "File VAT returns as required by FIRS",
+      "vatBullet3": "File VAT returns as required by NRS",
       "vatQuizTitle": "VAT Quiz",
       "vatQuizQuestion": "When must you register for VAT?",
       "vatQuizOptionA": "Above ₦50M turnover",
@@ -761,12 +761,12 @@
       "citQuizC": "30%",
       "timeEstimate": "⏱️ About 60 seconds"
     },
-    "firs": {
-      "title": "FIRS e-Invoicing Demo",
-      "subtitle": "See how NRS invoice stamping works (mock simulation)",
+    "nrs": {
+      "title": "NRS e-Invoicing Demo",
+      "subtitle": "See how DigiTax invoice stamping works (mock simulation)",
       "animationTitle": "Invoice Stamping Flow",
       "stepInvoice": "📄 Your Invoice",
-      "stepAPI": "🌐 FIRS API",
+      "stepAPI": "🌐 DigiTax API",
       "stepStamped": "✅ Stamped",
       "endpointsTitle": "API Endpoints (Mock)",
       "endpointsDesc": "These are simulated for educational purposes only",
@@ -811,7 +811,25 @@
       "days": "days",
       "currentStreak": "Current Streak",
       "streakDesc": "Log at least one invoice daily to maintain your streak. Streaks help build consistent tax compliance habits!",
-      "timeEstimate": "⏱️ About 20 seconds"
+      "timeEstimate": "⏱️ About 20 seconds",
+      "achievementNames": {
+        "first_calculator": "Tax Calculator Pro",
+        "pit_exempt": "Tax-Free Champion",
+        "vat_aware": "VAT Expert",
+        "cit_explorer": "CIT Explorer",
+        "firs_explorer": "NRS Navigator",
+        "onboarding_complete": "Onboarding Master",
+        "seven_day_streak": "7-Day Streak"
+      },
+      "achievementDesc": {
+        "first_calculator": "Completed your first tax calculation",
+        "pit_exempt": "Discovered your tax-free threshold",
+        "vat_aware": "Learned about VAT thresholds",
+        "cit_explorer": "Explored Corporate Income Tax",
+        "firs_explorer": "Tried the mock e-invoicing demo",
+        "onboarding_complete": "Completed full tax onboarding",
+        "seven_day_streak": "Used TaxBridge for 7 days straight"
+      }
     },
     "community": {
       "title": "Join the Community",
@@ -1181,7 +1199,7 @@
       "vat": "VAT (7.5%)",
       "total": "Total"
     },
-    "vatExplainer": "7.5% VAT applies to goods and services as per FIRS guidelines",
+    "vatExplainer": "7.5% VAT applies to goods and services as per NRS guidelines",
     "whtExplainer": "5% withholding tax deducted on professional services",
     "exemptions": "Tax Exemptions",
     "learnMore": "Learn More About Nigerian Taxes",
@@ -1193,7 +1211,7 @@
     "vatStatusMandatory": "Registration mandatory",
     "vatStatusApproaching": "Approaching threshold",
     "vatStatusExempt": "Exempt from registration",
-    "vatDisclaimerMandatory": "Consult FIRS for official guidance",
+    "vatDisclaimerMandatory": "Consult NRS for official guidance",
     "vatDisclaimerEstimate": "Educational estimate - monitor actuals",
     "guide": {
       "title": "Tax Guide",
@@ -1216,7 +1234,7 @@
         "exempt1": "Basic food items and some agricultural produce",
         "exempt2": "Medical and pharmaceutical products",
         "exempt3": "Educational materials and services",
-        "firsLink": "For official VAT guidance, visit firs.gov.ng/vat."
+        "NRSLink": "For official VAT guidance, visit NRS.gov.ng/vat."
       },
       "wht": {
         "title": "Withholding Tax (WHT)",
@@ -1225,7 +1243,7 @@
         "applies1": "Professional services such as consulting and legal work",
         "applies2": "Contract payments and commissions",
         "applies3": "Rent and some interest payments",
-        "remember": "WHT is deducted from the payment and later remitted to FIRS."
+        "remember": "WHT is deducted from the payment and later remitted to NRS."
       },
       "pit": {
         "title": "Personal Income Tax (PIT)",
@@ -1243,7 +1261,7 @@
         "why1": "Needed for compliant invoices and tax payments",
         "why2": "Helps track your tax history and filings",
         "why3": "Required for many business registrations",
-        "howTo": "You can obtain a TIN through FIRS or your local tax office."
+        "howTo": "You can obtain a TIN through NRS or your local tax office."
       },
       "nrs": {
         "title": "NRS e-Invoicing",
@@ -1273,7 +1291,7 @@
     "bracket": "Bracket",
     "rate": "Rate",
     "amount": "Amount",
-    "firstAmount": "First {{amount}}",
+    "NRStAmount": "NRSt {{amount}}",
     "nextAmount": "Next {{amount}}",
     "aboveAmount": "Above {{amount}}",
     "noTaxDue": "No Tax Due",
@@ -1327,7 +1345,7 @@
     "registered1Title": "Company Income Tax (CIT)",
     "registered1Desc": "Registered companies pay CIT: 0% (≤₦25M), 20% (₦25-100M), or 30% (>₦100M) turnover.",
     "registered2Title": "VAT Collection",
-    "registered2Desc": "If VAT-registered, charge 7.5% on eligible goods/services and remit to FIRS.",
+    "registered2Desc": "If VAT-registered, charge 7.5% on eligible goods/services and remit to NRS.",
     "registered3Title": "e-Invoicing Compliance",
     "registered3Desc": "Use NRS-compliant invoices. TaxBridge generates them automatically!",
     "default1Title": "Getting Started",
@@ -1403,7 +1421,7 @@
     "finish": "Finish",
     "skipStep": "Skip this step",
     "invoiceWizard": {
-      "title": "Create Your First Invoice",
+      "title": "Create Your NRSt Invoice",
       "step1Title": "Add Customer",
       "step1Desc": "Enter customer details or skip for walk-in",
       "step2Title": "Add Items",

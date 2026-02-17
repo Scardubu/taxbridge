@@ -7,6 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.0.3] - 2026-02-17 - Production Hardening & Terminology Cleanup 🚀
+
+### 🏛️ Regulatory Terminology Updates
+- **FIRS → NRS/DigiTax:** Replaced all FIRS references with NRS (Nigeria Revenue Service) per APP/DigiTax governance
+  - Updated 20+ i18n keys in en.json and pidgin.json
+  - Updated OnboardingContext achievement names (FIRS Navigator → NRS Navigator)
+  - Updated mockFIRS.ts disclaimer to reference NRS/DigiTax
+  - Update FIRSDemoStep to use onboarding.nrs.* i18n keys
+
+### 📦 Build & Deployment Consolidation
+- **EAS Config Documentation:** Added explicit note in BUILD_COMMANDS.md clarifying mobile/eas.json is canonical
+- **Deployment Script Consolidation:**
+  - Archived deploy-production-fixed.ps1 to scripts/archive/
+  - Added deprecation notice to scripts/deploy-production.ps1 pointing to root canonical script
+  - Root deploy-production.ps1 is now the single source of truth
+
+### 🔧 Script Robustness Improvements
+- **verify-tax-compliance.ps1:** Fixed brittle "37 passed" assertion
+  - Now uses dynamic pattern matching: `(\d+)\s+passed` with failure detection
+  - Gracefully handles unknown test output with manual verification prompt
+
+### 🌐 i18n Expansion
+- **Achievement Translations:** Added gamification.achievementNames and achievementDesc i18n keys
+  - 7 achievement names with English and Nigerian Pidgin translations
+  - GamificationStep now renders achievements via `t()` with fallback
+
+### 🧹 Codebase Cleanup
+- **Inactive Onboarding Artifacts Archived:**
+  - Moved QuickStartOnboarding.tsx, FIRSDemoStep.tsx, VATCITAwarenessStep.tsx, 
+    GamificationStep.tsx, CommunityStep.tsx, PITTutorialStep.tsx to archive/
+  - These components were exported but never imported in the active onboarding flow
+  - Reduces code surface and clarifies active vs. legacy code
+
+### ✅ OCR Endpoint Verification
+- Confirmed existing hardening is adequate:
+  - Global rate limiting: 100 req/min per IP via Redis sliding window
+  - Size validation: 5MB max image size
+  - Feature flag: config.features.enableOCR
+  - Request tracking: X-Request-Id and X-Processing-Time-Ms headers
+
+---
+
 ## [1.0.2] - 2026-02-17 - Production UI Polish & Final Hardening 🎨
 
 ### 🎨 Critical UI/UX Fixes (Deployment Blockers Resolved)

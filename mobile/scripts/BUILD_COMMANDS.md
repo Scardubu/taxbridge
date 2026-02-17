@@ -1,5 +1,9 @@
 # TaxBridge EAS Build Commands
 
+> **📁 Config Location**: All commands below use `mobile/eas.json` (NOT root `eas.json`).
+> The root `eas.json` is for workspace-level tooling only. Mobile builds use `mobile/eas.json`
+> which includes zero-cache settings, Gradle flags, and production API URLs.
+
 ## Development Build (Internal Testing)
 
 ```bash
@@ -29,7 +33,7 @@ eas build --platform ios --profile preview --clear-cache
 - [ ] Run: `pwsh scripts/nuclear-cache-wipe.ps1 -IncludeGlobal`
 - [ ] Run: `npx expo-doctor` (fix all warnings)
 - [ ] Run: `npx expo prebuild --clean`
-- [ ] Verify: `eas.json` production profile has `cache.disabled: true`
+- [ ] Verify: `mobile/eas.json` production profile has `cache.disabled: true`
 - [ ] Verify: Environment variables in EAS dashboard
 - [ ] Commit all changes to git
 
@@ -84,9 +88,9 @@ adb logcat | grep -i taxbridge
 ## Troubleshooting
 
 ### Build fails with "cached dependency" error
-**Solution:** Verify all cache environment variables in `eas.json`:
+**Solution:** Verify all cache environment variables in `mobile/eas.json`:
 ```bash
-cat eas.json | jq '.build.production.env'
+cat mobile/eas.json | jq '.build.production.env'
 ```
 
 ### Environment variables not updating

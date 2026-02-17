@@ -55,19 +55,19 @@ export default function FIRSDemoStep({ onNext, onSkip }: Props) {
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      <Text style={styles.title}>{t('onboarding.firs.title')}</Text>
-      <Text style={styles.subtitle}>{t('onboarding.firs.subtitle')}</Text>
+      <Text style={styles.title}>{t('onboarding.nrs.title')}</Text>
+      <Text style={styles.subtitle}>{t('onboarding.nrs.subtitle')}</Text>
 
       {/* Animation */}
       {showAnimation && !stampResponse && (
         <View style={styles.animationCard}>
-          <Text style={styles.animationTitle}>🎬 {t('onboarding.firs.animation')}</Text>
+          <Text style={styles.animationTitle}>🎬 {t('onboarding.nrs.animation')}</Text>
           <View style={styles.animationFlow}>
             <View style={styles.animationStep}>
               <View style={styles.animationIcon}>
                 <Text style={styles.animationEmoji}>📄</Text>
               </View>
-              <Text style={styles.animationLabel}>{t('onboarding.firs.step1')}</Text>
+              <Text style={styles.animationLabel}>{t('onboarding.nrs.step1')}</Text>
             </View>
             
             <View style={styles.animationArrow}>
@@ -78,7 +78,7 @@ export default function FIRSDemoStep({ onNext, onSkip }: Props) {
               <View style={[styles.animationIcon, isLoading && styles.animationIconActive]}>
                 <Text style={styles.animationEmoji}>🌐</Text>
               </View>
-              <Text style={styles.animationLabel}>{t('onboarding.firs.step2')}</Text>
+              <Text style={styles.animationLabel}>{t('onboarding.nrs.step2')}</Text>
             </View>
 
             <View style={styles.animationArrow}>
@@ -89,14 +89,14 @@ export default function FIRSDemoStep({ onNext, onSkip }: Props) {
               <View style={styles.animationIcon}>
                 <Text style={styles.animationEmoji}>✅</Text>
               </View>
-              <Text style={styles.animationLabel}>{t('onboarding.firs.step3')}</Text>
+              <Text style={styles.animationLabel}>{t('onboarding.nrs.step3')}</Text>
             </View>
           </View>
 
           {isLoading && (
             <View style={styles.loadingContainer}>
               <SkeletonLoader type="inline-lg" count={1} />
-              <Text style={styles.loadingText}>{t('onboarding.firs.processing')}</Text>
+              <Text style={styles.loadingText}>{t('onboarding.nrs.processing')}</Text>
             </View>
           )}
         </View>
@@ -104,10 +104,10 @@ export default function FIRSDemoStep({ onNext, onSkip }: Props) {
 
       {/* API Endpoints Info */}
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>🔌 {t('onboarding.firs.apiEndpoints')}</Text>
+        <Text style={styles.cardTitle}>🔌 {t('onboarding.nrs.apiEndpoints')}</Text>
         
         <View style={styles.endpointBox}>
-          <Text style={styles.endpointLabel}>{t('onboarding.firs.baseUrl')}</Text>
+          <Text style={styles.endpointLabel}>{t('onboarding.nrs.baseUrl')}</Text>
           <Text style={styles.endpointValue}>{mockEndpoints.baseURL}</Text>
         </View>
 
@@ -131,7 +131,7 @@ export default function FIRSDemoStep({ onNext, onSkip }: Props) {
           disabled={isLoading}
         >
           <Text style={styles.tryButtonText}>
-            {isLoading ? t('onboarding.firs.processing') : t('onboarding.firs.tryApi')}
+            {isLoading ? t('onboarding.nrs.processing') : t('onboarding.nrs.tryApi')}
           </Text>
         </TouchableOpacity>
       )}
@@ -140,23 +140,23 @@ export default function FIRSDemoStep({ onNext, onSkip }: Props) {
       {stampResponse && (
         <View style={styles.responseCard}>
           <View style={styles.watermark}>
-            <Text style={styles.watermarkText}>{t('onboarding.firs.demoWatermark')}</Text>
+            <Text style={styles.watermarkText}>{t('onboarding.nrs.demoWatermark')}</Text>
           </View>
 
-          <Text style={styles.responseTitle}>✅ {t('onboarding.firs.stampSuccess')}</Text>
+          <Text style={styles.responseTitle}>✅ {t('onboarding.nrs.stampSuccess')}</Text>
 
           <View style={styles.responseDetail}>
-            <Text style={styles.responseLabel}>{t('onboarding.firs.stampCode')}</Text>
+            <Text style={styles.responseLabel}>{t('onboarding.nrs.stampCode')}</Text>
             <Text style={styles.responseValue}>{stampResponse.stampCode}</Text>
           </View>
 
           <View style={styles.responseDetail}>
-            <Text style={styles.responseLabel}>{t('onboarding.firs.irn')}</Text>
+            <Text style={styles.responseLabel}>{t('onboarding.nrs.irn')}</Text>
             <Text style={styles.responseValue}>{stampResponse.irn}</Text>
           </View>
 
           <View style={styles.responseDetail}>
-            <Text style={styles.responseLabel}>{t('onboarding.firs.timestamp')}</Text>
+            <Text style={styles.responseLabel}>{t('onboarding.nrs.timestamp')}</Text>
             <Text style={styles.responseValue}>
               {new Date(stampResponse.timestamp).toLocaleString()}
             </Text>
@@ -164,7 +164,7 @@ export default function FIRSDemoStep({ onNext, onSkip }: Props) {
 
           {/* QR Code */}
           <View style={styles.qrCodeContainer}>
-            <Text style={styles.qrCodeLabel}>{t('onboarding.firs.qrCode')}</Text>
+            <Text style={styles.qrCodeLabel}>{t('onboarding.nrs.qrCode')}</Text>
             <View style={styles.qrCodeBox}>
               <Image
                 source={{ uri: stampResponse.qrCode }}
@@ -183,39 +183,39 @@ export default function FIRSDemoStep({ onNext, onSkip }: Props) {
 
       {/* Benefits */}
       <View style={styles.benefitsCard}>
-        <Text style={styles.cardTitle}>💡 {t('onboarding.firs.benefits')}</Text>
+        <Text style={styles.cardTitle}>💡 {t('onboarding.nrs.benefits')}</Text>
         
         <View style={styles.benefitItem}>
           <Text style={styles.benefitIcon}>✓</Text>
-          <Text style={styles.benefitText}>{t('onboarding.firs.benefit1')}</Text>
+          <Text style={styles.benefitText}>{t('onboarding.nrs.benefit1')}</Text>
         </View>
         
         <View style={styles.benefitItem}>
           <Text style={styles.benefitIcon}>✓</Text>
-          <Text style={styles.benefitText}>{t('onboarding.firs.benefit2')}</Text>
+          <Text style={styles.benefitText}>{t('onboarding.nrs.benefit2')}</Text>
         </View>
         
         <View style={styles.benefitItem}>
           <Text style={styles.benefitIcon}>✓</Text>
-          <Text style={styles.benefitText}>{t('onboarding.firs.benefit3')}</Text>
+          <Text style={styles.benefitText}>{t('onboarding.nrs.benefit3')}</Text>
         </View>
 
         <View style={styles.benefitItem}>
           <Text style={styles.benefitIcon}>✓</Text>
-          <Text style={styles.benefitText}>{t('onboarding.firs.benefit4')}</Text>
+          <Text style={styles.benefitText}>{t('onboarding.nrs.benefit4')}</Text>
         </View>
       </View>
 
       {/* Penalties Warning */}
       <View style={styles.warningCard}>
-        <Text style={styles.warningTitle}>⚠️ {t('onboarding.firs.penalties')}</Text>
-        <Text style={styles.warningText}>{t('onboarding.firs.penaltiesText')}</Text>
+        <Text style={styles.warningTitle}>⚠️ {t('onboarding.nrs.penalties')}</Text>
+        <Text style={styles.warningText}>{t('onboarding.nrs.penaltiesText')}</Text>
       </View>
 
       {/* When to Use */}
       <View style={styles.infoCard}>
-        <Text style={styles.cardTitle}>🎯 {t('onboarding.firs.whenToUse')}</Text>
-        <Text style={styles.infoText}>{t('onboarding.firs.whenToUseText')}</Text>
+        <Text style={styles.cardTitle}>🎯 {t('onboarding.nrs.whenToUse')}</Text>
+        <Text style={styles.infoText}>{t('onboarding.nrs.whenToUseText')}</Text>
       </View>
 
       {/* Action Buttons */}
@@ -233,7 +233,7 @@ export default function FIRSDemoStep({ onNext, onSkip }: Props) {
         </TouchableOpacity>
       </View>
 
-      <Text style={styles.timeEstimate}>⏱️ {t('onboarding.firs.timeEstimate')}</Text>
+      <Text style={styles.timeEstimate}>⏱️ {t('onboarding.nrs.timeEstimate')}</Text>
     </ScrollView>
   );
 }

@@ -129,7 +129,7 @@ export default function WelcomeStep({ onNext }: WelcomeStepProps) {
         </View>
         <View style={styles.trustBadge}>
           <Ionicons name="document-text" size={16} color={colors.success} />
-          <Text style={styles.trustText}>{t('onboarding.welcome.firsApproved')}</Text>
+          <Text style={styles.trustText}>{t('onboarding.welcome.nrsReady')}</Text>
         </View>
       </Animated.View>
 

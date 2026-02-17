@@ -45,10 +45,16 @@ Push-Location backend
 $testOutput = npm test -- tax-boundary 2>&1 | Out-String
 Pop-Location
 
-if ($testOutput -match "37 passed") {
-    Write-Host "   ✅ All 37 boundary tests passing" -ForegroundColor Green
+# Robust pattern: check for any number of passed tests and ensure 0 failures
+if ($testOutput -match "(\d+)\s+passed" -and $testOutput -notmatch "\d+\s+failed") {
+    $passedCount = $Matches[1]
+    Write-Host "   ✅ All $passedCount boundary tests passing" -ForegroundColor Green
+} elseif ($testOutput -match "(\d+)\s+failed") {
+    $failedCount = $Matches[1]
+    Write-Host "   ❌ $failedCount boundary tests failing!" -ForegroundColor Red
+    $allPassed = $false
 } else {
-    Write-Host "   ❌ Boundary tests failing!" -ForegroundColor Red
+    Write-Host "   ⚠️  Could not parse test output - verify manually" -ForegroundColor Yellow
     $allPassed = $false
 }
 
