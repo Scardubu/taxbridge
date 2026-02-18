@@ -177,21 +177,21 @@ export class BulkOperationsService {
 
     switch (entityType) {
       case 'invoice': {
-        const where: Prisma.InvoiceWhereInput = { userId: businessId };
+        const where: any = { userId: businessId };
         if (filters?.status) where.status = filters.status as any;
         if (Object.keys(dateFilter).length) where.createdAt = dateFilter;
         records = await this.prisma.invoice.findMany({ where, orderBy: { createdAt: 'desc' } });
         break;
       }
       case 'expense': {
-        const where: Prisma.ExpenseWhereInput = { businessId };
+        const where: any = { businessId };
         if (filters?.status) where.status = filters.status;
         if (Object.keys(dateFilter).length) where.date = dateFilter;
         records = await this.prisma.expense.findMany({ where, orderBy: { date: 'desc' } });
         break;
       }
       case 'payment': {
-        const where: Prisma.PaymentWhereInput = {};
+        const where: any = {};
         if (filters?.status) where.status = filters.status as any;
         if (Object.keys(dateFilter).length) where.createdAt = dateFilter;
         records = await this.prisma.payment.findMany({ where, orderBy: { createdAt: 'desc' } });

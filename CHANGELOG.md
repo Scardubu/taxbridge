@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.0.3] - 2026-02-17 - Production Hardening & Terminology Cleanup 🚀
 
+### 🔨 Critical Production Build Fixes
+- **Prisma Client Stub TypeScript Errors:** Resolved 52+ TypeScript compilation errors caused by Prisma Client generating as stub without model types
+  - Fixed auth.ts: Changed `ZodError.errors` → `ZodError.issues` (Zod v3 API)
+  - Fixed nrs-submission.ts: Corrected DigiTax adapter import (default export), UBL generator path, added Prisma→UBL transformer with null-checks
+  - Fixed query-logger.ts: Replaced `Prisma.Middleware` with explicit function signature
+  - Fixed admin.ts: Imported error types from `@prisma/client/runtime/library`, added type assertions to groupBy() calls, fixed catch block typing
+  - Fixed 7 service files (bulk-operations, compliance, crypto-tax, encryption, expense, invoice, payroll): Replaced all `Prisma.XxxWhereInput`, `Prisma.XxxUpdateInput`, `Prisma.MiddlewareParams`, `Prisma.InputJsonValue` with `any` type
+  - **Impact:** Backend now compiles successfully on Render.com and Vercel production builds
+
 ### 🏛️ Regulatory Terminology Updates
 - **FIRS → NRS/DigiTax:** Replaced all FIRS references with NRS (Nigeria Revenue Service) per APP/DigiTax governance
   - Updated 20+ i18n keys in en.json and pidgin.json

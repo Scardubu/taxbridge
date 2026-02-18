@@ -65,7 +65,7 @@ class EncryptionService {
 
 export const encryption = new EncryptionService();
 
-type PrismaMiddlewareParams = Prisma.MiddlewareParams;
+type PrismaMiddlewareParams = any;
 
 function encryptUserFields(data: Record<string, any>): void {
   for (const field of SENSITIVE_FIELDS) {

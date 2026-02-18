@@ -11,9 +11,9 @@
 
 import { getPrismaClient } from '../lib/prisma';
 import { createLogger } from '../lib/logger';
-import { digitaxAdapter } from '../integrations/digitax/adapter';
-import { generateUBL } from '../lib/ubl-generator';
-import type { Invoice } from '@prisma/client';
+import submitToDigiTax from '../integrations/digitax/adapter';
+import { generateUBL } from '../lib/ubl/generator';
+import { config } from '../lib/config';
 
 const log = createLogger('nrs-submission');
 const prisma = getPrismaClient();
@@ -128,7 +128,41 @@ export async function submitToNRS(
       let ublXml = invoice.ublXml;
       if (!ublXml) {
         log.info('Generating UBL XML for invoice', { invoiceId });
-        ublXml = await generateUBL(invoice);
+
+        // Null-check: ensure invoice has a business relation for UBL generation
+        if (!invoice.business) {
+          return {
+            success: false,
+            invoiceId,
+            error: 'Invoice has no associated business',
+            retryable: false,
+            attemptNumber,
+          };
+        }
+
+        // Transform Prisma invoice to UBL InvoiceData shape
+        const invoiceItems = Array.isArray(invoice.items)
+          ? (invoice.items as Array<{ description: string; quantity: number; unitPrice: number }>)
+          : [];
+        
+        ublXml = generateUBL({
+          id: invoice.invoiceNumber || invoice.id,
+          issueDate: invoice.createdAt.toISOString().split('T')[0],
+          supplierTIN: invoice.business.tin || '',
+          supplierName: invoice.business.name,
+          supplierStreet: invoice.business.addressStreet || undefined,
+          supplierCity: invoice.business.addressCity || undefined,
+          customerName: invoice.customerName || undefined,
+          customerTIN: invoice.customerTIN || undefined,
+          items: invoiceItems.map(item => ({
+            description: item.description,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+          })),
+          subtotal: Number(invoice.subtotal),
+          vat: Number(invoice.vat),
+          total: Number(invoice.total),
+        });
         
         // Save UBL XML atomically
         await prisma.invoice.update({
@@ -137,18 +171,34 @@ export async function submitToNRS(
         });
       }
 
-      // Submit to FIRS via Digitax
-      log.info('Submitting to FIRS/Digitax', { invoiceId, attempt: attemptNumber });
-      
-      const submissionResult = await digitaxAdapter.submitInvoice({
-        invoiceNumber: invoice.invoiceNumber,
-        ublXml,
-        businessTIN: invoice.business.tin,
-      });
-
-      if (!submissionResult.success) {
-        throw new Error(submissionResult.error || 'Digitax submission failed');
+      // Null-check: ensure invoice has a business relation
+      if (!invoice.business) {
+        return {
+          success: false,
+          invoiceId,
+          error: 'Invoice has no associated business',
+          retryable: false,
+          attemptNumber,
+        };
       }
+
+      // Submit to NRS via DigiTax APP
+      log.info('Submitting to NRS via DigiTax', { invoiceId, attempt: attemptNumber });
+
+      const isProduction = process.env.NODE_ENV === 'production';
+      const submissionResult = await submitToDigiTax(
+        {
+          invoiceId: invoice.invoiceNumber || invoice.id,
+          ublXml,
+          idempotencyKey: `inv-${invoiceId}-${attemptNumber}`,
+        },
+        {
+          apiUrl: config.duplo.apiUrl,
+          apiKey: config.duplo.clientId || '',
+          hmacSecret: config.duplo.clientSecret,
+          mockMode: !isProduction,
+        }
+      );
 
       // Update invoice with NRS data atomically
       const updatedInvoice = await prisma.invoice.update({

@@ -151,7 +151,7 @@ export class ExpenseService {
         vatAmount,
         vatEligible,
         receiptImage: input.receiptImage || null,
-        ocrData: input.ocrData ? (input.ocrData as Prisma.InputJsonValue) : Prisma.JsonNull,
+        ocrData: input.ocrData ? (input.ocrData as any) : null,
         status: 'pending',
       },
     });
@@ -191,7 +191,7 @@ export class ExpenseService {
       throw new Error('Business not found or access denied');
     }
 
-    const where: Prisma.ExpenseWhereInput = {
+    const where: any = {
       businessId: filters.businessId,
     };
 

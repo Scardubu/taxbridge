@@ -1,5 +1,6 @@
 import { FastifyInstance } from 'fastify';
 import { Prisma, PrismaClient } from '@prisma/client';
+import { PrismaClientKnownRequestError, PrismaClientInitializationError } from '@prisma/client/runtime/library';
 import { z } from 'zod';
 import { duploClient } from '../integrations/duplo';
 import { remitaClient } from '../integrations/remita';
@@ -68,7 +69,7 @@ export async function adminRoutes(app: FastifyInstance, options: { prisma: Prism
 
   function isMissingPrismaResource(error: unknown): boolean {
     return (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error instanceof PrismaClientKnownRequestError &&
       (error.code === 'P2021' || error.code === 'P2022')
     );
   }
@@ -81,7 +82,7 @@ export async function adminRoutes(app: FastifyInstance, options: { prisma: Prism
   ): Promise<T> {
     try {
       return await task();
-    } catch (error) {
+    } catch (error: unknown) {
       if (isMissingPrismaResource(error)) {
         app.log.warn({ err: error }, warningMessage);
         warnings.push(warningMessage);
@@ -99,7 +100,7 @@ export async function adminRoutes(app: FastifyInstance, options: { prisma: Prism
   ): Promise<T> {
     try {
       return await task();
-    } catch (error) {
+    } catch (error: unknown) {
       app.log.warn({ err: error }, warningMessage);
       warnings.push(warningMessage);
       return fallback;
@@ -148,7 +149,7 @@ export async function adminRoutes(app: FastifyInstance, options: { prisma: Prism
       const sevenDaysAgo = new Date();
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-      const duploSuccessTrend = await safePrisma(
+      const duploSuccessTrend: Array<{ status: string; createdAt: Date; _count: { status: number } }> = await safePrisma(
         () => prisma.invoice.groupBy({
           by: ['status', 'createdAt'],
           where: {
@@ -156,7 +157,7 @@ export async function adminRoutes(app: FastifyInstance, options: { prisma: Prism
             status: { in: ['stamped', 'failed'] }
           },
           _count: { status: true }
-        }),
+        }) as any,
         [],
         'Admin stats: duplo trend data unavailable',
         warnings
@@ -186,7 +187,7 @@ export async function adminRoutes(app: FastifyInstance, options: { prisma: Prism
       }
 
       // Get Remita transaction data for the last 7 days
-      const remitaTransactions = await safePrisma(
+      const remitaTransactions: Array<{ status: string; createdAt: Date; _count: { status: number }; _sum: { amount: any } }> = await safePrisma(
         () => prisma.payment.groupBy({
           by: ['status', 'createdAt'],
           where: {
@@ -194,7 +195,7 @@ export async function adminRoutes(app: FastifyInstance, options: { prisma: Prism
           },
           _count: { status: true },
           _sum: { amount: true }
-        }),
+        }) as any,
         [],
         'Admin stats: remita transaction data unavailable',
         warnings
@@ -236,11 +237,11 @@ export async function adminRoutes(app: FastifyInstance, options: { prisma: Prism
         remitaTransactions: remitaData,
         warnings: warnings.length ? warnings : undefined
       };
-    } catch (error) {
+    } catch (error: unknown) {
       app.log.error({ err: error }, 'Error fetching admin stats');
       
       // Tightened error codes
-      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error instanceof PrismaClientKnownRequestError) {
         return reply.code(503).send({ 
           error: 'Database unavailable', 
           code: 'DATABASE_ERROR',
@@ -248,7 +249,7 @@ export async function adminRoutes(app: FastifyInstance, options: { prisma: Prism
         });
       }
       
-      if (error instanceof Prisma.PrismaClientInitializationError) {
+      if (error instanceof PrismaClientInitializationError) {
         return reply.code(503).send({ 
           error: 'Database connection failed', 
           code: 'DATABASE_CONNECTION_ERROR' 
@@ -283,7 +284,7 @@ export async function adminRoutes(app: FastifyInstance, options: { prisma: Prism
               createdAt: true,
               invoice: { select: { userId: true } }
             }
-          }),
+          }) as any,
           [],
           'Launch metrics: current payments unavailable',
           warnings
@@ -299,7 +300,7 @@ export async function adminRoutes(app: FastifyInstance, options: { prisma: Prism
               createdAt: true,
               invoice: { select: { userId: true } }
             }
-          }),
+          }) as any,
           [],
           'Launch metrics: previous payments unavailable',
           warnings
@@ -325,9 +326,9 @@ export async function adminRoutes(app: FastifyInstance, options: { prisma: Prism
           take: 5,
           select: { severity: true, title: true }
         });
-      } catch (err) {
+      } catch (err: unknown) {
         // If migrations haven't created alerts table in an environment yet, don't 500 this endpoint.
-        const isKnownPrismaError = err instanceof Prisma.PrismaClientKnownRequestError;
+        const isKnownPrismaError = err instanceof PrismaClientKnownRequestError;
         app.log.warn({ err, isKnownPrismaError }, 'Launch metrics: alerts unavailable; continuing without alerts');
       }
 
@@ -335,15 +336,15 @@ export async function adminRoutes(app: FastifyInstance, options: { prisma: Prism
       const previousByUser = new Map<string, number>();
 
       for (const payment of currentPayments) {
-        const userId = payment.invoice?.userId;
+        const userId = (payment as any).invoice?.userId;
         if (!userId) continue;
-        currentByUser.set(userId, (currentByUser.get(userId) || 0) + asNumber(payment.amount));
+        currentByUser.set(userId, (currentByUser.get(userId) || 0) + asNumber((payment as any).amount));
       }
 
       for (const payment of previousPayments) {
-        const userId = payment.invoice?.userId;
+        const userId = (payment as any).invoice?.userId;
         if (!userId) continue;
-        previousByUser.set(userId, (previousByUser.get(userId) || 0) + asNumber(payment.amount));
+        previousByUser.set(userId, (previousByUser.get(userId) || 0) + asNumber((payment as any).amount));
       }
 
       const prevUsers = Array.from(previousByUser.keys());
@@ -397,11 +398,11 @@ export async function adminRoutes(app: FastifyInstance, options: { prisma: Prism
         anomalies,
         warnings: warnings.length ? warnings : undefined
       });
-    } catch (error) {
+    } catch (error: unknown) {
       app.log.error({ err: error }, 'Error fetching launch metrics');
       
       // Tightened error codes
-      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error instanceof PrismaClientKnownRequestError) {
         return reply.code(503).send({ 
           error: 'Database unavailable', 
           code: 'DATABASE_ERROR',
@@ -409,7 +410,7 @@ export async function adminRoutes(app: FastifyInstance, options: { prisma: Prism
         });
       }
       
-      if (error instanceof Prisma.PrismaClientInitializationError) {
+      if (error instanceof PrismaClientInitializationError) {
         return reply.code(503).send({ 
           error: 'Database connection failed', 
           code: 'DATABASE_CONNECTION_ERROR' 
@@ -468,10 +469,10 @@ export async function adminRoutes(app: FastifyInstance, options: { prisma: Prism
           pages: Math.ceil(total / limit)
         }
       };
-    } catch (error) {
+    } catch (error: unknown) {
       app.log.error({ err: error }, 'Error fetching invoices');
       
-      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error instanceof PrismaClientKnownRequestError) {
         return reply.code(503).send({ 
           error: 'Database query failed', 
           code: 'DATABASE_ERROR',
@@ -546,10 +547,10 @@ export async function adminRoutes(app: FastifyInstance, options: { prisma: Prism
       });
 
       return { success: true, irn: duploResponse.irn };
-    } catch (error) {
+    } catch (error: unknown) {
       app.log.error({ err: error }, 'Error resubmitting invoice');
       
-      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error instanceof PrismaClientKnownRequestError) {
         if (error.code === 'P2025') {
           return reply.code(404).send({ 
             error: 'Invoice not found', 
@@ -619,25 +620,25 @@ export async function adminRoutes(app: FastifyInstance, options: { prisma: Prism
         prisma.invoice.groupBy({
           by: ['status'],
           _count: { status: true }
-        }),
+        }) as any,
         prisma.payment.groupBy({
           by: ['status'],
           _count: { status: true },
           _sum: { amount: true }
-        }),
+        }) as any,
         // Get daily invoice submissions for the period
         prisma.invoice.groupBy({
           by: ['status'],
           where: { createdAt: { gte: startDate } },
           _count: { status: true }
-        }),
+        }) as any,
         // Get daily payment data for the period
         prisma.payment.groupBy({
           by: ['status'],
           where: { createdAt: { gte: startDate } },
           _count: { status: true },
           _sum: { amount: true }
-        })
+        }) as any
       ]);
 
       const monthlyGrowth = totalUsers > 0 ? (recentUsers / totalUsers) * 100 : 0;
@@ -760,10 +761,10 @@ export async function adminRoutes(app: FastifyInstance, options: { prisma: Prism
       };
 
       return analyticsData;
-    } catch (error) {
+    } catch (error: unknown) {
       app.log.error({ err: error }, 'Error fetching analytics');
       
-      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error instanceof PrismaClientKnownRequestError) {
         return reply.code(503).send({ 
           error: 'Database analytics query failed', 
           code: 'DATABASE_ERROR',

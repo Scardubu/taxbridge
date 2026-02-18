@@ -12,7 +12,7 @@ function handleAuthError(error: unknown, reply: FastifyReply, defaultStatus = 40
   if (error instanceof ZodError) {
     return reply.status(422).send({
       error: 'Validation failed',
-      details: error.errors.map(e => ({ path: e.path.join('.'), message: e.message })),
+      details: error.issues.map(e => ({ path: e.path.join('.'), message: e.message })),
     });
   }
   if (error instanceof Error) {

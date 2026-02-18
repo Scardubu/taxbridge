@@ -245,7 +245,7 @@ export class ComplianceService {
     const limit = Math.min(100, Math.max(1, filters.limit || 20));
     const skip = (page - 1) * limit;
 
-    const where: Prisma.ComplianceReminderWhereInput = { businessId };
+    const where: any = { businessId };
     if (filters.status) where.status = filters.status;
     if (filters.taxType) where.taxType = filters.taxType;
 

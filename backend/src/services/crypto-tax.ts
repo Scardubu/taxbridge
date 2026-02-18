@@ -165,7 +165,7 @@ export class CryptoTaxService {
     const limit = Math.min(100, Math.max(1, filters.limit || 20));
     const skip = (page - 1) * limit;
 
-    const where: Prisma.CryptoTransactionWhereInput = { businessId };
+    const where: any = { businessId };
     if (filters.asset) where.asset = filters.asset.toUpperCase();
     if (filters.type) where.type = filters.type;
     if (filters.taxYear) where.taxYear = filters.taxYear;

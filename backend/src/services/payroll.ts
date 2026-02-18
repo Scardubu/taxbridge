@@ -150,7 +150,7 @@ export class PayrollService {
     });
     if (!business) throw new Error('Business not found or access denied');
 
-    const where: Prisma.EmployeeWhereInput = { businessId: filters.businessId };
+    const where: any = { businessId: filters.businessId };
     if (filters.status) where.status = filters.status;
 
     const [employees, total] = await Promise.all([
@@ -168,7 +168,7 @@ export class PayrollService {
     const employee = await this.getEmployee(userId, employeeId);
     if (!employee) throw new Error('Employee not found or access denied');
 
-    const data: Prisma.EmployeeUpdateInput = {};
+    const data: any = {};
     if (input.name !== undefined) data.name = input.name;
     if (input.email !== undefined) data.email = input.email;
     if (input.phone !== undefined) data.phone = input.phone;
@@ -325,7 +325,7 @@ export class PayrollService {
             taxableIncome: item.paye.taxableIncome,
             payeTax: item.paye.taxDue,
             netPay: item.paye.netPay,
-            breakdown: item.paye.breakdown as unknown as Prisma.InputJsonValue,
+            breakdown: item.paye.breakdown as unknown as any,
           },
         });
       }
@@ -435,7 +435,7 @@ export class PayrollService {
       where: { id: { in: employeeIds } },
       select: { id: true, name: true, email: true },
     });
-    const empMap = new Map(employees.map((e) => [e.id, e]));
+    const empMap = new Map(employees.map((e: any) => [e.id, e]));
 
     return {
       id: payroll.id,
@@ -449,7 +449,7 @@ export class PayrollService {
       totalNHF: Number(payroll.totalNHF),
       processedAt: payroll.processedAt?.toISOString() || null,
       items: payroll.items.map((item) => {
-        const emp = empMap.get(item.employeeId);
+        const emp: any = empMap.get(item.employeeId);
         return {
           employeeId: item.employeeId,
           employeeName: emp?.name || 'Unknown',

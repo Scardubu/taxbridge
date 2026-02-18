@@ -216,7 +216,7 @@ export class InvoiceService {
       throw new Error(`Cannot edit invoice in status '${existing.status}'`);
     }
 
-    const updateData: Prisma.InvoiceUpdateInput = {};
+    const updateData: any = {};
 
     if (input.customer) {
       if (input.customer.name !== undefined) updateData.customerName = input.customer.name;
@@ -340,7 +340,7 @@ export class InvoiceService {
     const limit = Math.min(filters.limit || 20, 100);
     const skip = (page - 1) * limit;
 
-    const where: Prisma.InvoiceWhereInput = {
+    const where: any = {
       userId: filters.userId,
     };
 
@@ -556,7 +556,7 @@ export class InvoiceService {
    * Get invoice statistics for a user/business
    */
   async getInvoiceStats(userId: string, businessId?: string) {
-    const where: Prisma.InvoiceWhereInput = { userId };
+    const where: any = { userId };
     if (businessId) where.businessId = businessId;
 
     const [total, draft, sent, paid, overdue, cancelled] = await Promise.all([

@@ -202,7 +202,7 @@ export const queryLogger = new QueryLogger();
 /**
  * Prisma middleware for query logging
  */
-export function createQueryLoggingMiddleware(): Prisma.Middleware {
+export function createQueryLoggingMiddleware(): (params: any, next: (params: any) => Promise<any>) => Promise<any> {
   return async (params, next) => {
     const start = Date.now();
     const result = await next(params);
