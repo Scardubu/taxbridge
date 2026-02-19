@@ -41,8 +41,7 @@
     "preview": {
       "extends": "base",
       "cache": {
-        "disabled": true,
-        "clear": true
+        "disabled": true
       },
       "channel": "preview",
       "distribution": "internal",
@@ -62,8 +61,7 @@
       "extends": "base",
       "channel": "production",
       "cache": {
-        "disabled": true,
-        "clear": true
+        "disabled": true
       },
       "distribution": "internal",
       "android": {
@@ -81,8 +79,7 @@
       "extends": "base",
       "channel": "production",
       "cache": {
-        "disabled": true,
-        "clear": true
+        "disabled": true
       },
       "distribution": "store",
       "android": {
@@ -114,14 +111,6 @@
         "appleId": "your-apple-id@taxbridge.ng",
         "appleTeamId": "YOUR_TEAM_ID"
       }
-    }
-  },
-  "update": {
-    "production": {
-      "channel": "production"
-    },
-    "preview": {
-      "channel": "preview"
     }
   }
 }
