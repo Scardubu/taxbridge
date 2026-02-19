@@ -147,7 +147,7 @@ export function validateMockInvoiceData(invoice: MockInvoiceData): {
  */
 export function getMockAPIEndpoints() {
   return {
-    baseURL: 'https://sandbox.firs.gov.ng/nrs/api/v1',
+    baseURL: 'https://sandbox.nrs.gov.ng/nrs/api/v1',
     endpoints: {
       stampInvoice: 'POST /sandbox/nrs/stamp-invoice',
       checkStatus: 'GET /sandbox/nrs/status/:irn',

@@ -2,7 +2,7 @@ name: Production Deployment
 
 on:
   push:
-    branches: [main]
+    branches: [main, master]
     paths:
       - 'backend/**'
       - 'mobile/**'
@@ -194,7 +194,7 @@ jobs:
           tags: |
             type=ref,event=branch
             type=sha,prefix=
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' }}
 
       - name: Build and push backend image
         if: needs.validate.outputs.should_deploy_backend == 'true'
@@ -274,7 +274,7 @@ jobs:
     name: Deploy to Production
     runs-on: ubuntu-latest
     needs: [build-images, deploy-staging]
-    if: github.ref == 'refs/heads/main' || github.event.inputs.environment == 'production'
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.event.inputs.environment == 'production'
     environment: production
     
     steps:
@@ -362,7 +362,7 @@ jobs:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
         run: |
-          if [ "${{ github.ref }}" == "refs/heads/main" ]; then
+          if [ "${{ github.ref }}" == "refs/heads/main" ] || [ "${{ github.ref }}" == "refs/heads/master" ]; then
             vercel --prod --token $VERCEL_TOKEN
           else
             vercel --token $VERCEL_TOKEN
@@ -373,7 +373,7 @@ jobs:
     name: Deploy Mobile App
     runs-on: ubuntu-latest
     needs: [validate]
-    if: needs.validate.outputs.should_deploy_mobile == 'true' && github.ref == 'refs/heads/main'
+    if: needs.validate.outputs.should_deploy_mobile == 'true' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
     
     steps:
       - uses: actions/checkout@v4

@@ -40,7 +40,7 @@ export const VATGuide: React.FC = () => {
       </View>
 
       <View style={guideStyles.callout}>
-        <Text style={guideStyles.calloutText}>{t('tax.guide.vat.firsLink')}</Text>
+        <Text style={guideStyles.calloutText}>{t('tax.guide.vat.NRSLink')}</Text>
       </View>
     </View>
   );

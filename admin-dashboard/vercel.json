@@ -1,6 +1,9 @@
 {
   "framework": "nextjs",
   "regions": ["iad1"],
+  "installCommand": "npm install",
+  "buildCommand": "next build",
+  "outputDirectory": ".next",
   "env": {
     "NEXT_PUBLIC_APP_URL": "https://admin.taxbridge.ng",
     "BACKEND_URL": "https://taxbridge-api-ker8.onrender.com",

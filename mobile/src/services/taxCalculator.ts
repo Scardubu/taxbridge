@@ -174,7 +174,7 @@ export function calculatePIT(inputs: PITInputs): PITResult {
     isExempt,
     effectiveRate,
     bandBreakdown,
-    disclaimer: 'Educational estimate only. Consult FIRS for official verification.',
+    disclaimer: 'Educational estimate only. Consult NRS for official verification.',
   };
 }
 
@@ -213,7 +213,7 @@ export function checkVATThreshold(turnover: number): VATCheckResult {
     threshold,
     status,
     message,
-    disclaimer: 'Monitor actuals. Consult FIRS for official guidance.',
+    disclaimer: 'Monitor actuals. Consult NRS for official guidance.',
   };
 }
 
