@@ -58,6 +58,25 @@
         "EXPO_PUBLIC_API_URL": "${EXPO_PUBLIC_PREVIEW_API_URL}"
       }
     },
+    "production-apk": {
+      "extends": "base",
+      "channel": "production",
+      "cache": {
+        "disabled": true,
+        "clear": true
+      },
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk",
+        "gradleCommand": ":app:assembleRelease --no-daemon --no-build-cache --rerun-tasks --refresh-dependencies --stacktrace"
+      },
+      "env": {
+        "NODE_ENV": "production",
+        "EXPO_PUBLIC_ENV": "production",
+        "EXPO_PUBLIC_API_URL": "https://taxbridge-api-ker8.onrender.com",
+        "CI": "1"
+      }
+    },
     "production": {
       "extends": "base",
       "channel": "production",
