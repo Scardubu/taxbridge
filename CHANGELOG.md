@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [3.0.1] - 2026-02-20 - Post-Release Production Hardening
+
+### 🔧 Runtime Stability
+- Added `safeDate()` helper to `admin-dashboard/lib/utils.ts` — null + NaN safe date formatter with `en-NG` locale and configurable fallback
+- Fixed 6 unsafe `new Date(val).toLocaleString()` crash sites across the admin dashboard:
+  - `app/dashboard/invoices/page.tsx` — `selectedInvoice.createdAt` / `updatedAt`
+  - `app/dashboard/compliance/page.tsx` — `issue.createdAt`
+  - `app/dashboard/system/page.tsx` — `event.timestamp`
+  - `app/dashboard/devices/sync/page.tsx` — `formatTimestamp()` null-guard
+  - `components/charts/DuploHealthChart.tsx` — `labelFormatter` value guard
+
+### 🌐 i18n Completeness
+- Fixed raw `backend_warming_up` system warning code displaying verbatim in Dashboard and LaunchMetricsWidget; now renders translated human-readable message via `t('dashboard.warnings.code.backend_warming_up')`
+- Full i18n for NRS Operations Center (`app/compliance/nrs-operations/page.tsx`):
+  - 30 new `nrsOps.*` keys added to `lib/i18n.tsx` with full English + Nigerian Pidgin parity
+  - All 4 sub-components (`NRSHealthBanner`, `QueueStatusGrid`, `FailedSubmissionsTable`, `NrsOperationsPage`) migrated from hardcoded strings to `useAdminI18n()`
+  - `inv.updatedAt` now uses `safeDate()` with `dateStyle: 'short', timeStyle: 'short'`
+
+### 🛠️ Developer Experience
+- Created `backend/tsconfig.test.json` — jest-specific TypeScript config extending main config, adds `"types": ["jest", "node"]`, includes all test file globs
+- Updated all 4 jest project configs in `backend/jest.config.cjs` to reference `tsconfig.test.json` — eliminates IDE `describe`/`it`/`expect` type errors in all backend test files
+
+### 📝 Documentation
+- Updated `README.md` to v3.0.0: version badge, test badge (`460+` → `528+`), full v3 feature documentation (AI Intelligence, NRS Operations Center, Dark Mode), updated tech stack and project stats tables
+
+### ✅ Quality
+- Admin Dashboard TypeScript: 0 errors (`npx tsc --noEmit`)
+- Backend TypeScript: 0 errors (`npx tsc --noEmit`)
+
+---
+
 ## [3.0.0] - 2026-02-20 - Intelligence Platform + Dark Mode + NRS Operations
 
 ### 🆕 Module 1 — 9-Signal Anomaly Detection Engine

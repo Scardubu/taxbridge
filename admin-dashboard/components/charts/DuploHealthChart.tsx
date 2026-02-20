@@ -46,7 +46,7 @@ export function DuploHealthChart({ data }: DuploHealthChartProps) {
         <YAxis yAxisId="left" tick={{ fontSize: 12 }} />
         <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} />
         <Tooltip
-          labelFormatter={(value) => new Date(value).toLocaleString()}
+          labelFormatter={(value) => (value ? new Date(value).toLocaleString() : '')}
           formatter={tooltipFormatter}
         />
         <Line

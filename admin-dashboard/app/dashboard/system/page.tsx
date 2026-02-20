@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import useSWR from 'swr';
+import { safeDate } from '@/lib/utils';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -392,7 +393,7 @@ export default function SystemPage() {
                     <div className="flex-1">
                       <p className="text-sm text-slate-700">{event.message}</p>
                       <p className="text-xs text-slate-500 mt-1">
-                        {new Date(event.timestamp).toLocaleString()}
+                        {safeDate(event.timestamp)}
                       </p>
                     </div>
                   </div>

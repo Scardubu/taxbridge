@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import useSWR from 'swr';
+import { safeDate } from '@/lib/utils';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -363,8 +364,8 @@ export default function InvoicesPage() {
                     <div><strong>{t('invoices.dialog.userPhone')}:</strong> {selectedInvoice.user.phone}</div>
                     <div><strong>{t('invoices.dialog.userTIN')}:</strong> {selectedInvoice.user.tin || t('common.na')}</div>
                     <div><strong>{t('invoices.table.nrsReference')}:</strong> {selectedInvoice.nrsReference || t('common.pending')}</div>
-                    <div><strong>{t('invoices.table.created')}:</strong> {new Date(selectedInvoice.createdAt).toLocaleString()}</div>
-                    <div><strong>{t('invoices.dialog.updated')}:</strong> {new Date(selectedInvoice.updatedAt).toLocaleString()}</div>
+                    <div><strong>{t('invoices.table.created')}:</strong> {safeDate(selectedInvoice.createdAt)}</div>
+                    <div><strong>{t('invoices.dialog.updated')}:</strong> {safeDate(selectedInvoice.updatedAt)}</div>
                   </div>
                 </div>
               </div>

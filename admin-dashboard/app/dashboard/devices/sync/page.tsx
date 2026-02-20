@@ -43,8 +43,11 @@ export default function SyncMonitorPage() {
     { refreshInterval: 10000 }
   );
 
-  const formatTimestamp = (timestamp: string) => {
-    return new Date(timestamp).toLocaleString('en-NG', {
+  const formatTimestamp = (timestamp: string | null | undefined) => {
+    if (!timestamp) return '—';
+    const d = new Date(timestamp);
+    if (isNaN(d.getTime())) return '—';
+    return d.toLocaleString('en-NG', {
       month: 'short',
       day: 'numeric',
       hour: '2-digit',

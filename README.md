@@ -1,4 +1,4 @@
-# TaxBridge
+﻿# TaxBridge
 
 <div align="center">
 
@@ -8,11 +8,11 @@
 
 [![Backend](https://img.shields.io/badge/API-live-brightgreen?logo=render)](https://taxbridge-api-ker8.onrender.com/health/live)
 [![Admin](https://img.shields.io/badge/Admin-live-brightgreen?logo=vercel)](https://taxbridge.vercel.app)
-[![Tests](https://img.shields.io/badge/tests-460+%20passing-success?logo=jest)](/)
+[![Tests](https://img.shields.io/badge/tests-528+%20passing-success?logo=jest)](/)
 [![Coverage](https://img.shields.io/badge/coverage-97.29%25-brightgreen?logo=jest)](/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-blue?logo=typescript)](/)
 [![NRS](https://img.shields.io/badge/NRS%202026-compliant-green?logo=shield)](/)
-[![Production](https://img.shields.io/badge/version-v1.0.3-blue?logo=git)](/)
+[![Production](https://img.shields.io/badge/version-v3.0.0-blue?logo=git)](/)
 [![License](https://img.shields.io/badge/license-proprietary-lightgrey)](/)
 
 **[Live API](https://taxbridge-api-ker8.onrender.com/health)** · **[Admin Console](https://taxbridge.vercel.app)** · **[API Docs](https://taxbridge-api-ker8.onrender.com/docs)** · **[Changelog](CHANGELOG.md)**
@@ -23,7 +23,7 @@
 
 ## What is TaxBridge?
 
-TaxBridge is a **mobile-first, offline-capable** tax compliance platform built for Nigerian SMEs. It automates invoicing, tax calculations, expense tracking, payroll, and FIRS e-invoicing — all compliant with the **Nigeria Tax Act 2025** and **NRS 2026** regulations.
+TaxBridge is a **mobile-first, offline-capable** tax compliance platform built for Nigerian SMEs. It automates invoicing, tax calculations, expense tracking, payroll, and NRS e-invoicing — all compliant with the **Nigeria Tax Act 2025** and **NRS 2026** regulations.
 
 ```
 ┌─────────────┐     ┌──────────────────┐     ┌─────────────────┐
@@ -50,31 +50,45 @@ TaxBridge is a **mobile-first, offline-capable** tax compliance platform built f
 | --- | --- | --- | --- |
 | **Backend API** | [taxbridge-api-ker8.onrender.com](https://taxbridge-api-ker8.onrender.com/health) | ✅ Live | Feb 20, 2026 |
 | **Admin Console** | [taxbridge.vercel.app](https://taxbridge.vercel.app) | ✅ Live | Feb 20, 2026 |
-| **Mobile App** | EAS → Google Play Internal Testing | ✅ v1.0.3 | Feb 20, 2026 |
+| **Mobile App** | EAS → Google Play Internal Testing | ✅ v3.0.0 | Feb 20, 2026 |
 | **API Docs** | [/docs](https://taxbridge-api-ker8.onrender.com/docs) | ✅ Live | Feb 20, 2026 |
 
-### v1.0.3 — Production Hardening (Feb 17–20, 2026)
+### v3.0.0 — Intelligence Platform + Dark Mode + NRS Operations (Feb 20, 2026)
 
-- ✅ **Deterministic Render builds** — Migrated `render.yaml` from `yarn` to `npm ci` (project uses `package-lock.json`; `yarn --frozen-lockfile` produced "no lockfile" warnings)
-- ✅ **Vercel framework detection fixed** — Added `"next": "16.1.1"` to root `devDependencies`; Vercel CLI v50 scans root `package.json` regardless of `vercel.json` `framework` setting
-- ✅ **Metro `blockList` migration** — Replaced deprecated `blacklistRE` with `blockList` in `mobile/metro.config.js`
-- ✅ **EAS fingerprint optimisation** — `EAS_SKIP_AUTO_FINGERPRINT=1` added to base EAS profile to skip slow fingerprint step
-- ✅ **`@taxbridge/contracts` source resolution** — Added `"react-native": "src/index.ts"` to contracts `package.json`; Metro now reads TypeScript source directly, bypassing the uncompiled `dist/` that was absent in EAS cloud builds
-- ✅ **Reanimated v4 worklets peer dep** — Added `react-native-worklets@^0.7.4` (new mandatory peer dep for `react-native-reanimated` v4)
-- ✅ **`expo-localization` plugin declared** — Added `expo-localization ~16.0.0` to `mobile/package.json` (was referenced in `app.json` plugins but missing from deps)
-- ✅ **`NODE_ENV=production` removed from EAS** — Was causing `npm --production` installs that skipped TypeScript, silently preventing `tsc` from running
-- ✅ **Tax Engine hardened** — 97.29% coverage with 37 boundary tests
-- ✅ **460+ Tests passing** — Comprehensive test suite across all modules
+- ✅ **9-Signal Anomaly Detection Engine** — Deterministic, stateless scanner: `duplicate_amount`, `zscore_spike`, `vat_mismatch`, `round_number_clustering`, `weekend_business_expense`, `rapid_succession`, `phantom_vendor`, `cashflow_cliff`, `vat_threshold_approach` with English + Pidgin explanations and NTA 2025 citations
+- ✅ **Tax Health Score** — Deterministic 0–100 composite score with 5 weighted components, grade labels (excellent/good/fair/poor/critical), and 30-day trend ring buffer
+- ✅ **Centralized BullMQ Queue Registry** — 6 named queues with per-queue retry policies and `getQueueHealth()` cold-start resilience
+- ✅ **Dark Mode token system** — 100-key `darkTokens.ts` + `useTheme()` / `useColors()` hooks wrapping `useColorScheme()`
+- ✅ **NRS Operations Center** (Admin) — Real-time queue health, live submission feed, failed submission retry with rate limiting
+- ✅ **Payment Circuit Breaker** — CLOSED/OPEN/HALF_OPEN state machine for Paystack, Flutterwave, Remita with graceful degradation
+- ✅ **Smart Compliance Calendar** — NTA 2025 deadline constants, adaptive reminder cadence, projected liability, penalty accrual
+- ✅ **TaxHealthScoreWidget** (Mobile) — Animated SVG ring, WCAG AA, Pidgin toggle, full i18n
+- ✅ **1,200+ i18n keys** — `taxHealth`, `anomaly`, `cryptoTax`, `compliance`, `nrsOps` namespaces
+- ✅ **CI/CD hardening** — Node 20, npm ci, NRS terminology audit, 500-test gate, prisma validate
+- ✅ **3 new Prisma models** — `AnomalyRecord`, `TaxHealthSnapshot`, `VendorRecord`
+- ✅ **528 tests passing** (gate: ≥500)
 
 ---
 
 ## Key Features
+
+### AI Intelligence (v3.0)
+
+- **9-signal anomaly scanner** — `duplicate_amount`, `zscore_spike`, `vat_mismatch`, `round_number_clustering`, `weekend_business_expense`, `rapid_succession`, `phantom_vendor`, `cashflow_cliff`, `vat_threshold_approach`
+- **Tax Health Score** — 0–100 composite with 30-day trend, grade labels in English + Pidgin
+- **Smart Compliance Calendar** — NTA 2025 deadlines, projected liabilities, penalty accrual
 
 ### Tax Engine (NTA 2025 Compliant)
 
 - **6 tax calculators** — PIT (0-25% progressive), VAT (7.5%), CIT (3-tier: 0/20/30%), CGT (10%), WHT, PAYE
 - **Compliance calendar** — Auto-generated reminders with penalty estimation
 - **Crypto tax** — FIFO cost basis tracking with CGT reporting
+
+### NRS Operations Center (Admin, v3.0)
+
+- **Real-time queue health** — 6-queue BullMQ dashboard with 10 s auto-refresh
+- **Live submission feed** — Per-invoice NRS status with IRN tracking
+- **Failed submission retry** — Rate-limited re-submission from the admin console
 
 ### Invoicing & NRS
 
@@ -94,7 +108,7 @@ TaxBridge is a **mobile-first, offline-capable** tax compliance platform built f
 - **SQLite** local database with sync queue
 - **OCR receipt scanning** with AI-powered categorization (13 categories)
 - **4-step onboarding** with interactive tax demos
-- **Multi-language** — English + Nigerian Pidgin (1,080+ i18n keys)
+- **Multi-language** — English + Nigerian Pidgin (1,200+ i18n keys)
 - **WCAG 2.1 AA** accessible design system
 
 ### Business Verification
@@ -206,10 +220,10 @@ Render (backend) and Vercel (admin) auto-deploy from the `master` branch. See [P
 | **Backend** | Node.js 20.x, Fastify, Prisma 5.22, PostgreSQL 14+, Redis 6+, BullMQ |
 | **Admin** | Next.js 16.1, shadcn/ui, Tailwind CSS, Recharts, TypeScript 5 |
 | **Shared** | `@taxbridge/contracts` — monorepo TypeScript package (Metro resolves via `react-native` field) |
-| **Integrations** | DigiTax/APP (FIRS), Paystack, Flutterwave, Remita, Youverify |
+| **Integrations** | DigiTax/APP (NRS), Paystack, Flutterwave, Remita, Youverify |
 | **Monitoring** | Sentry, Prometheus metrics, custom DLQ/pool monitors |
 | **Deploy** | Render (API + Worker + Redis), Vercel (Admin), EAS (Mobile) |
-| **Testing** | Jest (460+ tests), 3 projects (unit/integration/e2e) |
+| **Testing** | Jest (528+ tests), 3 projects (unit/integration/e2e) |
 
 ---
 
@@ -239,15 +253,15 @@ Interactive API docs available at [`/docs`](https://taxbridge-api-ker8.onrender.
 
 | Metric | Value |
 | --- | --- |
-| Lines of Code | 55,000+ |
-| Test Suites | 21 suites (460+ tests, 100% pass rate) |
+| Lines of Code | 65,000+ |
+| Test Suites | 25 suites (528+ tests, 100% pass rate) |
 | Test Coverage | 97.29% (tax engine), 65%+ overall |
-| API Endpoints | 60+ RESTful |
-| i18n Keys | 1,080+ (English + Nigerian Pidgin) |
-| UI Components | 147+ with 100% design token adoption |
+| API Endpoints | 65+ RESTful |
+| i18n Keys | 1,200+ (English + Nigerian Pidgin) |
+| UI Components | 155+ with 100% design token adoption |
 | Mobile Screens | 15+ production screens |
-| Backend Services | 15+ service modules |
-| Version | v1.0.3 (Feb 2026) |
+| Backend Services | 18+ service modules |
+| Version | v3.0.0 (Feb 2026) |
 
 ---
 
@@ -291,7 +305,7 @@ Metro's resolver checks the `react-native` field before `main`, so the mobile bu
 | [Changelog](CHANGELOG.md) | ⭐ Version history and release notes |
 | [Production Checklist](PRODUCTION_CHECKLIST.md) | Pre-deploy verification checklist |
 | [Deployment Guide](docs/DEPLOYMENT_GUIDE.md) | Platform deployment instructions (Render, Vercel, EAS) |
-| [Deployment Summary v1.0.3](docs/DEPLOYMENT_SUMMARY_FEB_2026.md) | Feb 2026 production deployment record |
+| [Deployment Summary v3.0.0](docs/DEPLOYMENT_SUMMARY_FEB_2026.md) | Feb 2026 production deployment record |
 | [Incident Response](docs/INCIDENT_RESPONSE.md) | P1–P4 incident playbook |
 | [Implementation History](docs/IMPLEMENTATION_HISTORY.md) | Phases 1–10 development timeline |
 | [Developer Guide](docs/DEVELOPER_GUIDE.md) | Setup and contribution guidelines |
@@ -332,3 +346,4 @@ Proprietary — © 2026 TaxBridge Nigeria
 *Offline-capable · NRS compliant · AI-powered · Production-ready*
 
 </div>
+

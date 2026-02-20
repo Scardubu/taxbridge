@@ -18,6 +18,8 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { SkeletonCard } from '@/components/ui/skeleton-table';
 import { fetchJson, FetchError } from '@/lib/fetcher';
+import { useAdminI18n } from '@/lib/i18n';
+import { safeDate } from '@/lib/utils';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -99,33 +101,35 @@ function fmt(n: number) {
 // ─── Sub-components ──────────────────────────────────────────────────────────
 
 function NRSHealthBanner({ summary }: { summary: NrsSummary | undefined }) {
+  const { t } = useAdminI18n();
   if (!summary) return <SkeletonCard className="h-20 mb-6" />;
   const { successful, failed, pending } = summary.data.last24h;
   const allGood = failed === 0 && pending < 5;
   return (
     <Alert className={`mb-6 border ${allGood ? 'border-green-200 bg-green-50' : 'border-yellow-200 bg-yellow-50'}`}>
       <AlertTitle className="font-semibold">
-        NRS Submission Health — Last 24 Hours
+        {t('nrsOps.health.title')}
       </AlertTitle>
       <AlertDescription className="mt-1 flex gap-6 text-sm">
-        <span className="text-green-700">✓ {fmt(successful)} successful</span>
+        <span className="text-green-700">✓ {t('nrsOps.health.successful', { count: fmt(successful) })}</span>
         <span className={failed > 0 ? 'text-red-700 font-medium' : 'text-gray-500'}>
-          ✗ {fmt(failed)} failed
+          ✗ {t('nrsOps.health.failed', { count: fmt(failed) })}
         </span>
-        <span className="text-yellow-700">⏳ {fmt(pending)} pending</span>
-        <span className="text-gray-500">Total: {fmt(summary.data.total)}</span>
+        <span className="text-yellow-700">⏳ {t('nrsOps.health.pending', { count: fmt(pending) })}</span>
+        <span className="text-gray-500">{t('nrsOps.health.total', { count: fmt(summary.data.total) })}</span>
       </AlertDescription>
     </Alert>
   );
 }
 
 function QueueStatusGrid({ health }: { health: QueueHealthResponse | undefined }) {
+  const { t } = useAdminI18n();
   if (!health) return <SkeletonCard className="h-48 mb-6" />;
   const queues = Object.values(health.data.queues);
   if (queues.length === 0) {
     return (
       <div className="mb-6 text-sm text-gray-500 bg-gray-50 border rounded p-4">
-        Queue data unavailable — Redis may be initialising.
+        {t('nrsOps.queue.unavailable')}
       </div>
     );
   }
@@ -142,13 +146,13 @@ function QueueStatusGrid({ health }: { health: QueueHealthResponse | undefined }
             <div className="flex items-center justify-between mb-2">
               {statusBadge(q.status)}
               {q.failed > 0 && (
-                <span className="text-xs text-red-600 font-medium">{q.failed} failed</span>
+                <span className="text-xs text-red-600 font-medium">{t('nrsOps.queue.failedCount', { count: q.failed })}</span>
               )}
             </div>
             <div className="grid grid-cols-3 gap-1 text-xs text-gray-500">
-              <div><div className="font-medium text-gray-800 text-sm">{fmt(q.waiting)}</div>waiting</div>
-              <div><div className="font-medium text-gray-800 text-sm">{fmt(q.active)}</div>active</div>
-              <div><div className="font-medium text-gray-800 text-sm">{fmt(q.completed)}</div>done</div>
+              <div><div className="font-medium text-gray-800 text-sm">{fmt(q.waiting)}</div>{t('nrsOps.queue.waiting')}</div>
+              <div><div className="font-medium text-gray-800 text-sm">{fmt(q.active)}</div>{t('nrsOps.queue.active')}</div>
+              <div><div className="font-medium text-gray-800 text-sm">{fmt(q.completed)}</div>{t('nrsOps.queue.done')}</div>
             </div>
           </CardContent>
         </Card>
@@ -166,33 +170,34 @@ function FailedSubmissionsTable({
   onResubmit: (id: string) => void;
   resubmitting: string | null;
 }) {
+  const { t } = useAdminI18n();
   if (!data) return <SkeletonCard className="h-64" />;
   const invoices = data.data.invoices;
   return (
     <div>
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-semibold text-gray-700">
-          Failed / Pending Submissions
+          {t('nrsOps.table.heading')}
         </h3>
         <span className="text-xs text-gray-400">
-          {data.data.pagination.total} total
+          {t('nrsOps.table.totalCount', { count: data.data.pagination.total })}
         </span>
       </div>
       {invoices.length === 0 ? (
         <div className="text-sm text-gray-500 bg-gray-50 rounded p-6 text-center">
-          No failed submissions — NRS pipeline is healthy ✓
+          {t('nrsOps.table.empty')}
         </div>
       ) : (
         <div className="overflow-x-auto rounded border">
           <table className="w-full text-sm">
             <thead className="bg-gray-50">
               <tr>
-                <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase">Invoice #</th>
-                <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase">Status</th>
-                <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase">Amount (₦)</th>
-                <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase">Error</th>
-                <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase">Updated</th>
-                <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase">Action</th>
+                <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase">{t('nrsOps.table.col.invoice')}</th>
+                <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase">{t('nrsOps.table.col.status')}</th>
+                <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase">{t('nrsOps.table.col.amount')}</th>
+                <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase">{t('nrsOps.table.col.error')}</th>
+                <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase">{t('nrsOps.table.col.updated')}</th>
+                <th className="text-left px-4 py-2 text-xs font-medium text-gray-500 uppercase">{t('nrsOps.table.col.action')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -207,7 +212,7 @@ function FailedSubmissionsTable({
                     </span>
                   </td>
                   <td className="px-4 py-3 text-xs text-gray-400">
-                    {new Date(inv.updatedAt).toLocaleString('en-NG', { dateStyle: 'short', timeStyle: 'short' })}
+                    {safeDate(inv.updatedAt, { dateStyle: 'short', timeStyle: 'short' })}
                   </td>
                   <td className="px-4 py-3">
                     <button
@@ -215,7 +220,7 @@ function FailedSubmissionsTable({
                       disabled={resubmitting === inv.id}
                       className="text-xs text-blue-600 hover:text-blue-800 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
                     >
-                      {resubmitting === inv.id ? 'Queuing…' : 'Re-submit'}
+                      {resubmitting === inv.id ? t('nrsOps.table.queuing') : t('nrsOps.table.resubmit')}
                     </button>
                   </td>
                 </tr>
@@ -231,6 +236,7 @@ function FailedSubmissionsTable({
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function NrsOperationsPage() {
+  const { t } = useAdminI18n();
   const [resubmitting, setResubmitting] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; ok: boolean } | null>(null);
 
@@ -299,13 +305,13 @@ export default function NrsOperationsPage() {
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">NRS Operations Center</h1>
+            <h1 className="text-2xl font-bold text-gray-900">{t('nrsOps.pageTitle')}</h1>
             <p className="text-sm text-gray-500 mt-1">
-              Real-time NRS (Nigeria Revenue Service) submission monitoring
+              {t('nrsOps.pageDesc')}
             </p>
           </div>
           <Badge variant="outline" className="text-xs">
-            Auto-refresh every 10 s
+            {t('nrsOps.autoRefresh')}
           </Badge>
         </div>
 
@@ -328,7 +334,7 @@ export default function NrsOperationsPage() {
         {/* Queue Grid */}
         <Card className="mb-6 border">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base font-semibold">Queue Status</CardTitle>
+            <CardTitle className="text-base font-semibold">{t('nrsOps.queue.section')}</CardTitle>
           </CardHeader>
           <CardContent>
             <QueueStatusGrid health={queueHealth} />
@@ -338,7 +344,7 @@ export default function NrsOperationsPage() {
         {/* Failed Submissions */}
         <Card className="border">
           <CardHeader className="pb-2">
-            <CardTitle className="text-base font-semibold">Failed Submissions</CardTitle>
+            <CardTitle className="text-base font-semibold">{t('nrsOps.table.section')}</CardTitle>
           </CardHeader>
           <CardContent>
             <FailedSubmissionsTable
@@ -351,7 +357,7 @@ export default function NrsOperationsPage() {
 
         {/* Footer info */}
         <p className="mt-4 text-xs text-gray-400 text-center">
-          All queue operations are logged. Re-submit actions are rate-limited per admin key.
+          {t('nrsOps.footer')}
         </p>
       </div>
     </DashboardLayout>

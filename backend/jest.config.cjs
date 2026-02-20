@@ -22,7 +22,7 @@ module.exports = {
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
   transform: { 
     '^.+\\.tsx?$': ['ts-jest', {
-      tsconfig: 'tsconfig.json'
+      tsconfig: 'tsconfig.test.json'
     }]
   },
   transformIgnorePatterns: [
@@ -51,7 +51,7 @@ module.exports = {
       },
       transform: {
         '^.+\\.tsx?$': ['ts-jest', {
-          tsconfig: 'tsconfig.json'
+          tsconfig: 'tsconfig.test.json'
         }]
       }
     },
@@ -69,7 +69,7 @@ module.exports = {
       },
       transform: {
         '^.+\\.tsx?$': ['ts-jest', {
-          tsconfig: 'tsconfig.json'
+          tsconfig: 'tsconfig.test.json'
         }]
       }
     },
@@ -87,7 +87,7 @@ module.exports = {
       },
       transform: {
         '^.+\\.tsx?$': ['ts-jest', {
-          tsconfig: 'tsconfig.json'
+          tsconfig: 'tsconfig.test.json'
         }]
       }
     }

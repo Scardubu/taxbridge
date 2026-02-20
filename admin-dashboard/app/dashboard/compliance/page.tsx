@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import useSWR from 'swr';
+import { safeDate } from '@/lib/utils';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -309,7 +310,7 @@ export default function CompliancePage() {
                         <span>•</span>
                         <span className="flex items-center gap-1">
                           <Calendar className="h-3 w-3" />
-                          {new Date(issue.createdAt).toLocaleString()}
+                          {safeDate(issue.createdAt)}
                         </span>
                       </p>
                     </div>
