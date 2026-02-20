@@ -215,6 +215,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                     width={40}
                     height={40}
                     priority
+                    unoptimized
                     className="h-10 w-10"
                   />
                 </div>
