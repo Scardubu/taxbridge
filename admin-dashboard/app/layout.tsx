@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import Providers from "./providers";
@@ -46,23 +46,19 @@ export const metadata: Metadata = {
     images: ["/og-image.png"],
   },
   icons: {
-    icon: [
-      { url: "/favicon.ico", sizes: "any" },
-      { url: "/icon-192.png", type: "image/png", sizes: "192x192" },
-      { url: "/icon-512.png", type: "image/png", sizes: "512x512" },
-    ],
-    apple: [
-      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
-    ],
+    icon: [{ url: "/favicon.ico", sizes: "any" }],
   },
   manifest: "/manifest.webmanifest",
-  themeColor: '#10B981',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
     title: 'TaxBridge Admin',
   },
   metadataBase: new URL("https://taxbridge.vercel.app"),
+};
+
+export const viewport: Viewport = {
+  themeColor: '#10B981',
 };
 
 export default function RootLayout({

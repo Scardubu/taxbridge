@@ -1,7 +1,7 @@
 {
   "framework": "nextjs",
   "buildCommand": "npm run build",
-  "outputDirectory": ".next",
+  "outputDirectory": "admin-dashboard/.next",
   "installCommand": "npm install",
   "regions": ["iad1"],
   "headers": [
