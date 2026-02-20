@@ -35,7 +35,7 @@
     "expo-font": "~14.0.11",
     "expo-haptics": "~15.0.8",
     "expo-image-picker": "~17.0.10",
-    "expo-localization": "~16.0.0",
+    "expo-localization": "~17.0.8",
     "expo-secure-store": "~15.0.8",
     "expo-sharing": "~14.0.8",
     "expo-speech": "~14.0.8",

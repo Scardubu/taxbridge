@@ -1,8 +1,9 @@
 {
+  "rootDirectory": "admin-dashboard",
   "framework": "nextjs",
-  "buildCommand": "cd admin-dashboard && npm run build",
-  "outputDirectory": "admin-dashboard/.next",
-  "installCommand": "npm install --legacy-peer-deps",
+  "buildCommand": "npm run build",
+  "outputDirectory": ".next",
+  "installCommand": "npm install",
   "regions": ["iad1"],
   "headers": [
     {

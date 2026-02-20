@@ -532,7 +532,9 @@ export class ComplianceService {
   ): Promise<Array<{ type: string; explanation: { en: string; pidgin: string }; estimatedSaving: number | null }>> {
     const business = await this.prisma.business.findFirst({
       where: { id: businessId, ownerId: userId },
-      select: { id: true, annualRevenue: true, employeeCount: true },
+      // Cast to `any` — Prisma stub constraint (commit 218972e): annualRevenue is a
+      // valid DB column but not reflected in the generated type stub on Render.
+      select: { id: true, annualRevenue: true, employeeCount: true } as any,
     });
     if (!business) throw new Error('Business not found or access denied');
 

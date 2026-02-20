@@ -149,7 +149,10 @@ export function LaunchMetricsWidget({ metrics, isLoading }: LaunchMetricsWidgetP
     watch: 94
   });
 
-  const windowLabel = formatWindowRange(metrics.window.current.start, metrics.window.current.end);
+  // Guard against missing window data during cold-start (admin resilience pattern)
+  const windowLabel = metrics.window?.current
+    ? formatWindowRange(metrics.window.current.start, metrics.window.current.end)
+    : '';
 
   const statusBadgeText = (status: StatusState) =>
     status === 'healthy'

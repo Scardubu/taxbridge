@@ -96,6 +96,8 @@ export async function adminNrsRoutes(app: FastifyInstance, options: { prisma: Pr
           orderBy: { updatedAt: 'desc' },
           skip: (page - 1) * limit,
           take: limit,
+          // Cast to `any` — Prisma stub constraint (commit 218972e): nrsStatus is a
+          // valid DB column but not reflected in the generated type stub on Render.
           select: {
             id: true,
             invoiceNumber: true,
@@ -106,7 +108,7 @@ export async function adminNrsRoutes(app: FastifyInstance, options: { prisma: Pr
             createdAt: true,
             updatedAt: true,
             userId: true,
-          },
+          } as any,
         }),
       ]);
 
