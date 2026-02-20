@@ -22,6 +22,7 @@ import ussdRoutes from './routes/ussd';
 import smsRoutes from './routes/sms';
 import chatbotRoutes from './routes/chatbot';
 import { adminRoutes } from './routes/admin';
+import { adminNrsRoutes } from './routes/adminNrs';
 import authRoutes from './routes/auth';
 import privacyRoutes from './routes/privacy';
 import syncRoutes from './routes/sync';
@@ -38,6 +39,7 @@ import complianceRoutes from './routes/compliance';
 import cryptoRoutes from './routes/crypto';
 import reconciliationRoutes from './routes/reconciliation';
 import bulkRoutes from './routes/bulk';
+import insightsRoutes from './routes/insights';
 import { validateSecrets, logSecretsSummary } from './config/secrets';
 import { Queue } from 'bullmq';
 import {
@@ -47,6 +49,8 @@ import {
   getRedisConnection
 } from './queue/client';
 import { startDeadlineReminderCron } from './services/deadlineReminder';
+import { getQueueHealth } from './queues/index';
+import { paymentGateway } from './services/payment-gateway';
 import { healthCheckAllProviders, getProviderHealth } from './integrations/comms/client';
 import { createLogger } from './lib/logger';
 import { getPrismaClient, disconnectPrisma } from './lib/prisma';
@@ -1005,55 +1009,29 @@ taxbridge_component_status{component="sms"} ${serverMetrics.componentStatus.sms 
     }
   });
 
-  // Queue health check
+  // Queue health check — covers all 6 queues with graceful cold-start fallback
   app.get('/health/queues', async (_req, reply) => {
-    try {
-      const redis = getRedisConnection();
-      if (!redis) {
-        return reply.status(503).send({
-          status: 'unavailable',
-          message: 'Redis not available - queues disabled in development mode'
-        });
-      }
-      
-      const pong = await redis.ping();
-      if (pong !== 'PONG') throw new Error('Redis ping failed');
+    const health = await getQueueHealth();
+    serverMetrics.componentStatus.queues =
+      health.status === 'healthy' ? 'healthy'
+      : health.status === 'degraded' ? 'degraded'
+      : 'error';
+    // Always return 200 to preserve admin dashboard cold-start resilience (v2.0.0)
+    return reply.send({ ...health, component: 'queues' });
+  });
 
-      // Retrieve queue job counts via BullMQ Queue class
-      const invoiceSyncQueue = new Queue('invoice-sync', { connection: redis as any });
-      const paymentQueue = new Queue('payment-webhook', { connection: redis as any });
-
-      const [invoiceCounts, paymentCounts] = await Promise.all([
-        invoiceSyncQueue.getJobCounts(),
-        paymentQueue.getJobCounts()
-      ]);
-
-      // Clean up queue instances to avoid dangling listeners
-      await invoiceSyncQueue.close();
-      await paymentQueue.close();
-
-      const totalFailed = (invoiceCounts.failed || 0) + (paymentCounts.failed || 0);
-      const status = totalFailed > 100 ? 'degraded' : 'healthy';
-
-      serverMetrics.componentStatus.queues = status;
-
-      return reply.send({
-        status,
-        component: 'queues',
-        invoiceSync: invoiceCounts,
-        paymentWebhooks: paymentCounts,
-        timestamp: new Date().toISOString()
-      });
-    } catch (error: any) {
-      serverMetrics.componentStatus.queues = 'error';
-      app.log.error({ err: error }, 'Queue health check failed');
-      return reply.status(503).send({
-        status: 'error',
-        component: 'queues',
-        error: error.message || 'Queue connection failed',
-        timestamp: new Date().toISOString()
-      });
-    }
+  // Payment gateway circuit-breaker health
+  app.get('/health/payment-gateways', async (_req, reply) => {
+    const circuits = paymentGateway.getGatewayCircuitStates();
+    const available = paymentGateway.getAvailableGateways();
+    const anyOpen = Object.values(circuits).some(c => c.state === 'OPEN');
+    return reply.send({
+      component: 'payment-gateways',
+      status: anyOpen ? 'degraded' : 'healthy',
+      circuits,
+      availableGateways: available,
+      timestamp: new Date().toISOString(),
+    });
   });
 
   // Root route — prevents 404 for browsers, bots, and uptime monitors hitting /
@@ -1080,6 +1058,7 @@ taxbridge_component_status{component="sms"} ${serverMetrics.componentStatus.sms 
   await app.register(smsRoutes, { prisma });
   await app.register(chatbotRoutes);
   await app.register(adminRoutes, { prefix: '/admin', prisma });
+  await app.register(adminNrsRoutes, { prisma }); // NRS Operations Center
   await app.register(adminSyncRoutes); // Admin device sync monitoring
   await app.register(authRoutes);
   await app.register(privacyRoutes);
@@ -1096,6 +1075,7 @@ taxbridge_component_status{component="sms"} ${serverMetrics.componentStatus.sms 
   await app.register(cryptoRoutes, { prisma });
   await app.register(reconciliationRoutes, { prisma });
   await app.register(bulkRoutes, { prisma });
+  await app.register(insightsRoutes);
   
   // Phase 3: Feature flags endpoint for mobile app
   const featureFlagsModule = await import('./routes/feature-flags');
