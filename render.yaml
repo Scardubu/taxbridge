@@ -16,11 +16,11 @@ services:
     branch: master
     autoDeploy: true
     buildCommand: >-
-      yarn install --frozen-lockfile --production=false &&
-      yarn workspace @taxbridge/contracts build &&
-      yarn workspace @taxbridge/backend build &&
-      yarn workspace @taxbridge/backend ubl:download-xsd
-    startCommand: yarn workspace @taxbridge/backend start
+      npm ci --prefer-offline=false &&
+      npm run build --workspace=@taxbridge/contracts &&
+      npm run build --workspace=@taxbridge/backend &&
+      npm run ubl:download-xsd --workspace=@taxbridge/backend
+    startCommand: npm run start --workspace=@taxbridge/backend
     healthCheckPath: /health/live
     envVars:
       # Node Environment
@@ -33,7 +33,7 @@ services:
       - key: LOG_LEVEL
         value: info
       # Prisma
-      # Prevent @prisma/client postinstall from running `prisma generate` during `yarn install`.
+      # Prevent @prisma/client postinstall from running `prisma generate` during `npm install`.
       # Generation is handled explicitly in buildCommand and also guarded at runtime via backend lifecycle scripts.
       - key: PRISMA_SKIP_POSTINSTALL_GENERATE
         value: "true"
@@ -155,10 +155,10 @@ services:
     branch: master
     autoDeploy: true
     buildCommand: >-
-      yarn install --frozen-lockfile --production=false &&
-      yarn workspace @taxbridge/backend build &&
-      yarn workspace @taxbridge/backend ubl:download-xsd
-    startCommand: yarn workspace @taxbridge/backend worker
+      npm ci --prefer-offline=false &&
+      npm run build --workspace=@taxbridge/backend &&
+      npm run ubl:download-xsd --workspace=@taxbridge/backend
+    startCommand: npm run worker --workspace=@taxbridge/backend
     envVars:
       # Node Environment
       - key: NODE_VERSION

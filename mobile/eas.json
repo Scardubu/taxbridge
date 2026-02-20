@@ -17,6 +17,7 @@
         "EAS_BUILD_DISABLE_GRADLE_CACHE": "1",
         "METRO_CACHE_DISABLED": "1",
         "EXPO_USE_FAST_RESOLVER": "1",
+        "EAS_SKIP_AUTO_FINGERPRINT": "1",
         "CI": "1"
       },
       "distribution": "internal",

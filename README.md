@@ -12,10 +12,10 @@
 [![Coverage](https://img.shields.io/badge/coverage-97.29%25-brightgreen?logo=jest)](/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-blue?logo=typescript)](/)
 [![NRS](https://img.shields.io/badge/NRS%202026-compliant-green?logo=shield)](/)
-[![Production](https://img.shields.io/badge/status-production%20ready-success?logo=checkmarx)](/)
+[![Production](https://img.shields.io/badge/version-v1.0.3-blue?logo=git)](/)
 [![License](https://img.shields.io/badge/license-proprietary-lightgrey)](/)
 
-**[Live API](https://taxbridge-api-ker8.onrender.com/health)** · **[Admin Console](https://taxbridge.vercel.app)** · **[API Docs](https://taxbridge-api-ker8.onrender.com/docs)** · **[Production Report](docs/PRODUCTION_FINALIZATION_REPORT.md)**
+**[Live API](https://taxbridge-api-ker8.onrender.com/health)** · **[Admin Console](https://taxbridge.vercel.app)** · **[API Docs](https://taxbridge-api-ker8.onrender.com/docs)** · **[Changelog](CHANGELOG.md)**
 
 </div>
 
@@ -46,20 +46,25 @@ TaxBridge is a **mobile-first, offline-capable** tax compliance platform built f
 
 ## Production Status
 
-| Platform | URL | Status | Last Updated |
+| Platform | URL | Status | Last Deploy |
 | --- | --- | --- | --- |
-| **Backend API** | [taxbridge-api-ker8.onrender.com](https://taxbridge-api-ker8.onrender.com/health) | ✅ Live | Feb 15, 2026 |
-| **Admin Console** | [taxbridge.vercel.app](https://taxbridge.vercel.app) | ✅ Live | Feb 15, 2026 |
-| **Mobile App** | EAS Build → Google Play Internal Testing | ✅ Ready | Feb 15, 2026 |
-| **API Docs** | [/docs](https://taxbridge-api-ker8.onrender.com/docs) | ✅ Live | Feb 15, 2026 |
+| **Backend API** | [taxbridge-api-ker8.onrender.com](https://taxbridge-api-ker8.onrender.com/health) | ✅ Live | Feb 20, 2026 |
+| **Admin Console** | [taxbridge.vercel.app](https://taxbridge.vercel.app) | ✅ Live | Feb 20, 2026 |
+| **Mobile App** | EAS → Google Play Internal Testing | ✅ v1.0.3 | Feb 20, 2026 |
+| **API Docs** | [/docs](https://taxbridge-api-ker8.onrender.com/docs) | ✅ Live | Feb 20, 2026 |
 
-### Recent Production Updates (Feb 15, 2026)
+### v1.0.3 — Production Hardening (Feb 17–20, 2026)
 
-- ✅ **Admin Dashboard Build Fixed** - Resolved Recharts/Redux Toolkit compatibility
-- ✅ **Tax Engine Hardened** - 97.29% coverage with 37 boundary tests
-- ✅ **Mobile OCR Enhanced** - Confidence scoring and review workflow
-- ✅ **NRS Submission Hardened** - Idempotency, retry logic, circuit breaker
-- ✅ **460+ Tests Passing** - Comprehensive test suite across all modules
+- ✅ **Deterministic Render builds** — Migrated `render.yaml` from `yarn` to `npm ci` (project uses `package-lock.json`; `yarn --frozen-lockfile` produced "no lockfile" warnings)
+- ✅ **Vercel framework detection fixed** — Added `"next": "16.1.1"` to root `devDependencies`; Vercel CLI v50 scans root `package.json` regardless of `vercel.json` `framework` setting
+- ✅ **Metro `blockList` migration** — Replaced deprecated `blacklistRE` with `blockList` in `mobile/metro.config.js`
+- ✅ **EAS fingerprint optimisation** — `EAS_SKIP_AUTO_FINGERPRINT=1` added to base EAS profile to skip slow fingerprint step
+- ✅ **`@taxbridge/contracts` source resolution** — Added `"react-native": "src/index.ts"` to contracts `package.json`; Metro now reads TypeScript source directly, bypassing the uncompiled `dist/` that was absent in EAS cloud builds
+- ✅ **Reanimated v4 worklets peer dep** — Added `react-native-worklets@^0.7.4` (new mandatory peer dep for `react-native-reanimated` v4)
+- ✅ **`expo-localization` plugin declared** — Added `expo-localization ~16.0.0` to `mobile/package.json` (was referenced in `app.json` plugins but missing from deps)
+- ✅ **`NODE_ENV=production` removed from EAS** — Was causing `npm --production` installs that skipped TypeScript, silently preventing `tsc` from running
+- ✅ **Tax Engine hardened** — 97.29% coverage with 37 boundary tests
+- ✅ **460+ Tests passing** — Comprehensive test suite across all modules
 
 ---
 
@@ -117,9 +122,10 @@ TaxBridge is a **mobile-first, offline-capable** tax compliance platform built f
 
 ### Prerequisites
 
-- **Node.js** 18+ (20.x recommended)
-- **PostgreSQL** 14+ (or Supabase)
+- **Node.js** 20.x LTS
+- **PostgreSQL** 14+
 - **Redis** 6+
+- **Expo CLI** (`npm install -g expo-cli eas-cli`)
 
 ### Development Setup
 
@@ -128,8 +134,11 @@ TaxBridge is a **mobile-first, offline-capable** tax compliance platform built f
 git clone https://github.com/Scardubu/taxbridge.git
 cd taxbridge
 
-# Install all workspaces
+# Install all workspaces (npm — do not use yarn; project uses package-lock.json)
 npm install
+
+# Build shared contracts package
+npm run build --workspace=@taxbridge/contracts
 
 # Backend
 cd backend
@@ -147,29 +156,45 @@ cd admin-dashboard
 npm run dev
 ```
 
+### Mobile EAS Builds
+
+EAS build profiles are defined in [`mobile/eas.json`](mobile/eas.json).
+
+```bash
+cd mobile
+
+# Development client (simulator + device)
+eas build --profile development --platform android
+
+# Internal APK for testing (side-loadable)
+eas build --profile production-apk --platform android
+
+# Production AAB for Google Play
+eas build --profile production --platform android
+
+# Store submission
+eas submit --platform android --profile production
+```
+
+> **Note:** The `@taxbridge/contracts` package is resolved by Metro via the `"react-native"` field in `packages/contracts/package.json` (`src/index.ts`), bypassing the compiled `dist/`. This means `tsc` for contracts does **not** need to run during EAS builds.
+
 ### Production Deployment
 
 ```powershell
-# 1. Analyze repository
-.\scripts\0-Analyze-Repository.ps1
+# 1. Validate production environment
+node backend/validate-production-env.js
 
-# 2. Install dependencies
-.\scripts\1-Install-Dependencies.ps1
-
-# 3. Validate production environment
-.\scripts\validate-production-env.ps1 -EnvFile .env.production
-
-# 4. Run smoke tests
+# 2. Run smoke tests against production
 .\scripts\smoke-tests.ps1 -ApiUrl "https://taxbridge-api-ker8.onrender.com" -Verbose
 
-# 5. Monitor production
-.\scripts\6-Monitor-Production.ps1 -Continuous
+# 3. Monitor production metrics
+.\setup-monitoring.ps1
 
-# 6. Build mobile app
-.\scripts\8-Build-Mobile-App.ps1 -Profile production -Platform android
+# 4. Check deployment status
+.\check-status.ps1
 ```
 
-See [PRODUCTION_CHECKLIST.md](PRODUCTION_CHECKLIST.md) for the full deployment checklist.
+Render (backend) and Vercel (admin) auto-deploy from the `master` branch. See [PRODUCTION_CHECKLIST.md](PRODUCTION_CHECKLIST.md) for the full pre-deploy checklist.
 
 ---
 
@@ -177,13 +202,14 @@ See [PRODUCTION_CHECKLIST.md](PRODUCTION_CHECKLIST.md) for the full deployment c
 
 | Layer | Technology |
 | --- | --- |
-| **Mobile** | React Native, Expo SDK 52, SQLite, Reanimated 2, i18next |
-| **Backend** | Node.js, Fastify, Prisma, PostgreSQL, Redis, BullMQ |
-| **Admin** | Next.js, shadcn/ui, Tailwind CSS, Recharts |
-| **Integrations** | DigiTax, Paystack, Flutterwave, Remita, Youverify |
+| **Mobile** | React Native 0.81, Expo SDK 54, Expo Router, SQLite, Reanimated v4.1, react-native-worklets, i18next |
+| **Backend** | Node.js 20.x, Fastify, Prisma 5.22, PostgreSQL 14+, Redis 6+, BullMQ |
+| **Admin** | Next.js 16.1, shadcn/ui, Tailwind CSS, Recharts, TypeScript 5 |
+| **Shared** | `@taxbridge/contracts` — monorepo TypeScript package (Metro resolves via `react-native` field) |
+| **Integrations** | DigiTax/APP (FIRS), Paystack, Flutterwave, Remita, Youverify |
 | **Monitoring** | Sentry, Prometheus metrics, custom DLQ/pool monitors |
 | **Deploy** | Render (API + Worker + Redis), Vercel (Admin), EAS (Mobile) |
-| **Testing** | Jest (418 tests), 3 projects (unit/integration/e2e) |
+| **Testing** | Jest (460+ tests), 3 projects (unit/integration/e2e) |
 
 ---
 
@@ -221,7 +247,40 @@ Interactive API docs available at [`/docs`](https://taxbridge-api-ker8.onrender.
 | UI Components | 147+ with 100% design token adoption |
 | Mobile Screens | 15+ production screens |
 | Backend Services | 15+ service modules |
-| Development | Production ready (Feb 2026) |
+| Version | v1.0.3 (Feb 2026) |
+
+---
+
+## Monorepo Architecture
+
+```
+taxbridge/
+├── mobile/          # Expo SDK 54 / React Native 0.81 app (EAS)
+├── backend/         # Node.js 20 + Fastify API (Render)
+├── admin-dashboard/ # Next.js 16.1 admin console (Vercel)
+├── packages/
+│   └── contracts/  # @taxbridge/contracts — shared TypeScript types
+│       ├── src/index.ts        ← Metro reads this (react-native field)
+│       └── dist/index.js       ← Node/backend reads this (main field)
+├── ml/              # OCR & NLP services
+├── infra/           # CI, mocks, docker-compose
+├── docs/            # PRD, DPIA, API specs
+└── render.yaml      # Render blueprint (npm ci — not yarn)
+```
+
+### Package Resolution Notes
+
+`packages/contracts/package.json` exposes two entry points:
+
+```json
+{
+  "main": "dist/index.js",        // Node.js (backend, admin-dashboard)
+  "react-native": "src/index.ts", // Metro bundler (mobile) — reads TS source directly
+  "types": "dist/index.d.ts"
+}
+```
+
+Metro's resolver checks the `react-native` field before `main`, so the mobile build works without a compiled `dist/` on the EAS cloud server.
 
 ---
 
@@ -229,13 +288,14 @@ Interactive API docs available at [`/docs`](https://taxbridge-api-ker8.onrender.
 
 | Document | Description |
 | --- | --- |
-| [Production Finalization Report](docs/PRODUCTION_FINALIZATION_REPORT.md) | ⭐ Complete production readiness validation |
+| [Changelog](CHANGELOG.md) | ⭐ Version history and release notes |
 | [Production Checklist](PRODUCTION_CHECKLIST.md) | Pre-deploy verification checklist |
-| [Deployment Guide](docs/DEPLOYMENT_GUIDE.md) | Platform deployment instructions |
-| [Incident Response](docs/INCIDENT_RESPONSE.md) | P1-P4 incident playbook |
-| [Implementation History](docs/IMPLEMENTATION_HISTORY.md) | Phases 1-10 development timeline |
-| [API Documentation](.windsurf/rules/api-documentation.md) | Complete REST API reference |
+| [Deployment Guide](docs/DEPLOYMENT_GUIDE.md) | Platform deployment instructions (Render, Vercel, EAS) |
+| [Deployment Summary v1.0.3](docs/DEPLOYMENT_SUMMARY_FEB_2026.md) | Feb 2026 production deployment record |
+| [Incident Response](docs/INCIDENT_RESPONSE.md) | P1–P4 incident playbook |
+| [Implementation History](docs/IMPLEMENTATION_HISTORY.md) | Phases 1–10 development timeline |
 | [Developer Guide](docs/DEVELOPER_GUIDE.md) | Setup and contribution guidelines |
+| [NRS Integration](docs/INTEGRATION_CONTRACTS.md) | DigiTax/APP integration contracts |
 
 ---
 

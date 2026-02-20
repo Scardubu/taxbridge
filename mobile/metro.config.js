@@ -44,6 +44,6 @@ config.resolver.nodeModulesPaths = [
   path.resolve(__dirname, '../node_modules'),
 ];
 
-config.resolver.blacklistRE = /(.*\/__tests__\/.*|.*\/\..*)/;
+config.resolver.blockList = /(.*\/__tests__\/.*|.*\/\..*)/;
 
 module.exports = config;

@@ -23,6 +23,7 @@
     "build": "npm run build --workspace=@taxbridge/contracts && npm run build --workspace=@taxbridge/backend && npm run build --workspace=admin-dashboard"
   },
   "devDependencies": {
+    "next": "16.1.1",
     "typescript": "~5.9.2"
   }
 }
