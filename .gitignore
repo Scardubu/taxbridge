@@ -16,6 +16,13 @@ RENDER_SECRETS.txt
 *.secrets
 backend/generated-secrets.txt
 
+# CI / test output files
+test-results.txt
+test-results.json
+tsc-exit.txt
+tsc-output.txt
+eas-build-log.txt
+
 # Logs
 *.log
 npm-debug.log*
