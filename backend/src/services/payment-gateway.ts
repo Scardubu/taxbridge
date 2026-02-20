@@ -14,6 +14,13 @@ import { paystackAdapter } from '../integrations/paystack/adapter';
 import { flutterwaveAdapter } from '../integrations/flutterwave/adapter';
 import { remitaAdapter } from '../integrations/remita/adapter';
 import { createLogger } from '../lib/logger';
+import {
+  paystackBreaker,
+  flutterwaveBreaker,
+  remitaBreaker,
+  PaymentGatewayUnavailableError,
+  type CircuitBreakerState,
+} from './circuit-breaker';
 
 const log = createLogger('payment-gateway');
 
@@ -114,78 +121,126 @@ class PaymentGatewayManager {
     return 'remita';
   }
 
-  /**
-   * Initialize a payment via the selected gateway
-   */
-  async initializePayment(params: InitializePaymentParams): Promise<InitializePaymentResult> {
-    const gateway = this.resolveGateway(params.gateway);
-
-    log.info('Initializing payment', {
-      gateway,
-      invoiceId: params.invoiceId,
-      amount: params.amount,
-    });
-
-    try {
-      switch (gateway) {
-        case 'paystack':
-          return await this.initPaystack(params);
-        case 'flutterwave':
-          return await this.initFlutterwave(params);
-        case 'remita':
-          return await this.initRemita(params);
-        default:
-          return { success: false, gateway, reference: '', paymentUrl: null, error: `Unknown gateway: ${gateway}` };
-      }
-    } catch (err: any) {
-      log.error('Payment initialization failed, attempting fallback', { gateway, error: err.message });
-
-      // Attempt fallback if primary fails
-      if (gateway === this.primaryGateway && gateway !== this.fallbackGateway) {
-        const fallback = this.fallbackGateway;
-        if (this.isGatewayConfigured(fallback)) {
-          log.info('Falling back to secondary gateway', { fallback });
-          try {
-            switch (fallback) {
-              case 'paystack':
-                return await this.initPaystack(params);
-              case 'flutterwave':
-                return await this.initFlutterwave(params);
-              case 'remita':
-                return await this.initRemita(params);
-            }
-          } catch (fallbackErr: any) {
-            log.error('Fallback gateway also failed', { fallback, error: fallbackErr.message });
-          }
-        }
-      }
-
-      return {
-        success: false,
-        gateway,
-        reference: '',
-        paymentUrl: null,
-        error: err.message || 'Payment initialization failed',
-      };
+  /** Map gateway name → its circuit breaker */
+  private getBreakerFor(gateway: GatewayName) {
+    switch (gateway) {
+      case 'paystack':    return paystackBreaker;
+      case 'flutterwave': return flutterwaveBreaker;
+      case 'remita':      return remitaBreaker;
     }
   }
 
   /**
-   * Verify a payment via the gateway that was used to create it
+   * Attempt a gateway call protected by a circuit breaker.
+   * Returns null when the circuit is OPEN (caller should try next gateway).
+   */
+  private async attemptWithBreaker<T>(
+    gateway: GatewayName,
+    fn: () => Promise<T>,
+  ): Promise<T | null> {
+    const breaker = this.getBreakerFor(gateway);
+    if (!breaker.canAttempt()) {
+      log.warn(`Circuit OPEN — skipping ${gateway}`);
+      return null;
+    }
+    try {
+      const result = await fn();
+      breaker.recordSuccess();
+      return result;
+    } catch (err: any) {
+      breaker.recordFailure();
+      log.error(`${gateway} failed`, { error: err.message, circuitState: breaker.currentState });
+      throw err;
+    }
+  }
+
+  /**
+   * Initialize a payment via the selected gateway.
+   * Circuit-breaker aware: if the chosen gateway is OPEN, falls back to the
+   * next configured gateway. Throws PaymentGatewayUnavailableError when all
+   * circuits are open.
+   */
+  async initializePayment(params: InitializePaymentParams): Promise<InitializePaymentResult> {
+    // Build ordered candidate list: requested → primary → fallback → remita
+    const candidates = this.buildCandidateList(params.gateway);
+
+    log.info('Initializing payment', {
+      invoiceId: params.invoiceId,
+      amount: params.amount,
+      candidates,
+    });
+
+    let lastError: string = 'Payment initialization failed';
+
+    for (const gateway of candidates) {
+      if (!this.isGatewayConfigured(gateway)) continue;
+
+      try {
+        const result = await this.attemptWithBreaker(gateway, () => {
+          switch (gateway) {
+            case 'paystack':    return this.initPaystack({ ...params, gateway });
+            case 'flutterwave': return this.initFlutterwave({ ...params, gateway });
+            case 'remita':      return this.initRemita({ ...params, gateway });
+          }
+        });
+
+        // null → circuit was OPEN, try next
+        if (result === null) continue;
+        return result;
+      } catch (err: any) {
+        lastError = err.message || lastError;
+        log.warn(`Gateway ${gateway} errored — trying next`, { error: lastError });
+      }
+    }
+
+    // All candidates exhausted — check if every breaker is simply OPEN
+    const allOpen = candidates.every(g => !this.getBreakerFor(g).canAttempt());
+    if (allOpen) throw new PaymentGatewayUnavailableError();
+
+    return {
+      success: false,
+      gateway: candidates[0] ?? 'remita',
+      reference: '',
+      paymentUrl: null,
+      error: lastError,
+    };
+  }
+
+  /**
+   * Build an ordered gateway candidate list for fallback.
+   * Deduplicates while preserving order: requested → primary → fallback → remita
+   */
+  private buildCandidateList(requested?: GatewayName): GatewayName[] {
+    const seen = new Set<GatewayName>();
+    const order: GatewayName[] = [];
+    for (const g of ([requested, this.primaryGateway, this.fallbackGateway, 'remita'] as const)) {
+      if (g && !seen.has(g)) { seen.add(g); order.push(g); }
+    }
+    return order;
+  }
+
+  /**
+   * Verify a payment via the gateway that was used to create it.
+   * Circuit-breaker aware: a OPEN circuit returns status='pending' so the
+   * caller can retry later rather than marking the payment as failed.
    */
   async verifyPayment(gateway: GatewayName, reference: string, invoiceId?: string): Promise<VerifyPaymentResult> {
     log.info('Verifying payment', { gateway, reference });
 
-    switch (gateway) {
-      case 'paystack':
-        return await this.verifyPaystack(reference);
-      case 'flutterwave':
-        return await this.verifyFlutterwave(reference);
-      case 'remita':
-        return await this.verifyRemita(reference, invoiceId || '');
-      default:
-        return { status: 'failed', gateway, error: `Unknown gateway: ${gateway}` };
+    const result = await this.attemptWithBreaker(gateway, () => {
+      switch (gateway) {
+        case 'paystack':    return this.verifyPaystack(reference);
+        case 'flutterwave': return this.verifyFlutterwave(reference);
+        case 'remita':      return this.verifyRemita(reference, invoiceId || '');
+        default:            return Promise.resolve({ status: 'failed' as const, gateway, error: `Unknown gateway: ${gateway}` });
+      }
+    });
+
+    // Circuit open — return pending so webhook retries can resolve later
+    if (result === null) {
+      return { status: 'pending', gateway, error: 'Gateway temporarily unavailable — please retry shortly' };
     }
+    return result;
   }
 
   /**
@@ -194,6 +249,18 @@ class PaymentGatewayManager {
   getAvailableGateways(): GatewayName[] {
     const all: GatewayName[] = ['paystack', 'flutterwave', 'remita'];
     return all.filter((g) => this.isGatewayConfigured(g));
+  }
+
+  /**
+   * Return circuit breaker states for all three gateways.
+   * Used by /health/payment-gateways endpoint.
+   */
+  getGatewayCircuitStates(): Record<GatewayName, CircuitBreakerState> {
+    return {
+      paystack:    paystackBreaker.getState(),
+      flutterwave: flutterwaveBreaker.getState(),
+      remita:      remitaBreaker.getState(),
+    };
   }
 
   // ---------------------------------------------------------------------------

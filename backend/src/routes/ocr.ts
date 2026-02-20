@@ -1,185 +1,199 @@
-/**
- * OCR Receipt Extraction Service
- * 
- * This service integrates with the mobile app to extract data from receipt images.
- * Current implementation uses regex patterns for MVP validation.
- * For production: integrate Tesseract.js or TensorFlow Lite.
- */
-
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { createLogger } from '../lib/logger';
-import { performOCR } from '../lib/performOCR';
 import { config } from '../lib/config';
 
 const logger = createLogger('ocr');
 
 const OCRRequestSchema = z.object({
   image: z.string(),
-  mimeType: z.string()
+  imageType: z.enum(['base64', 'url']).optional().default('base64'),
+  mimeType: z.string().optional(),
 });
 
-const OCRResponseSchema = z.object({
-  amount: z.number().optional(),
-  date: z.string().optional(),
-  items: z.array(z.object({ description: z.string(), quantity: z.number(), unitPrice: z.number() })).optional(),
-  confidence: z.number(),
-  requiresReview: z.boolean(),
-  reviewReason: z.string().optional(),
-});
+const NIGERIAN_CATEGORIES: Record<string, string[]> = {
+  fuel: ['petrol', 'diesel', 'fuel', 'nnpc', 'conoil', 'oando', 'total'],
+  meals_entertainment: ['restaurant', 'eatery', 'cafe', 'food', 'chicken', 'suya', 'bukka'],
+  office_supplies: ['stationery', 'printer', 'paper', 'pen', 'office', 'shoprite'],
+  transportation: ['uber', 'bolt', 'taxi', 'danfo', 'okada', 'transport'],
+  utilities: ['nepa', 'ekedc', 'ikedc', 'electricity', 'water', 'dstv', 'startimes'],
+  telecoms: ['mtn', 'airtel', 'glo', '9mobile', 'smile', 'spectranet'],
+  professional_services: ['consulting', 'legal', 'accounting', 'audit', 'lawyer'],
+  rent: ['rent', 'lease', 'property', 'estate', 'landlord'],
+  repairs_maintenance: ['repair', 'maintenance', 'generator', 'service', 'mechanic'],
+  medical: ['pharmacy', 'hospital', 'clinic', 'drugs', 'medplus'],
+  banking_charges: ['bank', 'commission', 'charges', 'transfer', 'access', 'gtb', 'zenith', 'uba'],
+  advertising: ['advertising', 'marketing', 'print', 'design', 'flyer', 'social'],
+  general: [],
+};
 
-/**
- * POST /api/v1/ocr/extract
- * 
- * Extracts receipt data from an image using OCR
- * 
- * Request:
- * {
- *   image: string (base64 encoded image)
- *   mimeType: string (e.g., "image/jpeg", "image/png")
- * }
- * 
- * Response:
- * {
- *   amount: number (extracted total amount)
- *   date: string (ISO format date if found)
- *   items?: Array<{
- *     description: string
- *     quantity: number
- *     unitPrice: number
- *   }>
- *   confidence: number (0.0 to 1.0 confidence score)
- * }
- */
-export default async function ocrRoutes(app: FastifyInstance) {
-  app.post(
-    '/api/v1/ocr/extract',
-    {
-      schema: {
-        body: OCRRequestSchema,
-        response: {
-          200: OCRResponseSchema,
-          400: z.object({ error: z.string() }),
-          404: z.object({ error: z.string() }),
-          500: z.object({ error: z.string(), message: z.string().optional() })
-        }
-      }
-    },
-    async (req, reply) => {
-      const startTime = Date.now();
-      const requestId = (req.headers['x-request-id'] as string) || `ocr-${Date.now()}`;
-      
-      try {
-        if (!config.features.enableOCR) {
-          return reply.status(404).send({ error: 'OCR feature is disabled' });
-        }
-        const { image, mimeType } = req.body as z.infer<typeof OCRRequestSchema>;
+let visionClient: any = null;
 
-        // Validate image size (max 5MB)
-        const imageSizeInBytes = image.length * (3 / 4); // Rough estimate for base64
-        if (imageSizeInBytes > 5 * 1024 * 1024) {
-          logger.warn('OCR request rejected: image too large', { 
-            requestId, 
-            sizeBytes: imageSizeInBytes 
-          });
-          return reply.status(400).send({ error: 'Image too large (max 5MB)' });
-        }
+async function getVisionClient() {
+  if (visionClient) return visionClient;
+  if (!process.env.GOOGLE_CLOUD_KEY_FILE) return null;
 
-        logger.info('OCR processing started', { 
-          requestId, 
-          mimeType, 
-          imageSizeKB: Math.round(imageSizeInBytes / 1024) 
-        });
+  const vision = await (new Function('return import("@google-cloud/vision")')() as Promise<any>);
+  visionClient = new vision.ImageAnnotatorClient({
+    keyFilename: process.env.GOOGLE_CLOUD_KEY_FILE,
+  });
 
-        // Process OCR
-        const result = await performOCR(image, mimeType);
-        
-        // Confidence-gated review logic
-        const CONFIDENCE_THRESHOLD = 0.7; // 70% confidence threshold
-        const requiresReview = result.confidence < CONFIDENCE_THRESHOLD;
-        let reviewReason: string | undefined;
-        
-        if (requiresReview) {
-          const reasons: string[] = [];
-          if (result.confidence < 0.5) {
-            reasons.push('Very low OCR confidence (<50%)');
-          } else if (result.confidence < CONFIDENCE_THRESHOLD) {
-            reasons.push('Low OCR confidence (<70%)');
-          }
-          if (!result.amount) {
-            reasons.push('No amount detected');
-          }
-          if (!result.date) {
-            reasons.push('No date detected');
-          }
-          if (!result.items || result.items.length === 0) {
-            reasons.push('No line items detected');
-          }
-          reviewReason = reasons.join('; ');
-        }
-        
-        const processingTime = Date.now() - startTime;
-        logger.info('OCR processing completed', { 
-          requestId,
-          processingTimeMs: processingTime,
-          confidence: result.confidence,
-          requiresReview,
-          reviewReason,
-          hasAmount: result.amount !== undefined,
-          hasDate: result.date !== undefined,
-          itemCount: result.items?.length || 0
-        });
-
-        // Add performance header
-        reply.header('X-Processing-Time-Ms', processingTime.toString());
-        reply.header('X-Request-Id', requestId);
-
-        return reply.send({
-          ...result,
-          requiresReview,
-          reviewReason,
-        });
-      } catch (error) {
-        const processingTime = Date.now() - startTime;
-        const message = error instanceof Error ? error.message : 'Unknown error';
-        logger.error('OCR extraction failed', { 
-          requestId,
-          processingTimeMs: processingTime,
-          err: error 
-        });
-        return reply.status(500).send({ error: 'Failed to process image', message });
-      }
-    }
-  );
+  return visionClient;
 }
 
-// Graceful cleanup: terminate the tesseract worker if created when the process exits
-(function setupWorkerCleanup() {
-  const performOCRFunc = performOCR as any;
-  const maybe = performOCRFunc._workerPromise;
-  if (!maybe) return;
+async function enhanceImage(buffer: Buffer): Promise<Buffer> {
+  try {
+    const sharp = (await import('sharp')).default;
+    return sharp(buffer).grayscale().normalize().sharpen().toBuffer();
+  } catch {
+    return buffer;
+  }
+}
 
-  // If a worker promise exists, ensure we terminate the worker on exit signals
-  const terminateWorker = async () => {
+async function extractText(buffer: Buffer): Promise<{ fullText: string; confidence: number; engine: 'google-vision' | 'tesseract' }> {
+  const enhanced = await enhanceImage(buffer);
+
+  const client = await getVisionClient();
+  if (client) {
     try {
-      const worker = await performOCRFunc._workerPromise;
-      if (worker && typeof worker.terminate === 'function') {
-        await worker.terminate();
-        logger.info('Tesseract worker terminated on shutdown');
-      }
-    } catch (err) {
-      // best-effort
-      logger.warn('Error terminating tesseract worker during shutdown');
+      const [result] = await client.textDetection({ image: { content: enhanced } });
+      const annotation = result.textAnnotations?.[0];
+      return {
+        fullText: annotation?.description ?? '',
+        confidence: typeof annotation?.confidence === 'number' ? annotation.confidence : 0.75,
+        engine: 'google-vision',
+      };
+    } catch (error) {
+      logger.warn('Vision OCR failed, falling back to Tesseract', { err: error });
     }
-  };
+  }
 
-  process.on('SIGINT', () => {
-    void terminateWorker().then(() => process.exit(0));
+  const Tesseract = await import('tesseract.js');
+  const { data } = await Tesseract.recognize(enhanced, 'eng');
+  return {
+    fullText: data.text,
+    confidence: data.confidence / 100,
+    engine: 'tesseract',
+  };
+}
+
+function parseNigerianReceipt(text: string) {
+  const lines = text.split('\n').map(line => line.trim()).filter(Boolean);
+
+  const amountRegex = /(?:₦|NGN|N)\s*([\d,]+(?:\.\d{2})?)|[Tt]otal[:\s]+([\d,]+(?:\.\d{2})?)/g;
+  const amounts: number[] = [];
+  let match: RegExpExecArray | null;
+  while ((match = amountRegex.exec(text)) !== null) {
+    const raw = (match[1] || match[2]).replace(/,/g, '');
+    const parsed = parseFloat(raw);
+    if (parsed > 0 && parsed < 100_000_000) amounts.push(parsed);
+  }
+
+  const dateRegex = /(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})/g;
+  const dates = [...text.matchAll(dateRegex)].map(dateMatch => {
+    const [, day, month, year] = dateMatch;
+    return `${year.length === 2 ? '20' + year : year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
   });
-  process.on('SIGTERM', () => {
-    void terminateWorker().then(() => process.exit(0));
+
+  const vatMatch = text.match(/VAT[:\s]+([\d,]+(?:\.\d{2})?)/i);
+  const vatAmount = vatMatch ? parseFloat(vatMatch[1].replace(/,/g, '')) : null;
+
+  const lowerText = text.toLowerCase();
+  let category = 'general';
+  for (const [candidate, keywords] of Object.entries(NIGERIAN_CATEGORIES)) {
+    if (keywords.some(keyword => lowerText.includes(keyword))) {
+      category = candidate;
+      break;
+    }
+  }
+
+  return {
+    merchantName: lines[0] ?? 'Unknown Merchant',
+    amount: amounts.length > 0 ? Math.max(...amounts) : 0,
+    date: dates[0] ?? new Date().toISOString().split('T')[0],
+    vatAmount,
+    category,
+    items: [] as Array<{ description: string; amount: number }>,
+  };
+}
+
+function buildWarnings(parsed: ReturnType<typeof parseNigerianReceipt>, confidence: number): string[] {
+  const warnings: string[] = [];
+  if (confidence < 0.6) warnings.push('ocr.lowConfidence');
+  if (parsed.amount === 0) warnings.push('ocr.noAmount');
+  if (parsed.merchantName === 'Unknown Merchant') warnings.push('ocr.noMerchant');
+  if (!parsed.vatAmount && parsed.amount > 1000) warnings.push('ocr.vatNotDetected');
+  return warnings;
+}
+
+export default async function ocrRoutes(app: FastifyInstance) {
+  app.post('/api/v1/ocr/extract', async (req, reply) => {
+    const startTime = Date.now();
+    const requestId = (req.headers['x-request-id'] as string) || `ocr-${Date.now()}`;
+
+    try {
+      if (!config.features.enableOCR) {
+        return reply.status(404).send({ error: 'OCR feature is disabled' });
+      }
+
+      const body = OCRRequestSchema.parse(req.body);
+
+      if (body.imageType === 'base64' && body.image.length > 7_000_000) {
+        return reply.code(413).send({ success: false, error: 'Image exceeds 5MB limit' });
+      }
+
+      const buffer =
+        body.imageType === 'base64'
+          ? Buffer.from(body.image, 'base64')
+          : Buffer.from((await fetch(body.image).then(res => res.arrayBuffer())) as ArrayBuffer);
+
+      const { fullText, confidence, engine } = await extractText(buffer);
+      const parsed = parseNigerianReceipt(fullText);
+      const validationWarnings = buildWarnings(parsed, confidence);
+
+      const requiresReview = confidence < 0.7 || parsed.amount === 0;
+      const reviewReason = requiresReview
+        ? [
+            confidence < 0.7 ? 'Low OCR confidence (<70%)' : null,
+            parsed.amount === 0 ? 'No amount detected' : null,
+          ]
+            .filter(Boolean)
+            .join('; ')
+        : undefined;
+
+      const processingTime = Date.now() - startTime;
+      reply.header('X-Processing-Time-Ms', processingTime.toString());
+      reply.header('X-Request-Id', requestId);
+
+      return reply.send({
+        success: true,
+        data: {
+          ...parsed,
+          confidence,
+          validationWarnings,
+          rawText: fullText,
+          engine,
+        },
+        amount: parsed.amount,
+        date: parsed.date,
+        confidence,
+        items: parsed.items.map(item => ({
+          description: item.description,
+          quantity: 1,
+          unitPrice: item.amount,
+        })),
+        requiresReview,
+        reviewReason,
+      });
+    } catch (error) {
+      const processingTime = Date.now() - startTime;
+      const message = error instanceof Error ? error.message : 'Unknown error';
+      logger.error('OCR extraction failed', {
+        requestId,
+        processingTimeMs: processingTime,
+        err: error,
+      });
+      return reply.status(500).send({ error: 'Failed to process image', message });
+    }
   });
-  process.on('exit', () => {
-    void terminateWorker();
-  });
-})();
+}

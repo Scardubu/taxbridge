@@ -56,6 +56,12 @@ export const metadata: Metadata = {
     ],
   },
   manifest: "/manifest.json",
+  themeColor: '#10B981',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'TaxBridge Admin',
+  },
   metadataBase: new URL("https://taxbridge.vercel.app"),
 };
 
