@@ -336,7 +336,7 @@ export default function DashboardPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-slate-900">{displayStats.totalUsers.toLocaleString()}</div>
+            <div className="text-3xl font-bold text-slate-900">{(displayStats.totalUsers ?? 0).toLocaleString()}</div>
             <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
               {t('dashboard.metric.updated', { time: lastChecked || t('dashboard.metric.justNow') })}
             </p>
@@ -351,7 +351,7 @@ export default function DashboardPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-slate-900">{displayStats.totalInvoices.toLocaleString()}</div>
+            <div className="text-3xl font-bold text-slate-900">{(displayStats.totalInvoices ?? 0).toLocaleString()}</div>
             <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
               {t('dashboard.metric.updated', { time: lastChecked || t('dashboard.metric.justNow') })}
             </p>
@@ -366,7 +366,7 @@ export default function DashboardPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-slate-900">{displayStats.totalPayments.toLocaleString()}</div>
+            <div className="text-3xl font-bold text-slate-900">{(displayStats.totalPayments ?? 0).toLocaleString()}</div>
             <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
               {t('dashboard.metric.trendUnavailable')}
             </p>
