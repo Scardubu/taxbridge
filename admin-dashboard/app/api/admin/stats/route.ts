@@ -38,13 +38,44 @@ export async function GET() {
         ? 'Admin analytics is not enabled for this environment.'
         : upstreamError || (error instanceof BackendAPIError ? error.message : 'Unknown error');
 
+    const backendUnavailable = status >= 500 || code === 'BACKEND_NOT_CONFIGURED' || code === 'ADMIN_API_DISABLED';
+
+    if (!backendUnavailable) {
+      return NextResponse.json(
+        {
+          error: 'Failed to fetch admin statistics',
+          code,
+          message,
+        },
+        { status }
+      );
+    }
+
     return NextResponse.json(
       {
-        error: 'Failed to fetch admin statistics',
-        code,
-        message,
+        fallback: true,
+        error: 'backend_unavailable',
+        message: 'Backend is starting up, please wait...',
+        data: {
+          totalUsers: null,
+          totalInvoices: null,
+          totalPayments: null,
+          duploStatus: 'degraded',
+          duploLatency: null,
+          remitaStatus: 'degraded',
+          remitaLatency: null,
+          duploSuccessTrend: [],
+          remitaTransactions: [],
+          warnings: ['backend_warming_up'],
+        },
       },
-      { status }
+      {
+        status: 200,
+        headers: {
+          'Cache-Control': 'no-store',
+          'X-Fallback': 'true',
+        },
+      }
     );
   }
 }

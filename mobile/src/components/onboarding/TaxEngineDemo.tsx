@@ -62,7 +62,7 @@ export default function TaxEngineDemo({ onNext, onSkip }: Props) {
 
     const subtotal = taxableAmount + nonTaxableAmount;
     const vatResult = calculateVAT(taxableAmount);
-    const vatAmount = vatResult.amount;
+    const vatAmount = vatResult.vatAmount;
     const total = subtotal + vatAmount;
 
     return {

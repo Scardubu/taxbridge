@@ -38,13 +38,42 @@ export async function GET() {
         ? 'Admin analytics is not enabled for this environment.'
         : upstreamError || (error instanceof BackendAPIError ? error.message : 'Unknown error');
 
+    const backendUnavailable = status >= 500 || code === 'BACKEND_NOT_CONFIGURED' || code === 'ADMIN_API_DISABLED';
+
+    if (!backendUnavailable) {
+      return NextResponse.json(
+        {
+          error: 'Failed to fetch launch metrics',
+          code,
+          message,
+        },
+        { status }
+      );
+    }
+
     return NextResponse.json(
       {
-        error: 'Failed to fetch launch metrics',
-        code,
-        message,
+        fallback: true,
+        timestamp: new Date().toISOString(),
+        mrr: null,
+        mrrPrev: null,
+        paidUsers: null,
+        paidUsersPrev: null,
+        nrr: null,
+        grr: null,
+        churnedUsers: null,
+        expansionRevenue: null,
+        contractionRevenue: null,
+        newRevenue: null,
+        anomalies: [],
       },
-      { status }
+      {
+        status: 200,
+        headers: {
+          'Cache-Control': 'no-store',
+          'X-Fallback': 'true',
+        },
+      }
     );
   }
 }

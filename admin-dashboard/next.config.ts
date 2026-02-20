@@ -4,8 +4,10 @@ const nextConfig: NextConfig = {
   // Use default output for Vercel compatibility
   // Ensure proper handling of environment variables
   env: {
-    BACKEND_URL: process.env.BACKEND_URL || 'https://taxbridge-api-ker8.onrender.com',
-    NEXT_PUBLIC_BACKEND_URL: process.env.NEXT_PUBLIC_BACKEND_URL || 'https://taxbridge-api-ker8.onrender.com',
+    BACKEND_URL: process.env.BACKEND_URL || process.env.BACKEND_API_URL || 'https://taxbridge-api-ker8.onrender.com',
+    BACKEND_API_URL: process.env.BACKEND_API_URL || process.env.BACKEND_URL || 'https://taxbridge-api-ker8.onrender.com',
+    NEXT_PUBLIC_BACKEND_URL: process.env.NEXT_PUBLIC_BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || 'https://taxbridge-api-ker8.onrender.com',
+    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BACKEND_URL || 'https://taxbridge-api-ker8.onrender.com',
   },
   
   // Production optimizations
@@ -17,6 +19,19 @@ const nextConfig: NextConfig = {
     formats: ['image/avif', 'image/webp'],
     deviceSizes: [640, 750, 828, 1080, 1200, 1920],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'taxbridge-api-ker8.onrender.com',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: '*.vercel.app',
+        pathname: '/**',
+      },
+    ],
+    unoptimized: process.env.NODE_ENV === 'development',
   },
   
   // Performance optimizations (swcMinify enabled by default in Next.js 16+)
@@ -27,6 +42,18 @@ const nextConfig: NextConfig = {
     removeConsole: process.env.NODE_ENV === 'production' ? {
       exclude: ['error', 'warn'],
     } : false,
+  },
+
+  async headers() {
+    return [
+      {
+        source: '/manifest.json',
+        headers: [
+          { key: 'Content-Type', value: 'application/manifest+json' },
+          { key: 'Cache-Control', value: 'public, max-age=3600' },
+        ],
+      },
+    ];
   },
 };
 

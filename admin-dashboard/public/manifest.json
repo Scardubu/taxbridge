@@ -1,11 +1,11 @@
 {
-  "name": "TaxBridge Admin Dashboard",
-  "short_name": "TaxBridge Admin",
-  "description": "Comprehensive admin dashboard for TaxBridge operations and compliance monitoring",
-  "start_url": "/",
+  "name": "TaxBridge Admin",
+  "short_name": "TaxBridge",
+  "description": "TaxBridge Admin Dashboard — Nigerian Tax Platform Management",
+  "start_url": "/dashboard",
   "display": "standalone",
-  "background_color": "#0B5FFF",
-  "theme_color": "#0B5FFF",
+  "background_color": "#ffffff",
+  "theme_color": "#10B981",
   "orientation": "portrait-primary",
   "icons": [
     {

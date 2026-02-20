@@ -9,15 +9,13 @@
     "base": {
       "cache": {
         "disabled": true,
-        "key": "v6-{{os}}-{{arch}}-{{runtimeVersion}}-{{workflow}}-{{checksum:package-lock.json}}-{{checksum:app.json}}-{{timestamp}}"
+        "key": "v7-{{os}}-{{arch}}-{{runtimeVersion}}-{{workflow}}-{{checksum:package-lock.json}}-{{checksum:app.json}}-{{timestamp}}"
       },
       "env": {
         "EAS_BUILD_DISABLE_NPM_CACHE": "1",
         "EAS_BUILD_DISABLE_MAVEN_CACHE": "1",
         "EAS_BUILD_DISABLE_GRADLE_CACHE": "1",
         "METRO_CACHE_DISABLED": "1",
-        "EXPO_USE_FAST_RESOLVER": "1",
-        "EAS_SKIP_AUTO_FINGERPRINT": "1",
         "CI": "1"
       },
       "distribution": "internal",
@@ -42,7 +40,8 @@
     "preview": {
       "extends": "base",
       "cache": {
-        "disabled": true
+        "disabled": true,
+        "clear": true
       },
       "channel": "preview",
       "distribution": "internal",
@@ -55,7 +54,7 @@
       },
       "env": {
         "EXPO_PUBLIC_ENV": "preview",
-        "EXPO_PUBLIC_API_URL": "${EXPO_PUBLIC_PREVIEW_API_URL}"
+        "EXPO_PUBLIC_API_URL": "https://taxbridge-api-ker8.onrender.com"
       }
     },
     "production-apk": {
@@ -79,7 +78,8 @@
       "extends": "base",
       "channel": "production",
       "cache": {
-        "disabled": true
+        "disabled": true,
+        "clear": true
       },
       "distribution": "store",
       "android": {
@@ -91,6 +91,7 @@
         "autoIncrement": "buildNumber"
       },
       "env": {
+        "NODE_ENV": "production",
         "EXPO_PUBLIC_ENV": "production",
         "EXPO_PUBLIC_API_URL": "https://taxbridge-api-ker8.onrender.com",
         "CI": "1"
