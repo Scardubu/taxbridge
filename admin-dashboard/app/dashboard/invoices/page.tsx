@@ -286,7 +286,7 @@ export default function InvoicesPage() {
                       {invoice.status}
                     </Badge>
                   </TableCell>
-                  <TableCell>₦{invoice.total.toLocaleString()}</TableCell>
+                  <TableCell>₦{(invoice.total ?? 0).toLocaleString()}</TableCell>
                   <TableCell className="font-mono text-xs">
                     {invoice.nrsReference || t('common.pending')}
                   </TableCell>
@@ -350,9 +350,9 @@ export default function InvoicesPage() {
                         {selectedInvoice.status}
                       </Badge>
                     </div>
-                    <div><strong>{t('invoices.dialog.subtotal')}:</strong> ₦{selectedInvoice.subtotal.toLocaleString()}</div>
-                    <div><strong>{t('invoices.dialog.vat')}:</strong> ₦{selectedInvoice.vat.toLocaleString()}</div>
-                    <div><strong>{t('invoices.table.total')}:</strong> ₦{selectedInvoice.total.toLocaleString()}</div>
+                    <div><strong>{t('invoices.dialog.subtotal')}:</strong> ₦{(selectedInvoice.subtotal ?? 0).toLocaleString()}</div>
+                    <div><strong>{t('invoices.dialog.vat')}:</strong> ₦{(selectedInvoice.vat ?? 0).toLocaleString()}</div>
+                    <div><strong>{t('invoices.table.total')}:</strong> ₦{(selectedInvoice.total ?? 0).toLocaleString()}</div>
                   </div>
                 </div>
 

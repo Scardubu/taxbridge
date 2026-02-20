@@ -218,7 +218,7 @@ export function LaunchMetricsWidget({ metrics, isLoading }: LaunchMetricsWidgetP
           />
           <MetricTile
             label={t('launch.tile.paid')}
-            value={metrics.paidUsers.toLocaleString()}
+            value={(metrics.paidUsers ?? 0).toLocaleString()}
             subtitle={t('launch.delta.vsLastMonth', { delta: formatPercentChange(paidUserGrowth) })}
             status={userStatus}
             badgeText={statusBadgeText(userStatus)}
@@ -243,7 +243,7 @@ export function LaunchMetricsWidget({ metrics, isLoading }: LaunchMetricsWidgetP
               </div>
               <div className="flex items-center justify-between">
                 <dt>{t('launch.drivers.churn')}</dt>
-                <dd className="font-medium text-rose-600">{metrics.churnedUsers.toLocaleString()}</dd>
+                <dd className="font-medium text-rose-600">{(metrics.churnedUsers ?? 0).toLocaleString()}</dd>
               </div>
             </dl>
           </div>
@@ -261,7 +261,7 @@ export function LaunchMetricsWidget({ metrics, isLoading }: LaunchMetricsWidgetP
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-slate-500">{t('launch.comparison.previousPaid')}</span>
-                <span className="font-medium">{metrics.paidUsersPrev.toLocaleString()}</span>
+                <span className="font-medium">{(metrics.paidUsersPrev ?? 0).toLocaleString()}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-slate-500">{t('launch.comparison.lastRefresh')}</span>

@@ -191,7 +191,7 @@ export default function AnalyticsPage() {
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{analytics.overview.totalUsers.toLocaleString()}</div>
+            <div className="text-2xl font-bold">{(analytics.overview.totalUsers ?? 0).toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
               <TrendingUp className="inline h-3 w-3 mr-1" />
               {t('analytics.overview.fromLastMonth', { percent: analytics.overview.monthlyGrowth })}
@@ -205,7 +205,7 @@ export default function AnalyticsPage() {
             <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{analytics.overview.totalInvoices.toLocaleString()}</div>
+            <div className="text-2xl font-bold">{(analytics.overview.totalInvoices ?? 0).toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
               {t('analytics.overview.nrsCompliant')}
             </p>
@@ -218,7 +218,7 @@ export default function AnalyticsPage() {
             <CreditCard className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{analytics.overview.totalPayments.toLocaleString()}</div>
+            <div className="text-2xl font-bold">{(analytics.overview.totalPayments ?? 0).toLocaleString()}</div>
             <p className="text-xs text-muted-foreground">
               {t('analytics.overview.viaRemita')}
             </p>
