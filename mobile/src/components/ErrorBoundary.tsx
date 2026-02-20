@@ -311,7 +311,7 @@ const styles = StyleSheet.create({
     color: '#065F46',
   },
   errorIdBox: {
-    backgroundColor: colors.neutral?.[100] || '#F3F4F6',
+    backgroundColor: colors.neutralBg,
     borderRadius: radii.sm,
     padding: spacing.sm,
     marginBottom: spacing.md,
@@ -340,7 +340,7 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm,
     borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: colors.neutral?.[300] || '#D1D5DB',
+    borderColor: colors.border,
     marginBottom: spacing.md,
   },
   shareButtonText: {
