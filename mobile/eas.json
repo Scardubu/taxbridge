@@ -40,8 +40,7 @@
     "preview": {
       "extends": "base",
       "cache": {
-        "disabled": true,
-        "clear": true
+        "disabled": true
       },
       "channel": "preview",
       "distribution": "internal",
@@ -78,8 +77,7 @@
       "extends": "base",
       "channel": "production",
       "cache": {
-        "disabled": true,
-        "clear": true
+        "disabled": true
       },
       "distribution": "store",
       "android": {
