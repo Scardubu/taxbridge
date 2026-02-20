@@ -227,4 +227,71 @@ export default async function complianceRoutes(
       throw err;
     }
   });
+
+  // =========================================================================
+  // Module 8 — Smart Compliance Calendar endpoints
+  // =========================================================================
+
+  // GET /api/v1/compliance/deadlines — NTA 2025 canonical deadline reference
+  app.get('/api/v1/compliance/deadlines', async (_req, reply) => {
+    return reply.send({
+      success: true,
+      data: ComplianceService.NTA2025_DEADLINES,
+    });
+  });
+
+  // GET /api/v1/compliance/projected-liability
+  app.get<{
+    Querystring: { businessId: string; taxType?: string; periods?: string }
+  }>('/api/v1/compliance/projected-liability', async (req, reply) => {
+    const userId = await authenticate(req);
+    const { businessId, taxType = 'VAT', periods = '3' } = req.query;
+    if (!businessId) return reply.code(400).send({ success: false, error: 'businessId required' });
+
+    const projections = await complianceService.computeProjectedLiability(
+      userId,
+      businessId,
+      taxType as any,
+      parseInt(periods, 10),
+    );
+    return reply.send({ success: true, data: projections });
+  });
+
+  // POST /api/v1/compliance/smart-generate — Adaptive cadence reminder generation
+  app.post<{
+    Body: { businessId: string; monthsAhead?: number }
+  }>('/api/v1/compliance/smart-generate', async (req, reply) => {
+    const userId = await authenticate(req);
+    const { businessId, monthsAhead = 3 } = req.body ?? {};
+    if (!businessId) return reply.code(400).send({ success: false, error: 'businessId required' });
+
+    const result = await complianceService.generateSmartReminders(userId, businessId, monthsAhead);
+    return reply.send({ success: true, data: result });
+  });
+
+  // GET /api/v1/compliance/savings-windows
+  app.get<{ Querystring: { businessId: string } }>(
+    '/api/v1/compliance/savings-windows',
+    async (req, reply) => {
+      const userId = await authenticate(req);
+      const { businessId } = req.query;
+      if (!businessId) return reply.code(400).send({ success: false, error: 'businessId required' });
+
+      const windows = await complianceService.identifySavingsWindow(userId, businessId);
+      return reply.send({ success: true, data: windows });
+    },
+  );
+
+  // GET /api/v1/compliance/penalty-accrual
+  app.get<{ Querystring: { businessId: string } }>(
+    '/api/v1/compliance/penalty-accrual',
+    async (req, reply) => {
+      const userId = await authenticate(req);
+      const { businessId } = req.query;
+      if (!businessId) return reply.code(400).send({ success: false, error: 'businessId required' });
+
+      const accrual = await complianceService.computePenaltyAccrual(userId, businessId);
+      return reply.send({ success: true, data: accrual });
+    },
+  );
 }

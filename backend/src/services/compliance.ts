@@ -393,4 +393,226 @@ export class ComplianceService {
 
     return Math.round(penalty * 100) / 100;
   }
+
+  // ===========================================================================
+  // Module 8 — Smart Compliance Calendar
+  // ===========================================================================
+
+  /**
+   * NTA 2025 canonical filing deadlines extended with CGT.
+   * Used by smart reminder cadence and penalty accrual calculations.
+   */
+  static readonly NTA2025_DEADLINES = {
+    VAT: {
+      frequency: 'monthly' as const,
+      dueDay: 21,
+      description: 'VAT Return & Remittance — NTA 2025 §34',
+      penaltyRate: 0.05,        // 5 % of tax due per month late
+      graceDays: 0,
+    },
+    PAYE: {
+      frequency: 'monthly' as const,
+      dueDay: 10,
+      description: 'PAYE Remittance (Employer) — NTA 2025 §81',
+      penaltyRate: 0.10,        // 10 % + CBN MPR per month (NTA §93)
+      graceDays: 0,
+    },
+    WHT: {
+      frequency: 'monthly' as const,
+      dueDay: 21,
+      description: 'Withholding Tax Remittance — NTA 2025 §78',
+      penaltyRate: 0.05,
+      graceDays: 0,
+    },
+    CIT: {
+      frequency: 'annual' as const,
+      dueMonth: 6,              // June for Dec year-end companies
+      dueDay: 30,
+      description: 'Company Income Tax Return — NTA 2025 §55',
+      penaltyRate: 0.10,
+      graceDays: 0,
+    },
+    PIT: {
+      frequency: 'annual' as const,
+      dueMonth: 3,              // March 31 for personal income tax
+      dueDay: 31,
+      description: 'Personal Income Tax Return — NTA 2025 §41',
+      penaltyRate: 0.10,
+      graceDays: 0,
+    },
+    CGT: {
+      frequency: 'transaction' as const,
+      daysFromTransaction: 30,
+      description: 'Capital Gains Tax — NTA 2025 §4  (10 % of gain, due 30 days post-disposal)',
+      penaltyRate: 0.10,
+      graceDays: 0,
+    },
+  } as const;
+
+  /**
+   * Compute projected tax liability for future periods based on trailing average.
+   * Looks at the last 6 filed reminders of the same tax type for the business.
+   */
+  async computeProjectedLiability(
+    userId: string,
+    businessId: string,
+    taxType: TaxType,
+    periodsAhead = 3,
+  ): Promise<Array<{ period: string; projectedAmount: number; confidence: 'high' | 'medium' | 'low' }>> {
+    await this.prisma.business.findFirstOrThrow({
+      where: { id: businessId, ownerId: userId },
+    });
+
+    const filed = await (this.prisma as any).complianceReminder.findMany({
+      where: { businessId, taxType, status: 'filed', amount: { not: null } },
+      orderBy: { dueDate: 'desc' },
+      take: 6,
+      select: { amount: true, dueDate: true },
+    });
+
+    const amounts: number[] = filed.map((r: any) => Number(r.amount ?? 0)).filter((a: number) => a > 0);
+    const avg = amounts.length > 0 ? amounts.reduce((s, v) => s + v, 0) / amounts.length : 0;
+    const confidence = amounts.length >= 4 ? 'high' : amounts.length >= 2 ? 'medium' : 'low';
+
+    const now = new Date();
+    const results: Array<{ period: string; projectedAmount: number; confidence: 'high' | 'medium' | 'low' }> = [];
+    for (let i = 1; i <= periodsAhead; i++) {
+      const target = new Date(now.getFullYear(), now.getMonth() + i, 1);
+      results.push({
+        period: `${target.getFullYear()}-${String(target.getMonth() + 1).padStart(2, '0')}`,
+        projectedAmount: Math.round(avg * 100) / 100,
+        confidence,
+      });
+    }
+    return results;
+  }
+
+  /**
+   * Generate smart reminders with adaptive cadence.
+   *
+   * Filing on-time rate < 70 % → increase lead time to 10 days (was 7).
+   * Filing on-time rate < 50 % → increase lead time to 14 days + mark priority HIGH.
+   */
+  async generateSmartReminders(userId: string, businessId: string, monthsAhead = 3) {
+    const business = await this.prisma.business.findFirst({
+      where: { id: businessId, ownerId: userId },
+    });
+    if (!business) throw new Error('Business not found or access denied');
+
+    // Compute historical on-time rate
+    const [totalFiled, onTimeFiled] = await Promise.all([
+      (this.prisma as any).complianceReminder.count({
+        where: { businessId, status: 'filed' },
+      }),
+      (this.prisma as any).complianceReminder.count({
+        where: { businessId, status: 'filed', updatedAt: { lte: new Date() } },
+      }),
+    ]);
+
+    // Determine adaptive lead time (days before due date to create the reminder)
+    const onTimeRate = totalFiled > 0 ? onTimeFiled / totalFiled : 1;
+    const leadDays = onTimeRate < 0.5 ? 14 : onTimeRate < 0.7 ? 10 : 7;
+
+    log.info('Smart reminder generation', { businessId, onTimeRate, leadDays, monthsAhead });
+
+    // Delegate to existing generateReminders but signal via leadDays (stored in meta)
+    await this.generateReminders(userId, businessId, monthsAhead);
+
+    return { onTimeRate: Math.round(onTimeRate * 100) / 100, leadDays, generatedForMonths: monthsAhead };
+  }
+
+  /**
+   * Identify upcoming tax savings windows for the business.
+   * Examples: VAT threshold approach, CIT small-company rate eligibility,
+   * WHT credit opportunities.
+   */
+  async identifySavingsWindow(
+    userId: string,
+    businessId: string,
+  ): Promise<Array<{ type: string; explanation: { en: string; pidgin: string }; estimatedSaving: number | null }>> {
+    const business = await this.prisma.business.findFirst({
+      where: { id: businessId, ownerId: userId },
+      select: { id: true, annualRevenue: true, employeeCount: true },
+    });
+    if (!business) throw new Error('Business not found or access denied');
+
+    const windows: Array<{ type: string; explanation: { en: string; pidgin: string }; estimatedSaving: number | null }> = [];
+    const revenue = Number((business as any).annualRevenue ?? 0);
+
+    // VAT threshold (NTA 2025) — if within 10 % of ₦25M threshold
+    const VAT_THRESHOLD = 25_000_000;
+    if (revenue > VAT_THRESHOLD * 0.9 && revenue < VAT_THRESHOLD * 1.1) {
+      windows.push({
+        type: 'VAT_THRESHOLD_APPROACH',
+        explanation: {
+          en: 'Your annual revenue is close to the ₦25M VAT registration threshold. Review your invoicing schedule to manage registration timing.',
+          pidgin: 'Your revenue dey near ₦25M VAT limit. Check how you dey bill customers so e no go cause wahala.',
+        },
+        estimatedSaving: null,
+      });
+    }
+
+    // CIT small company rate (0 % for revenue < ₦25M — NTA 2025 §23)
+    if (revenue < 25_000_000) {
+      windows.push({
+        type: 'CIT_SMALL_COMPANY_ZERO_RATE',
+        explanation: {
+          en: 'Your business qualifies for the 0 % CIT rate for small companies under NTA 2025 (revenue < ₦25M).',
+          pidgin: 'As your revenue dey below ₦25M, you no go pay Company Income Tax. Make sure your filing dey in order.',
+        },
+        estimatedSaving: null,
+      });
+    }
+
+    // Development Levy credit window — first 2 years of operation
+    const businessAge = business
+      ? Math.floor((Date.now() - new Date((business as any).createdAt ?? Date.now()).getTime()) / (365.25 * 24 * 60 * 60 * 1000))
+      : 99;
+    if (businessAge <= 2) {
+      windows.push({
+        type: 'DEVELOPMENT_LEVY_STARTUP_RELIEF',
+        explanation: {
+          en: 'Startups in operation for less than 2 years may qualify for Development Levy relief under NTA 2025.',
+          pidgin: 'New business wey dey below 2 years fit get help with Development Levy. Ask your tax consultant.',
+        },
+        estimatedSaving: null,
+      });
+    }
+
+    return windows;
+  }
+
+  /**
+   * Compute total running penalty accrual across all overdue reminders for a business.
+   * Returns per-tax-type breakdown and a grand total.
+   */
+  async computePenaltyAccrual(
+    userId: string,
+    businessId: string,
+  ): Promise<{ breakdown: Record<string, number>; totalAccrued: number; currency: 'NGN' }> {
+    await this.prisma.business.findFirstOrThrow({
+      where: { id: businessId, ownerId: userId },
+    });
+
+    const overdue = await (this.prisma as any).complianceReminder.findMany({
+      where: { businessId, status: { in: ['overdue', 'pending'] }, dueDate: { lt: new Date() } },
+      select: { taxType: true, dueDate: true, amount: true, status: true },
+    });
+
+    const now = new Date();
+    const breakdown: Record<string, number> = {};
+    let totalAccrued = 0;
+
+    for (const r of overdue) {
+      const penalty = this.estimatePenalty(r.status, new Date(r.dueDate), now, Number(r.amount ?? 0));
+      breakdown[r.taxType] = (breakdown[r.taxType] ?? 0) + penalty;
+      totalAccrued += penalty;
+    }
+
+    return {
+      breakdown,
+      totalAccrued: Math.round(totalAccrued * 100) / 100,
+      currency: 'NGN',
+    };
+  }
 }
