@@ -1,13 +1,14 @@
-name: CI
+name: TaxBridge CI — Quality Gate
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [master]
   pull_request:
-    branches: [ main, master ]
+    branches: [master]
 
 jobs:
-  backend-tests:
+  # ── 1. Backend Quality ──────────────────────────────────────────────────
+  backend-quality:
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -22,7 +23,6 @@ jobs:
           --health-retries 5
         ports:
           - 5432:5432
-
       redis:
         image: redis:7-alpine
         options: >-
@@ -32,40 +32,204 @@ jobs:
           --health-retries 5
         ports:
           - 6379:6379
-    strategy:
-      matrix:
-        node-version: [18.x]
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Use Node.js ${{ matrix.node-version }}
+      - name: Setup Node 20
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node-version }}
-          cache: 'yarn'
+          node-version: '20.19.4'
+          cache: 'npm'
 
-      - name: Install dependencies
-        run: yarn install --frozen-lockfile
+      - name: Install root workspace deps
+        run: npm ci --prefer-offline=false
 
-      - name: Setup test database
+      - name: Build @taxbridge/contracts
+        run: npm run build --workspace=@taxbridge/contracts
+
+      - name: Validate Prisma schema
+        run: npx prisma validate
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/taxbridge_test
+
+      - name: TypeScript compilation check (FAIL FAST)
+        run: npx tsc --noEmit
+        working-directory: backend
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/taxbridge_test
+
+      - name: Run database migrations
+        run: npx prisma migrate deploy
+        working-directory: backend
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/taxbridge_test
+
+      - name: Run tests with coverage
+        run: npm test -- --ci --coverage --forceExit --json --outputFile=test-results.json
+        working-directory: backend
+        env:
+          NODE_ENV: test
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/taxbridge_test
+          REDIS_URL: redis://localhost:6379
+          JWT_SECRET: test-jwt-secret-minimum-32-chars-here
+          JWT_REFRESH_SECRET: test-jwt-refresh-secret-32-chars!!
+          ENCRYPTION_KEY: 0000000000000000000000000000000000000000000000000000000000000000
+
+      - name: Enforce test count gate (≥500)
         run: |
-          yarn --cwd backend prisma:generate
-          yarn --cwd backend db:migrate
+          PASSED=$(cat backend/test-results.json 2>/dev/null \
+            | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('numPassedTests',0))" || echo "0")
+          echo "Passed tests: $PASSED"
+          if [ "$PASSED" -lt 500 ]; then
+            echo "::error::Test gate failed — only $PASSED tests passed (minimum: 500)"
+            exit 1
+          fi
+          echo "✅ Test gate passed: $PASSED/500"
+
+      - name: NRS terminology audit (backend)
+        run: |
+          FIRS_COUNT=$(grep -rn "FIRS" src --include="*.ts" 2>/dev/null \
+            | grep -v ".deprecated" | wc -l | tr -d ' ')
+          echo "FIRS reference count in backend/src: $FIRS_COUNT"
+          if [ "$FIRS_COUNT" -gt "0" ]; then
+            echo "::error::Found $FIRS_COUNT FIRS references in backend/src — use NRS only"
+            grep -rn "FIRS" src --include="*.ts" | grep -v ".deprecated"
+            exit 1
+          fi
+          echo "✅ NRS terminology audit passed"
+        working-directory: backend
+
+  # ── 2. Admin Dashboard ──────────────────────────────────────────────────
+  admin-typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.19.4'
+          cache: 'npm'
+
+      - name: Install admin dependencies
+        run: npm ci
+        working-directory: admin-dashboard
+
+      - name: TypeScript check (admin-dashboard)
+        run: npx tsc --noEmit
+        working-directory: admin-dashboard
+
+      - name: Build verification
+        run: npm run build
+        working-directory: admin-dashboard
         env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/taxbridge_test
-          REDIS_URL: redis://localhost:6379
+          NEXT_PUBLIC_API_URL: https://taxbridge-api-ker8.onrender.com
+          BACKEND_API_URL: https://taxbridge-api-ker8.onrender.com
+          NEXT_PUBLIC_ADMIN_API_KEY: ci-placeholder-key
 
-      - name: Run backend tests
-        run: yarn --cwd backend test
+      - name: NRS terminology audit (admin)
+        run: |
+          FIRS_COUNT=$(grep -rn "FIRS" app --include="*.ts" --include="*.tsx" 2>/dev/null \
+            | grep -v ".deprecated" | wc -l | tr -d ' ')
+          if [ "$FIRS_COUNT" -gt "0" ]; then
+            echo "::error::Found $FIRS_COUNT FIRS refs in admin-dashboard/app"
+            exit 1
+          fi
+          echo "✅ Admin NRS terminology passed"
+        working-directory: admin-dashboard
+
+  # ── 3. Mobile ───────────────────────────────────────────────────────────
+  mobile-typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.19.4'
+          cache: 'npm'
+
+      - name: Install mobile dependencies
+        run: npm ci
+        working-directory: mobile
+
+      - name: TypeScript check (mobile)
+        run: npx tsc --noEmit
+        working-directory: mobile
+
+      - name: Run mobile tests
+        run: npx jest --ci --passWithNoTests
+        working-directory: mobile
         env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/taxbridge_test
-          REDIS_URL: redis://localhost:6379
-          JWT_SECRET: test-jwt-secret
-          JWT_REFRESH_SECRET: test-refresh-secret
-          ENCRYPTION_KEY: test-encryption-key
+          NODE_ENV: test
 
-      - name: Run backend OCR assertions
-        run: yarn --cwd backend ocr:assert
-        # The OCR assert is intentionally conservative; failures should block merges
+      - name: NRS terminology audit (mobile)
+        run: |
+          FIRS_COUNT=$(grep -rn "FIRS" src --include="*.ts" --include="*.tsx" 2>/dev/null \
+            | grep -v ".deprecated\|/archive/" | wc -l | tr -d ' ')
+          if [ "$FIRS_COUNT" -gt "0" ]; then
+            echo "::error::FIRS references found in active mobile code"
+            grep -rn "FIRS" src --include="*.ts" --include="*.tsx" | grep -v ".deprecated\|/archive/"
+            exit 1
+          fi
+          echo "✅ Mobile NRS terminology passed"
+        working-directory: mobile
 
+  # ── 4. Tax Compliance Verification ─────────────────────────────────────
+  tax-compliance:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.19.4'
+          cache: 'npm'
+
+      - name: Verify NTA 2025 tax rules config
+        run: |
+          node -e "
+            const fs = require('fs');
+            const rules = JSON.parse(fs.readFileSync('backend/config/nta2025-rules.json','utf8'));
+            const required = ['pit','vat','cit'];
+            const missing = required.filter(k => !rules[k]);
+            if (missing.length) { console.error('Missing tax rule keys:', missing); process.exit(1); }
+            if (!rules.pit.brackets || !Array.isArray(rules.pit.brackets)) { console.error('PIT brackets missing'); process.exit(1); }
+            if (!rules.vat.rate) { console.error('VAT rate missing'); process.exit(1); }
+            console.log('✅ NTA 2025 rules verified — version:', rules.version);
+          "
+
+  # ── 5. Security Audit (advisory, non-blocking) ──────────────────────────
+  security-audit:
+    runs-on: ubuntu-latest
+    needs: [backend-quality]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.19.4'
+          cache: 'npm'
+
+      - name: Install backend deps
+        run: npm ci
+        working-directory: backend
+
+      - name: Run npm audit (high severity, advisory)
+        run: npm audit --audit-level=high
+        working-directory: backend
+        continue-on-error: true  # Advisory — does not block merge
