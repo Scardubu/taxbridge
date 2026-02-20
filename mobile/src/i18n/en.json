@@ -1491,5 +1491,161 @@
     "retry": "Retry",
     "undo": "Undo",
     "view": "View"
+  },
+  "taxHealth": {
+    "title": "Tax Health Score",
+    "subtitle": "Your overall compliance standing",
+    "score": "Score",
+    "grade": {
+      "excellent": "Excellent",
+      "good": "Good",
+      "fair": "Fair",
+      "poor": "Poor",
+      "critical": "Critical"
+    },
+    "components": {
+      "filingTimeliness": "Filing Timeliness",
+      "dataCompleteness": "Data Completeness",
+      "complianceCalendar": "Compliance Calendar",
+      "nrsSubmissions": "NRS Submissions",
+      "paymentHistory": "Payment History"
+    },
+    "trend": {
+      "improving": "Improving",
+      "stable": "Stable",
+      "declining": "Declining"
+    },
+    "tips": {
+      "filingTimeliness": "File your VAT returns by the 21st every month to improve this score.",
+      "dataCompleteness": "Add your TIN and business address to your profile.",
+      "complianceCalendar": "Review upcoming deadlines in your compliance calendar.",
+      "nrsSubmissions": "Ensure all invoices above ₦10,000 are submitted to NRS.",
+      "paymentHistory": "Pay your tax obligations on time to maintain a healthy score."
+    },
+    "lastUpdated": "Last updated",
+    "refresh": "Refresh Score",
+    "viewBreakdown": "View Breakdown",
+    "improveScore": "How to Improve",
+    "noData": "Not enough data to calculate your score yet.",
+    "calculating": "Calculating your score…"
+  },
+  "anomaly": {
+    "title": "Anomaly Alerts",
+    "subtitle": "Unusual patterns detected in your transactions",
+    "noAnomalies": "No anomalies detected — your records look healthy!",
+    "dismiss": "Dismiss",
+    "dismissed": "Dismissed",
+    "reviewNow": "Review Now",
+    "confidence": "Confidence",
+    "severity": {
+      "critical": "Critical",
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low",
+      "informational": "Informational"
+    },
+    "signals": {
+      "duplicate_amount": "Duplicate Amount",
+      "zscore_spike": "Unusual Spike",
+      "vat_mismatch": "VAT Mismatch",
+      "round_number_clustering": "Round Number Pattern",
+      "weekend_business_expense": "Weekend Expense",
+      "rapid_succession": "Rapid Transactions",
+      "phantom_vendor": "Unknown Vendor",
+      "cashflow_cliff": "Cash Flow Drop",
+      "vat_threshold_approach": "VAT Threshold Warning"
+    },
+    "actions": {
+      "checkDuplicate": "Check for duplicate invoices in your records.",
+      "reviewSpike": "Review your recent transactions for this unusual amount.",
+      "correctVat": "Recalculate VAT at the correct 7.5% rate.",
+      "reviewRounding": "Random round-number expenses may trigger an audit review.",
+      "weekendExpense": "Verify this business expense was genuinely incurred on a weekend.",
+      "rapidTransactions": "Multiple invoices in quick succession may indicate data entry errors.",
+      "verifyVendor": "Verify this vendor against your approved supplier list.",
+      "checkcashflow": "Investigate the source of this sudden revenue drop.",
+      "vatThreshold": "Your revenue is approaching the VAT registration threshold."
+    },
+    "summary": {
+      "total": "Total Anomalies",
+      "critical": "Critical",
+      "high": "High",
+      "lastScan": "Last scanned"
+    },
+    "scan": "Scan Now",
+    "scanning": "Scanning…",
+    "regulatoryRef": "Regulatory Reference"
+  },
+  "cryptoTax": {
+    "title": "Crypto Tax",
+    "subtitle": "Capital gains from digital assets",
+    "disclaimer": "Cryptocurrency transactions may be subject to Capital Gains Tax (CGT) at 10% under NTA 2025.",
+    "addTransaction": "Add Transaction",
+    "transactionType": {
+      "sale": "Sale / Disposal",
+      "exchange": "Exchange",
+      "mining": "Mining Income",
+      "gift": "Gift Received",
+      "airdrop": "Airdrop"
+    },
+    "fields": {
+      "asset": "Asset (e.g. BTC, ETH)",
+      "acquisitionDate": "Acquisition Date",
+      "acquisitionCost": "Acquisition Cost (₦)",
+      "disposalDate": "Disposal Date",
+      "disposalProceeds": "Disposal Proceeds (₦)",
+      "gain": "Capital Gain",
+      "loss": "Capital Loss",
+      "taxDue": "Estimated CGT Due"
+    },
+    "summary": {
+      "totalGains": "Total Capital Gains",
+      "totalLosses": "Total Losses",
+      "netGain": "Net Gain",
+      "estimatedCGT": "Estimated CGT (10%)",
+      "currency": "₦"
+    },
+    "noTransactions": "No crypto transactions recorded.",
+    "exportJournal": "Export Gain/Loss Journal",
+    "filingDeadline": "CGT is due 30 days after each disposal (NTA 2025 §4).",
+    "learnMore": "Learn about crypto taxation in Nigeria"
+  },
+  "compliance": {
+    "title": "Compliance Calendar",
+    "dashboard": "Compliance Dashboard",
+    "overdue": "Overdue",
+    "upcoming": "Upcoming",
+    "filed": "Filed",
+    "nothingDue": "No upcoming deadlines — you are all caught up!",
+    "deadlines": {
+      "vat": "VAT Return",
+      "paye": "PAYE Remittance",
+      "wht": "Withholding Tax",
+      "cit": "Company Income Tax",
+      "pit": "Personal Income Tax",
+      "cgt": "Capital Gains Tax"
+    },
+    "reminders": {
+      "generate": "Generate Reminders",
+      "dismiss": "Dismiss",
+      "file": "Mark as Filed",
+      "createCustom": "Add Custom Reminder"
+    },
+    "penalties": {
+      "title": "Penalty Accrual",
+      "total": "Total Accrued",
+      "perTaxType": "By Tax Type",
+      "nopenalties": "No penalties accrued."
+    },
+    "savings": {
+      "title": "Savings Opportunities",
+      "noWindows": "No savings windows identified at this time."
+    },
+    "priority": {
+      "critical": "Act Immediately",
+      "high": "Due Soon",
+      "medium": "Upcoming",
+      "low": "Planned"
+    }
   }
 }

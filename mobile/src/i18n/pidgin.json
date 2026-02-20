@@ -1491,5 +1491,161 @@
     "retry": "Try Again",
     "undo": "Undo Am",
     "view": "Look Am"
+  },
+  "taxHealth": {
+    "title": "Tax Health Score",
+    "subtitle": "How your compliance dey stand",
+    "score": "Score",
+    "grade": {
+      "excellent": "Excellent — Ikebe no dey",
+      "good": "Good — You dey try",
+      "fair": "Fair — E dey manage",
+      "poor": "Poor — E need work",
+      "critical": "Critical — Action needed now now"
+    },
+    "components": {
+      "filingTimeliness": "How fast you dey file",
+      "dataCompleteness": "Your info complete?",
+      "complianceCalendar": "Compliance Calendar",
+      "nrsSubmissions": "NRS Submissions",
+      "paymentHistory": "Payment History"
+    },
+    "trend": {
+      "improving": "Dey improve",
+      "stable": "E stable",
+      "declining": "E dey go down"
+    },
+    "tips": {
+      "filingTimeliness": "Submit your VAT return by 21st every month to improve this score.",
+      "dataCompleteness": "Add your TIN and address to your profile page.",
+      "complianceCalendar": "Check your compliance calendar for upcoming deadlines.",
+      "nrsSubmissions": "Make sure all invoices wey pass ₦10,000 don go NRS.",
+      "paymentHistory": "Pay your tax on time so your score no go drop."
+    },
+    "lastUpdated": "Last time we check",
+    "refresh": "Refresh Score",
+    "viewBreakdown": "See breakdown",
+    "improveScore": "How to improve am",
+    "noData": "We no get enough data to calculate your score yet.",
+    "calculating": "We dey calculate your score…"
+  },
+  "anomaly": {
+    "title": "Anomaly Alerts",
+    "subtitle": "Something unusual dey your transactions",
+    "noAnomalies": "No anomaly — your records dey clean!",
+    "dismiss": "Dismiss Am",
+    "dismissed": "Don dismiss",
+    "reviewNow": "Review Now Now",
+    "confidence": "How sure we be",
+    "severity": {
+      "critical": "E dey serious",
+      "high": "High",
+      "medium": "Medium",
+      "low": "Small small",
+      "informational": "Just to know"
+    },
+    "signals": {
+      "duplicate_amount": "Same Amount Twice",
+      "zscore_spike": "Unusual Jump",
+      "vat_mismatch": "VAT No Match",
+      "round_number_clustering": "Too many round numbers",
+      "weekend_business_expense": "Weekend Expense",
+      "rapid_succession": "Plenty transactions quick quick",
+      "phantom_vendor": "Unknown Vendor",
+      "cashflow_cliff": "Money Drop Sudden",
+      "vat_threshold_approach": "VAT Limit Dey Near"
+    },
+    "actions": {
+      "checkDuplicate": "Check if you don record this invoice twice.",
+      "reviewSpike": "This amount too big — check if e correct.",
+      "correctVat": "Re-calculate VAT at 7.5% correct rate.",
+      "reviewRounding": "Too many round numbers fit cause audit wahala.",
+      "weekendExpense": "Confirm say this business expense happen on weekend.",
+      "rapidTransactions": "Plenty invoices quick quick fit be data entry error.",
+      "verifyVendor": "Confirm this vendor dey your approved list.",
+      "checkcashflow": "Find out why your money drop like that.",
+      "vatThreshold": "Your revenue dey near ₦25M VAT limit."
+    },
+    "summary": {
+      "total": "Total Anomalies",
+      "critical": "E dey serious",
+      "high": "High",
+      "lastScan": "When we scan last"
+    },
+    "scan": "Scan Now Now",
+    "scanning": "We dey scan…",
+    "regulatoryRef": "Tax Law Reference"
+  },
+  "cryptoTax": {
+    "title": "Crypto Tax",
+    "subtitle": "Capital gains from digital assets",
+    "disclaimer": "Crypto transactions fit carry Capital Gains Tax (CGT) at 10% — NTA 2025.",
+    "addTransaction": "Add Transaction",
+    "transactionType": {
+      "sale": "Sale",
+      "exchange": "Exchange Am",
+      "mining": "Mining Income",
+      "gift": "Gift",
+      "airdrop": "Airdrop"
+    },
+    "fields": {
+      "asset": "Which asset? (e.g. BTC, ETH)",
+      "acquisitionDate": "When you buy am",
+      "acquisitionCost": "How much you buy am (₦)",
+      "disposalDate": "When you sell am",
+      "disposalProceeds": "How much you sell am (₦)",
+      "gain": "Your profit",
+      "loss": "Your loss",
+      "taxDue": "Estimated CGT"
+    },
+    "summary": {
+      "totalGains": "Total Gains",
+      "totalLosses": "Total Losses",
+      "netGain": "Net Gain",
+      "estimatedCGT": "Estimated CGT (10%)",
+      "currency": "₦"
+    },
+    "noTransactions": "No crypto transactions recorded yet.",
+    "exportJournal": "Export Gain/Loss Journal",
+    "filingDeadline": "CGT dey due 30 days after you sell am (NTA 2025 §4).",
+    "learnMore": "Learn about crypto tax for Nigeria"
+  },
+  "compliance": {
+    "title": "Compliance Calendar",
+    "dashboard": "Compliance Dashboard",
+    "overdue": "Overdue — Do am now!",
+    "upcoming": "Upcoming",
+    "filed": "Done filed",
+    "nothingDue": "Nothing due — you don do well!",
+    "deadlines": {
+      "vat": "VAT Return",
+      "paye": "PAYE Remittance",
+      "wht": "Withholding Tax",
+      "cit": "Company Income Tax",
+      "pit": "Personal Income Tax",
+      "cgt": "Capital Gains Tax"
+    },
+    "reminders": {
+      "generate": "Generate Reminders",
+      "dismiss": "Dismiss Am",
+      "file": "Mark as Filed",
+      "createCustom": "Add Custom Reminder"
+    },
+    "penalties": {
+      "title": "Penalties Wey Dey Accrue",
+      "total": "Total Amount",
+      "perTaxType": "By Tax Type",
+      "nopenalties": "No penalties — well done!"
+    },
+    "savings": {
+      "title": "Savings Opportunities",
+      "noWindows": "No savings window for now."
+    },
+    "priority": {
+      "critical": "Do am now now!",
+      "high": "E dey come soon",
+      "medium": "Dey plan for am",
+      "low": "Dey plan ahead"
+    }
   }
 }

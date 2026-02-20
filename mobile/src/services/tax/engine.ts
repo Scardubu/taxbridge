@@ -101,13 +101,36 @@ export const CIT_RATE_SMALL = CIT_TIERS[0].rate;  // 0%
 export const CIT_RATE_MEDIUM = CIT_TIERS[1].rate; // 20%
 export const CIT_RATE_LARGE = CIT_TIERS[2].rate;  // 30%
 
+// Re-export canonical tax constants so rule modules can import directly from this file
+export { PIT_BRACKETS, VAT_RATE };
+
+// ============================================================================
+// VAT Calculation Engine
+// ============================================================================
+
+/**
+ * Calculates VAT for a given base amount
+ *
+ * @param amount - Base amount in ₦ (excluding VAT)
+ * @returns VAT breakdown including rate, vatAmount, and total
+ */
+export function calculateVAT(amount: number): VATCalculation {
+  const vatAmount = amount * VAT_RATE;
+  return {
+    amount,
+    vatRate: VAT_RATE,
+    vatAmount,
+    totalWithVAT: amount + vatAmount,
+  };
+}
+
 // ============================================================================
 // PIT Calculation Engine
 // ============================================================================
 
 /**
  * Calculates Personal Income Tax (PIT) using progressive tax bands
- * 
+ *
  * @param annualIncome - Gross annual income in ₦
  * @returns Detailed PIT calculation with breakdown
  */
