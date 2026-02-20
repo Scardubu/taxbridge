@@ -7,6 +7,162 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [3.0.0] - 2026-02-20 - Intelligence Platform + Dark Mode + NRS Operations
+
+### 🆕 Module 1 — 9-Signal Anomaly Detection Engine
+- New `backend/src/services/anomaly-detection.ts` — deterministic, stateless anomaly scanner
+- Signals: `duplicate_amount`, `zscore_spike`, `vat_mismatch`, `round_number_clustering`, `weekend_business_expense`, `rapid_succession`, `phantom_vendor`, `cashflow_cliff`, `vat_threshold_approach`
+- Every finding includes English + Nigerian Pidgin bilingual `explanation` and `recommendedAction`
+- Severity matrix: `critical / high / medium / low` with `regulatoryReference` NTA 2025 citations
+- Redis caching: `anomaly:scan:{businessId}` TTL 15 min
+- New routes in `backend/src/routes/insights.ts`: `POST /anomalies/scan`, `POST /anomalies/:id/dismiss`, `GET /anomalies/summary`
+
+### 🆕 Module 3 — Tax Health Score
+- New `backend/src/services/tax-health-score.ts` — deterministic 0–100 composite score
+- Components: `filingTimeliness(30) + dataCompleteness(25) + complianceCalendar(20) + nrsSubmissions(15) + paymentHistory(10)`
+- Grade labels in English + Pidgin: `excellent / good / fair / poor / critical`
+- Trend computation via 30-day snapshot ring buffer (`tax-health:snapshot:{businessId}` Redis key)
+- New route: `GET /api/v1/insights/tax-health-score`
+
+### 🆕 Module 4 — Centralized BullMQ Queue Registry
+- New `backend/src/queues/index.ts` — single source of truth for all 6 application queues
+- Queues: `nrs-submission`, `ocr-processing`, `payroll-calculation`, `device-sync`, `notification-dispatch`, `compliance-digest`
+- Per-queue retry policies (exponential / fixed backoff, configurable attempts)
+- `getQueueHealth()` — always resolves (never throws), cold-start resilient
+- `server.ts` `/health/queues` endpoint upgraded to cover all 6 queues
+
+### 🆕 Module 5 — Dark Mode Token System
+- New `mobile/src/theme/darkTokens.ts` — complete 100-key dark palette matching light token shape
+- New `mobile/src/hooks/useTheme.ts` — `useTheme()` and `useColors()` hooks wrapping `useColorScheme()`
+- Theme barrel (`mobile/src/theme/index.ts`) now exports `darkColors` and `ColorTokens` type
+- `ErrorBoundary.tsx` migrated to semantic token references (`neutralBg`, `border`)
+
+### 🆕 Module 6 — NRS Operations Center (Admin Dashboard)
+- New `admin-dashboard/app/compliance/nrs-operations/page.tsx` — real-time NRS monitoring dashboard
+- Components: `NRSHealthBanner`, `QueueStatusGrid`, `LiveSubmissionFeed`, `FailedSubmissionsTable`, `IRNAuditExport`
+- SWR polling every 10 s with `fallbackData` for cold-start resilience
+- New backend routes: `GET /api/admin/nrs/queue-status`, `GET /api/admin/nrs/failed-submissions`, `POST /api/admin/nrs/retry/:submissionId`
+
+### 🆕 Module 7 — Payment Circuit Breaker
+- New `backend/src/services/circuit-breaker.ts` — generic CLOSED/OPEN/HALF_OPEN state machine
+  - Configurable `failureThreshold` (default 3), `cooldownMs` (default 30 s), sliding `windowMs` (default 60 s)
+- Singleton breakers: `paystackBreaker`, `flutterwaveBreaker`, `remitaBreaker`
+- `PaymentGatewayUnavailableError` raised only when all three circuits are OPEN simultaneously
+- `payment-gateway.ts` refactored: ordered candidate list with circuit-aware fallover; `verifyPayment` returns `pending` instead of failing when circuit is open
+- New `GET /health/payment-gateways` endpoint exposes per-gateway circuit state and configured gateways
+
+### 🆕 Module 8 — Smart Compliance Calendar
+- `backend/src/services/compliance.ts` extended with `NTA2025_DEADLINES` constants for VAT/PIT return/PIT advance/CIT/WHT/PAYE/CGT/DevLevy/EDT
+- `computeProjectedLiability()` — projects next-period liability from trailing-average revenue
+- `generateSmartReminders()` — adaptive cadence (14 d / 7 d / 3 d / 1 d) scaled by historical filing rate
+- `identifySavingsWindow()` — surfaces timing opportunities (WHT, PAYE, VAT)
+- `computePenaltyAccrual()` — daily NTA 2025 penalty accumulation for overdue obligations
+- New routes: `GET /api/v1/compliance/calendar`, `GET /api/v1/compliance/smart-reminders`, `GET /api/v1/compliance/projected-liability`
+
+### 🆕 Module 9 — TaxHealthScoreWidget (Mobile)
+- New `mobile/src/components/TaxHealthScoreWidget.tsx` — animated SVG circular progress ring (607 lines)
+- Ring animates 0 → score in 1.2 s ease-out via `Animated.timing` (SVG-safe, no native driver)
+- Ring colour changes by grade: `excellent` green / `good` blue / `fair` amber / `poor` orange / `critical` red
+- Dark/light colour variants for WCAG AA contrast compliance
+- Press scale animation via `Reanimated` `withSpring` on the card shell
+- Grade label toggles between English and Nigerian Pidgin on tap
+- 5-component breakdown bars (filing timeliness, data completeness, NRS submissions, payment history) animate on mount
+- Skeleton placeholder with pulse animation while `isLoading=true`
+- Fully i18n'd via `taxHealth.*` keys (react-i18next `useTranslation`)
+- `AccessibilityInfo`-aware label: score + grade + trend in one `accessibilityLabel`
+- Exports: `TaxHealthScoreWidgetProps`, `TaxHealthScoreData`, `TaxHealthGrade`, `TaxHealthTrend`
+
+### 🆕 Module 10 — i18n Expansion (1,200+ keys)
+- Added `taxHealth`, `anomaly`, `cryptoTax`, `compliance` namespaces to `mobile/src/i18n/en.json` and `pidgin.json`
+- English ↔ Nigerian Pidgin parity maintained across all new keys
+- Key count per file: ~1,651 lines (previously <1,000)
+
+### 🆕 Module 11 — CI/CD Pipeline Upgrade
+- `.github/workflows/ci.yml` fully rewritten: Node 18 → **Node 20.19.4** LTS
+- **yarn → npm**: All `yarn install --frozen-lockfile` replaced with `npm ci` to match `render.yaml` and `package-lock.json` source of truth
+- **`cache: 'yarn'` → `cache: 'npm'`** across all job nodes
+- Job renamed `backend-tests` → `backend-quality` (broader mandate)
+- 5 parallel jobs: `backend-quality`, `admin-typecheck`, `mobile-typecheck`, `tax-compliance`, `security-audit`
+- **NRS terminology audit** added to `backend-quality`, `admin-typecheck`, and `mobile-typecheck` — CI fails on any `FIRS` string in active source files
+- Added `prisma validate` step before migrations
+- Added `backend tsc --noEmit` type-check gate (FAIL FAST before migrations)
+- Added **500-test gate**: parses `test-results.json`, fails if `numPassedTests < 500` (baseline: 528 passing)
+- Added `tax-compliance` job: validates `backend/config/nta2025-rules.json` has `pit.brackets`, `vat.rate`, `cit` keys
+- Security audit job (advisory, `continue-on-error: true`) runs after backend quality
+
+### 🆕 Module 12 — Database Schema (V3.0 Models)
+- `backend/prisma/schema.prisma` — three new models:
+  - `AnomalyRecord` — persists detected anomalies; `@@index([userId, createdAt])`, `@@index([severity, dismissed])`
+  - `TaxHealthSnapshot` — 30-day trend ring buffer; `@@index([userId, computedAt])`
+  - `VendorRecord` — phantom-vendor registry; `@unique(tin)`, `@@index([name])`, `@@index([riskLevel])`
+- Schema validated: `prisma validate` passes with zero errors
+
+### 🔩 Stabilization Fixes (Phase 0→1)
+- `backend/src/queue/nrs-queue.ts`: `connection as any` cast in Queue + Worker constructors (ioredis version conflict with BullMQ's bundled ioredis)
+- `mobile/src/services/tax/engine.ts`: added `calculateVAT()` export; re-exported `PIT_BRACKETS` and `VAT_RATE` from `@taxbridge/contracts`
+- `mobile/src/components/onboarding/TaxEngineDemo.tsx`: `vatResult.amount` → `vatResult.vatAmount`
+- `mobile/src/components/ErrorBoundary.tsx`: `colors.neutral?.[100]` → `colors.neutralBg`; `colors.neutral?.[300]` → `colors.border`
+
+### ✅ Quality Metrics
+- Backend TypeScript: **0 errors**
+- Admin TypeScript: **0 errors**
+- Mobile TypeScript: **0 errors**
+- Test suite: **528 passed / 540 total** (+68 from V3.0 test files; gate: ≥460)
+- Prisma schema: **valid** (no P1012 errors)
+- CI/CD: **0 yarn references** — fully migrated to `npm ci`
+- NRS audit: **0 FIRS references** in backend/src, admin-dashboard/app, mobile/src
+
+### 🆕 New Test Files (V3.0)
+| File | Suite | Purpose |
+|---|---|---|
+| `backend/src/__tests__/anomaly-detection.test.ts` | 808 lines | All 9 signals + severity matrix + deduplication |
+| `backend/src/__tests__/tax-health-score.test.ts` | 5 components + grade boundaries + trend + cache + fallback |
+| `backend/src/__tests__/circuit-breaker.test.ts` | CLOSED/OPEN/HALF_OPEN transitions + sliding window + singletons |
+| `backend/src/__tests__/queues.test.ts` | Singleton behaviour + all 6 job helpers + health + close |
+
+---
+
+## [2.0.0] - 2026-02-20 - Critical Fixes + AI Intelligence 🤖
+
+### 🔴 Critical Bug Fixes
+- **Android Build:** Bumped `compileSdkVersion` to 36, `targetSdkVersion` to 35, and `buildToolsVersion` to `35.0.0`
+  - Resolves AAR metadata failures from `androidx.camera:1.5.0-rc01` and `androidx.core:1.16.0`
+  - Bumped `mobile/eas.json` cache key to `v7-*` and enabled profile cache clear for preview/production
+
+- **Admin Dashboard `manifest.json` handling:**
+  - Updated `admin-dashboard/public/manifest.json` for production PWA values
+  - Added explicit PWA metadata (`themeColor`, `appleWebApp`) in layout metadata
+  - Added manifest content-type headers in Next.js config
+
+- **Admin API cold-start resilience:**
+  - `/api/admin/stats`, `/api/admin/launch-metrics`, and `/api/admin/health/integrations` now return graceful `200` fallback payloads
+  - Added `useBackendWarmup` hook and global SWR retry controls to reduce retry storms during Render warm-up
+  - Added support for `BACKEND_API_URL` and `NEXT_PUBLIC_API_URL` aliases
+
+- **Admin Image 400 hardening:**
+  - Added trusted `remotePatterns` for Render/Vercel-hosted assets in `admin-dashboard/next.config.ts`
+
+### 🤖 AI-Powered Features (v2.0)
+- **Real OCR route upgrade:**
+  - Added Vision-first OCR extraction with Tesseract fallback and image enhancement via Sharp
+  - Added Nigerian receipt parsing (merchant, amount, VAT, date, category) and validation warnings
+
+- **AI Tax Intelligence:**
+  - Added anomaly detection service (`duplicate amount`, `z-score spike`, `VAT mismatch`)
+  - Added tax prediction and cashflow risk scoring endpoints via `/api/v1/insights/*`
+
+- **BullMQ NRS Queue:**
+  - Added dedicated async NRS queue module with exponential backoff and queue health helper
+
+### 📦 Dependencies Added
+- `backend`: `@google-cloud/vision`, `sharp`
+
+### 🔧 Environment Variables Required
+- `BACKEND_API_URL` (Vercel)
+- `NEXT_PUBLIC_API_URL` (Vercel)
+- `ADMIN_API_KEY` / `ADMIN_API_KEYS` (Vercel + Render)
+- `GOOGLE_CLOUD_KEY_FILE` (Render, optional — OCR falls back to Tesseract)
+
 ## [1.0.3] - 2026-02-17 - Production Hardening & Terminology Cleanup 🚀
 
 ### 🔨 Critical Production Build Fixes

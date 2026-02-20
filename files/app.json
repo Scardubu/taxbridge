@@ -1,0 +1,88 @@
+{
+  "expo": {
+    "name": "TaxBridge",
+    "slug": "taxbridge",
+    "version": "1.0.3",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "scheme": "taxbridge",
+    "newArchEnabled": true,
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "fallbackToCacheTimeout": 0,
+      "checkAutomatically": "ON_LOAD",
+      "enabled": true
+    },
+    "assetBundlePatterns": ["assets/**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.taxbridge.app",
+      "buildNumber": "4",
+      "infoPlist": {
+        "NSCameraUsageDescription": "TaxBridge uses your camera to scan receipts and invoices with AI-powered OCR",
+        "NSPhotoLibraryUsageDescription": "TaxBridge needs photo library access to import receipts and invoices",
+        "NSPhotoLibraryAddUsageDescription": "TaxBridge saves scanned receipts to your photo library"
+      },
+      "config": {
+        "usesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "com.taxbridge.app",
+      "versionCode": 4,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#10B981"
+      },
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "READ_MEDIA_IMAGES"
+      ]
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow TaxBridge to scan receipts and invoices with AI-powered OCR"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow TaxBridge to import receipts from your photo library"
+        }
+      ],
+      "expo-localization",
+      "expo-secure-store",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "compileSdkVersion": 36,
+            "targetSdkVersion": 35,
+            "buildToolsVersion": "35.0.0",
+            "enableProguardInReleaseBuilds": true,
+            "enableShrinkResourcesInReleaseBuilds": true,
+            "usesCleartextTraffic": false
+          },
+          "ios": {
+            "deploymentTarget": "15.1",
+            "useFrameworks": "static"
+          }
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "YOUR_EAS_PROJECT_ID"
+      }
+    }
+  }
+}
