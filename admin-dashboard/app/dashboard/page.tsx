@@ -313,7 +313,7 @@ export default function DashboardPage() {
                   {displayStats.warnings.map((warning, idx) => (
                     <div key={idx} className="flex items-start gap-2 text-sm">
                       <span className="text-amber-600 font-bold">•</span>
-                      <span>{warning}</span>
+                      <span>{t(`dashboard.warnings.code.${warning}` as Parameters<typeof t>[0], { defaultValue: warning })}</span>
                     </div>
                   ))}
                 </div>

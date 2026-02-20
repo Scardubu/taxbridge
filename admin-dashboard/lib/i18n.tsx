@@ -165,6 +165,7 @@ const messages: Record<AdminLanguage, Messages> = {
     'dashboard.warnings.title': 'System Warnings',
     'dashboard.warnings.body': 'These warnings indicate partial data availability. Core metrics are still being collected.',
     'dashboard.warnings.dataTitle': 'Data Availability Warnings',
+    'dashboard.warnings.code.backend_warming_up': 'Backend is warming up — live data will appear shortly',
 
     'severity.critical': 'Critical',
     'severity.high': 'High',
@@ -782,6 +783,7 @@ const messages: Record<AdminLanguage, Messages> = {
     'dashboard.warnings.title': 'System Warnings',
     'dashboard.warnings.body': 'Dis warnings mean say some data never full. Main metrics still dey collect.',
     'dashboard.warnings.dataTitle': 'Data Availability Warnings',
+    'dashboard.warnings.code.backend_warming_up': 'Backend dey warm up — live data go appear soon',
 
     'severity.critical': 'Critical',
     'severity.high': 'High',

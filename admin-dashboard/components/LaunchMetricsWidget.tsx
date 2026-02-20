@@ -186,7 +186,7 @@ export function LaunchMetricsWidget({ metrics, isLoading }: LaunchMetricsWidgetP
                 <p className="text-xs font-semibold text-amber-900">{t('dashboard.warnings.dataTitle')}</p>
                 <div className="mt-1 space-y-0.5">
                   {metrics.warnings.map((warning, idx) => (
-                    <p key={idx} className="text-xs text-amber-800">• {warning}</p>
+                    <p key={idx} className="text-xs text-amber-800">• {t(`dashboard.warnings.code.${warning}` as Parameters<typeof t>[0], { defaultValue: warning })}</p>
                   ))}
                 </div>
               </div>
