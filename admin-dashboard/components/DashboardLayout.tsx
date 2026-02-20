@@ -1,7 +1,6 @@
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
-import Image from 'next/image';
 import useSWR from 'swr';
 import { Navigation } from './Navigation';
 import { cn } from '@/lib/utils';
@@ -208,16 +207,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             {/* Logo */}
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <div className="h-10 w-10 rounded-xl overflow-hidden shadow-lg bg-white">
-                  <Image
-                    src="/adaptive-icon.png"
-                    alt={t('header.logoAlt')}
-                    width={40}
-                    height={40}
-                    priority
-                    unoptimized
-                    className="h-10 w-10"
-                  />
+                <div
+                  className="h-10 w-10 rounded-xl shadow-lg bg-slate-900 text-white flex items-center justify-center text-sm font-bold"
+                  aria-label={t('header.logoAlt')}
+                >
+                  TB
                 </div>
               </div>
               <div className="ml-4">

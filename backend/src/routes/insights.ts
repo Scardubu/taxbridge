@@ -1,4 +1,5 @@
 import type { FastifyInstance } from 'fastify';
+import jwt from 'jsonwebtoken';
 import { AIInsightsService } from '../services/ai-insights';
 import { AnomalyDetectionService } from '../services/anomaly-detection';
 import { TaxHealthScoreService } from '../services/tax-health-score';
@@ -9,7 +10,48 @@ export default async function insightsRoutes(fastify: FastifyInstance) {
   const getAnomalySvc = () => new AnomalyDetectionService(prismaOf());
   const getHealthSvc  = () => new TaxHealthScoreService(prismaOf());
 
-  const auth = { preHandler: [(fastify as any).authenticate] };
+  const auth = {
+    preHandler: async (req: any, reply: any) => {
+      const authHeader = typeof req.headers?.authorization === 'string' ? req.headers.authorization : '';
+      if (!authHeader.startsWith('Bearer ')) {
+        return reply.code(401).send({ error: 'Unauthorized' });
+      }
+
+      const token = authHeader.replace(/^Bearer\s+/i, '').trim();
+      const secrets = [process.env.JWT_SECRET, process.env.JWT_SECRET_PREVIOUS].filter(Boolean) as string[];
+
+      let userId: string | undefined;
+      for (const secret of secrets) {
+        try {
+          const decoded = jwt.verify(token, secret) as { userId?: string };
+          if (decoded?.userId && typeof decoded.userId === 'string') {
+            userId = decoded.userId;
+            break;
+          }
+        } catch {
+          // try next configured secret
+        }
+      }
+
+      if (!userId) {
+        return reply.code(401).send({ error: 'Invalid or expired token' });
+      }
+
+      const user = await prismaOf().user.findUnique({
+        where: { id: userId },
+        select: { id: true, business: { select: { id: true } } },
+      });
+
+      if (!user?.id) {
+        return reply.code(401).send({ error: 'Unauthorized' });
+      }
+
+      req.user = {
+        userId: user.id,
+        businessId: (user as any)?.business?.id,
+      };
+    },
+  };
 
   // ── Legacy endpoints (preserved for backward compatibility) ──────────────────
 
