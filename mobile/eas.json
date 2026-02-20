@@ -69,7 +69,6 @@
         "gradleCommand": ":app:assembleRelease --no-daemon --no-build-cache --rerun-tasks --refresh-dependencies --stacktrace"
       },
       "env": {
-        "NODE_ENV": "production",
         "EXPO_PUBLIC_ENV": "production",
         "EXPO_PUBLIC_API_URL": "https://taxbridge-api-ker8.onrender.com",
         "CI": "1"
@@ -91,7 +90,6 @@
         "autoIncrement": "buildNumber"
       },
       "env": {
-        "NODE_ENV": "production",
         "EXPO_PUBLIC_ENV": "production",
         "EXPO_PUBLIC_API_URL": "https://taxbridge-api-ker8.onrender.com",
         "CI": "1"
