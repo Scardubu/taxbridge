@@ -15,6 +15,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { FetchError, fetchJson } from '@/lib/fetcher';
 import { useAdminI18n } from '@/lib/i18n';
 import { SkeletonCard } from '@/components/ui/skeleton-table';
+import { useBackendWarmup } from '@/hooks/useBackendWarmup';
 
 interface DashboardStats {
   totalUsers: number;
@@ -69,6 +70,7 @@ const ComplianceIcon = () => (
 
 export default function DashboardPage() {
   const { t } = useAdminI18n();
+  const { isWaking, isWarm } = useBackendWarmup();
 
   const extractErrorCode = (body: unknown): string | undefined => {
     if (!body || typeof body !== 'object') return undefined;
@@ -256,6 +258,12 @@ export default function DashboardPage() {
   return (
     <DashboardLayout>
       <div className="space-y-8">
+        {isWaking && !isWarm && (
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4 flex items-center gap-2 text-sm text-amber-800">
+            <span className="animate-spin" aria-hidden="true">⏳</span>
+            <span>{t('status.checking')}</span>
+          </div>
+        )}
         {/* Page Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
