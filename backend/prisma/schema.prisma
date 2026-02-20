@@ -622,3 +622,79 @@ model AdminAction {
   @@index([createdAt])
   @@map("admin_actions")
 }
+
+// ============================================
+// Anomaly Records — Module 1 (V3.0)
+// ============================================
+
+model AnomalyRecord {
+  id               String   @id @default(uuid()) @db.Uuid
+  userId           String   @map("user_id") @db.Uuid
+  businessId       String   @map("business_id") @db.Uuid
+  signal           String   // duplicate_amount, zscore_spike, vat_mismatch, etc.
+  severity         String   // critical, high, medium, low, informational
+  confidence       Float    @default(0)
+  dismissed        Boolean  @default(false)
+  dismissedAt      DateTime? @map("dismissed_at")
+  relatedEntityId  String?  @map("related_entity_id") // invoiceId, expenseId, etc.
+  relatedEntityType String? @map("related_entity_type") // invoice, expense
+  metadata         Json     @default("{}")
+  explanationEn    String?  @db.Text @map("explanation_en")
+  explanationPidgin String? @db.Text @map("explanation_pidgin")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  @@index([userId, createdAt])
+  @@index([severity, dismissed])
+  @@index([businessId])
+  @@index([signal])
+  @@map("anomaly_records")
+}
+
+// ============================================
+// Tax Health Snapshots — Module 3 (V3.0)
+// ============================================
+
+model TaxHealthSnapshot {
+  id                   String   @id @default(uuid()) @db.Uuid
+  userId               String   @map("user_id") @db.Uuid
+  businessId           String?  @map("business_id") @db.Uuid
+  totalScore           Float    @map("total_score")
+  grade                String   // excellent, good, fair, poor, critical
+  filingTimeliness     Float    @map("filing_timeliness")
+  dataCompleteness     Float    @map("data_completeness")
+  complianceCalendar   Float    @map("compliance_calendar")
+  nrsSubmissions       Float    @map("nrs_submissions")
+  paymentHistory       Float    @map("payment_history")
+  trend                String?  // improving, stable, declining
+  computedAt           DateTime @default(now()) @map("computed_at")
+
+  @@index([userId, computedAt])
+  @@index([businessId])
+  @@index([grade])
+  @@map("tax_health_snapshots")
+}
+
+// ============================================
+// Vendor Records — Module 1 phantom vendor (V3.0)
+// ============================================
+
+model VendorRecord {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String   @map("user_id") @db.Uuid
+  name         String
+  tin          String?  @unique
+  rcNumber     String?  @map("rc_number")
+  sector       String?
+  riskLevel    String   @default("unknown") @map("risk_level") // low, medium, high, unknown
+  verified     Boolean  @default(false)
+  verifiedAt   DateTime? @map("verified_at")
+  metadata     Json     @default("{}")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@index([name])
+  @@index([userId])
+  @@index([riskLevel])
+  @@map("vendor_records")
+}
