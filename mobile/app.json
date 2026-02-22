@@ -26,7 +26,20 @@
       "infoPlist": {
         "NSCameraUsageDescription": "TaxBridge needs camera access to scan receipts and invoices with AI-powered OCR",
         "NSPhotoLibraryUsageDescription": "TaxBridge needs photo library access to import receipts and invoices",
-        "NSPhotoLibraryAddUsageDescription": "TaxBridge needs permission to save scanned receipts to your photo library"
+        "NSPhotoLibraryAddUsageDescription": "TaxBridge needs permission to save scanned receipts to your photo library",
+        "NSFaceIDUsageDescription": "TaxBridge uses Face ID for secure, fast login.",
+        "CFBundleAllowMixedLocalizations": true
+      },
+      "entitlements": {
+        "com.apple.developer.associated-domains": ["applinks:taxbridge.ng"]
+      },
+      "privacyManifests": {
+        "NSPrivacyAccessedAPITypes": [
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryUserDefaults",
+            "NSPrivacyAccessedAPITypeReasons": ["CA92.1"]
+          }
+        ]
       },
       "config": {
         "usesNonExemptEncryption": false
@@ -47,7 +60,27 @@
         "CAMERA",
         "READ_EXTERNAL_STORAGE",
         "WRITE_EXTERNAL_STORAGE",
-        "READ_MEDIA_IMAGES"
+        "READ_MEDIA_IMAGES",
+        "INTERNET",
+        "ACCESS_NETWORK_STATE",
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE",
+        "USE_BIOMETRIC",
+        "USE_FINGERPRINT"
+      ],
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "taxbridge.ng",
+              "pathPrefix": "/app"
+            }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
       ],
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
@@ -98,6 +131,23 @@
       "expo-localization",
       "expo-secure-store",
       [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "TaxBridge uses Face ID for secure login."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#0B5FFF"
+        }
+      ],
+      [
+        "expo-sqlite"
+      ],
+      "@sentry/react-native/expo",
+      [
         "expo-splash-screen",
         {
           "image": "./assets/icon-square.png",
@@ -108,6 +158,9 @@
       ]
     ],
     "owner": "taxbridgengs-organization",
+    "experiments": {
+      "typedRoutes": true
+    },
     "runtimeVersion": {
       "policy": "appVersion"
     },
@@ -119,7 +172,10 @@
     "extra": {
       "eas": {
         "projectId": "292108c3-5c50-4a57-a79d-1648ef5e2e03"
-      }
+      },
+      "apiUrl": "https://taxbridge-api-ker8.onrender.com",
+      "sentryDsn": "",
+      "environment": "production"
     }
   }
 }

@@ -28,6 +28,9 @@ const i18nOptions: InitOptions = {
   returnObjects: false,
   joinArrays: ' ',
   
+  // Synchronous init — prevents raw keys showing before translations load
+  initImmediate: false,
+
   // Disable missing key warnings in production
   saveMissing: __DEV__,
   missingInterpolationHandler: (text: string, value: any) => {

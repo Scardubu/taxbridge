@@ -61,7 +61,7 @@ export function getNudgesForProfile(
   }
 
   // 3. NRS Demo Nudge (if not completed)
-  const firsAchievement = achievements.find(a => a.id === 'firs_explorer');
+  const firsAchievement = achievements.find(a => a.id === 'nrs_explorer');
   if (!firsAchievement?.unlockedAt) {
     const nudge = NUDGE_TEMPLATES.find(n => n.id === 'firs_demo');
     if (nudge) activeNudges.push(nudge);

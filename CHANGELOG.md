@@ -7,6 +7,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [3.1.0] - 2026-02-22 - New_files + files Integration · Production Hardening
+
+### ✨ New Features
+
+#### Mobile
+- **ExpensesScreen** (`mobile/src/screens/tabs/ExpensesScreen.tsx`) — OCR-first expense tracking with 13 NTA 2025 categories, VAT eligibility, paginated list, add-sheet with camera scan auto-fill, delete with haptics, offline-queued mutations
+- **ProfileScreen** (`mobile/src/screens/tabs/ProfileScreen.tsx`) — User profile, biometric toggle (`expo-local-authentication`), language toggle (EN ↔ Nigerian Pidgin), NDPC 2023 data export/delete, dark mode setting, logout with confirmation
+- **InsightsScreen** (`mobile/src/screens/tabs/InsightsScreen.tsx`) — AI Tax Intelligence: animated cashflow risk gauge, tax predictions (VAT/CIT/Dev Levy) with countdown urgency, anomaly cards, smart recommendations
+- **DeadlineWidget** (`mobile/src/components/DeadlineWidget.tsx`) — NTA 2025 tax deadline cards (VAT/PAYE/WHT/CIT) with urgency colour-coding, countdown, compact banner variant for Dashboard integration
+- **useOfflineSync** (`mobile/src/hooks/useOfflineSync.tsx`) — SQLite offline mutation queue (`expo-sqlite`), auto-flush on reconnect via `@react-native-community/netinfo`, dead-letter after 5 failures, exports: `useOfflineSync`, `OfflineBanner`, `ErrorBoundary`, `useNetworkStatus`
+
+#### Admin Dashboard
+- **AIInsightsPanel** (`admin-dashboard/components/AIInsightsPanel.tsx`) — Live platform stats (users / invoices / revenue / NRS success ring), integration health grid (database / Redis / DigiTax / Paystack / Flutterwave), cold-start banner, SWR polling at 30s/60s
+
+#### Backend
+- **NRS Queue Worker** (`backend/src/queues/nrs-queue.ts`) — BullMQ queue `nrs-submissions` with 5-attempt exponential backoff (10s base), concurrency-3 worker, 10 submissions/sec rate-limit, `enqueueNRSSubmission` (idempotent jobId), `getNRSQueueHealth`, `setFastifyInstance`
+- **NRS Queue Routes** (`backend/src/routes/nrs-queue-routes.ts`) — `GET /health/queues` (queue stats), `POST /api/v1/nrs/requeue/:invoiceId` (admin manual requeue)
+- **Integration Tests** (`backend/src/__tests__/tax-intelligence.integration.test.ts`) — 25 test cases: NTA_2025 contract assertions, PIT/CIT/VAT calculation accuracy, tax forecasting, anomaly detection signals, health score thresholds
+
+#### Infrastructure
+- **docker-compose.yml** (root) — Full local dev stack: `postgres:15-alpine` (healthcheck), `redis:7-alpine` (256 MB allkeys-lru), `backend` (Fastify dev target), `admin` (Next.js dev target), `migrate` (one-shot Prisma deploy+seed), `redis-commander` + `adminer` under `profiles: [tools]`
+
+### 🔧 Fixes & Improvements
+
+#### Contracts
+- **NTA_2025 export** (`packages/contracts/src/nta2025.ts`) — New canonical constant: 6-band PIT (7%→24%), VAT 7.5%, CIT 3-tier (0%/20%/30%), DEV_LEVY 4%, WHT rates, PAYE, EINVOICE threshold ₦200,000 (C-10), filing deadlines; exports `calculatePIT()`, `calculateCIT()`, `calculateVAT()` helpers
+- `packages/contracts/src/index.ts` — Added `export * from './nta2025'`; resolves missing `NTA_2025` import in `tax-intelligence.ts`
+
+#### Mobile Config
+- `mobile/tsconfig.json` — Fixed `jsx: "react-native"` (was `react-jsx`), removed `module: "ESNext"`, added path aliases (`@/*` `@components/*` `@screens/*` `@store/*` `@hooks/*` `@api/*` `@ds/*` `@i18n/*`), `types: ["jest","node"]`, `.expo/types/**/*.d.ts` include, `noImplicitReturns`, `noImplicitAny`, `esModuleInterop`
+- `mobile/app.json` — `NSFaceIDUsageDescription`, `CFBundleAllowMixedLocalizations`, iOS `privacyManifests` (`NSPrivacyAccessedAPITypes`), `USE_BIOMETRIC`/`USE_FINGERPRINT` Android permissions, `applinks:taxbridge.ng` intent filter, plugins: `expo-local-authentication`, `expo-notifications`, `expo-sqlite`, `@sentry/react-native/expo`, `expo-splash-screen`, `experiments.typedRoutes: true`, `extra.apiUrl/sentryDsn/environment`
+- `mobile/metro.config.js` — Added `wav`/`lottie` to `assetExts`, `unstable_conditionNames` for Reanimated 4 worklet runtime, `pure_funcs` minifier optimisation for production
+
+#### Backend
+- `backend/src/routes/insights.ts` — Merged 4 new endpoints: `GET /api/v1/dashboard/stats` (Redis 120s cache, 30/min), `GET /api/v1/insights/forecast` (Redis 600s, 10/min), `GET /api/v1/insights/health`, `GET /api/v1/nrs/health` (circuit-breaker status); all legacy anomaly/cashflow/health-score routes preserved
+- `backend/src/server.ts` — Imports + registers `nrsQueueRoutes`; calls `setFastifyInstance(app)` post-bootstrap; adds `nrsWorker.close()` to graceful shutdown `Promise.all`
+
+#### C-02 Compliance (FIRS-free)
+- `mobile/src/components/DeadlineWidget.tsx` — Fixed WHT description: `'Withholding tax remittance to FIRS'` → `'Withholding tax remittance to NRS (State/Federal)'`
+
+### 🗑️ Removed
+- `mobile/src/hooks/useOfflineSync.ts` (0-byte empty file) — removed duplicate; canonical is `useOfflineSync.tsx`
+
+---
+
 ## [3.0.1] - 2026-02-20 - Post-Release Production Hardening
 
 ### 🔧 Runtime Stability

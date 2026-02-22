@@ -40,6 +40,8 @@ import cryptoRoutes from './routes/crypto';
 import reconciliationRoutes from './routes/reconciliation';
 import bulkRoutes from './routes/bulk';
 import insightsRoutes from './routes/insights';
+import nrsQueueRoutes from './routes/nrs-queue-routes';
+import { setFastifyInstance, nrsWorker } from './queues/nrs-queue';
 import { validateSecrets, logSecretsSummary } from './config/secrets';
 import { Queue } from 'bullmq';
 import {
@@ -1076,7 +1078,9 @@ taxbridge_component_status{component="sms"} ${serverMetrics.componentStatus.sms 
   await app.register(reconciliationRoutes, { prisma });
   await app.register(bulkRoutes, { prisma });
   await app.register(insightsRoutes);
-  
+  await app.register(nrsQueueRoutes);
+  setFastifyInstance(app);
+
   // Phase 3: Feature flags endpoint for mobile app
   const featureFlagsModule = await import('./routes/feature-flags');
   await app.register(featureFlagsModule.default);
@@ -1287,7 +1291,8 @@ async function gracefulShutdown(signal: string) {
     log.info('Closing message queues');
     await Promise.all([
       closeInvoiceSyncQueue().catch(err => log.error('Error closing invoice sync queue', { err })),
-      closePaymentQueue().catch(err => log.error('Error closing payment queue', { err }))
+      closePaymentQueue().catch(err => log.error('Error closing payment queue', { err })),
+      nrsWorker.close().catch(err => log.error('Error closing NRS worker', { err }))
     ]);
     
     // Shutdown monitoring services

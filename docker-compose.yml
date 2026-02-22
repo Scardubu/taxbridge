@@ -1,0 +1,150 @@
+version: '3.9'
+
+# TaxBridge — Local Development Stack
+# Postgres 15 + Redis 7 + Backend + Admin
+# Usage: docker compose up -d
+
+networks:
+  taxbridge:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  redis_data:
+
+services:
+
+  # ─── PostgreSQL 15 ──────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    networks: [taxbridge]
+    environment:
+      POSTGRES_USER:     taxbridge
+      POSTGRES_PASSWORD: devpassword123
+      POSTGRES_DB:       taxbridge_dev
+      PGDATA:            /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - '5432:5432'
+    healthcheck:
+      test:     ['CMD-SHELL', 'pg_isready -U taxbridge -d taxbridge_dev']
+      interval: 5s
+      timeout:  5s
+      retries:  10
+
+  # ─── Redis 7 ────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    networks: [taxbridge]
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru --save 60 1
+    volumes:
+      - redis_data:/data
+    ports:
+      - '6379:6379'
+    healthcheck:
+      test:     ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout:  3s
+      retries:  10
+
+  # ─── Backend (Fastify 5) ─────────────────────────────────────────────────────
+  backend:
+    build:
+      context:    ./backend
+      dockerfile: Dockerfile
+      target:     development
+    restart: unless-stopped
+    networks: [taxbridge]
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis:    { condition: service_healthy }
+    environment:
+      NODE_ENV:              development
+      PORT:                  3000
+      DATABASE_URL:          postgresql://taxbridge:devpassword123@postgres:5432/taxbridge_dev
+      REDIS_URL:             redis://redis:6379
+      JWT_SECRET:            dev-jwt-secret-must-be-at-least-64-characters-please-change-in-production
+      ENCRYPTION_KEY:        '0000000000000000000000000000000000000000000000000000000000000000'
+      TAX_ID_ENCRYPTION_KEY: '1111111111111111111111111111111111111111111111111111111111111111'
+      ALLOWED_ORIGINS:       'http://localhost:3001,http://localhost:19006'
+      DIGITAX_MOCK_MODE:     'true'
+      YOUVERIFY_SANDBOX:     'true'
+      PAYSTACK_SECRET_KEY:   sk_test_placeholder
+      FLW_SECRET_KEY:        FLWSECK-test-placeholder
+    ports:
+      - '3000:3000'
+    volumes:
+      - ./backend/src:/app/src:ro
+      - ./backend/prisma:/app/prisma:ro
+    healthcheck:
+      test:     ['CMD-SHELL', 'curl -sf http://localhost:3000/health | grep -q "ok"']
+      interval: 10s
+      timeout:  5s
+      retries:  5
+      start_period: 30s
+
+  # ─── Admin Dashboard (Next.js 15) ────────────────────────────────────────────
+  admin:
+    build:
+      context:    ./admin-dashboard
+      dockerfile: Dockerfile
+      target:     development
+    restart: unless-stopped
+    networks: [taxbridge]
+    depends_on:
+      backend: { condition: service_healthy }
+    environment:
+      NODE_ENV:            development
+      BACKEND_API_URL:     http://backend:3000
+      NEXT_PUBLIC_API_URL: http://localhost:3000
+      ADMIN_API_KEY:       dev-admin-key-change-in-production
+    ports:
+      - '3001:3000'
+    volumes:
+      - ./admin-dashboard/src:/app/src:ro
+      - ./admin-dashboard/app:/app/app:ro
+
+  # ─── DB Migrations (one-shot) ───────────────────────────────────────────────
+  migrate:
+    image: node:20-alpine
+    networks: [taxbridge]
+    depends_on:
+      postgres: { condition: service_healthy }
+    working_dir: /app
+    volumes:
+      - ./backend:/app:ro
+    environment:
+      DATABASE_URL: postgresql://taxbridge:devpassword123@postgres:5432/taxbridge_dev
+    command: >
+      sh -c "npm ci --silent &&
+             npx prisma migrate deploy &&
+             npx prisma db seed"
+    restart: 'no'
+
+  # ─── Redis Commander (dev UI for Redis) ─────────────────────────────────────
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    restart: unless-stopped
+    networks: [taxbridge]
+    depends_on: [redis]
+    environment:
+      REDIS_HOSTS: local:redis:6379
+    ports:
+      - '8081:8081'
+    profiles: [tools]
+
+  # ─── Adminer (dev UI for Postgres) ──────────────────────────────────────────
+  adminer:
+    image: adminer:4-standalone
+    restart: unless-stopped
+    networks: [taxbridge]
+    depends_on: [postgres]
+    ports:
+      - '8080:8080'
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+      ADMINER_DESIGN:         dracula
+    profiles: [tools]

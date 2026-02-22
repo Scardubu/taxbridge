@@ -16,8 +16,11 @@ config.transformer.assetPlugins = ['expo-asset/tools/hashAssetFiles'];
 
 config.transformer.minifierConfig = {
   compress: {
-    drop_console: process.env.NODE_ENV === 'production',
+    drop_console:  process.env.NODE_ENV === 'production',
     drop_debugger: true,
+    pure_funcs:    process.env.NODE_ENV === 'production'
+      ? ['console.log', 'console.debug', 'console.info']
+      : [],
   },
   mangle: {
     keep_fnames: false,
@@ -31,7 +34,12 @@ config.resolver.assetExts = [
   'mlmodel',
   'tflite',
   'zip',
+  'wav',
+  'lottie',
 ];
+
+// Reanimated 4.x worklet runtime — required for condition-based package resolution
+config.resolver.unstable_conditionNames = ['react-native', 'browser', 'require'];
 
 config.resolver.sourceExts = [
   ...config.resolver.sourceExts,

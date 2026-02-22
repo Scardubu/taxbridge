@@ -2,15 +2,44 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
+    "noImplicitAny": true,
+    "strictNullChecks": true,
+    "strictFunctionTypes": true,
+    "noImplicitReturns": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
     "forceConsistentCasingInFileNames": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
     "resolveJsonModule": true,
-    "jsx": "react-jsx",
     "skipLibCheck": true,
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
     "noEmit": true,
-    "module": "ESNext"
+    "jsx": "react-native",
+    "paths": {
+      "@/*":            ["./src/*"],
+      "@components/*": ["./src/components/*"],
+      "@screens/*":    ["./src/screens/*"],
+      "@store/*":      ["./src/store/*"],
+      "@hooks/*":      ["./src/hooks/*"],
+      "@api/*":        ["./src/api/*"],
+      "@ds/*":         ["./src/design-system/*"],
+      "@i18n/*":       ["./src/i18n/*"]
+    },
+    "types": ["jest", "node"],
+    "typeRoots": ["./node_modules/@types"]
   },
-  "include": ["**/*.ts", "**/*.tsx", "App.tsx"],
-  "exclude": ["node_modules"]
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "App.tsx",
+    ".expo/types/**/*.d.ts",
+    "expo-env.d.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    ".expo"
+  ]
 }

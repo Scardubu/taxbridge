@@ -159,8 +159,8 @@ export function generateInvoiceHTML(data: InvoicePDFData): string {
     data.firsIRN || data.nrsReference
       ? `<div style="background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 8px; padding: 16px; margin-top: 24px;">
         <h4 style="margin: 0 0 8px 0; color: #166534; font-size: 14px;">NRS Compliance Details</h4>
-        ${data.firsIRN ? `<p style="margin: 4px 0; font-size: 13px;"><strong>FIRS IRN:</strong> ${escapeHtml(data.firsIRN)}</p>` : ''}
-        ${data.firsCSID ? `<p style="margin: 4px 0; font-size: 13px;"><strong>FIRS CSID:</strong> ${escapeHtml(data.firsCSID)}</p>` : ''}
+        ${data.firsIRN ? `<p style="margin: 4px 0; font-size: 13px;"><strong>NRS IRN:</strong> ${escapeHtml(data.firsIRN)}</p>` : ''}
+        ${data.firsCSID ? `<p style="margin: 4px 0; font-size: 13px;"><strong>NRS CSID:</strong> ${escapeHtml(data.firsCSID)}</p>` : ''}
         ${data.nrsReference ? `<p style="margin: 4px 0; font-size: 13px;"><strong>NRS Reference:</strong> ${escapeHtml(data.nrsReference)}</p>` : ''}
       </div>`
       : '';

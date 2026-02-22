@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import * as ExpoSplashScreen from 'expo-splash-screen';
 import { NavigationContainer, type NavigationContainerRef, DefaultTheme } from '@react-navigation/native';
@@ -190,9 +191,7 @@ function TabNavigator() {
         options={{
           tabBarLabel: t('navigation.home'),
           tabBarIcon: ({ color, size }) => (
-            <View style={{ alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ fontSize: size, color }}>🏠</Text>
-            </View>
+            <Ionicons name="home" size={size} color={color} />
           ),
           tabBarAccessibilityLabel: t('navigation.homeTab'),
         }}
@@ -203,9 +202,7 @@ function TabNavigator() {
         options={{
           tabBarLabel: t('navigation.create'),
           tabBarIcon: ({ color, size }) => (
-            <View style={{ alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ fontSize: size, color }}>➕</Text>
-            </View>
+            <Ionicons name="add-circle" size={size} color={color} />
           ),
           tabBarAccessibilityLabel: t('navigation.createTab'),
         }}
@@ -216,9 +213,7 @@ function TabNavigator() {
         options={{
           tabBarLabel: t('navigation.invoices'),
           tabBarIcon: ({ color, size }) => (
-            <View style={{ alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ fontSize: size, color }}>📄</Text>
-            </View>
+            <Ionicons name="document-text" size={size} color={color} />
           ),
           tabBarAccessibilityLabel: t('navigation.invoicesTab'),
         }}
@@ -230,9 +225,7 @@ function TabNavigator() {
           lazy: true,
           tabBarLabel: t('navigation.settings'),
           tabBarIcon: ({ color, size }) => (
-            <View style={{ alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ fontSize: size, color }}>⚙️</Text>
-            </View>
+            <Ionicons name="settings" size={size} color={color} />
           ),
           tabBarAccessibilityLabel: t('navigation.settingsTab'),
         }}

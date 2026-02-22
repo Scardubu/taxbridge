@@ -60,7 +60,7 @@ const SECRET_REGISTRY: SecretDefinition[] = [
   { envVar: 'REMITA_MERCHANT_ID', required: false, description: 'Remita merchant ID' },
 
   // Integrations
-  { envVar: 'DIGITAX_API_KEY', required: false, description: 'Digitax (FIRS) API key', sensitive: true },
+  { envVar: 'DIGITAX_API_KEY', required: false, description: 'Digitax (NRS APP) API key', sensitive: true },
   { envVar: 'DIGITAX_HMAC_SECRET', required: false, description: 'Digitax HMAC secret', sensitive: true },
   { envVar: 'YOUVERIFY_API_KEY', required: false, description: 'Youverify API key', sensitive: true },
 

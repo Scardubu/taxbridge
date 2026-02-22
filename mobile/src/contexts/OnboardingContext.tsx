@@ -27,7 +27,7 @@ export type OnboardingStepId =
   // Legacy step IDs for migration compatibility
   | 'pit'
   | 'vatcit'
-  | 'firs'
+  | 'nrs'
   | 'gamification'
   | 'community';
 
@@ -121,7 +121,7 @@ const STEP_ID_MAP: Record<number, OnboardingStepId> = {
   // Legacy mappings for migration
   5: 'pit',
   6: 'vatcit',
-  7: 'firs',
+  7: 'nrs',
   8: 'gamification',
   9: 'community',
 };
@@ -225,7 +225,7 @@ const DEFAULT_ACHIEVEMENTS: Achievement[] = [
     unlockedAt: null,
   },
   {
-    id: 'firs_explorer',
+    id: 'nrs_explorer',
     name: 'NRS Navigator',
     description: 'Tried the mock e-invoicing demo',
     icon: '📱',
