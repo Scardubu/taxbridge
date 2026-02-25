@@ -70,7 +70,12 @@
     "nav": {
       "back": "Go back",
       "close": "Close",
-      "menu": "Open menu"
+      "menu": "Open menu",
+      "dashboard": "Home",
+      "invoices": "Invoice-dem",
+      "insights": "Insight",
+      "tools": "Tools",
+      "profile": "Profile"
     },
     "action": {
       "scan": "Scan receipt or invoice",
@@ -978,7 +983,12 @@
     "failed": "E Fail",
     "stamped": "Don Stamp",
     "unknown": "We No Know",
-    "offline": "Offline"
+    "offline": "Offline",
+    "urgent": "Do am sharp-sharp!",
+    "upcoming": "E dey come",
+    "overdue": "E don pass",
+    "errorTitle": "Something no work",
+    "errorSubtitle": "Pull down make you try again"
   },
   "tutorial": {
     "grossIncome": "Total Money",
@@ -1187,7 +1197,14 @@
     "sync": "Sync",
     "queuedForSync": "{{count}} thing dey wait to sync",
     "queuedForSync_plural": "{{count}} things dey wait to sync",
-    "footerTagline": "Tax no be wahala. Tech for everybody."
+    "footerTagline": "Tax no be wahala. Tech for everybody.",
+    "anomalyTitle": "Wahala Items",
+    "severityHigh": "High Risk",
+    "severityMedium": "Check Am",
+    "severityLow": "Take Note",
+    "upcomingDeadlines": "Deadlines Wey Dey Come",
+    "deadlineOverdue": "E Don Pass",
+    "deadlineSoonDays": "{{count}} day remain"
   },
   "wizard": {
     "step": "Step {{current}} of {{total}}",

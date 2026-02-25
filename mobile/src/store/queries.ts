@@ -10,7 +10,7 @@ import {
 import {
   invoiceApi, expenseApi, taxApi, dashboardApi, ocrApi,
   type CreateInvoiceRequest, type CreateExpenseRequest,
-  type Invoice, type Expense,
+  type Invoice, type Expense, type DashboardComposite,
 } from '../api/client';
 import NetInfo from '@react-native-community/netinfo';
 
@@ -37,6 +37,7 @@ export const queryClient = new QueryClient({
 
 export const queryKeys = {
   dashboard:        ['dashboard', 'stats']                    as const,
+  dashboardComposite: ['dashboard', 'composite']              as const,
   invoices:         (params?: object) => ['invoices', params] as const,
   invoice:          (id: string) => ['invoice', id]           as const,
   expenses:         (params?: object) => ['expenses', params] as const,
@@ -49,6 +50,29 @@ export const queryKeys = {
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
+/**
+ * C-14: Composite dashboard hook — ONE call for all home screen data.
+ * Replaces useDashboardStats + useTaxForecast + useNrsHealth waterfall.
+ */
+export function useDashboard() {
+  return useQuery<DashboardComposite>({
+    queryKey: queryKeys.dashboardComposite,
+    queryFn:  async () => {
+      const res = await dashboardApi.composite();
+      return res.data;
+    },
+    staleTime: 2 * 60 * 1000,
+    retry:     (failureCount, err: any) => {
+      // retry up to 2× but not on 401/403
+      if (err?.statusCode === 401 || err?.statusCode === 403) return false;
+      return failureCount < 2;
+    },
+    // Return stale cache while re-fetching (offline-first feel)
+    placeholderData: (prev) => prev,
+  });
+}
+
+/** Legacy hook — kept for backward compat; prefer useDashboard() */
 export function useDashboardStats() {
   return useQuery({
     queryKey: queryKeys.dashboard,
@@ -96,6 +120,7 @@ export function useCreateInvoice() {
           : old
       );
       qc.invalidateQueries({ queryKey: queryKeys.dashboard });
+      qc.invalidateQueries({ queryKey: queryKeys.dashboardComposite });
     },
   });
 }
@@ -120,6 +145,7 @@ export function useDeleteInvoice() {
       qc.removeQueries({ queryKey: queryKeys.invoice(id) });
       qc.invalidateQueries({ queryKey: ['invoices'], exact: false });
       qc.invalidateQueries({ queryKey: queryKeys.dashboard });
+      qc.invalidateQueries({ queryKey: queryKeys.dashboardComposite });
     },
   });
 }
@@ -162,6 +188,7 @@ export function useCreateExpense() {
       qc.invalidateQueries({ queryKey: queryKeys.taxForecast });
       qc.invalidateQueries({ queryKey: queryKeys.anomalies });
       qc.invalidateQueries({ queryKey: queryKeys.dashboard });
+      qc.invalidateQueries({ queryKey: queryKeys.dashboardComposite });
     },
   });
 }
