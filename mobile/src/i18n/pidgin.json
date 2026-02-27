@@ -1003,6 +1003,7 @@
     "review": "CHECK AM",
     "note": "NOTE",
     "tapToReview": "Tap make you check",
+    "tapToView": "Tap see",
     "dueOn": "due",
     "daysRemaining": "days remain",
     "daysOverdue": "days don pass",
@@ -1297,6 +1298,23 @@
     "deadlineFiled": "Don File",
     "deadlinePenalty": "Penalty if you late:",
     "dataFrom": "Data from {{time}} ago"
+  },
+  "taxExplain": {
+    "title": "Tax Breakdown Explained",
+    "totalLiability": "How Much You Suppose Pay",
+    "breakdownTitle": "By Tax Type",
+    "ofTotal": "of total",
+    "confidenceLabel": "AI Confidence",
+    "disclaimer": "Na AI estimate for education purpose. Talk to tax person for official advice. TaxBridge no dey give tax advice.",
+    "whyButton": "Why?"
+  },
+  "deadline": {
+    "daysOverdue": "days don pass",
+    "dueToday": "E due today",
+    "dueTomorrow": "E due tomorrow",
+    "daysLeft": "days remain",
+    "actNow": "Do Am Now",
+    "days": "days"
   },
   "wizard": {
     "step": "Step {{current}} of {{total}}",

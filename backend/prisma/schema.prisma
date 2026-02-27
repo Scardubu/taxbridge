@@ -31,6 +31,7 @@ model User {
   remitaMerchantId       String?  @map("remita_merchant_id")
   remitaApiKey           String?  @map("remita_api_key")
   ecdsaPrivateKey        String?  @map("ecdsa_private_key")
+  role                   String   @default("owner") // admin | owner | accountant | employee | viewer
   deleted                Boolean  @default(false)
   deletedAt              DateTime? @map("deleted_at")
   createdAt              DateTime @default(now()) @map("created_at")
@@ -758,4 +759,100 @@ enum FilingStatus {
   SUBMITTED
   ACCEPTED
   REJECTED
+}
+
+// ============================================
+// Onboarding Progress — V11.0 P2
+// ============================================
+
+model OnboardingProgress {
+  id                String    @id @default(uuid()) @db.Uuid
+  userId            String    @unique @map("user_id") @db.Uuid
+  step              String    @default("welcome") // welcome, profile, business, tin, first_invoice, complete
+  completedSteps    String[]  @default([]) @map("completed_steps")
+  skippedSteps      String[]  @default([]) @map("skipped_steps")
+  completedAt       DateTime? @map("completed_at")
+  lastStepAt        DateTime? @map("last_step_at")
+  metadata          Json      @default("{}")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@index([step])
+  @@map("onboarding_progress")
+}
+
+// ============================================
+// DLQ Jobs — V11.0 P2 (Dead Letter Queue persistence)
+// ============================================
+
+model DLQJob {
+  id              String    @id @default(uuid()) @db.Uuid
+  queueName       String    @map("queue_name")
+  jobId           String    @map("job_id")
+  payload         Json
+  failedReason    String    @db.Text @map("failed_reason")
+  attemptsMade    Int       @map("attempts_made")
+  maxAttempts     Int       @default(5) @map("max_attempts")
+  status          String    @default("failed") // failed, retrying, resolved, discarded
+  resolvedBy      String?   @map("resolved_by") @db.Uuid
+  resolvedAt      DateTime? @map("resolved_at")
+  idempotencyKey  String?   @unique @map("idempotency_key")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@index([queueName, status])
+  @@index([status])
+  @@index([createdAt])
+  @@index([idempotencyKey])
+  @@map("dlq_jobs")
+}
+
+// ============================================
+// User Sessions — V11.0 P3 (Session invalidation for RBAC)
+// ============================================
+
+model UserSession {
+  id              String    @id @default(uuid()) @db.Uuid
+  userId          String    @map("user_id") @db.Uuid
+  tokenHash       String    @unique @map("token_hash")
+  deviceId        String?   @map("device_id")
+  ipAddress       String?   @map("ip_address")
+  userAgent       String?   @map("user_agent") @db.Text
+  expiresAt       DateTime  @map("expires_at")
+  revokedAt       DateTime? @map("revoked_at")
+  revokedBy       String?   @map("revoked_by") @db.Uuid
+  revokeReason    String?   @map("revoke_reason")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([tokenHash])
+  @@index([expiresAt])
+  @@index([userId, revokedAt])
+  @@map("user_sessions")
+}
+
+// ============================================
+// Academy Nudge — V11.0 P7 (Tax education nudges)
+// ============================================
+
+model AcademyNudge {
+  id              String    @id @default(uuid()) @db.Uuid
+  userId          String    @map("user_id") @db.Uuid
+  nudgeKey        String    @map("nudge_key") // vat_basics, pit_bands, nrs_stamps, dev_levy, wht_rules
+  title           String
+  titlePidgin     String    @map("title_pidgin")
+  body            String    @db.Text
+  bodyPidgin      String    @map("body_pidgin") @db.Text
+  dismissed       Boolean   @default(false)
+  dismissedAt     DateTime? @map("dismissed_at")
+  shownCount      Int       @default(0) @map("shown_count")
+  lastShownAt     DateTime? @map("last_shown_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@unique([userId, nudgeKey])
+  @@index([userId, dismissed])
+  @@index([nudgeKey])
+  @@map("academy_nudges")
 }

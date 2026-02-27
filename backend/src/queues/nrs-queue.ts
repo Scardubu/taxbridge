@@ -1,5 +1,8 @@
 import { Queue, Worker, type Job } from 'bullmq';
 import { getRedisConnection } from '../queue/client';
+import { createLogger } from '../lib/logger';
+
+const log = createLogger('nrs-queue');
 
 // ─── Connection ──────────────────────────────────────────────────────────────
 // `as any` is intentional — bullmq bundles its own ioredis version that
@@ -51,18 +54,20 @@ export const nrsWorker = new Worker(
 // ─── Worker events ───────────────────────────────────────────────────────────
 
 nrsWorker.on('completed', (job) => {
-  console.log(`[NRS Queue] ✅ Job ${job.id} completed (invoice ${job.data.invoiceId})`);
+  log.info('Job completed', { jobId: job.id, invoiceId: job.data.invoiceId });
 });
 
 nrsWorker.on('failed', (job, err) => {
-  console.error(
-    `[NRS Queue] ❌ Job ${job?.id} failed (attempt ${job?.attemptsMade}/${job?.opts?.attempts}):`,
-    err.message
-  );
+  log.error('Job failed', {
+    jobId: job?.id,
+    attempts: job?.attemptsMade,
+    maxAttempts: job?.opts?.attempts,
+    error: err.message,
+  });
 });
 
 nrsWorker.on('stalled', (jobId) => {
-  console.warn(`[NRS Queue] ⚠️ Job ${jobId} stalled — will be retried`);
+  log.warn('Job stalled — will be retried', { jobId });
 });
 
 // ─── Public API ──────────────────────────────────────────────────────────────

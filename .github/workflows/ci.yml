@@ -175,6 +175,44 @@ jobs:
           fi
           echo "✅ nta2025.ts free of abolished CRA references"
 
+      # ── P11: Extended contamination scan (V11.1 invariants) ────────────────
+      - name: P11 — Extended regulatory contamination scan
+        run: |
+          FAILED=0
+
+          # Invariant: no ETR/min-tax applied to individual PIT paths
+          COUNT=$(grep -rn "ETR.*PIT\|minTax.*gross\|minimumTax.*PIT\|pitMinimum" \
+            backend/src/ packages/contracts/src/ --include="*.ts" \
+            | grep -v "test\|\.spec\.\|corporate\|MNE\|CIT" | wc -l)
+          if [ "$COUNT" -gt 0 ]; then
+            echo "❌ ETR/minimum-tax wrongly applied to individual PIT path ($COUNT occurrences)"
+            grep -rn "ETR.*PIT\|minTax.*gross\|minimumTax.*PIT\|pitMinimum" \
+              backend/src/ packages/contracts/src/ --include="*.ts" \
+              | grep -v "test\|\.spec\.\|corporate\|MNE\|CIT"
+            FAILED=1
+          fi
+
+          # Invariant: no rawBody JSON.stringify in webhook HMAC handlers
+          COUNT=$(grep -rn "rawBody.*JSON\.stringify\|JSON\.stringify.*rawBody\|JSON\.stringify.*req\.body.*hmac" \
+            backend/src/ --include="*.ts" | grep -v "test\|\.spec\." | wc -l)
+          if [ "$COUNT" -gt 0 ]; then
+            echo "❌ rawBody stringified in webhook HMAC — use req.rawBody buffer directly ($COUNT)"
+            FAILED=1
+          fi
+
+          # Invariant: no Math.random() in admin dashboard (C-08 — fabricated data)
+          COUNT=$(grep -rn "Math\.random()" admin-dashboard/src/ \
+            --include="*.ts" --include="*.tsx" | grep -v "test\|\.spec\." | wc -l)
+          if [ "$COUNT" -gt 0 ]; then
+            echo "❌ Math.random() found in admin dashboard ($COUNT) — C-08 violation (fabricated data)"
+            grep -rn "Math\.random()" admin-dashboard/src/ --include="*.ts" --include="*.tsx" \
+              | grep -v "test\|\.spec\."
+            FAILED=1
+          fi
+
+          if [ "$FAILED" -eq 1 ]; then exit 1; fi
+          echo "✅ All P11 regulatory invariants clean"
+
       - name: Build
         working-directory: backend
         run: npm run build
@@ -287,6 +325,21 @@ jobs:
         run: npx expo-doctor --non-interactive 2>&1 || true
         # Non-fatal in CI — doctor requires full native environment
 
+      # ── P11: Animation token guard (C-16) ────────────────────────────────────
+      - name: P11 — Animation token guard (no raw numeric durations)
+        working-directory: mobile
+        run: |
+          # C-16: raw withTiming(NNN) calls outside animation.ts are forbidden
+          COUNT=$(grep -rn "withTiming([0-9]\{3,4\}" src/ --include="*.ts" --include="*.tsx" \
+            | grep -v "animation\.ts\|test\|\.spec\." | wc -l)
+          if [ "$COUNT" -gt 0 ]; then
+            echo "❌ Raw numeric duration in withTiming() found ($COUNT occurrences) — use DURATION.* from animation.ts"
+            grep -rn "withTiming([0-9]\{3,4\}" src/ --include="*.ts" --include="*.tsx" \
+              | grep -v "animation\.ts\|test\|\.spec\."
+            exit 1
+          fi
+          echo "✅ No raw numeric withTiming durations — all use DURATION.* tokens"
+
   # ───────────────────────────────────────────────────────────────────────────
   # JOB 3: Admin Dashboard — TypeScript, Build
   # ───────────────────────────────────────────────────────────────────────────
@@ -320,6 +373,20 @@ jobs:
           NEXT_PUBLIC_API_URL:  https://taxbridge-api-ker8.onrender.com
           ADMIN_API_KEY:        ${{ secrets.ADMIN_API_KEY || 'ci-placeholder' }}
           BACKEND_API_URL:      https://taxbridge-api-ker8.onrender.com
+
+      # ── P11: Bundle size gate ────────────────────────────────────────────────
+      - name: P11 — Admin bundle size gate (<8MB)
+        working-directory: admin-dashboard
+        run: |
+          # Check that the compiled JS output stays below 8MB (P10 performance budget)
+          TOTAL=$(find .next/static/chunks -name '*.js' 2>/dev/null | xargs du -cb 2>/dev/null | tail -1 | awk '{print $1}' || echo '0')
+          LIMIT=8388608  # 8MB in bytes
+          echo "Total JS bundle size: $(numfmt --to=iec-i --suffix=B $TOTAL 2>/dev/null || echo ${TOTAL}B)"
+          if [ "$TOTAL" -gt "$LIMIT" ]; then
+            echo "❌ Admin bundle exceeds 8MB limit (${TOTAL} bytes) — run bundle analysis"
+            exit 1
+          fi
+          echo "✅ Bundle within 8MB limit"
 
       - name: Verify no fabricated metrics
         working-directory: admin-dashboard
@@ -409,6 +476,52 @@ jobs:
       - name: Integration tests
         working-directory: prompts
         run: npm run prompts:test
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # JOB: P12 Blue-Green Readiness Check (master push only)
+  # ───────────────────────────────────────────────────────────────────────────
+  blue-green-readiness:
+    name: Blue-Green Readiness
+    runs-on: ubuntu-latest
+    needs: [backend, mobile, admin, security]
+    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify rollback tag exists
+        run: |
+          LATEST_TAG=$(git tag --sort=-version:refname | head -1)
+          if [ -z "$LATEST_TAG" ]; then
+            echo "❌ No version tag found — tag before deploying to production"
+            echo "   Run: git tag v<version> && git push --tags"
+            exit 1
+          fi
+          echo "✅ Rollback tag available: $LATEST_TAG"
+          echo "ROLLBACK_TAG=$LATEST_TAG" >> "$GITHUB_ENV"
+
+      - name: Validate deployment checklist
+        run: |
+          FAILED=0
+          # Ensure CHANGELOG has an entry for the current major version
+          VERSION_ENTRY=$(grep -c "^## \[" CHANGELOG.md 2>/dev/null || echo "0")
+          if [ "$VERSION_ENTRY" -lt 1 ]; then
+            echo "❌ CHANGELOG.md has no version entries"
+            FAILED=1
+          fi
+          echo "✅ CHANGELOG entries: $VERSION_ENTRY"
+
+          # Ensure PRODUCTION_READY.md exists and is non-empty
+          if [ ! -s "PRODUCTION_READY.md" ]; then
+            echo "❌ PRODUCTION_READY.md missing or empty"
+            FAILED=1
+          fi
+          echo "✅ PRODUCTION_READY.md present"
+
+          if [ "$FAILED" -eq 1 ]; then exit 1; fi
+          echo "✅ Deployment checklist validated — rollback tag: $ROLLBACK_TAG"
 
   # ───────────────────────────────────────────────────────────────────────────
   # JOB 6: EAS Build (production mobile — only on master push)

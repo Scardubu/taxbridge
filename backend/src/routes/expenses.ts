@@ -24,6 +24,7 @@ import { ExpenseService, EXPENSE_CATEGORIES } from '../services/expense';
 import { performOCR } from '../lib/performOCR';
 import { AuthenticationError, ValidationError, NotFoundError } from '../lib/errors';
 import { createLogger } from '../lib/logger';
+import { emitTransactionCreated } from '../services/event-bus';
 
 const log = createLogger('expense-routes');
 
@@ -98,6 +99,10 @@ export default async function expenseRoutes(
 
     try {
       const expense = await expenseService.create(userId, body as import('../services/expense').CreateExpenseInput);
+
+      // P4: Emit domain event (fire-and-forget)
+      emitTransactionCreated({ invoiceId: expense.id, userId, amount: Number(body.amount), type: 'expense' }).catch(() => {});
+
       return reply.status(201).send({
         success: true,
         data: { expense: formatExpense(expense) },

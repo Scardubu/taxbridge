@@ -1,0 +1,62 @@
+{
+  "capturedAt": "2026-02-27T00:00:00.000Z",
+  "version": "3.2.4",
+  "branch": "master",
+  "targetBranch": "feat/v11.1-category-evolution",
+  "tests": {
+    "backend": {
+      "suites": 22,
+      "passed": 460,
+      "skipped": 12,
+      "failed": 0,
+      "total": 472
+    },
+    "mobile": {
+      "suites": 19,
+      "passed": 282,
+      "skipped": 1,
+      "failed": 0,
+      "total": 283
+    },
+    "coverage": "97.29%"
+  },
+  "contamination": {
+    "FIRS": 0,
+    "NRSt": 0,
+    "mathRandomInCharts": 0,
+    "ProgressBarInDashboard": 0,
+    "CRAInNTA2025Rules": 0
+  },
+  "schemaModels": [
+    "User", "Business", "Employee", "Expense", "TaxRemittance",
+    "Invoice", "SyncQueue", "AuditLog", "IdempotencyCache",
+    "Payment", "SMSDelivery", "Alert", "UserConsent", "Device",
+    "SyncJob", "Conflict", "InvoiceVersion", "OCRJob", "Payroll",
+    "PayrollItem", "ComplianceReminder", "CryptoTransaction",
+    "AdminAction", "AnomalyRecord", "TaxHealthSnapshot",
+    "VendorRecord", "StreakRecord", "PillarScore"
+  ],
+  "missingModels": [
+    "OnboardingProgress",
+    "DLQJob",
+    "UserSession",
+    "AcademyNudge"
+  ],
+  "rbacStatus": "middleware_missing_in_contracts",
+  "apiVersions": {
+    "v1": "live",
+    "v2": "not_yet_implemented"
+  },
+  "ndpcExportEndpoint": "exists_in_privacy_routes",
+  "ciGates": {
+    "firsGuard": true,
+    "nrstGuard": true,
+    "digitaxMockGuard": true,
+    "mathRandomGuard": true,
+    "progressBarGuard": true
+  },
+  "productionUrls": {
+    "backend": "https://taxbridge-api-ker8.onrender.com",
+    "admin": "https://taxbridge.vercel.app"
+  }
+}

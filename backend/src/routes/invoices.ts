@@ -8,6 +8,7 @@ import { getInvoiceSyncQueue } from '../queue/client';
 import { AuthenticationError } from '../lib/errors';
 import { calculateInvoiceTotals } from '../utils/taxCalculator';
 import { validateUblXml } from '../lib/ubl/validate';
+import { emitTransactionCreated } from '../services/event-bus';
 
 export default async function invoicesRoutes(app: FastifyInstance, opts: { prisma: PrismaClient }) {
   const prisma = opts.prisma;
@@ -231,6 +232,9 @@ export default async function invoicesRoutes(app: FastifyInstance, opts: { prism
           }
         });
       }
+
+      // P4: Emit domain event (fire-and-forget, C-07: never blocks response)
+      emitTransactionCreated({ invoiceId: invoice.id, userId, amount: Number(totals.total), type: 'invoice' }).catch(() => {});
 
       return reply.status(201).send(responseBody);
     }

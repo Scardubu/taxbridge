@@ -43,6 +43,11 @@ import insightsRoutes from './routes/insights';
 import nrsQueueRoutes from './routes/nrs-queue-routes';
 import dashboardCompositeRoute from './routes/dashboard-composite';
 import nrsRetryRoutes from './routes/nrs-retry';
+import v2DashboardRoute from './routes/v2/dashboard';
+import v2MonitoringRoute from './routes/v2/monitoring';
+import v2OnboardingRoute from './routes/v2/onboarding';
+import v2IntelligenceRoute from './routes/v2/intelligence';
+import v2NdpcExportRoute from './routes/v2/ndpc-export';
 import { setFastifyInstance, nrsWorker } from './queues/nrs-queue';
 import { validateSecrets, logSecretsSummary } from './config/secrets';
 import { Queue } from 'bullmq';
@@ -76,6 +81,7 @@ import {
   configureSentryPerformanceMonitoring,
   getProductionHealthMetrics 
 } from './lib/production-monitoring';
+import rbacPlugin from './plugins/rbac-plugin';
 
 const log = createLogger('server');
 const prisma = getPrismaClient();
@@ -152,6 +158,15 @@ app.addHook('onResponse', async (request, reply) => {
     const error = (request as any).raw?.error as Error | undefined;
     logRequestCompletion(requestId, reply.statusCode, error);
     cleanupRequestContext(requestId);
+  }
+});
+
+// P6: Add deprecation headers to /api/v1 responses — nudge clients toward v2
+app.addHook('onSend', async (request, reply) => {
+  if (request.url.startsWith('/api/v1/')) {
+    reply.header('Deprecation', 'true');
+    reply.header('Sunset', '2027-01-01T00:00:00Z');
+    reply.header('Link', '</api/v2>; rel="successor-version"');
   }
 });
 
@@ -1055,6 +1070,9 @@ taxbridge_component_status{component="sms"} ${serverMetrics.componentStatus.sms 
     return reply.code(204).send();
   });
 
+  // ── P3: RBAC enforcement plugin (route-pattern based) ──────────────────────
+  await app.register(rbacPlugin);
+
   await app.register(invoicesRoutes, { prisma });
   await app.register(ocrRoutes);
   await app.register(paymentsRoutes, { prisma });
@@ -1083,6 +1101,14 @@ taxbridge_component_status{component="sms"} ${serverMetrics.componentStatus.sms 
   await app.register(nrsQueueRoutes);
   await app.register(dashboardCompositeRoute);
   await app.register(nrsRetryRoutes);
+
+  // ── API v2 routes (envelope + RBAC + PII scrub) ──────────────────────
+  await app.register(v2DashboardRoute);
+  await app.register(v2MonitoringRoute);
+  await app.register(v2OnboardingRoute);
+  await app.register(v2IntelligenceRoute);
+  await app.register(v2NdpcExportRoute);
+
   setFastifyInstance(app);
 
   // Phase 3: Feature flags endpoint for mobile app

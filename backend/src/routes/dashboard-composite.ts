@@ -145,6 +145,8 @@ export default async function dashboardCompositeRoute(fastify: FastifyInstance) 
       const redis = getRedisConnection();
       const cached = redis ? await redis.get(cacheKey) : null;
       if (cached) {
+        reply.header('X-Cache', 'HIT');
+        reply.header('Cache-Control', 'private, max-age=120');
         return reply.send({ success: true, data: JSON.parse(cached), fromCache: true });
       }
     } catch {
@@ -235,6 +237,8 @@ export default async function dashboardCompositeRoute(fastify: FastifyInstance) 
       // Cache write failure is non-fatal — user still gets fresh data
     }
 
+    reply.header('X-Cache', 'MISS');
+    reply.header('Cache-Control', 'private, max-age=120');
     return reply.send({ success: true, data, fromCache: false });
   });
 }

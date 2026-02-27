@@ -19,7 +19,7 @@
  *   UX-10 gaugeMode useMemo: compact when deadline ≤7d or overdue
  */
 
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   View, Text, ScrollView, RefreshControl,
   StyleSheet, Pressable, StatusBar,
@@ -34,8 +34,11 @@ import { OfflineSyncStatus } from '../../components/dashboard/OfflineSyncStatus'
 import { HealthRing, type PillarData } from '../../components/dashboard/HealthRing';
 import { SparklineBarChart, type SparkBarDatum } from '../../components/dashboard/SparklineBarChart';
 import { DonutChart, type DonutSlice } from '../../components/charts/DonutChart';
+import { TaxExplainDrawer, TaxExplainTrigger } from '../../components/dashboard/TaxExplainDrawer';
+import { DeadlineCountdown } from '../../components/dashboard/DeadlineCountdown';
 import { computeQuickActions } from '../../utils/computeQuickActions';
 import type { QuickActionDef } from '../../utils/computeQuickActions';
+import { useFeatureFlag } from '../../contexts/FeatureFlagContext';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeIn } from 'react-native-reanimated';
@@ -78,6 +81,16 @@ export default function DashboardScreen() {
 
   // C-14: single composite hook — replaces useDashboardStats + useTaxForecast + useNrsHealth
   const { data, isLoading, isRefetching, refetch, isError } = useDashboard();
+
+  // P7: Feature-flagged quick wins
+  const taxExplainEnabled    = useFeatureFlag('taxExplainDrawer');
+  const deadlineCountEnabled = useFeatureFlag('deadlineCountdown');
+  const riskColorEnabled     = useFeatureFlag('riskColorCoding');
+  const enhancedA11y         = useFeatureFlag('enhancedA11y');
+  const simplified           = useFeatureFlag('dashboardSimplified');
+
+  // P7: TaxExplainDrawer state
+  const [explainVisible, setExplainVisible] = useState(false);
 
   // UX-10: compact gauge when any deadline ≤7 days or overdue
   const gaugeMode = useMemo((): 'expanded' | 'compact' => {
@@ -335,8 +348,52 @@ export default function DashboardScreen() {
             )}
           </SectionState>
 
-          {/* AI Tax Forecast */}
-          {forecast && <TaxForecastCard forecast={forecast} loading={false} colors={colors} t={t} />}
+          {/* P7: DeadlineCountdown — most urgent deadline pip (feature-flagged) */}
+          {deadlineCountEnabled && deadlines.length > 0 && (() => {
+            const mostUrgent = [...deadlines].sort((a: any, b: any) => a.daysRemaining - b.daysRemaining)[0];
+            return (
+              <DeadlineCountdown
+                daysRemaining={mostUrgent.daysRemaining}
+                taxType={mostUrgent.taxType ?? mostUrgent.type ?? 'Tax Filing'}
+                dueDate={mostUrgent.dueDate ?? mostUrgent.date ?? ''}
+                onPress={() => navigation.navigate('Invoices')}
+              />
+            );
+          })()}
+
+          {/* AI Tax Forecast + P7 TaxExplainDrawer trigger */}
+          {forecast && (
+            <TaxForecastCard
+              forecast={forecast}
+              loading={false}
+              colors={colors}
+              t={t}
+              showExplainTrigger={taxExplainEnabled}
+              onExplainPress={() => setExplainVisible(true)}
+            />
+          )}
+
+          {/* P7: TaxExplainDrawer bottom sheet (feature-flagged) */}
+          {taxExplainEnabled && forecast && (
+            <TaxExplainDrawer
+              visible={explainVisible}
+              onClose={() => setExplainVisible(false)}
+              breakdown={
+                forecast.breakdown
+                  ? Object.entries(forecast.breakdown).map(([key, amount]: [string, any]) => ({
+                      key,
+                      label: t(`dashboard.donut.${key}`) || key.toUpperCase(),
+                      amount: Number(amount) || 0,
+                      pct: forecast.forecastedLiability > 0
+                        ? ((Number(amount) || 0) / forecast.forecastedLiability) * 100
+                        : 0,
+                    }))
+                  : []
+              }
+              total={forecast.forecastedLiability ?? 0}
+              confidence={forecast.confidenceScore ?? 0}
+            />
+          )}
 
           {/* VAT Liability — C-20: navigate synchronously */}
           {stats?.vatLiability !== undefined && stats.vatLiability > 0 && (
@@ -365,6 +422,8 @@ export default function DashboardScreen() {
         </DashboardZone>
 
         {/* ── AMBIENT: F2 SparklineBarChart + F4 DonutChart + offline sync ───────── */}
+        {/* P8: simplified mode hides ambient zone to reduce cognitive load for new users */}
+        {!simplified && (
         <DashboardZone zone="ambient" visible={!isLoading}>
 
           {/* F2: Last-12-months revenue sparkline — anomalous months flagged coral */}
@@ -418,6 +477,10 @@ export default function DashboardScreen() {
           {/* Offline sync status — always visible at bottom of ambient */}
           <OfflineSyncStatus />
         </DashboardZone>
+        )}
+
+        {/* P8: Even in simplified mode, OfflineSyncStatus visible for trust */}
+        {simplified && <OfflineSyncStatus />}
       </ScrollView>
     </View>
   );
@@ -441,6 +504,7 @@ function MetricCard({
       ]}
       accessibilityRole="button"
       accessibilityLabel={`${label}: ${value ?? 'loading'}`}
+      accessibilityHint={`${t('common.tapToView')} ${label}`}
     >
       <Text style={s.metricEmoji}>{emoji}</Text>
       {loading ? (
@@ -460,8 +524,8 @@ function MetricCard({
 // ─── TaxForecastCard ──────────────────────────────────────────────────────────
 
 function TaxForecastCard({
-  forecast, loading, colors, t,
-}: { forecast?: any; loading: boolean; colors: any; t: (k: string) => string }) {
+  forecast, loading, colors, t, showExplainTrigger, onExplainPress,
+}: { forecast?: any; loading: boolean; colors: any; t: (k: string) => string; showExplainTrigger?: boolean; onExplainPress?: () => void }) {
   if (loading) return <SkeletonCard />;
   if (!forecast) return null;
 
@@ -471,11 +535,16 @@ function TaxForecastCard({
         <Text style={[s.forecastTitle, { color: colors.textSecondary }]}>
           🤖 {t('dashboard.aiInsight')}
         </Text>
-        <Badge
-          label={`${Math.round(forecast.confidenceScore * 100)}% ${t('common.confidence')}`}
-          variant={forecast.confidenceScore >= 0.8 ? 'success' : 'warning'}
-          size="sm"
-        />
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          {showExplainTrigger && onExplainPress && (
+            <TaxExplainTrigger onPress={onExplainPress} />
+          )}
+          <Badge
+            label={`${Math.round(forecast.confidenceScore * 100)}% ${t('common.confidence')}`}
+            variant={forecast.confidenceScore >= 0.8 ? 'success' : 'warning'}
+            size="sm"
+          />
+        </View>
       </View>
       <Text style={[s.forecastAmount, { color: colors.textPrimary }]}>
         ₦{Math.round(forecast.forecastedLiability).toLocaleString('en-NG')}

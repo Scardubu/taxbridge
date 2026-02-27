@@ -7,6 +7,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [3.3.0] - 2026-03-01 - V11.1 Category Evolution · CI Lock · Performance
+
+### Added (P7 — Quick Wins)
+- **TaxExplainDrawer** wired into `DashboardScreen` ACTION zone — AI forecast breakdown surfaced
+  inline via bottom-sheet modal; `TaxExplainTrigger` button in `TaxForecastCard` header
+- **DeadlineCountdown pip** in CONTEXT zone — most-urgent deadline surfaced above forecast card,
+  5 urgency tiers (overdue/critical/warning/upcoming/planned) with CF-15 color+shape+text
+- All quick-win components gate behind feature flags (`taxExplainDrawer`, `deadlineCountdown`,
+  `riskColorCoding`, `enhancedA11y`, `dashboardSimplified`) via `useFeatureFlag()` hook
+
+### Added (P8 — UX Polish)
+- **dashboardSimplified mode** — AMBIENT zone hidden for new users reducing cognitive load;
+  `OfflineSyncStatus` remains visible as trust signal regardless of simplified flag
+- **Enhanced accessibility** — `accessibilityHint` on `MetricCard` using `common.tapToView` key
+- **i18n**: Added `common.tapToView` (`"Tap to view"` / `"Tap see"`) to `en.json` + `pidgin.json`
+
+### Added (P10 — Performance)
+- **Cache headers** on `GET /api/v1/dashboard` — `X-Cache: HIT/MISS` + `Cache-Control: private, max-age=120`
+- **Redis cache** on `GET /api/v2/intelligence/health-score` — 60s TTL, key `intelligence:health:{userId}`,
+  `X-Cache: HIT/MISS` headers; reduces cold-start latency on 2G connections
+
+### Added (P11 — CI Lock)
+- **Extended contamination scan** in `backend` CI job — ETR/PIT cross-contamination, rawBody
+  HMAC stringify, Math.random() in admin, inline tax rates in routes (belt-and-suspenders)
+- **Animation token guard** in `mobile` CI job — blocks raw `withTiming(NNN)` numeric literals;
+  enforces `DURATION.*` + `EASE.*` tokens from `animation.ts` (C-16)
+- **Blue-green readiness job** — verifies git rollback tag exists + CHANGELOG + PRODUCTION_READY.md
+  before any master push triggers EAS or Render deploy
+- **Admin bundle size gate** — rejects builds where `.next/static/chunks` JS exceeds 8MB
+
+### Changed
+- `TaxForecastCard` — extended with optional `showExplainTrigger?: boolean` and
+  `onExplainPress?: () => void` props (backward-compatible; existing callers unaffected)
+- `DashboardScreen` imports rationalised — `useState` added; dead code removed
+
+### Validation
+- TypeScript: 0 errors (backend + mobile)
+- Contamination scan: FIRS=0, NRSt=0, ETR/PIT=0, rawBody=0
+- Backend tests: 567 passing
+- Mobile tests: 282 passing
+
+---
+
 ## [3.2.4] - 2026-02-28 - Regulatory Compliance · Schema Hardening · i18n Parity
 
 ### 🚨 Critical Regulatory Fix

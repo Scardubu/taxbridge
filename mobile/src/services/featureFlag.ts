@@ -34,6 +34,16 @@ export type FeatureFlags = {
   taxEngineV2: boolean;
   offlineInvoices: boolean;
   ocrScanner: boolean;
+  /** P7: Inline tax explanation drawer on dashboard forecast card */
+  taxExplainDrawer: boolean;
+  /** P7: Visual deadline countdown with urgency pip */
+  deadlineCountdown: boolean;
+  /** P7: Risk-based color coding for anomaly cards */
+  riskColorCoding: boolean;
+  /** P7: Enhanced accessibility labels on all interactive elements */
+  enhancedA11y: boolean;
+  /** P7: Simplified dashboard mode — fewer sections for new users */
+  dashboardSimplified: boolean;
 };
 
 interface CachedFlags {
@@ -71,6 +81,11 @@ const SAFE_DEFAULTS: FeatureFlags = {
   taxEngineV2: true,
   offlineInvoices: true,
   ocrScanner: false, // Requires ML model, disabled by default
+  taxExplainDrawer: true,
+  deadlineCountdown: true,
+  riskColorCoding: true,
+  enhancedA11y: true,
+  dashboardSimplified: false, // Opt-in for new users only
 };
 
 // Merge environment defaults with safe defaults

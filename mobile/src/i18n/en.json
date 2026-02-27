@@ -929,6 +929,7 @@
                    "review":  "REVIEW",
                    "note":  "NOTE",
                    "tapToReview":  "Tap to review",
+                   "tapToView":  "Tap to view",
                    "dueOn":  "due",
                    "daysRemaining":  "days remaining",
                    "daysOverdue":  "days overdue",
@@ -1293,6 +1294,23 @@
                                     "accessLabel": "Revenue trend for the last 12 months"
                                   }
                   },
+    "taxExplain": {
+                      "title": "Tax Breakdown Explained",
+                      "totalLiability": "Estimated Total Liability",
+                      "breakdownTitle": "By Tax Type",
+                      "ofTotal": "of total",
+                      "confidenceLabel": "AI Confidence",
+                      "disclaimer": "This is an AI-generated estimate for educational purposes. Consult a tax professional for official advice. TaxBridge does not provide tax advice.",
+                      "whyButton": "Why?"
+                  },
+    "deadline": {
+                    "daysOverdue": "days overdue",
+                    "dueToday": "Due today",
+                    "dueTomorrow": "Due tomorrow",
+                    "daysLeft": "days left",
+                    "actNow": "Act Now",
+                    "days": "days"
+                },
     "tax":  {
                 "intelligenceTitle":  "Tax Breakdown",
                 "subtotal":  "Subtotal",

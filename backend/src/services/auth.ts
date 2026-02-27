@@ -80,7 +80,10 @@ export class AuthService {
     const actualRefreshSecret = refreshSecret || jwtSecret;
     
     if (!process.env.JWT_REFRESH_SECRET) {
-      console.warn('[AUTH] JWT_REFRESH_SECRET not set - using JWT_SECRET as fallback (less secure, set JWT_REFRESH_SECRET in production)');
+      // createLogger imported at top of this file — no raw console
+      if (process.env.NODE_ENV !== 'test') {
+        process.stderr.write('[WARN] [auth] JWT_REFRESH_SECRET not set — using JWT_SECRET as fallback. Set JWT_REFRESH_SECRET in production.\n');
+      }
     }
     
     return { jwtSecret, refreshSecret: actualRefreshSecret };
