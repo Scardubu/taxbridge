@@ -458,7 +458,7 @@ describe('Critical User Journeys', () => {
           total: 537_500,
           status: 'SENT',
           nrsCompliant: true,
-          firsIRN: 'NRS-2026-123456789',
+          nrsIRN: 'NRS-2026-123456789',
         };
 
         const html = generateInvoiceHTML(invoiceData);

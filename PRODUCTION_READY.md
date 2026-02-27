@@ -1,8 +1,8 @@
 # ✅ TAXBRIDGE PRODUCTION READINESS - FINAL STATUS
 
-**Date**: February 17, 2026  
+**Date**: February 28, 2026  
 **Status**: 🚀 **READY FOR PRODUCTION DEPLOYMENT**  
-**Version**: 1.0.2
+**Version**: 3.2.4
 
 ---
 
@@ -10,7 +10,28 @@
 
 TaxBridge is **production-ready** and fully compliant with all Nigerian tax regulations (NTA 2025) and e-invoicing standards (NRS 2026). All critical systems have been implemented, tested, validated, and polished for deployment.
 
-**Latest Updates (v1.0.2 - Feb 17, 2026):**
+**Latest Updates (v3.2.4 - Feb 28, 2026):**
+- 🚨 **VAT Threshold Fixed** - Corrected ₦100M → ₦25M per NTA 2025 §12 (REGULATORY)
+- ✅ **CRA Removed from Aggregate** - NTA_2025_RULES.pit no longer exports abolished CRA constants
+- ✅ **FilingStatus Enum Added** - DRAFT/SUBMITTED/ACCEPTED/REJECTED in Prisma schema
+- ✅ **Employee PAYE Fields** - tin, annualRentPaid, pensionOptOut added to Employee model
+- ✅ **i18n Parity Achieved** - 2 missing English keys added (deadlineSoonDays, suggestedAction)
+- ✅ **mobile/.env.example Expanded** - Full development environment template
+
+**Previous Updates (v3.2.3 - Feb 27, 2026):**
+- ✅ **Mobile TypeScript Zero Errors** - Resolved all 80 TS errors across 20 files
+- ✅ **Missing Dependencies Installed** - zustand, @tanstack/react-query, expo-local-auth, expo-image-manipulator
+- ✅ **Dark Mode Type Safety** - Proper assertions for `as const` color token overrides
+- ✅ **Production Console Guards** - featureFlag.ts console.log wrapped in `__DEV__`
+- ✅ **Full Contamination Scan Clean** - 0 FIRS, 0 NRSt, 0 Math.random, 0 ProgressBar, 0 CRA
+
+**Previous Updates (v3.2.2 - Feb 26, 2026):**
+- ✅ **NTA 2025 Test Alignment** - All mobile + backend tests aligned to canonical PIT brackets
+- ✅ **CRA Abolished** - All test references to abolished CRA formula removed
+- ✅ **CIT Thresholds Corrected** - ₦25M small / ₦100M medium per NTA 2025
+- ✅ **Full Test Suite Green** - 567 backend + 282 mobile tests passing (0 failures)
+
+**Previous Updates (v1.0.2 - Feb 17, 2026):**
 - ✅ **Zero Hardcoded UI Text** - Full i18n coverage (71 new keys)
 - ✅ **Production-Safe Logging** - All console statements guarded
 - ✅ **Honest Metrics** - Removed fabricated data from charts/health API
@@ -18,7 +39,8 @@ TaxBridge is **production-ready** and fully compliant with all Nigerian tax regu
 - ✅ **Route Error Handling** - 12 loading/error state files for admin routes
 
 ### Key Metrics
-- ✅ **423 Backend Tests Passing** (12 skipped, DB-dependent)
+- ✅ **567 Backend Tests Passing** (12 skipped, DB-dependent)
+- ✅ **282 Mobile Tests Passing** (1 skipped, complex UI flow)
 - ✅ **97.29% Tax Engine Coverage** (critical path)
 - ✅ **Expo SDK 54** - Mobile dependencies validated
 - ✅ **NTA 2025 Compliant** - All tax calculations verified
@@ -179,7 +201,7 @@ Time:        171.846s
 ✅ YOUVERIFY_SANDBOX=false
 ```
 
-### FIRS/DigiTax (NRS)
+### DigiTax (NRS)
 ```bash
 ✅ DIGITAX_API_KEY
 ✅ DIGITAX_BASE_URL

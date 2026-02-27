@@ -25,6 +25,7 @@ import { useTranslation } from 'react-i18next';
 import { useOnboarding, OnboardingStepId, UserProfile } from '../contexts/OnboardingContext';
 import { useNetwork } from '../contexts/NetworkContext';
 import { addBreadcrumb, captureException } from '../services/sentry';
+import { DURATION } from '../design-system/animation';
 import {
   trackOnboardingStart,
   trackOnboardingStep,
@@ -130,7 +131,7 @@ function OnboardingScreen(props: OnboardingScreenProps = {}) {
   const stepTransitionValue = useSharedValue(0);
   const hasRestoredRef = useRef(false);
   const isMountedRef = useRef(true);
-  const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onboardingStartedRef = useRef(false);
 
   // Memoize active steps to prevent recalculation
@@ -365,7 +366,7 @@ function OnboardingScreen(props: OnboardingScreenProps = {}) {
       try {
         stepTransitionValue.value = withTiming(
           1,
-          { duration: 300 },
+          { duration: DURATION.transition },
           (finished) => {
             if (finished) {
               runOnJS(onStepTransitionComplete)();
@@ -648,7 +649,7 @@ function OnboardingScreen(props: OnboardingScreenProps = {}) {
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
-        entering={FadeIn.duration(300)}
+        entering={FadeIn.duration(DURATION.transition)}
       >
         <Animated.View
           key={`step-${currentStepIndex}`}

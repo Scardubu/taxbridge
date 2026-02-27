@@ -10,6 +10,7 @@ import {
   Image,
 } from 'react-native';
 import Animated, { FadeIn, FadeOut, SlideInRight } from 'react-native-reanimated';
+import { DURATION } from '../../design-system/animation';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useTranslation } from 'react-i18next';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -120,7 +121,7 @@ export default function OCRScannerDemo({ onNext, onSkip }: Props) {
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
       >
-        <Animated.View entering={FadeIn.duration(300)} style={styles.header}>
+        <Animated.View entering={FadeIn.duration(DURATION.transition)} style={styles.header}>
           <View style={styles.iconContainer}>
             <Ionicons name="scan" size={48} color={colors.primary} />
           </View>

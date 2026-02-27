@@ -9,6 +9,7 @@ import { getAccessToken } from '../services/authTokens';
 import { createLogger } from '../utils/logger';
 import { trackSync } from '../services/analytics';
 import { showToast } from '../components/ui/Toast';
+import { DURATION } from '../design-system/animation';
 import { 
   syncReducer, 
   initialSyncState, 
@@ -210,14 +211,14 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
           type: 'warning',
           message: t('sync.deviceSuspendedBody', { reason: device.suspensionReason }),
           haptic: 'warning',
-          duration: 5000
+          duration: DURATION.notice
         });
       } else {
         showToast({
           type: 'warning',
           message: t('sync.deviceNotRegisteredBody'),
           haptic: 'warning',
-          duration: 5000
+          duration: DURATION.notice
         });
       }
       return { synced: 0, failed: 0, deferred: 0, conflicts: 0 };
@@ -267,7 +268,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
           type: 'error',
           message: t('sync.syncErrorBody', { count: res.failed }),
           haptic: 'error',
-          duration: 5000
+          duration: DURATION.notice
         });
       }
       if (res.conflicts && res.conflicts > 0) {
@@ -275,7 +276,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
           type: 'warning',
           message: t('sync.conflictsBody', { count: res.conflicts }),
           haptic: 'warning',
-          duration: 5000
+          duration: DURATION.notice
         });
       }
       return res;
@@ -293,7 +294,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
         type: 'error',
         message: t('sync.syncFailedBody'),
         haptic: 'error',
-        duration: 5000
+        duration: DURATION.notice
       });
       return { synced: 0, failed: 0, deferred: 0, conflicts: 0 };
     } finally {
@@ -331,7 +332,7 @@ export function SyncProvider({ children }: { children: React.ReactNode }) {
               type: 'error',
               message: t('sync.syncFailedAfterReconnectBody', { count: res.failed }),
               haptic: 'error',
-              duration: 5000
+              duration: DURATION.notice
             });
           }
         } finally {

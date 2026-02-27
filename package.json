@@ -23,9 +23,11 @@
     "type-check:backend": "cd backend && npm run type-check",
     "build": "npm run build --workspace=@taxbridge/contracts && npm run build --workspace=@taxbridge/backend && npm run build --workspace=admin-dashboard",
     "prompts:load": "npm run prompts:load --workspace=@taxbridge/prompts",
+    "prompts:bootstrap": "npm run prompts:bootstrap --workspace=@taxbridge/prompts",
     "prompts:build": "npm run prompts:build --workspace=@taxbridge/prompts",
     "prompts:verify": "npm run prompts:verify --workspace=@taxbridge/prompts",
-    "prompts:query": "npm run prompts:query --workspace=@taxbridge/prompts"
+    "prompts:query": "npm run prompts:query --workspace=@taxbridge/prompts",
+    "integrate:new-files": "powershell -ExecutionPolicy Bypass -File scripts/integrate-new-files.ps1"
   },
   "devDependencies": {
     "next": "16.1.1",

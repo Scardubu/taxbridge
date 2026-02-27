@@ -41,6 +41,8 @@ import reconciliationRoutes from './routes/reconciliation';
 import bulkRoutes from './routes/bulk';
 import insightsRoutes from './routes/insights';
 import nrsQueueRoutes from './routes/nrs-queue-routes';
+import dashboardCompositeRoute from './routes/dashboard-composite';
+import nrsRetryRoutes from './routes/nrs-retry';
 import { setFastifyInstance, nrsWorker } from './queues/nrs-queue';
 import { validateSecrets, logSecretsSummary } from './config/secrets';
 import { Queue } from 'bullmq';
@@ -182,7 +184,7 @@ const envSchema = {
     DIGITAX_API_URL: { type: 'string', default: 'https://sandbox.digitax.ng' },
     DIGITAX_API_KEY: { type: 'string' },
     DIGITAX_HMAC_SECRET: { type: 'string' },
-    DIGITAX_MOCK_MODE: { type: 'string', default: 'true' },
+    DIGITAX_MOCK_MODE: { type: 'string', default: 'false' }, // RULE-11: never default to mock in production
     REMITA_MOCK_MODE: { type: 'string', default: 'false' },
     REMITA_MERCHANT_ID: { type: 'string' },
     REMITA_API_KEY: { type: 'string' },
@@ -1079,6 +1081,8 @@ taxbridge_component_status{component="sms"} ${serverMetrics.componentStatus.sms 
   await app.register(bulkRoutes, { prisma });
   await app.register(insightsRoutes);
   await app.register(nrsQueueRoutes);
+  await app.register(dashboardCompositeRoute);
+  await app.register(nrsRetryRoutes);
   setFastifyInstance(app);
 
   // Phase 3: Feature flags endpoint for mobile app

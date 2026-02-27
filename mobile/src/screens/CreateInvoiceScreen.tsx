@@ -17,6 +17,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigation } from '@react-navigation/native';
 import Animated, { FadeIn, FadeInDown, FadeInRight, useSharedValue, withSpring } from 'react-native-reanimated';
 import * as Haptics from '../utils/safeHaptics';
+import { DURATION } from '../design-system/animation';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { VAT_RATE } from '@taxbridge/contracts';
 
@@ -103,7 +104,7 @@ const debounce = <T extends (...args: any[]) => any>(
   func: T,
   delay: number
 ): ((...args: Parameters<T>) => void) => {
-  let timeoutId: NodeJS.Timeout;
+  let timeoutId: ReturnType<typeof setTimeout>;
   return (...args: Parameters<T>) => {
     clearTimeout(timeoutId);
     timeoutId = setTimeout(() => func(...args), delay);
@@ -124,7 +125,7 @@ const StepIndicator = memo(({ steps, currentStep, onStepPress }: StepIndicatorPr
   const currentStepIndex = steps.findIndex(s => s.key === currentStep);
 
   return (
-    <Animated.View entering={FadeIn.duration(300)} style={styles.stepIndicatorContainer}>
+    <Animated.View entering={FadeIn.duration(DURATION.transition)} style={styles.stepIndicatorContainer}>
       <View style={styles.stepIndicator}>
         {steps.map((step, index) => (
           <View key={step.key} style={styles.stepItem}>
@@ -491,7 +492,7 @@ function CreateInvoiceScreen(props: any) {
         type: 'warning',
         message: t('alerts.maxItemsReached'),
         haptic: 'warning',
-        duration: 4000
+        duration: DURATION.toast
       });
       return;
     }
@@ -637,6 +638,7 @@ function CreateInvoiceScreen(props: any) {
       }, 500);
       return () => clearTimeout(timer);
     }
+    return undefined;
   }, [shouldOpenScan, receiptsScannerEnabled, openScanMenu]);
 
   // ============================================================================
@@ -832,7 +834,7 @@ function CreateInvoiceScreen(props: any) {
                     type: 'success',
                     message: `${t('alerts.removed')} ${removed} ${t('alerts.oldSyncedInvoices')}. ${t('alerts.pleaseRetry')}`,
                     haptic: 'success',
-                    duration: 5000
+                    duration: DURATION.notice
                   });
                 } catch (e) {
                   showValidationError(t('alerts.cleanupFailed'), t('alerts.cleanupFailedDesc'));
@@ -886,7 +888,7 @@ function CreateInvoiceScreen(props: any) {
         >
           {/* Step 1: Customer Details */}
           {currentStep === 'customer' && (
-            <Animated.View entering={FadeInRight.duration(300)} style={styles.stepContent}>
+            <Animated.View entering={FadeInRight.duration(DURATION.transition)} style={styles.stepContent}>
               <Text 
                 style={styles.h1}
                 accessibilityRole="header"
@@ -953,7 +955,7 @@ function CreateInvoiceScreen(props: any) {
 
           {/* Step 2: Add Items */}
           {currentStep === 'items' && (
-            <Animated.View entering={FadeInRight.duration(300)} style={styles.stepContent}>
+            <Animated.View entering={FadeInRight.duration(DURATION.transition)} style={styles.stepContent}>
               <View style={styles.stepHeader}>
                 <Pressable onPress={goToPrevStep} style={styles.backButton}>
                   <Text style={styles.backButtonText}>← {t('create.backButton')}</Text>
@@ -1098,7 +1100,7 @@ function CreateInvoiceScreen(props: any) {
 
           {/* Step 3: Review & Submit */}
           {currentStep === 'review' && (
-            <Animated.View entering={FadeInRight.duration(300)} style={styles.stepContent}>
+            <Animated.View entering={FadeInRight.duration(DURATION.transition)} style={styles.stepContent}>
               <View style={styles.stepHeader}>
                 <Pressable onPress={goToPrevStep} style={styles.backButton}>
                   <Text style={styles.backButtonText}>← {t('create.backButton')}</Text>

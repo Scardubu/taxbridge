@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useNetwork } from '../contexts/NetworkContext';
 import { SyncContext } from '../contexts/SyncContext';
 import { colors, spacing, typography, radii } from '../theme/tokens';
+import { DURATION } from '../design-system/animation';
 
 const NetworkStatus = memo(function NetworkStatus() {
   const { t } = useTranslation();
@@ -18,12 +19,12 @@ const NetworkStatus = memo(function NetworkStatus() {
         Animated.sequence([
           Animated.timing(pulseAnim, {
             toValue: 0.7,
-            duration: 800,
+            duration: DURATION.slow,
             useNativeDriver: true,
           }),
           Animated.timing(pulseAnim, {
             toValue: 1,
-            duration: 800,
+            duration: DURATION.slow,
             useNativeDriver: true,
           }),
         ])
@@ -31,6 +32,7 @@ const NetworkStatus = memo(function NetworkStatus() {
       pulse.start();
       return () => pulse.stop();
     }
+    return undefined;
   }, [syncing, pulseAnim]);
 
   if (isConnected && isOnline) {

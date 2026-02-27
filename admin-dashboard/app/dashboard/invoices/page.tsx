@@ -292,7 +292,7 @@ export default function InvoicesPage() {
                     {invoice.nrsReference || t('common.pending')}
                   </TableCell>
                   <TableCell>
-                    {new Date(invoice.createdAt).toLocaleDateString()}
+                    {safeDate(invoice.createdAt, { dateStyle: 'short' })}
                   </TableCell>
                   <TableCell>
                     <DropdownMenu>

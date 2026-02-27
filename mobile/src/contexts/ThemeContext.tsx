@@ -52,6 +52,7 @@ function buildColors(isDark: boolean): ColorSet {
 
   // Overlay dark values on top of base tokens
   // Only override surface/background/text — brand colors stay the same
+  // Type assertion required: dark hex literals differ from light `as const` literals
   return {
     ...baseColors,
 
@@ -78,7 +79,7 @@ function buildColors(isDark: boolean): ColorSet {
       200: '#334155',
       300: '#475569',
     },
-  };
+  } as unknown as ColorSet;
 }
 
 // ─── Provider ─────────────────────────────────────────────────────────────────

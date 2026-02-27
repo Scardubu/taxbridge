@@ -4,6 +4,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import type { NameType, ValueType } from 'recharts/types/component/DefaultTooltipContent';
 import { useAdminI18n } from '@/lib/i18n';
 import { chartColors } from '@/lib/colors';
+import { safeDate } from '@/lib/utils';
 
 interface DuploHealthData {
   timestamp: string;
@@ -41,12 +42,12 @@ export function DuploHealthChart({ data }: DuploHealthChartProps) {
         <XAxis 
           dataKey="timestamp" 
           tick={{ fontSize: 12 }}
-          tickFormatter={(value) => new Date(value).toLocaleTimeString()}
+          tickFormatter={(value) => safeDate(value, { timeStyle: 'short' })}
         />
         <YAxis yAxisId="left" tick={{ fontSize: 12 }} />
         <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} />
         <Tooltip
-          labelFormatter={(value) => (value ? new Date(value).toLocaleString() : '')}
+          labelFormatter={(value) => (value ? safeDate(value) : '')}
           formatter={tooltipFormatter}
         />
         <Line

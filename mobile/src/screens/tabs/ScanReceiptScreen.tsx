@@ -15,6 +15,7 @@ import Animated, {
   FadeIn, FadeInDown, SlideInUp,
   useSharedValue, useAnimatedStyle, withRepeat, withTiming,
 } from 'react-native-reanimated';
+import { DURATION, EASE } from '../../design-system/animation';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
@@ -66,7 +67,7 @@ export default function ScanReceiptScreen() {
 
   const pulse = useSharedValue(1);
   React.useEffect(() => {
-    pulse.value = withRepeat(withTiming(0.85, { duration: 800 }), -1, true);
+    pulse.value = withRepeat(withTiming(0.85, { duration: DURATION.slow, easing: EASE.enter }), -1, true);
   }, []);
   const pulseStyle = useAnimatedStyle(() => ({
     transform: [{ scale: pulse.value }],
@@ -232,7 +233,7 @@ export default function ScanReceiptScreen() {
           keyboardShouldPersistTaps="handled"
         >
           {/* Confidence badge */}
-          <Animated.View entering={FadeInDown.duration(300)} style={styles.confidenceRow}>
+          <Animated.View entering={FadeInDown.duration(DURATION.transition)} style={styles.confidenceRow}>
             <Badge
               label={`OCR: ${Math.round(ocrResult.confidence * 100)}% confidence`}
               variant={lowConfidence ? 'warning' : 'success'}
@@ -551,7 +552,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.gray[50],
   },
   catChipSelected:     { backgroundColor: colors.primary[50], borderColor: colors.primary[500] },
-  catChipText:         { fontSize: typography.sizes.xs, color: colors.textMuted, whiteSpace: 'nowrap' as any },
+  catChipText:         { fontSize: typography.sizes.xs, color: colors.textMuted },
   catChipTextSelected: { color: colors.primary[700], fontWeight: typography.weights.semibold },
 
   vatRow:    { flexDirection: 'row', alignItems: 'center', gap: spacing[2], marginBottom: spacing[2] },

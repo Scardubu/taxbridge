@@ -53,8 +53,8 @@ export default async function nrsStatusRoutes(app: FastifyInstance) {
           status: true,
           nrsCompliant: true,
           nrsReference: true,
-          firsCSID: true,
-          firsIRN: true,
+          nrsCSID: true,
+          nrsIRN: true,
           ublXml: true,
           qrCode: true,
           createdAt: true,
@@ -73,11 +73,11 @@ export default async function nrsStatusRoutes(app: FastifyInstance) {
       let nrsStatus: 'not_submitted' | 'pending' | 'submitted' | 'stamped' | 'failed' = 'not_submitted';
       let statusDetails: Record<string, any> = {};
 
-      if (invoice.status === 'stamped' && invoice.firsIRN) {
+      if (invoice.status === 'stamped' && invoice.nrsIRN) {
         nrsStatus = 'stamped';
         statusDetails = {
-          irn: invoice.firsIRN,
-          csid: invoice.firsCSID,
+          irn: invoice.nrsIRN,
+          csid: invoice.nrsCSID,
           nrsReference: invoice.nrsReference,
           hasQRCode: !!invoice.qrCode,
           hasUBL: !!invoice.ublXml,
@@ -159,7 +159,7 @@ export default async function nrsStatusRoutes(app: FastifyInstance) {
       // Filter by NRS status
       if (nrsStatus === 'stamped') {
         where.status = 'stamped';
-        where.firsIRN = { not: null };
+        where.nrsIRN = { not: null };
       } else if (nrsStatus === 'submitted') {
         where.nrsReference = { not: null };
         where.status = { not: 'stamped' };
@@ -179,8 +179,8 @@ export default async function nrsStatusRoutes(app: FastifyInstance) {
           status: true,
           nrsCompliant: true,
           nrsReference: true,
-          firsCSID: true,
-          firsIRN: true,
+          nrsCSID: true,
+          nrsIRN: true,
           total: true,
           createdAt: true,
           updatedAt: true,
@@ -198,7 +198,7 @@ export default async function nrsStatusRoutes(app: FastifyInstance) {
 
       const nrsStats = {
         total: invoices.length,
-        stamped: invoices.filter(i => i.status === 'stamped' && i.firsIRN).length,
+        stamped: invoices.filter(i => i.status === 'stamped' && i.nrsIRN).length,
         submitted: invoices.filter(i => i.nrsReference && i.status !== 'stamped').length,
         pending: invoices.filter(i => i.nrsCompliant && i.nrsReference === null).length,
         notSubmitted: invoices.filter(i => !i.nrsReference).length,
@@ -211,7 +211,7 @@ export default async function nrsStatusRoutes(app: FastifyInstance) {
             id: invoice.id,
             invoiceNumber: invoice.invoiceNumber,
             status: invoice.status,
-            nrsStatus: invoice.status === 'stamped' && invoice.firsIRN
+            nrsStatus: invoice.status === 'stamped' && invoice.nrsIRN
               ? 'stamped'
               : invoice.nrsReference
               ? 'submitted'
@@ -219,7 +219,7 @@ export default async function nrsStatusRoutes(app: FastifyInstance) {
               ? 'pending'
               : 'not_submitted',
             total: invoice.total,
-            irn: invoice.firsIRN,
+            irn: invoice.nrsIRN,
             createdAt: invoice.createdAt,
           })),
           statistics: {
@@ -255,12 +255,12 @@ export default async function nrsStatusRoutes(app: FastifyInstance) {
         select: {
           status: true,
           nrsReference: true,
-          firsIRN: true,
+          nrsIRN: true,
         },
       });
 
       const total = recentInvoices.length;
-      const stamped = recentInvoices.filter(i => i.status === 'stamped' && i.firsIRN).length;
+      const stamped = recentInvoices.filter(i => i.status === 'stamped' && i.nrsIRN).length;
       const submitted = recentInvoices.filter(i => i.nrsReference).length;
       const failed = recentInvoices.filter(i => !i.nrsReference).length;
 

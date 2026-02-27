@@ -8,6 +8,7 @@ import {
   ScrollView,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import { DURATION } from '../design-system/animation';
 
 // ─── NTA 2025 Deadline Definitions ──────────────────────────────────────────
 
@@ -133,7 +134,7 @@ function DeadlineCard({
   useEffect(() => {
     Animated.parallel([
       Animated.timing(opacity, {
-        toValue: 1, duration: 350, delay: animDelay, useNativeDriver: true,
+        toValue: 1, duration: DURATION.entrance, delay: animDelay, useNativeDriver: true,
       }),
       Animated.spring(scale, {
         toValue: 1, delay: animDelay, useNativeDriver: true, tension: 80, friction: 8,

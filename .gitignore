@@ -10,6 +10,7 @@ build/
 # Environment files
 .env
 .env.*
+!.env.example
 !.env.production.example
 !.env.local.example
 RENDER_SECRETS.txt
@@ -78,3 +79,6 @@ load-test-results.json
 # Generated files
 lib/ubl-invoice-2.1.xsd
 eas-build-log.txt
+
+## prompts/
+## New_files/

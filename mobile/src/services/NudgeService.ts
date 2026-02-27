@@ -27,10 +27,10 @@ export const NUDGE_TEMPLATES: Nudge[] = [
     riskLevel: 'safe',
   },
   {
-    id: 'firs_demo',
-    trigger: 'firs_compliance',
+    id: 'nrs_demo',
+    trigger: 'nrs_compliance',
     message: 'See how e-Invoicing protects you from ₦10M penalties—try the mock demo.',
-    cta: { text: 'Try Demo', action: 'try_firs_demo' },
+    cta: { text: 'Try Demo', action: 'try_nrs_demo' },
     riskLevel: 'safe',
   },
   {
@@ -61,9 +61,9 @@ export function getNudgesForProfile(
   }
 
   // 3. NRS Demo Nudge (if not completed)
-  const firsAchievement = achievements.find(a => a.id === 'nrs_explorer');
-  if (!firsAchievement?.unlockedAt) {
-    const nudge = NUDGE_TEMPLATES.find(n => n.id === 'firs_demo');
+  const nrsAchievement = achievements.find(a => a.id === 'nrs_explorer');
+  if (!nrsAchievement?.unlockedAt) {
+    const nudge = NUDGE_TEMPLATES.find(n => n.id === 'nrs_demo');
     if (nudge) activeNudges.push(nudge);
   }
 

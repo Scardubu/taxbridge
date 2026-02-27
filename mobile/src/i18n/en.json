@@ -812,6 +812,14 @@
                                             "currentStreak":  "Current Streak",
                                             "streakDesc":  "Log at least one invoice daily to maintain your streak. Streaks help build consistent tax compliance habits!",
                                             "timeEstimate":  "â±ï¸ About 20 seconds",
+                                            "longestStreak":     "Best Streak",
+                                            "totalXP":           "Total XP",
+                                            "keepGoing":         "Log an invoice today to keep your streak!",
+                                            "streakBroken":      "Streak reset. Start fresh today!",
+                                            "milestoneTitle":    "Milestone Reached!",
+                                            "daysMilestone7":    "7 days in a row!",
+                                            "daysMilestone30":   "30 days in a row!",
+                                            "daysMilestone100":  "100 days \u2014 champion!",
                                             "achievementNames":  {
                                                                      "first_calculator":  "Tax Calculator Pro",
                                                                      "pit_exempt":  "Tax-Free Champion",
@@ -1257,12 +1265,33 @@
                       "severityMedium":  "Review",
                       "severityLow":  "Note",
                       "viewAnomaly":  "Review",
+                      "suggestedAction":  "Suggested action",
                       "upcomingDeadlines":  "Upcoming Deadlines",
                       "deadlineOverdue":  "Overdue",
+                      "deadlineSoonDays":  "{{count}} days remaining",
                       "deadlineFiled":  "Filed",
                       "deadlinePenalty":  "Penalty if late:",
                       "dataFrom":  "Data from {{time}} ago",
-                      "anomalyTitle":  "Flagged Items"
+                      "anomalyTitle":  "Flagged Items",
+                      "gaugeLoadError":  "We couldn't load your health score",
+                      "metricsLoadError":  "Couldn't load your latest numbers",
+                      "anomaliesLoadError":  "Couldn't check for anomalies",
+                      "calendarLoadError":  "Couldn't load your deadlines",
+                      "chartsLoadError":  "Couldn't load your trend data",
+                      "donut":  {
+                                    "title":    "Tax Breakdown",
+                                    "tapHint":  "Tap a slice for details",
+                                    "total":    "Total",
+                                    "vat":      "VAT",
+                                    "cit":      "CIT",
+                                    "paye":     "PAYE",
+                                    "wht":      "WHT",
+                                    "devLevy":  "Dev Levy",
+                                    "noData":   "No tax data yet"
+                                },
+                      "sparkline": {
+                                    "accessLabel": "Revenue trend for the last 12 months"
+                                  }
                   },
     "tax":  {
                 "intelligenceTitle":  "Tax Breakdown",
@@ -1354,9 +1383,9 @@
                 "takeHome":  "Take Home",
                 "effectiveRate":  "Effective Rate",
                 "taxableIncome":  "Taxable Income",
-                "craTitle":  "Consolidated Relief Allowance (CRA)",
-                "craDescription":  "Higher of â‚¦200,000 or 1% of gross income, plus 20% of gross income",
-                "craAmount":  "CRA Amount",
+                "craTitle":  "Relief Deductions (Pension + NHF + RRA)",
+                "craDescription":  "Statutory deductions: pension (8%), NHF (2.5%), and Rent Relief Allowance — min(20% × rent, ₦500,000)",
+                "craAmount":  "Total Deductions",
                 "bracketBreakdown":  "Tax Bracket Breakdown",
                 "belowMinimumWage":  "Income below minimum wage threshold - no tax due",
                 "saveTaxes":  "Save on Taxes",
@@ -1650,7 +1679,9 @@
                                 },
                     "scan":  "Scan Now",
                     "scanning":  "Scanningâ€¦",
-                    "regulatoryRef":  "Regulatory Reference"
+                    "regulatoryRef":  "Regulatory Reference",
+                    "flaggedBars":  "{{count}} flagged",
+                    "sparklineLabel":  "Transaction trend"
                 },
     "cryptoTax":  {
                       "title":  "Crypto Tax",

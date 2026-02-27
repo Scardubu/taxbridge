@@ -16,26 +16,37 @@ export const NTA_2025 = {
    * Applied to taxable income AFTER Consolidated Relief Allowance
    */
   PIT: {
+    /**
+     * NTA 2025 §1–40 — Fourth Schedule (effective 1 January 2026)
+     * Applied AFTER all deductions (pension, NHF, RRA, mortgage relief).
+     * CRA is ABOLISHED — do not reference it.
+     * RULE 2: No minimum ETR / 1%-gross minimum tax for individuals.
+     */
     bands: [
-      { limit: 300_000,   rate: 0.07, label: 'First ₦300k' },
-      { limit: 600_000,   rate: 0.11, label: '₦300k–₦600k' },
-      { limit: 1_100_000, rate: 0.15, label: '₦600k–₦1.1M' },
-      { limit: 1_600_000, rate: 0.19, label: '₦1.1M–₦1.6M' },
-      { limit: 3_200_000, rate: 0.21, label: '₦1.6M–₦3.2M' },
-      { limit: Infinity,  rate: 0.24, label: 'Above ₦3.2M' },
+      { limit: 800_000,    rate: 0.00, label: 'Tax-Free (₦0 – ₦800,000)' },
+      { limit: 3_000_000,  rate: 0.15, label: '15% (₦800,001 – ₦3,000,000)' },
+      { limit: 12_000_000, rate: 0.18, label: '18% (₦3,000,001 – ₦12,000,000)' },
+      { limit: 25_000_000, rate: 0.21, label: '21% (₦12,000,001 – ₦25,000,000)' },
+      { limit: 50_000_000, rate: 0.23, label: '23% (₦25,000,001 – ₦50,000,000)' },
+      { limit: Infinity,   rate: 0.25, label: '25% (Above ₦50,000,000)' },
     ] as const,
 
-    /** Consolidated Relief Allowance — NTA 2025 §33 */
-    cra: {
-      /** Floor: ₦200,000 or 1% of gross income, whichever is higher */
-      floor:         200_000,
-      percentFloor:  0.01,
-      /** Plus 20% of gross income */
-      percentGross:  0.20,
+    /**
+     * Rent Relief Allowance (RRA) — NTA 2025 §30(2)
+     * Replaces the abolished CRA. min(20% × annual rent, ₦500,000).
+     * Use calculateRRA() — never the old CRA formula.
+     */
+    rra: {
+      rate: 0.20,
+      cap:  500_000,
     },
 
-    /** Minimum ETR — NTA 2025 §19 */
-    minimumEtr: 0.15,
+    /**
+     * Minimum ETR (15%) applies to CORPORATE MNEs only — NTA 2025 §19.
+     * NEVER apply to individual PIT. Kept here for completeness; do NOT
+     * reference in any PIT calculation path.
+     */
+    corporateMinEtr: 0.15,
 
     /** Pension deduction — Pension Reform Act 2014 §11 */
     pensionRate: 0.08,
@@ -99,8 +110,8 @@ export const NTA_2025 = {
    */
   DEV_LEVY: {
     rate: 0.04,
-    /** Exemption: small companies are also exempt from dev levy */
-    smallCompanyExempt: true,
+    /** NTA 2025 §60A — dev levy applies to all companies regardless of size */
+    smallCompanyExempt: false,
   },
 
   /**
@@ -170,26 +181,49 @@ export const NTA_2025 = {
 
 // ─── Helper: Calculate PIT ─────────────────────────────────────────────────────
 
-export function calculatePIT(grossIncome: number): {
-  cra:           number;
+/**
+ * calculateRRA — Rent Relief Allowance (NTA 2025 §30(2))
+ *
+ * Replaces the abolished Consolidated Relief Allowance (CRA).
+ * Always call this in PIT deduction chains — never the old CRA formula.
+ *
+ * @param annualRentPaid  Annual rent actually paid (₦). Pass 0 if renting-free.
+ * @returns               Relief amount capped at ₦500,000.
+ */
+export function calculateRRA(annualRentPaid: number): number {
+  if (annualRentPaid <= 0) return 0;
+  return Math.min(
+    NTA_2025.PIT.rra.cap,
+    annualRentPaid * NTA_2025.PIT.rra.rate,
+  );
+}
+
+/**
+ * calculatePIT — Simplified PIT estimate (NTA 2025 bands)
+ *
+ * Takes TAXABLE income (after all deductions: pension, NHF, RRA, mortgage).
+ * For full relief calculation use the tax-engine.ts::calculatePIT service.
+ *
+ * RULES enforced:
+ *   RULE 2 — No 1%-gross minimum tax or 15% ETR applied.
+ *   RULE 3 — CRA formula never used; pass RRA via calculateRRA().
+ *   RULE 4 — All rates from NTA_2025.PIT.bands constants.
+ */
+export function calculatePIT(taxableIncome: number): {
   taxableIncome: number;
   totalTax:      number;
   effectiveRate: number;
   monthlyTax:    number;
   bandBreakdown: Array<{ label: string; rate: number; income: number; tax: number }>;
 } {
-  if (grossIncome <= 0) {
-    return { cra: 0, taxableIncome: 0, totalTax: 0, effectiveRate: 0, monthlyTax: 0, bandBreakdown: [] };
+  if (taxableIncome <= 0) {
+    return { taxableIncome: 0, totalTax: 0, effectiveRate: 0, monthlyTax: 0, bandBreakdown: [] };
   }
-
-  const { floor, percentFloor, percentGross } = NTA_2025.PIT.cra;
-  const cra           = Math.max(floor, grossIncome * percentFloor) + grossIncome * percentGross;
-  const taxableIncome = Math.max(0, grossIncome - cra);
 
   let remaining = taxableIncome;
   let totalTax  = 0;
   let prevLimit = 0;
-  const bandBreakdown: ReturnType<typeof calculatePIT>['bandBreakdown'] = [];
+  const bandBreakdown: Array<{ label: string; rate: number; income: number; tax: number }> = [];
 
   for (const band of NTA_2025.PIT.bands) {
     const width = band.limit === Infinity
@@ -207,10 +241,9 @@ export function calculatePIT(grossIncome: number): {
   }
 
   return {
-    cra,
     taxableIncome,
     totalTax:      Math.round(totalTax),
-    effectiveRate: grossIncome > 0 ? totalTax / grossIncome : 0,
+    effectiveRate: taxableIncome > 0 ? totalTax / taxableIncome : 0,
     monthlyTax:    Math.round(totalTax / 12),
     bandBreakdown,
   };

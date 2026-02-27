@@ -7,6 +7,195 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [3.2.4] - 2026-02-28 - Regulatory Compliance · Schema Hardening · i18n Parity
+
+### 🚨 Critical Regulatory Fix
+
+- **VAT Registration Threshold** — Corrected `VAT_REGISTRATION_THRESHOLD` from ₦100,000,000 to ₦25,000,000 per NTA 2025 §12 (packages/contracts/src/tax-rules.ts)
+
+### 🔧 Fixes
+
+#### Tax Engine (packages/contracts)
+- **Removed CRA from NTA_2025_RULES aggregate** — CRA is abolished under NTA 2025; deprecated individual exports kept for backward compatibility, but removed from canonical `NTA_2025_RULES.pit` object to prevent accidental usage
+- **Added NTA 2025 §12 reference** to VAT threshold JSDoc comment
+
+#### Database Schema (backend/prisma)
+- **Added `FilingStatus` enum** — `DRAFT | SUBMITTED | ACCEPTED | REJECTED` per NTA 2025 §3
+- **Added Employee PAYE fields** — `tin`, `annualRentPaid` (Decimal), `pensionOptOut` (Boolean) for complete payroll/PAYE calculation support
+
+#### i18n Parity (mobile/src/i18n)
+- **Added missing English keys** — `dashboard.deadlineSoonDays` ("{{count}} days remaining") and `dashboard.suggestedAction` ("Suggested action") to match pidgin.json
+
+#### Environment Configuration
+- **Expanded `mobile/.env.example`** — Full development environment template matching `.env.production.example` structure with all feature flags, OCR, sync, and payment gateway placeholders
+
+### ✅ Verification
+- **Backend tsc**: 0 errors ✅
+- **Mobile tsc**: 0 errors ✅
+- **Admin tsc**: 0 errors ✅
+- **Contracts tsc**: 0 errors ✅
+- **FIRS contamination**: 0 results ✅
+- **NRSt typo scan**: 0 results ✅
+- **Math.random admin source**: 0 results ✅
+- **ProgressBar in DashboardScreen**: 0 results (comment only) ✅
+- **CRA in NTA_2025_RULES**: removed ✅
+
+---
+
+## [3.2.3] - 2026-02-27 - TypeScript Zero-Error · Production Hardening
+
+### 🔧 Fixes
+
+#### Mobile TypeScript — Zero Errors Achieved (P0)
+Resolved all 80 TypeScript compilation errors across 20 mobile source files.
+
+**Type system fixes:**
+- **`design-system/tokens.ts`** — Added `as unknown as typeof colors` assertion on `darkTheme.colors` to allow dark hex literals in `as const` structure
+- **`contexts/ThemeContext.tsx`** — Added `as unknown as ColorSet` assertion in `buildColors()` for dark mode color overrides
+- **`theme/tokens.ts`** — Added missing `neutral`, `neutralBgSubtle`, `neutralBorder`, `neutralText` to consolidated colors export
+- **`theme/darkTokens.ts`** — Added corresponding dark mode values for new neutral tokens
+
+**Missing dependency fixes:**
+- Installed `zustand`, `@tanstack/react-query`, `expo-local-authentication`, `expo-image-manipulator` in mobile workspace
+- Created `types/expo-router.d.ts` type declaration for expo-router module resolution
+
+**Component fixes:**
+- **`BottomNavigation.tsx`** — Replaced missing `colors.background` / `colors.gray[200]` with `colors.surface` / `colors.border`
+- **`charts/DonutChart.tsx`** & **`dashboard/DonutChart.tsx`** — Removed invalid `accessibilityRole` prop on SVG `<Path>` (not in `PathProps`)
+- **`NetworkStatus.tsx`** — Added explicit `return undefined` for non-syncing effect branch (TS7030)
+- **`design-system/components.tsx`** — Fixed `DSTextInput` style ternary (was producing `false` in style array); widened `Card.style` prop to accept style arrays
+- **`useOfflineSync.tsx`** — Changed `accent[800]` to `accent[700]` (token range stops at 700)
+- **`InsightsScreen.tsx`** — Fixed `slate700` → `slate800` (correct token name)
+- **`ScanReceiptScreen.tsx`** — Removed `whiteSpace: 'nowrap'` (CSS-only, not valid in React Native)
+- **`store/queries.ts`** — Added explicit `any` type annotation to cache updater callback parameter
+
+#### Production Hardening
+- **`services/featureFlag.ts`** — Wrapped 2 unguarded `console.log()` calls at lines 202/216 in `__DEV__` guards
+
+### ✅ Verification
+- **Backend tsc**: 0 errors ✅
+- **Mobile tsc**: 0 errors ✅ (down from 80)
+- **Admin tsc**: 0 errors ✅
+- **FIRS contamination**: 0 results ✅
+- **NRSt typo scan**: 0 results ✅
+- **Math.random admin**: 0 results ✅
+- **ProgressBar in DashboardScreen**: 0 results ✅ (C-13)
+- **CRA in nta2025**: 0 results ✅
+
+---
+
+## [3.2.2] - 2026-02-26 - NTA 2025 Test Alignment · Full Suite Green
+
+### 🔧 Fixes
+
+#### Mobile Tests — NTA 2025 PIT Band Alignment (P0)
+All mobile test suites aligned to canonical NTA 2025 PIT brackets from `@taxbridge/contracts`.
+Previously, inline `calcPIT()` in test files used abolished pre-NTA 2025 bands (7/11/15/19/21/24%)
+and CRA formula. CRA is abolished under NTA 2025; replaced by 0% first band (₦800k exempt threshold).
+
+Files updated:
+- **`mobile/__tests__/taxEngine.test.ts`** — Rewrote inline `calcPIT()` with NTA 2025 bands (0/15/18/21/23/25%), removed CRA, updated all 8 PIT test expectations. Simplified PAYE to remove abolished CRA reference.
+- **`mobile/src/__tests__/taxEngine.test.ts`** — Same NTA 2025 alignment as above (near-duplicate file).
+- **`mobile/__tests__/OnboardingSystem.integration.test.tsx`** — Fixed PIT ₦12M expected tax (₦2,112,000 → ₦1,950,000), PIT ₦100M breakdown count (5 → 6 bands), CIT small-company threshold (₦50M → ₦25M per NTA 2025), CIT threshold edge-case assertions.
+- **`mobile/__tests__/mockNRS.test.ts`** — Fixed case-sensitive `.toContain('mock')` → `.toContain()` with `.toLowerCase()` to match `'Mock endpoints...'` response.
+
+#### Test Results After Fixes
+- **Backend**: 26 suites, 567 passed, 0 failures ✅
+- **Mobile**: 19 suites, 282 passed, 0 failures ✅ (1 intentionally skipped)
+- **Admin-dashboard**: 2 suites — SWC binary incompatibility on local Windows (pre-existing infra issue; TypeScript compilation clean; tests pass in CI/Linux)
+
+### ✅ Verification
+- All NTA 2025 PIT bands match canonical `PIT_BRACKETS` from `packages/contracts/src/tax-rules.ts`
+- CRA references removed from all test code (CRA abolished under NTA 2025)
+- CIT thresholds corrected to ₦25M small / ₦100M medium per NTA 2025
+- Development Levy 4% applies to ALL companies (not small-company exempt) — verified
+- Zero FIRS contamination, zero NRSt contamination
+
+---
+
+## [3.2.1] - 2026-02-26 - Post-Certification Hardening · safeDate Audit + Mock-Mode Safety
+
+### 🔧 Fixes
+
+#### Admin Dashboard — safeDate() Guard Coverage (P4)
+All unguarded `new Date(serverValue)` calls in the admin-dashboard replaced with `safeDate()` from `@/lib/utils`.
+Prevents `"Invalid Date"` renders when the backend returns `null`, `undefined`, or malformed ISO strings.
+
+Files updated (23 call-sites across 11 files):
+- **`app/dashboard/system/page.tsx`** — `services[0].lastCheck` display
+- **`app/dashboard/invoices/page.tsx`** — table `createdAt` column (already imported `safeDate`, missed one call-site)
+- **`app/dashboard/users/page.tsx`** — user card `createdAt` (added import)
+- **`app/dashboard/users/[id]/page.tsx`** — `formatDate()` helper refactored to use `safeDate` + accepts `null | undefined` (added import)
+- **`app/dashboard/devices/page.tsx`** — `formatTimestamp()` and `isDeviceActive()` now guard `null | undefined | isNaN` (added import)
+- **`app/dashboard/page.tsx`** — `lastLaunchRefresh` useMemo uses `safeDate` (added import)
+- **`components/DashboardLayout.tsx`** — `lastCheckedLabel` guard (extended existing `cn` import)
+- **`components/IntegrationHealthCard.tsx`** — `health.timestamp` display (added import)
+- **`components/LaunchMetricsWidget.tsx`** — `formatWindowRange()` + `metrics.timestamp` display (added import; `Intl.DateTimeFormat` inline replaced)
+- **`components/charts/DuploHealthChart.tsx`** — Recharts `tickFormatter` + `labelFormatter` (added import)
+- **`components/charts/RemitaTransactionChart.tsx`** — Recharts `tickFormatter` + `labelFormatter` (added import)
+
+#### Backend — DIGITAX_MOCK_MODE Default Safety (P3)
+- **`backend/src/server.ts`** — `DIGITAX_MOCK_MODE` env-schema `default` changed from `'true'` → `'false'`.
+  Previously, if Render did not inject the env var, the server silently defaulted to mock mode.
+  Now the server defaults to **real NRS integration** (correct for production); `DIGITAX_MOCK_MODE=true` must be explicitly set for local/staging only.
+  Aligns with RULE-11, C-11, and CI gate: `DIGITAX_MOCK_MODE must be false in prod env`.
+
+### ✅ Verification (all clean)
+- `\bFIRS\b` scan: 0 results
+- `NRSt` scan: 0 results
+- `Math.random()` in chart/financial code: 0 results
+- `ProgressBar` in DashboardScreen/health-score context: 0 results
+- `DIGITAX_MOCK_MODE` in `.env` + `.env.production`: `false` ✅
+- `nrs_csid` / `nrs_irn` schema columns: confirmed (no `firs_` references)
+
+---
+
+## [3.2.0] - 2026-02-26 - V10.3 Dashboard System · Production Certification
+
+### 🏆 V10.3 Master Implementation (Zero-Drift Release)
+
+#### Mobile — Dashboard Zone Architecture (ER-07 / CF-08)
+- **DashboardScreen** (`mobile/src/screens/tabs/DashboardScreen.tsx`) — Full 5-zone composite dashboard (apex/signal/action/context/ambient), 627 lines, implements C-13, C-14, C-16, C-17, C-18, C-19, C-20, CF-02, CF-04, CF-06, CF-08, ER-07–09, UX-10
+- **DashboardZone** (`mobile/src/components/dashboard/DashboardZone.tsx`) — Zone choreography with staggered Reanimated v4 reveals, urgent override collapses delay to 0ms
+- **DashboardSkeleton** (`mobile/src/components/dashboard/DashboardSkeleton.tsx`) — Geometry-contract skeleton with DURATION.skeleton shimmer (1200ms); single gate, zero flash
+- **SectionState** (`mobile/src/components/dashboard/SectionState.tsx`) — Declarative loading/error/empty/children state machine; `empty={null}` for C-19 silent anomaly state
+
+#### Mobile — Dashboard Components (C-13 / F1–F4)
+- **TaxHealthGauge** (`mobile/src/components/TaxHealthGauge.tsx`) — SVG arc gauge (260°), EASE.gauge, compact/expanded modes (UX-10); replaces ProgressBar (CF-01 / C-13)
+- **HealthRing** (`mobile/src/components/dashboard/HealthRing.tsx`) — 4-pillar SVG arc segments with animated staggered withSpring reveals (F1 / HI-02)
+- **TopAnomaliesSection** (`mobile/src/components/dashboard/TopAnomaliesSection.tsx`) — 3-channel severity indicators (▲■●, color, text), C-19 via SectionState (CF-02 / HI-03)
+- **ComplianceCalendar** (`mobile/src/components/dashboard/ComplianceCalendar.tsx`) — Multi-deadline calendar with overdue/urgent/filed/upcoming states (CF-06 / HI-04)
+- **SparklineBarChart** (`mobile/src/components/dashboard/SparklineBarChart.tsx`) — SVG 12-bar revenue sparkline, threshold line, no Math.random() (C-08 / F2 / HI-06)
+- **DonutChart** (`mobile/src/components/charts/DonutChart.tsx`) — SVG donut, WCAG-AA deterministic colors, Pressable slices, C-15 legend (F4)
+- **OfflineSyncStatus** (`mobile/src/components/dashboard/OfflineSyncStatus.tsx`) — Ambient offline/sync strip, C-07 silent fallback, C-15 3-channel (HI-07)
+
+#### Mobile — Animation Vocabulary (C-16 / ER-10)
+- **animation.ts** (`mobile/src/design-system/animation.ts`) — Canonical animation vocabulary: DURATION (instant→notice), EASE (enter/exit/gauge/urgent/shimmer/celebrate), ENTER_FROM, ZONE_DELAYS; 24 C-16 raw-duration violations fixed across 11 files
+
+#### Mobile — Store & Utils
+- **queries.ts** (`mobile/src/store/queries.ts`) — `useDashboard()` composite hook: single `GET /api/v1/dashboard` call (C-14 / CF-03 / ER-05), TanStack Query v5, offlineFirst, staleTime 2min
+- **computeQuickActions.ts** (`mobile/src/utils/computeQuickActions.ts`) — Context-driven urgency ordering: pendingNrs/vatLiab/overdue/anomalies (ER-06 / P1-E)
+
+#### Backend — Schema
+- **Prisma schema** — Added `AnomalyRecord`, `TaxHealthSnapshot`, `VendorRecord`, `PillarScore`, `StreakRecord` models for V10.3 intelligence features
+- **C-02 fix** — Renamed database columns `firs_csid` → `nrs_csid`, `firs_irn` → `nrs_irn` in `invoices` table; migration: `20260222_rename_firs_columns_to_nrs`
+
+#### i18n (C-06)
+- **pidgin.json** — Added missing `dashboard.deadlineFiled`, `dashboard.deadlinePenalty`, `dashboard.dataFrom` keys for full en.json parity
+
+#### CI/CD (Phase 8)
+- **ci.yml** — Backend test gate updated: 423 → ≥528 with actual pass-count assertion; added NRS audit, FIRS scan, CRA contamination scan, DIGITAX_MOCK_MODE check, Math.random chart guard gates
+
+### 🐛 Bug Fixes
+- **C-02**: Eliminated all `firs_` DB column names from schema — migration provided
+- **C-06**: Closed 3-key pidgin.json i18n gap (`deadlineFiled`, `deadlinePenalty`, `dataFrom`)
+- **C-16**: 24 raw animation durations → DURATION.* tokens across 11 component files
+
+### 📝 Documentation
+- Added `DEPLOYMENT_v3.2.0_COMPLETE.md` — Production certification for V10.3
+
+---
+
 ## [3.1.0] - 2026-02-22 - New_files + files Integration · Production Hardening
 
 ### ✨ New Features

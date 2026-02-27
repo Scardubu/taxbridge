@@ -238,4 +238,52 @@ export default async function insightsRoutes(fastify: FastifyInstance) {
     const result = await getHealthSvc().compute(businessId);
     return reply.send(result);
   });
+
+  // ── ER-04: Tax Health Trend ────────────────────────────────────────────────
+
+  /**
+   * GET /api/v1/insights/trends?days=7
+   * Returns the last N daily tax health scores as a trend array.
+   * C-01: uses (prisma as any) — never Prisma.XxxWhereInput
+   */
+  fastify.get('/api/v1/insights/trends', {
+    ...auth,
+    config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
+  }, async (req, reply) => {
+    const userId     = getUserId(req as any);
+    if (!userId) return reply.code(401).send({ error: 'Unauthorized' });
+
+    const rawDays = (req.query as any)?.days;
+    const days    = Math.min(Math.max(Number(rawDays) || 7, 1), 90);
+
+    const cacheKey = `insights:trends:${userId}:${days}`;
+    const redis    = redisOf();
+
+    if (redis) {
+      const cached = await redis.get(cacheKey);
+      if (cached) {
+        return reply.send(JSON.parse(cached));
+      }
+    }
+
+    const since = new Date(Date.now() - days * 86_400_000);
+
+    // C-01: raw prisma via `as any`
+    const snapshots: Array<{ totalScore: number; computedAt: Date }> =
+      await (prismaOf() as any).taxHealthSnapshot.findMany({
+        where:   { userId, computedAt: { gte: since } },
+        select:  { totalScore: true, computedAt: true },
+        orderBy: { computedAt: 'asc' },
+        take:    days,
+      });
+
+    const trend: number[] = snapshots.map((s) => Math.round(s.totalScore));
+    const body = { trend, days, computedAt: new Date().toISOString() };
+
+    if (redis) {
+      await redis.set(cacheKey, JSON.stringify(body), 'EX', 300); // 5-min TTL
+    }
+
+    return reply.send(body);
+  });
 }

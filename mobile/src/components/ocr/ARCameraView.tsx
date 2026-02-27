@@ -11,6 +11,7 @@ import * as Haptics from '../../utils/safeHaptics';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radii, typography, shadows } from '../../theme/tokens';
+import { DURATION } from '../../design-system/animation';
 import { SkeletonLoader } from '../ui/SkeletonLoader';
 
 interface ARCameraViewProps {
@@ -44,12 +45,12 @@ export function ARCameraView({ onCapture, onClose, facing = 'back', onFlip }: AR
         Animated.sequence([
           Animated.timing(pulseAnim, {
             toValue: 1.1,
-            duration: 500,
+            duration: DURATION.medium,
             useNativeDriver: true,
           }),
           Animated.timing(pulseAnim, {
             toValue: 1,
-            duration: 500,
+            duration: DURATION.medium,
             useNativeDriver: true,
           }),
         ])

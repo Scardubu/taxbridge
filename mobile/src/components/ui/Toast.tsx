@@ -14,6 +14,7 @@ import Animated, {
   withTiming,
   runOnJS,
 } from 'react-native-reanimated';
+import { DURATION } from '../../design-system/animation';
 import * as Haptics from '../../utils/safeHaptics';
 import { colors, spacing, radii, typography } from '../../theme/tokens';
 
@@ -93,7 +94,7 @@ export const Toast: React.FC<ToastProps> = ({
 
     // Animate in
     translateY.value = withSpring(0, { damping: 15 });
-    opacity.value = withTiming(1, { duration: 200 });
+    opacity.value = withTiming(1, { duration: DURATION.fast });
 
     // Auto-dismiss
     if (effectiveDuration > 0) {
@@ -110,8 +111,8 @@ export const Toast: React.FC<ToastProps> = ({
   }, []);
 
   const handleDismiss = () => {
-    translateY.value = withTiming(-100, { duration: 200 });
-    opacity.value = withTiming(0, { duration: 200 }, (finished) => {
+    translateY.value = withTiming(-100, { duration: DURATION.fast });
+    opacity.value = withTiming(0, { duration: DURATION.fast }, (finished) => {
       if (finished) {
         runOnJS(onDismiss)();
       }

@@ -442,7 +442,7 @@ export default async function invoiceManagementRoutes(
           id: invoice.id,
           invoiceNumber: invoice.invoiceNumber,
           total: invoice.total,
-          firsIRN: invoice.firsIRN,
+          nrsIRN: invoice.nrsIRN,
           nrsReference: invoice.nrsReference,
         });
       }
@@ -489,8 +489,8 @@ export default async function invoiceManagementRoutes(
         vatAmount: invoice.vatAmount,
         total: invoice.total,
         nrsCompliant: options.includeNRSBadge ? invoice.nrsCompliant : false,
-        firsIRN: invoice.firsIRN,
-        firsCSID: invoice.firsCSID,
+        nrsIRN: invoice.nrsIRN,
+        nrsCSID: invoice.nrsCSID,
         nrsReference: invoice.nrsReference,
         qrCode: options.includeQR ? qrCode : null,
         notes: invoice.notes,

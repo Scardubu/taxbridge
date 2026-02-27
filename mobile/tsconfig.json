@@ -27,8 +27,7 @@
       "@ds/*":         ["./src/design-system/*"],
       "@i18n/*":       ["./src/i18n/*"]
     },
-    "types": ["jest", "node"],
-    "typeRoots": ["./node_modules/@types"]
+    "types": ["jest", "node"]
   },
   "include": [
     "**/*.ts",

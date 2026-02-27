@@ -11,48 +11,65 @@ import {
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
-import { colors, typography, spacing, radii, shadows } from '../design-system/tokens';
-import { Card, NairaInput, Button, ProgressBar, Badge } from '../design-system/components';
-import { TaxTooltip } from '../components/education/TaxEducation';
+import { colors, typography, spacing, radii, shadows } from '../../design-system/tokens';
+import { DURATION, STAGGER } from '../../design-system/animation';
+import { Card, NairaInput, Button, ProgressBar, Badge } from '../../design-system/components';
+import { TaxTooltip } from '../../components/education/TaxEducation';
+import {
+  PIT_BRACKETS,
+  VAT_RATE,
+  CIT_TIERS,
+  CGT_RATE,
+  DEVELOPMENT_LEVY_RATE,
+  WHT_RATES,
+  PENSION_RATE,
+  NHF_RATE,
+  RENT_RELIEF_CAP,
+  RENT_RELIEF_RATE,
+} from '@taxbridge/contracts';
 
-// ─── NTA 2025 Constants ───────────────────────────────────────────────────────
+// ─── NTA 2025 Constants — imported from @taxbridge/contracts (C-09) ──────────
+// RULE 4: All rates come from canonical constants. Never hardcode.
+// PIT_BRACKETS, VAT_RATE, CIT_TIERS, CGT_RATE, WHT_RATES imported above.
 
-const PIT_BANDS = [
-  { limit: 300_000,    rate: 0.07, label: 'First ₦300k' },
-  { limit: 600_000,    rate: 0.11, label: '₦300k–₦600k' },
-  { limit: 1_100_000,  rate: 0.15, label: '₦600k–₦1.1M' },
-  { limit: 1_600_000,  rate: 0.19, label: '₦1.1M–₦1.6M' },
-  { limit: 3_200_000,  rate: 0.21, label: '₦1.6M–₦3.2M' },
-  { limit: Infinity,   rate: 0.24, label: 'Above ₦3.2M' },
-];
-
-const VAT_RATE     = 0.075;
-const CIT_RATES    = { small: 0, medium: 0.20, large: 0.30 };
-const CGT_RATE     = 0.10;
-const DEV_LEVY     = 0.04;
-const WHT_RATES    = {
-  dividends: 0.10, interest: 0.10, rent: 0.10,
-  royalties: 0.10, contracts: 0.05, consultancy: 0.10,
+/** Human-readable labels for WHT payment type keys */
+const WHT_LABELS: Record<string, string> = {
+  contractServices: 'Contract Services',
+  professionalFees: 'Professional Fees',
 };
+function whtLabel(key: string): string {
+  return WHT_LABELS[key] ?? key.charAt(0).toUpperCase() + key.slice(1);
+}
 
 type CalcType = 'pit' | 'vat' | 'cit' | 'paye' | 'wht' | 'cgt';
 
 // ─── Calculator Logic ─────────────────────────────────────────────────────────
 
-function calcPIT(annualIncome: number): {
+/**
+ * calcPIT — uses NTA 2025 bands from @taxbridge/contracts.
+ * RULE 3: CRA is abolished. Uses RRA (Rent Relief Allowance) instead.
+ * RULE 4: All rates from PIT_BRACKETS constant.
+ * Pass rentPaid=0 for users who don't pay rent.
+ */
+function calcPIT(annualIncome: number, rentPaid: number = 0): {
   taxable: number; total: number; effectiveRate: number;
   bands: Array<{ label: string; rate: number; taxOnBand: number; bandIncome: number }>;
-  cra: number;
+  rra: number; pension: number; nhf: number;
 } {
-  const cra     = Math.max(200_000, annualIncome * 0.01) + annualIncome * 0.20;
-  const taxable = Math.max(0, annualIncome - cra);
+  // Statutory deductions
+  const pension = annualIncome * PENSION_RATE;
+  const nhf     = annualIncome * NHF_RATE;
+  // RRA replaces CRA — min(20% × rent, ₦500k). NTA 2025 §30(2)
+  const rra     = rentPaid > 0 ? Math.min(RENT_RELIEF_CAP, rentPaid * RENT_RELIEF_RATE) : 0;
+  const taxable = Math.max(0, annualIncome - pension - nhf - rra);
+
   let remaining = taxable;
   let total     = 0;
   let prevLimit = 0;
-  const bands: ReturnType<typeof calcPIT>['bands'] = [];
+  const bands: Array<{ label: string; rate: number; taxOnBand: number; bandIncome: number }> = [];
 
-  for (const band of PIT_BANDS) {
-    const width     = band.limit === Infinity ? remaining : Math.min(remaining, band.limit - prevLimit);
+  for (const band of PIT_BRACKETS) {
+    const width = band.limit === Infinity ? remaining : Math.min(remaining, band.limit - prevLimit);
     if (width <= 0) break;
     const taxOnBand = width * band.rate;
     total          += taxOnBand;
@@ -62,27 +79,30 @@ function calcPIT(annualIncome: number): {
     if (remaining <= 0) break;
   }
 
-  return { taxable, total, effectiveRate: annualIncome > 0 ? total / annualIncome : 0, bands, cra };
+  return { taxable, total, effectiveRate: annualIncome > 0 ? total / annualIncome : 0, bands, rra, pension, nhf };
 }
 
 function calcCIT(profit: number): { rate: number; tax: number; tier: string; devLevy: number } {
-  const tier = profit < 25_000_000 ? 'small'
-             : profit < 100_000_000 ? 'medium' : 'large';
-  const rate = CIT_RATES[tier];
-  return { rate, tax: profit * rate, tier, devLevy: profit * DEV_LEVY };
+  // C-09: CIT tiers from @taxbridge/contracts, never hardcoded
+  const matched = CIT_TIERS.find(t => profit <= t.maxRevenue) ?? CIT_TIERS[CIT_TIERS.length - 1];
+  const rate = matched.rate;
+  const tier = profit <= CIT_TIERS[0].maxRevenue ? 'small'
+             : profit <= CIT_TIERS[1].maxRevenue ? 'medium' : 'large';
+  const exempt = tier === 'small';
+  return { rate, tax: exempt ? 0 : profit * rate, tier, devLevy: exempt ? 0 : profit * DEVELOPMENT_LEVY_RATE };
 }
 
 function calcPAYE(grossMonthly: number): {
-  gross: number; cra: number; taxable: number;
+  gross: number; rra: number; taxable: number;
   paye: number; pension: number; nhf: number; net: number;
 } {
   const annual  = grossMonthly * 12;
-  const pension = grossMonthly * 0.08;
-  const nhf     = grossMonthly * 0.025;
+  const pension = grossMonthly * PENSION_RATE;
+  const nhf     = grossMonthly * NHF_RATE;
   const pit     = calcPIT(annual);
   const paye    = pit.total / 12;
   return {
-    gross: grossMonthly, cra: pit.cra / 12, taxable: pit.taxable / 12,
+    gross: grossMonthly, rra: pit.rra / 12, taxable: pit.taxable / 12,
     paye, pension, nhf, net: grossMonthly - paye - pension - nhf,
   };
 }
@@ -160,7 +180,7 @@ function PITCalc() {
   const result = useMemo(() => income > 0 ? calcPIT(income) : null, [income]);
 
   return (
-    <Animated.View entering={FadeInDown.duration(300)}>
+    <Animated.View entering={FadeInDown.duration(DURATION.transition)}>
       <Text style={styles.calcTitle}>
         <TaxTooltip tooltipKey="pit">
           <Text>{t('tools.pitCalc')}</Text>
@@ -170,7 +190,7 @@ function PITCalc() {
       <NairaInput
         label={t('tools.annualIncome')}
         value={income || undefined}
-        onChangeText={(raw) => setIncome(raw)}
+        onChangeText={(raw: number) => setIncome(raw)}
         placeholder="3,000,000"
         hint="Enter your total annual income before deductions"
         required
@@ -178,13 +198,17 @@ function PITCalc() {
 
       {result && (
         <Animated.View entering={FadeIn}>
-          {/* CRA deduction */}
+          {/* Statutory deductions — pension + NHF + RRA */}
           <Card variant="success" style={styles.resultCard}>
-            <Text style={styles.resultLabel}>Consolidated Relief Allowance (CRA)</Text>
-            <Text style={styles.resultValue}>
-              −₦{Math.round(result.cra).toLocaleString('en-NG')}
+            <Text style={styles.resultLabel}>Deductions (Pension {(PENSION_RATE * 100).toFixed(0)}% + NHF {(NHF_RATE * 100).toFixed(0)}%{result.rra > 0 ? ' + RRA' : ''})</Text>
+            <Text style={styles.resultBig}>
+              −₦{Math.round(result.pension + result.nhf + result.rra).toLocaleString('en-NG')}
             </Text>
-            <Text style={styles.resultNote}>max(₦200k, 1% income) + 20% of income — NTA 2025 §33</Text>
+            <Text style={styles.resultNote}>
+              {result.rra > 0
+                ? `RRA: min(20% × rent, ₦${RENT_RELIEF_CAP.toLocaleString('en-NG')}) — NTA 2025 §30(2)`
+                : 'Rent Relief Allowance (RRA) available if you pay rent — NTA 2025 §30(2)'}
+            </Text>
           </Card>
 
           {/* Total PIT */}
@@ -205,7 +229,7 @@ function PITCalc() {
           {/* Band breakdown */}
           <Text style={styles.breakdownTitle}>Band Breakdown</Text>
           {result.bands.map((band, idx) => (
-            <Animated.View key={band.label} entering={FadeIn.delay(idx * 50)}>
+            <Animated.View key={band.label} entering={FadeIn.delay(idx * STAGGER.item)}>
               <Card style={styles.bandCard}>
                 <View style={styles.bandRow}>
                   <View>
@@ -221,7 +245,7 @@ function PITCalc() {
                     </Text>
                   </View>
                 </View>
-                <ProgressBar value={band.rate / 0.24} height={4} style={{ marginTop: 6 }} />
+                <ProgressBar value={band.rate / 0.25} height={4} style={{ marginTop: 6 }} />
               </Card>
             </Animated.View>
           ))}
@@ -248,14 +272,14 @@ function VATCalc() {
   }, [amount, inclusive]);
 
   return (
-    <Animated.View entering={FadeInDown.duration(300)}>
+    <Animated.View entering={FadeInDown.duration(DURATION.transition)}>
       <Text style={styles.calcTitle}>
         <TaxTooltip tooltipKey="vat"><Text>{t('tools.vatCalc')}</Text></TaxTooltip>
-        {' '}— NTA 2025 §11 (7.5%)
+        {' '}— NTA 2025 §11 ({(VAT_RATE * 100).toFixed(1)}%)
       </Text>
 
       <NairaInput
-        label={inclusive ? 'VAT-Inclusive Amount (₦)' : 'Amount Before VAT (₦)'}
+        label={inclusive ? t('tools.vatInclusiveLabel', { defaultValue: 'VAT-Inclusive Amount (₦)' }) : t('tools.vatExclusiveLabel', { defaultValue: 'Amount Before VAT (₦)' })}
         value={amount || undefined}
         onChangeText={setAmount}
         required
@@ -302,7 +326,7 @@ function CITCalc() {
   const result = useMemo(() => profit > 0 ? calcCIT(profit) : null, [profit]);
 
   return (
-    <Animated.View entering={FadeInDown.duration(300)}>
+    <Animated.View entering={FadeInDown.duration(DURATION.transition)}>
       <Text style={styles.calcTitle}>
         <TaxTooltip tooltipKey="cit"><Text>CIT Calculator</Text></TaxTooltip>
         {' '}— NTA 2025 §55
@@ -341,7 +365,7 @@ function PAYECalc() {
   const result = useMemo(() => salary > 0 ? calcPAYE(salary) : null, [salary]);
 
   return (
-    <Animated.View entering={FadeInDown.duration(300)}>
+    <Animated.View entering={FadeInDown.duration(DURATION.transition)}>
       <Text style={styles.calcTitle}>
         <TaxTooltip tooltipKey="paye"><Text>PAYE Calculator</Text></TaxTooltip>
         {' '}— NTA 2025 §82
@@ -380,7 +404,7 @@ function WHTCalc() {
   }, [amount, whtType]);
 
   return (
-    <Animated.View entering={FadeInDown.duration(300)}>
+    <Animated.View entering={FadeInDown.duration(DURATION.transition)}>
       <Text style={styles.calcTitle}>
         <TaxTooltip tooltipKey="wht"><Text>WHT Calculator</Text></TaxTooltip>
         {' '}— NTA 2025 §78
@@ -395,7 +419,7 @@ function WHTCalc() {
             style={[styles.typeChip, whtType === key && styles.typeChipSelected]}
           >
             <Text style={[styles.typeChipText, whtType === key && styles.typeChipTextSelected]}>
-              {key.charAt(0).toUpperCase() + key.slice(1)} ({(rate * 100).toFixed(0)}%)
+              {whtLabel(key)} ({(rate * 100).toFixed(0)}%)
             </Text>
           </Pressable>
         ))}
@@ -437,7 +461,7 @@ function CGTCalc() {
   }, [buyPrice, sellPrice, qty]);
 
   return (
-    <Animated.View entering={FadeInDown.duration(300)}>
+    <Animated.View entering={FadeInDown.duration(DURATION.transition)}>
       <Text style={styles.calcTitle}>
         <TaxTooltip tooltipKey="cgt"><Text>CGT Calculator</Text></TaxTooltip>
         {' '}— NTA 2025 Sch. 5 (10%)
@@ -502,7 +526,7 @@ function ComplianceCalendar() {
     <View style={{ marginTop: spacing[6] }}>
       <Text style={styles.calendarTitle}>📅 Compliance Calendar</Text>
       {upcoming.map((d, idx) => (
-        <Animated.View key={d.type} entering={FadeIn.delay(idx * 50)}>
+        <Animated.View key={d.type} entering={FadeIn.delay(idx * STAGGER.item)}>
           <Card
             variant={d.daysLeft <= 0 ? 'error' : d.daysLeft <= 7 ? 'warning' : 'default'}
             style={styles.deadlineCard}

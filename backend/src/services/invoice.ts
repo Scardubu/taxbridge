@@ -250,8 +250,8 @@ export class InvoiceService {
     // Reset NRS fields on edit
     updateData.ublXml = null;
     updateData.nrsReference = null;
-    updateData.firsCSID = null;
-    updateData.firsIRN = null;
+    updateData.nrsCSID = null;
+    updateData.nrsIRN = null;
     updateData.qrCode = null;
     updateData.pdfUrl = null;
 
@@ -312,8 +312,8 @@ export class InvoiceService {
       template: invoice.template,
       status: invoice.status,
       nrsCompliant: invoice.nrsCompliant,
-      firsCSID: invoice.firsCSID,
-      firsIRN: invoice.firsIRN,
+      nrsCSID: invoice.nrsCSID,
+      nrsIRN: invoice.nrsIRN,
       nrsReference: invoice.nrsReference,
       qrCode: invoice.qrCode,
       pdfUrl: invoice.pdfUrl,
@@ -484,8 +484,8 @@ export class InvoiceService {
     invoiceId: string,
     data: {
       nrsReference: string;
-      firsCSID?: string;
-      firsIRN?: string;
+      nrsCSID?: string;
+      nrsIRN?: string;
       ublXml?: string;
       qrCode?: string;
     }
@@ -495,8 +495,8 @@ export class InvoiceService {
       data: {
         status: 'stamped',
         nrsReference: data.nrsReference,
-        firsCSID: data.firsCSID || null,
-        firsIRN: data.firsIRN || null,
+        nrsCSID: data.nrsCSID || null,
+        nrsIRN: data.nrsIRN || null,
         ublXml: data.ublXml || null,
         qrCode: data.qrCode || null,
         nrsCompliant: true,
@@ -511,12 +511,12 @@ export class InvoiceService {
     id: string;
     invoiceNumber: string | null;
     total: number;
-    firsIRN?: string | null;
+    nrsIRN?: string | null;
     nrsReference?: string | null;
   }): Promise<string> {
     const qrData = JSON.stringify({
       inv: invoice.invoiceNumber || invoice.id,
-      irn: invoice.firsIRN || invoice.nrsReference || '',
+      irn: invoice.nrsIRN || invoice.nrsReference || '',
       amt: invoice.total,
       ts: new Date().toISOString(),
       src: 'TaxBridge',

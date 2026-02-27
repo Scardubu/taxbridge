@@ -129,17 +129,20 @@ export async function detectExpenseAnomalies(
 
   const signals: AnomalySignal[] = [];
 
-  // ── Signal 1: AMOUNT_SPIKE — >2.5× category rolling average ──────────────
-  const categoryTotals: Record<string, number[]> = {};
+  // ── Signal 1: AMOUNT_SPIKE — leave-one-out z-score vs other expenses in category ─────
+  // Group expenses by category to compute peer statistics
+  const grouped = new Map<string, typeof expenses>();
   for (const e of expenses) {
-    if (!categoryTotals[e.category]) categoryTotals[e.category] = [];
-    categoryTotals[e.category].push(e.amount);
+    if (!grouped.has(e.category)) grouped.set(e.category, []);
+    grouped.get(e.category)!.push(e);
   }
 
   for (const e of expenses) {
-    const amounts = categoryTotals[e.category] ?? [];
-    if (amounts.length < 3) continue;
+    // Exclude current expense from peer set (leave-one-out)
+    const peers = (grouped.get(e.category) ?? []).filter((x: any) => x.id !== e.id);
+    if (peers.length < 3) continue; // need ≥3 peers for reliable statistics
 
+    const amounts = peers.map((x: any) => x.amount as number);
     const mean   = amounts.reduce((s, a) => s + a, 0) / amounts.length;
     const stdDev = Math.sqrt(amounts.map(a => (a - mean) ** 2).reduce((s, v) => s + v, 0) / amounts.length);
     const zScore = stdDev > 0 ? (e.amount - mean) / stdDev : 0;
@@ -220,13 +223,16 @@ export async function detectExpenseAnomalies(
     }
   }
 
-  // Deduplicate by expenseId — one signal per expense max
-  const seen  = new Set<string>();
-  const deduped = signals.filter(s => {
-    if (seen.has(s.expenseId)) return false;
-    seen.add(s.expenseId);
-    return true;
-  });
+  // Deduplicate by expenseId — one signal per expense, keeping the highest-severity one
+  const severityOrder: Record<string, number> = { high: 0, medium: 1, low: 2 };
+  const bestByExpense = new Map<string, AnomalySignal>();
+  for (const s of signals) {
+    const existing = bestByExpense.get(s.expenseId);
+    if (!existing || severityOrder[s.severity] < severityOrder[existing.severity]) {
+      bestByExpense.set(s.expenseId, s);
+    }
+  }
+  const deduped = Array.from(bestByExpense.values());
 
   // Sort: high → medium → low
   return deduped.sort((a, b) => {
@@ -374,6 +380,148 @@ function calculatePIT(taxableIncome: number): number {
   }
 
   return Math.round(tax);
+}
+
+// ─── F1: Pillar Scores ──────────────────────────────────────────────────────────
+
+export interface PillarScore {
+  key:    'filing_timeliness' | 'data_completeness' | 'compliance_calendar' | 'nrs_submissions';
+  score:  number;  // 0–100 normalised
+  trend?: 'improving' | 'stable' | 'declining';
+}
+
+/**
+ * Derives 4 pillar scores from the existing health score breakdown.
+ * No extra DB queries — reuses computeTaxHealthScore result.
+ */
+export async function getPillarScores(
+  userId: string,
+  prisma: PrismaClient,
+): Promise<PillarScore[]> {
+  const health = await computeTaxHealthScore(userId, prisma);
+  const { breakdown } = health;
+  return [
+    {
+      key:   'filing_timeliness',
+      score: Math.min(100, Math.round((breakdown.paymentTimeliness / 15) * 100)),
+    },
+    {
+      key:   'data_completeness',
+      score: Math.min(100, Math.round(((breakdown.receiptCoverage + breakdown.expenseTracking) / 35) * 100)),
+    },
+    {
+      key:   'compliance_calendar',
+      score: Math.min(100, Math.round((breakdown.invoiceCompliance / 25) * 100)),
+    },
+    {
+      key:   'nrs_submissions',
+      score: Math.min(100, Math.round((breakdown.nrsSubmission / 25) * 100)),
+    },
+  ];
+}
+
+// ─── F4: Tax Breakdown Slices ─────────────────────────────────────────────────
+
+export interface TaxBreakdownSlice {
+  key:   string;
+  label: string;
+  value: number;
+}
+
+/**
+ * YTD tax liability by type — used by DonutChart (F4).
+ * WHT constant: 5% of paid professional service invoices (NTA 2025).
+ * Returns only slices with value > 0 to avoid empty donut segments.
+ */
+export async function getTaxBreakdownSlices(
+  userId: string,
+  prisma: PrismaClient,
+): Promise<TaxBreakdownSlice[]> {
+  const forecast = await forecastQuarterlyTax(userId, prisma);
+
+  const startOfYear = new Date(new Date().getFullYear(), 0, 1);
+  const paidInvoices = await (prisma as any).invoice.findMany({
+    where:  { userId, status: 'PAID', createdAt: { gte: startOfYear } },
+    select: { amount: true },
+  });
+
+  // WHT 5% on gross invoice amounts (conservative proxy — NTA 2025)
+  const whtRate = (NTA_2025 as any).WHT?.services ?? 0.05;
+  const wht = Math.round(
+    paidInvoices.reduce((s: number, i: any) => s + i.amount * whtRate, 0),
+  );
+
+  const slices: TaxBreakdownSlice[] = [
+    { key: 'vat',     label: 'VAT',      value: forecast.breakdown.vat                  },
+    { key: 'paye',    label: 'PAYE',     value: forecast.breakdown.pit                  },
+    { key: 'devLevy', label: 'Dev Levy', value: forecast.breakdown.devLevy              },
+    { key: 'wht',     label: 'WHT',      value: wht                                     },
+    { key: 'cit',     label: 'CIT',      value: forecast.breakdown.cit ?? 0            },
+  ];
+
+  return slices.filter(s => s.value > 0);
+}
+
+// ─── F2: Spark Data (last 12 months revenue) ─────────────────────────────────
+
+export interface SparkDatum {
+  value:   number;
+  flagged: boolean;
+  label:   string;
+}
+
+/**
+ * Buckets invoice revenue by calendar month for the last 12 months.
+ * A month is "flagged" if it falls > 1.5σ below the rolling mean.
+ * No Math.random — all arithmetic deterministic (C-08).
+ */
+export async function getSparkData(
+  userId: string,
+  prisma: PrismaClient,
+): Promise<SparkDatum[]> {
+  const twelveMonthsAgo = new Date();
+  twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 11);
+  twelveMonthsAgo.setDate(1);
+  twelveMonthsAgo.setHours(0, 0, 0, 0);
+
+  const invoices = await (prisma as any).invoice.findMany({
+    where:  { userId, createdAt: { gte: twelveMonthsAgo } },
+    select: { amount: true, createdAt: true },
+  });
+
+  // Build ordered month keys (YYYY-MM) oldest → newest
+  const months: string[] = [];
+  const buckets: Record<string, number> = {};
+  for (let i = 11; i >= 0; i--) {
+    const d   = new Date();
+    d.setMonth(d.getMonth() - i);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    months.push(key);
+    buckets[key] = 0;
+  }
+
+  for (const inv of invoices) {
+    const d   = new Date(inv.createdAt);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    if (key in buckets) buckets[key] += inv.amount;
+  }
+
+  const values = months.map(k => buckets[k]);
+  const mean   = values.reduce((s, v) => s + v, 0) / (values.length || 1);
+  const stdDev = Math.sqrt(
+    values.map(v => (v - mean) ** 2).reduce((s, v) => s + v, 0) / (values.length || 1),
+  );
+
+  return months.map((key, i) => {
+    const d     = new Date(key + '-01');
+    const label = d.toLocaleString('en-NG', { month: 'short' });
+    const v     = values[i];
+    return {
+      value:   v,
+      flagged: stdDev > 0 && (mean - v) / stdDev > 1.5,
+      label,
+    };
+  });
 }
 
 // ─── Deadline Utility ─────────────────────────────────────────────────────────

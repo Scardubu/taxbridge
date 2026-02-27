@@ -42,6 +42,8 @@ model User {
   devices                Device[]
   adminActions           AdminAction[]
   businesses             Business[]
+  streakRecord           StreakRecord?
+  pillarScores           PillarScore[]
 
   @@unique([phone], map: "users_phone_unique")
   @@map("users")
@@ -114,11 +116,14 @@ model Employee {
   name            String
   email           String?
   phone           String?
+  tin             String?   @map("tin")
   grossSalary     Decimal   @db.Decimal(15, 2) @map("gross_salary")
   housingAllowance  Decimal @default(0) @db.Decimal(15, 2) @map("housing_allowance")
   transportAllowance Decimal @default(0) @db.Decimal(15, 2) @map("transport_allowance")
   mealAllowance   Decimal   @default(0) @db.Decimal(15, 2) @map("meal_allowance")
   otherAllowances Decimal   @default(0) @db.Decimal(15, 2) @map("other_allowances")
+  annualRentPaid  Decimal   @default(0) @db.Decimal(15, 2) @map("annual_rent_paid")
+  pensionOptOut   Boolean   @default(false) @map("pension_opt_out")
   startDate       DateTime  @map("start_date")
   status          String    @default("active") // active, inactive, suspended
   createdAt       DateTime  @default(now()) @map("created_at")
@@ -208,8 +213,8 @@ model Invoice {
   ublXml             String?  @map("ubl_xml") @db.Text
   nrsReference       String?  @map("nrs_reference")
   nrsCompliant       Boolean  @default(false) @map("nrs_compliant")
-  firsCSID           String?  @map("firs_csid")
-  firsIRN            String?  @map("firs_irn")
+  nrsCSID            String?  @map("nrs_csid")
+  nrsIRN             String?  @map("nrs_irn")
   qrCode             String?  @map("qr_code") @db.Text
   pdfUrl             String?  @map("pdf_url")
   notes              String?  @db.Text
@@ -233,7 +238,7 @@ model Invoice {
   @@index([businessId])                // List business invoices
   @@index([createdAt])                 // Recent invoices sorting
   @@index([nrsReference])              // Lookup by NRS reference
-  @@index([firsIRN])                   // Lookup by FIRS IRN
+  @@index([nrsIRN])                    // Lookup by NRS IRN
   @@index([status, userId])            // User's invoices by status
   @@index([userId, updatedAt])         // Sync pull performance (delta updates)
   @@index([dueDate, status])           // Overdue invoice detection
@@ -697,4 +702,60 @@ model VendorRecord {
   @@index([userId])
   @@index([riskLevel])
   @@map("vendor_records")
+}
+
+// ============================================
+// Compliance Streak — M09 F3 (V3.1)
+// ============================================
+
+model StreakRecord {
+  id                String    @id @default(uuid()) @db.Uuid
+  userId            String    @unique @map("user_id") @db.Uuid
+  currentStreak     Int       @default(0) @map("current_streak")
+  longestStreak     Int       @default(0) @map("longest_streak")
+  totalXP           Int       @default(0) @map("total_xp")
+  lastCheckinDate   DateTime? @map("last_checkin_date")
+  lastResetReason   String?   @map("last_reset_reason") // invoice_missed, manual_reset
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  user              User      @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([currentStreak])
+  @@map("streak_records")
+}
+
+// ============================================
+// Pillar Scores — M09 F1 Health Ring (V3.1)
+// ============================================
+
+// pillar values: filing_timeliness | data_completeness | compliance_calendar | nrs_submissions
+model PillarScore {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String   @map("user_id") @db.Uuid
+  businessId   String?  @map("business_id") @db.Uuid
+  pillar       String   // filing_timeliness, data_completeness, compliance_calendar, nrs_submissions
+  score        Float    // 0–100
+  trend        String?  // improving, stable, declining
+  computedAt   DateTime @default(now()) @map("computed_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  user         User     @relation(fields: [userId], references: [id])
+
+  @@index([userId, pillar])
+  @@index([userId, computedAt])
+  @@index([businessId])
+  @@map("pillar_scores")
+}
+
+// ============================================
+// Filing Status Enum (NTA 2025 §3)
+// ============================================
+
+enum FilingStatus {
+  DRAFT
+  SUBMITTED
+  ACCEPTED
+  REJECTED
 }

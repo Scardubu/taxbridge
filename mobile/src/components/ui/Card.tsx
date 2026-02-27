@@ -2,6 +2,7 @@ import React from 'react';
 import { View, StyleSheet, ViewStyle, StyleProp } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { colors, radii, spacing, shadows } from '../../theme/tokens';
+import { DURATION } from '../../design-system/animation';
 
 type CardVariant = 'default' | 'elevated' | 'outlined' | 'ntaExemption' | 'ntaAlert' | 'ntaCompliance';
 type CardPadding = 'sm' | 'md' | 'lg';
@@ -42,7 +43,7 @@ export function Card({
 
 	if (animated) {
 		return (
-			<Animated.View entering={FadeInDown.duration(300).delay(animationDelay)} style={baseStyles}>
+			<Animated.View entering={FadeInDown.duration(DURATION.transition).delay(animationDelay)} style={baseStyles}>
 				{children}
 			</Animated.View>
 		);

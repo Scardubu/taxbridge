@@ -14,6 +14,7 @@ import { showToast } from '../components/ui/Toast';
 import { EmptyState } from '../components/ui/EmptyState';
 import type { LocalInvoiceRow } from '../types/invoice';
 import { colors, spacing, radii, typography, shadows } from '../theme/tokens';
+import { DURATION } from '../design-system/animation';
 import { getInvoices, setInvoiceRetryMetadata, updateInvoiceStatus } from '../services/database';
 import { useNetwork } from '../contexts/NetworkContext';
 import { useSyncContext } from '../contexts/SyncContext';
@@ -151,7 +152,7 @@ function InvoicesScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <Animated.View entering={isWeb ? undefined : FadeIn.duration(300)} style={styles.container}>
+      <Animated.View entering={isWeb ? undefined : FadeIn.duration(DURATION.transition)} style={styles.container}>
         {/* Sync Status Bar */}
         <SyncStatusBar />
 
@@ -181,7 +182,7 @@ function InvoicesScreen() {
         </View>
 
         {/* Filter Tabs */}
-        <Animated.View entering={isWeb ? undefined : FadeIn.delay(100).duration(300)} style={styles.filterContainer}>
+        <Animated.View entering={isWeb ? undefined : FadeIn.delay(100).duration(DURATION.transition)} style={styles.filterContainer}>
           {filterOptions.map((filter) => (
             <Pressable
               key={filter.key}

@@ -1,0 +1,187 @@
+name: Prompts CI
+
+on:
+  push:
+    paths:
+      - 'prompts/**'
+  pull_request:
+    paths:
+      - 'prompts/**'
+  workflow_dispatch:
+
+# Ensures this workflow is visible in the Actions tab
+# and can be triggered manually when prompt modules change
+
+jobs:
+  lint-modules:
+    name: Lint Prompt Modules
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: prompts
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: prompts/package.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run prompt linter
+        run: node loaders/prompt-linter.js
+        # Fails if any module is missing required sections,
+        # contains forbidden strings (FIRS, NRSt), or exceeds token budget
+
+  validate-loader:
+    name: Validate Loader System
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: prompts
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: prompts/package.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run integration tests
+        run: npx ts-node loaders/prompt-loader.test.ts
+        # Tests: module loading, task mapping, token budget, output format
+
+      - name: Verify module index
+        run: npm run prompts:verify
+        # Checks all 8 module files are present and loadable
+
+  check-forbidden-strings:
+    name: Audit Codebase for Forbidden Strings
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check for FIRS references (must be zero)
+        run: |
+          count=$(grep -rn "FIRS" \
+            backend/src \
+            mobile/src \
+            admin-dashboard/src \
+            packages/ \
+            --include="*.ts" \
+            --include="*.tsx" \
+            --include="*.json" \
+            --exclude-dir=node_modules \
+            2>/dev/null | wc -l || echo 0)
+          echo "FIRS references found: $count"
+          if [ "$count" -gt "0" ]; then
+            echo "::error::Found $count FIRS reference(s) — must be NRS only"
+            grep -rn "FIRS" \
+              backend/src mobile/src admin-dashboard/src packages/ \
+              --include="*.ts" --include="*.tsx" --include="*.json" \
+              --exclude-dir=node_modules
+            exit 1
+          fi
+          echo "✓ Zero FIRS references"
+
+      - name: Check for NRSt typo (must be zero)
+        run: |
+          count=$(grep -rn "NRSt" \
+            mobile/src/i18n \
+            --include="*.json" \
+            2>/dev/null | wc -l || echo 0)
+          echo "NRSt occurrences: $count"
+          if [ "$count" -gt "0" ]; then
+            echo "::error::Found $count 'NRSt' typo(s) in i18n files — fix to 'NRS'"
+            exit 1
+          fi
+          echo "✓ Zero NRSt typos"
+
+      - name: Check for raw i18n key patterns in JSX/TSX
+        run: |
+          # Raw keys look like: COMMON.OFFLINE or onboarding.profile.annualTurnover
+          # These should never appear as literal strings in component renders
+          count=$(grep -rn "COMMON\." \
+            mobile/src/components \
+            mobile/src/screens \
+            mobile/src/app \
+            --include="*.tsx" \
+            2>/dev/null | grep -v "// " | wc -l || echo 0)
+          echo "Potential raw COMMON.* keys in JSX: $count"
+          if [ "$count" -gt "0" ]; then
+            echo "::warning::Found potential raw i18n keys — verify these are not rendered directly"
+          fi
+          echo "✓ Raw key audit complete"
+
+  token-budget-report:
+    name: Token Budget Report
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: prompts
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: prompts/package.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate token budget report
+        run: |
+          echo "## Prompt Module Token Estimates" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Module | File | Lines | ~Tokens |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|------|-------|---------|" >> $GITHUB_STEP_SUMMARY
+
+          modules=(
+            "M00|core/M00-identity-rules.md"
+            "M01|backend/M01-backend-architecture.md"
+            "M02|mobile/M02-mobile-ux.md"
+            "M03|ai/M03-ai-intelligence.md"
+            "M04|payments/M04-payments-compliance.md"
+            "M05|data/M05-data-tax-engine.md"
+            "M06|devops/M06-deployment-devops.md"
+            "M07|monetization/M07-monetization-analytics.md"
+          )
+
+          total_tokens=0
+          for entry in "${modules[@]}"; do
+            IFS='|' read -r mod file <<< "$entry"
+            if [ -f "$file" ]; then
+              lines=$(wc -l < "$file")
+              chars=$(wc -c < "$file")
+              tokens=$((chars / 4))
+              total_tokens=$((total_tokens + tokens))
+              echo "| $mod | $file | $lines | ~$tokens |" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "| $mod | $file | MISSING | — |" >> $GITHUB_STEP_SUMMARY
+            fi
+          done
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Total (all modules): ~${total_tokens} tokens**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Original V8 master prompt: ~128,000 tokens | Reduction: ~$((100 - total_tokens * 100 / 128000))%" >> $GITHUB_STEP_SUMMARY

@@ -19,7 +19,7 @@ env:
 # ─────────────────────────────────────────────────────────────────────────────
 jobs:
   backend:
-    name: Backend (TypeScript + 423 Tests)
+    name: Backend (TypeScript + 528 Tests)
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
@@ -91,9 +91,18 @@ jobs:
         working-directory: backend
         run: npx prisma migrate deploy
 
-      - name: Run all tests (423 must pass)
+      - name: Run all tests (≥528 must pass)
         working-directory: backend
-        run: npm test -- --forceExit --passWithNoTests
+        run: |
+          OUTPUT=$(npm test -- --forceExit --passWithNoTests 2>&1)
+          echo "$OUTPUT"
+          COUNT=$(echo "$OUTPUT" | grep -oP '(\d+) passed' | grep -oP '^\d+' | tail -1 || echo "0")
+          echo "Tests passing: $COUNT"
+          if [ "$COUNT" -lt 528 ]; then
+            echo "❌ Expected ≥528 tests passing, got $COUNT"
+            exit 1
+          fi
+          echo "✅ $COUNT tests passing (gate: ≥528)"
         env:
           CI: true
 
@@ -120,6 +129,51 @@ jobs:
             exit 1
           fi
           echo "✅ Zero FIRS references found"
+
+      - name: Verify zero legacy firs_ identifiers (C-02 lowercase)
+        working-directory: backend
+        run: |
+          COUNT=$(grep -rn "firs_\|firsIRN\|firsCSID\|FIRS_API\|FIRS_TIN\|firsAchievement" src/ \
+            --include="*.ts" | grep -v "//.*firs" | wc -l)
+          if [ "$COUNT" -gt 0 ]; then
+            echo "❌ Found $COUNT legacy firs_ identifier(s) — rename all to nrs_"
+            grep -rn "firs_\|firsIRN\|firsCSID\|FIRS_API\|FIRS_TIN\|firsAchievement" src/ \
+              --include="*.ts" | grep -v "//.*firs"
+            exit 1
+          fi
+          echo "✅ Zero legacy firs_ identifiers"
+
+      - name: Block DIGITAX_MOCK_MODE=true in production (RULE 11)
+        run: |
+          # If NODE_ENV is production and .env unexpectedly has mock mode on, hard-fail
+          if [ "${NODE_ENV}" = "production" ] && grep -q "DIGITAX_MOCK_MODE=true" backend/.env 2>/dev/null; then
+            echo "❌ CRITICAL: DIGITAX_MOCK_MODE=true detected in production .env — BLOCKED"
+            exit 1
+          fi
+          # Also scan source for any hard-coded mock bypass
+          COUNT=$(grep -rn "DIGITAX_MOCK_MODE.*=.*true" backend/src/ --include="*.ts" \
+            | grep -v "test\|\.spec\.\|\.env\.example" | wc -l)
+          if [ "$COUNT" -gt 0 ]; then
+            echo "❌ DIGITAX_MOCK_MODE hard-coded true in production source ($COUNT occurrences)"
+            grep -rn "DIGITAX_MOCK_MODE.*=.*true" backend/src/ --include="*.ts" \
+              | grep -v "test\|\.spec\.\|\.env\.example"
+            exit 1
+          fi
+          echo "✅ Mock mode check passed"
+
+      - name: Verify NTA 2025 tax-engine correctness (no abolished CRA in contracts)
+        run: |
+          # Abolished CRA must not appear in packages/contracts — only tax-rules.ts legacy constants are permitted
+          # Those legacy constants exist in tax-rules.ts for backward compat with backend tests (tax-engine.ts)
+          # But nta2025.ts must not reference CRA formula logic
+          COUNT=$(grep -n "CRA\|consolidatedRelief\|craFixed\|craPercentage" \
+            packages/contracts/src/nta2025.ts 2>/dev/null | wc -l)
+          if [ "$COUNT" -gt 0 ]; then
+            echo "❌ Abolished CRA formula found in nta2025.ts ($COUNT lines) — use RRA instead"
+            grep -n "CRA\|consolidatedRelief\|craFixed\|craPercentage" packages/contracts/src/nta2025.ts
+            exit 1
+          fi
+          echo "✅ nta2025.ts free of abolished CRA references"
 
       - name: Build
         working-directory: backend
@@ -189,6 +243,21 @@ jobs:
             exit 1
           fi
           echo "✅ Zero 'NRSt' typos"
+
+      - name: Verify zero FIRS references in mobile (C-02)
+        working-directory: mobile
+        run: |
+          # Scan source files for FIRS — the deprecated shim mockFIRS.ts itself is allowed
+          # but must not contain any logic (only re-exports)
+          COUNT=$(grep -rn "\bFIRS\b" src/ --include="*.tsx" --include="*.ts" --include="*.json" \
+            | grep -v "mockFIRS.ts" | grep -v "FIRSDemoStep.tsx.deprecated" | grep -v "FIRS is abolished" | wc -l)
+          if [ "$COUNT" -gt 0 ]; then
+            echo "❌ Found $COUNT FIRS reference(s) in mobile source — use NRS instead"
+            grep -rn "\bFIRS\b" src/ --include="*.tsx" --include="*.ts" --include="*.json" \
+              | grep -v "mockFIRS.ts" | grep -v "FIRSDemoStep.tsx.deprecated" | grep -v "FIRS is abolished"
+            exit 1
+          fi
+          echo "✅ Zero FIRS references in mobile source"
 
       - name: Verify Pidgin i18n keys match English
         working-directory: mobile

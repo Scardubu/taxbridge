@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useAdminI18n } from '@/lib/i18n';
+import { safeDate } from '@/lib/utils';
 
 interface HealthStatus {
   status: 'healthy' | 'degraded' | 'error';
@@ -142,7 +143,7 @@ export default function IntegrationHealthCard() {
 
             {/* Last updated */}
             <div className="text-xs text-gray-400 text-right pt-2">
-              {t('healthcard.lastChecked', { time: new Date(health.timestamp).toLocaleTimeString() })}
+              {t('healthcard.lastChecked', { time: safeDate(health.timestamp, { timeStyle: 'short' }) })}
               <button 
                 onClick={fetchHealth}
                 className="ml-2 text-blue-500 hover:text-blue-700"

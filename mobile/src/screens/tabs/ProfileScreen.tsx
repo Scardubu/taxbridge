@@ -17,6 +17,7 @@ import * as LocalAuthentication from 'expo-local-authentication';
 import { useCurrentUser, useAuthStore } from '../../store/authStore';
 import { Card, Badge, TrustBadge, Button } from '../../design-system/components';
 import { colors, typography, spacing, radii, shadows } from '../../design-system/tokens';
+import { DURATION } from '../../design-system/animation';
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -131,7 +132,7 @@ export default function ProfileScreen() {
         </Animated.View>
 
         {/* Business Info */}
-        <Animated.View entering={FadeInDown.delay(100).duration(300)}>
+        <Animated.View entering={FadeInDown.delay(100).duration(DURATION.transition)}>
           <SectionTitle title={t('profile.personalInfo')} />
           <Card style={styles.infoCard}>
             <InfoRow label={t('profile.name')}         value={user?.name ?? '—'} />
@@ -149,7 +150,7 @@ export default function ProfileScreen() {
         </Animated.View>
 
         {/* Settings */}
-        <Animated.View entering={FadeInDown.delay(150).duration(300)}>
+        <Animated.View entering={FadeInDown.delay(150).duration(DURATION.transition)}>
           <SectionTitle title={t('profile.settings')} />
           <Card style={styles.settingsCard}>
             <SettingRow
@@ -207,7 +208,7 @@ export default function ProfileScreen() {
         </Animated.View>
 
         {/* Security */}
-        <Animated.View entering={FadeInDown.delay(200).duration(300)}>
+        <Animated.View entering={FadeInDown.delay(200).duration(DURATION.transition)}>
           <SectionTitle title={t('profile.security')} />
           <Card style={styles.settingsCard}>
             <SettingRow
@@ -220,7 +221,7 @@ export default function ProfileScreen() {
         </Animated.View>
 
         {/* Data & Privacy (NDPC 2023) */}
-        <Animated.View entering={FadeInDown.delay(250).duration(300)}>
+        <Animated.View entering={FadeInDown.delay(250).duration(DURATION.transition)}>
           <SectionTitle title="Data & Privacy (NDPC 2023)" />
           <Card style={styles.settingsCard}>
             <SettingRow
@@ -244,7 +245,7 @@ export default function ProfileScreen() {
         </Animated.View>
 
         {/* Support */}
-        <Animated.View entering={FadeInDown.delay(300).duration(300)}>
+        <Animated.View entering={FadeInDown.delay(300).duration(DURATION.transition)}>
           <SectionTitle title={t('profile.support')} />
           <Card style={styles.settingsCard}>
             <SettingRow
@@ -256,7 +257,7 @@ export default function ProfileScreen() {
         </Animated.View>
 
         {/* Logout */}
-        <Animated.View entering={FadeInDown.delay(350).duration(300)} style={styles.logoutSection}>
+        <Animated.View entering={FadeInDown.delay(350).duration(DURATION.transition)} style={styles.logoutSection}>
           <Button
             label={isLoggingOut ? 'Signing out...' : t('profile.logout')}
             onPress={handleLogout}

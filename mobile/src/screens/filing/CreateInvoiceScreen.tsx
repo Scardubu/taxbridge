@@ -17,6 +17,7 @@ import * as Haptics from 'expo-haptics';
 import { useCreateInvoice } from '../../store/queries';
 import { Button, TextInputField, NairaInput, Card, Badge, TrustBadge } from '../../design-system/components';
 import { colors, typography, spacing, radii, shadows } from '../../design-system/tokens';
+import { DURATION } from '../../design-system/animation';
 import type { CreateInvoiceRequest, InvoiceItem } from '../../api/client';
 
 // ─── NTA 2025 constants ───────────────────────────────────────────────────────
@@ -152,7 +153,7 @@ export default function CreateInvoiceScreen() {
           showsVerticalScrollIndicator={false}
         >
           {step === 'client' && (
-            <Animated.View entering={FadeInDown.duration(300)}>
+            <Animated.View entering={FadeInDown.duration(DURATION.transition)}>
               <ClientStep
                 form={client}
                 onChange={(k, v) => setClient(f => ({ ...f, [k]: v }))}
@@ -167,7 +168,7 @@ export default function CreateInvoiceScreen() {
           )}
 
           {step === 'items' && (
-            <Animated.View entering={SlideInRight.duration(300)}>
+            <Animated.View entering={SlideInRight.duration(DURATION.transition)}>
               <ItemsStep
                 items={items}
                 onUpdate={updateItem}
@@ -186,7 +187,7 @@ export default function CreateInvoiceScreen() {
           )}
 
           {step === 'review' && (
-            <Animated.View entering={SlideInRight.duration(300)}>
+            <Animated.View entering={SlideInRight.duration(DURATION.transition)}>
               <ReviewStep
                 client={client}
                 items={items}

@@ -22,8 +22,8 @@ export interface NRSSubmissionResult {
   success: boolean;
   invoiceId: string;
   nrsReference?: string;
-  firsIRN?: string;
-  firsCSID?: string;
+  nrsIRN?: string;
+  nrsCSID?: string;
   error?: string;
   retryable: boolean;
   attemptNumber: number;
@@ -106,8 +106,8 @@ export async function submitToNRS(
           success: true,
           invoiceId,
           nrsReference: invoice.nrsReference,
-          firsIRN: invoice.firsIRN || undefined,
-          firsCSID: invoice.firsCSID || undefined,
+          nrsIRN: invoice.nrsIRN || undefined,
+          nrsCSID: invoice.nrsCSID || undefined,
           retryable: false,
           attemptNumber,
         };
@@ -205,8 +205,8 @@ export async function submitToNRS(
         where: { id: invoiceId },
         data: {
           nrsReference: submissionResult.nrsReference,
-          firsIRN: submissionResult.irn,
-          firsCSID: submissionResult.csid,
+          nrsIRN: submissionResult.irn,
+          nrsCSID: submissionResult.csid,
           qrCode: submissionResult.qrCode,
           status: submissionResult.irn ? 'stamped' : 'sent',
           updatedAt: new Date(),
@@ -219,7 +219,7 @@ export async function submitToNRS(
       log.info('NRS submission successful', {
         invoiceId,
         nrsReference: submissionResult.nrsReference,
-        firsIRN: submissionResult.irn,
+        nrsIRN: submissionResult.irn,
         attemptNumber,
       });
 
@@ -227,8 +227,8 @@ export async function submitToNRS(
         success: true,
         invoiceId,
         nrsReference: submissionResult.nrsReference,
-        firsIRN: submissionResult.irn,
-        firsCSID: submissionResult.csid,
+        nrsIRN: submissionResult.irn,
+        nrsCSID: submissionResult.csid,
         retryable: false,
         attemptNumber,
       };

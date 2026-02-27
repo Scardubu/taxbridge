@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { FetchError, fetchJson } from '@/lib/fetcher';
 import { useAdminI18n } from '@/lib/i18n';
+import { safeDate } from '@/lib/utils';
 
 interface UserDetail {
   id: string;
@@ -104,18 +105,14 @@ export default function UserDetailPage() {
   const formatCurrency = (amount: number) =>
     `₦${amount.toLocaleString('en-NG', { minimumFractionDigits: 2 })}`;
 
-  const formatDate = (iso: string) => {
-    try {
-      return new Date(iso).toLocaleDateString('en-NG', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-    } catch {
-      return iso;
-    }
+  const formatDate = (iso: string | null | undefined) => {
+    return safeDate(iso, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
   };
 
   if (error) {

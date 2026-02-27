@@ -87,10 +87,10 @@ export function BottomNavigation({
   const { t }          = useTranslation();
   const { colors, isDark } = useTheme();  // CF-04 dark-mode safe
 
-  const bg             = isDark ? colors.surface : colors.background;
-  const activeTint     = colors.primary[500];
+  const bg             = isDark ? colors.surfaceMuted : colors.surface;
+  const activeTint     = colors.primary;
   const inactiveTint   = colors.textMuted;
-  const borderColor    = colors.gray?.[200] ?? '#E5E7EB';
+  const borderColor    = colors.border;
 
   return (
     <View

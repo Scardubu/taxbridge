@@ -34,9 +34,14 @@ export const PIT_BRACKETS: readonly PITBracket[] = [
 export const MINIMUM_WAGE_MONTHLY = 70_000;
 export const MINIMUM_WAGE_ANNUAL = MINIMUM_WAGE_MONTHLY * 12; // ₦840,000
 
-/** Consolidated Relief Allowance (CRA): higher of 1% of gross or ₦200,000 + 20% of gross */
+/**
+ * @deprecated CRA is abolished under NTA 2025. Use RRA (Rent Relief Allowance) instead.
+ * Kept for backward compatibility — migrate to RENT_RELIEF_CAP/RENT_RELIEF_RATE + calculateRRA().
+ */
 export const CRA_FIXED = 200_000;
+/** @deprecated Use RENT_RELIEF_RATE and calculateRRA() instead */
 export const CRA_PERCENTAGE = 0.20;
+/** @deprecated Use calculateRRA() from nta2025.ts instead */
 export const CRA_MIN_PERCENTAGE = 0.01;
 
 /** Rent Relief: lower of ₦500,000 or 20% of annual rent (Section 30(2)) */
@@ -60,8 +65,8 @@ export const LIFE_INSURANCE_MAX_RATE = 0.07;
 /** Standard VAT rate */
 export const VAT_RATE = 0.075;
 
-/** VAT registration threshold (₦) — mandatory above this annual turnover */
-export const VAT_REGISTRATION_THRESHOLD = 100_000_000;
+/** VAT registration threshold (₦) — mandatory above this annual turnover (NTA 2025 §12) */
+export const VAT_REGISTRATION_THRESHOLD = 25_000_000;
 
 /** VAT-exempt categories */
 export const VAT_EXEMPT_CATEGORIES = [
@@ -228,7 +233,7 @@ export const NTA_2025_RULES = {
   pit: {
     brackets: PIT_BRACKETS,
     minimumWageAnnual: MINIMUM_WAGE_ANNUAL,
-    cra: { fixed: CRA_FIXED, percentage: CRA_PERCENTAGE, minPercentage: CRA_MIN_PERCENTAGE },
+    // CRA abolished under NTA 2025 — use rentRelief (RRA) instead
     rentRelief: { cap: RENT_RELIEF_CAP, rate: RENT_RELIEF_RATE },
     pension: PENSION_RATE,
     nhf: NHF_RATE,

@@ -10,6 +10,7 @@ import Animated, {
   withTiming,
   Easing,
 } from 'react-native-reanimated';
+import { DURATION, EASE } from '../design-system/animation';
 import { colors, radii, spacing, typography } from '../theme/tokens';
 
 const defaultLogo = require('../../assets/icon.png');
@@ -44,8 +45,8 @@ function BrandedHero({
     // Subtle pulse animation for the logo
     pulseScale.value = withRepeat(
       withSequence(
-        withTiming(1.05, { duration: 1500, easing: Easing.inOut(Easing.ease) }),
-        withTiming(1, { duration: 1500, easing: Easing.inOut(Easing.ease) })
+        withTiming(1.05, { duration: DURATION.breathe, easing: EASE.enter }),
+        withTiming(1,    { duration: DURATION.breathe, easing: EASE.exit  })
       ),
       -1,
       true

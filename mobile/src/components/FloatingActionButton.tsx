@@ -23,6 +23,7 @@ import Animated, {
   interpolate,
   Extrapolation,
 } from 'react-native-reanimated';
+import { DURATION } from '../design-system/animation';
 import { useTranslation } from 'react-i18next';
 import * as Haptics from '../utils/safeHaptics';
 import { colors, spacing, radii, typography, shadows } from '../theme/tokens';
@@ -86,7 +87,7 @@ const ActionButton = memo(({ action, index, expanded, onPress }: ActionButtonPro
     const offset = (index + 1) * (MINI_FAB_SIZE + ACTION_SPACING);
     translateY.value = withSpring(expanded ? -offset : 0, SPRING_CONFIG);
     scale.value = withSpring(expanded ? 1 : 0, SPRING_CONFIG);
-    opacity.value = withTiming(expanded ? 1 : 0, { duration: 200 });
+    opacity.value = withTiming(expanded ? 1 : 0, { duration: DURATION.fast });
   }, [expanded, index]);
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -192,7 +193,7 @@ function FloatingActionButton({
     setExpanded(prev => {
       const newValue = !prev;
       rotation.value = withSpring(newValue ? 45 : 0, SPRING_CONFIG);
-      backdropOpacity.value = withTiming(newValue ? 1 : 0, { duration: 200 });
+      backdropOpacity.value = withTiming(newValue ? 1 : 0, { duration: DURATION.fast });
       return newValue;
     });
   }, []);
@@ -201,8 +202,7 @@ function FloatingActionButton({
     trackNavigation('fab', action.id, 'fab');
     setExpanded(false);
     rotation.value = withSpring(0, SPRING_CONFIG);
-    backdropOpacity.value = withTiming(0, { duration: 200 });
-    action.onPress();
+    backdropOpacity.value = withTiming(0, { duration: DURATION.fast });
   }, []);
 
   const closeMenu = useCallback(() => {
@@ -210,7 +210,7 @@ function FloatingActionButton({
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       setExpanded(false);
       rotation.value = withSpring(0, SPRING_CONFIG);
-      backdropOpacity.value = withTiming(0, { duration: 200 });
+      backdropOpacity.value = withTiming(0, { duration: DURATION.fast });
     }
   }, [expanded]);
 

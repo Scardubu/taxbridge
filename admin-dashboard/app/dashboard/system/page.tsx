@@ -209,9 +209,7 @@ export default function SystemPage() {
         }>
           {t('system.status.uptime', {
             value: displayData.metrics.uptime,
-            time: displayData.services[0]?.lastCheck
-              ? new Date(displayData.services[0].lastCheck).toLocaleTimeString()
-              : '—',
+            time: safeDate(displayData.services[0]?.lastCheck, { timeStyle: 'short' }),
           })}
         </AlertDescription>
       </Alert>

@@ -4,6 +4,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import type { NameType, ValueType } from 'recharts/types/component/DefaultTooltipContent';
 import { useAdminI18n } from '@/lib/i18n';
 import { chartColors } from '@/lib/colors';
+import { safeDate } from '@/lib/utils';
 
 interface RemitaTransactionData {
   date: string;
@@ -43,11 +44,11 @@ export function RemitaTransactionChart({ data }: RemitaTransactionChartProps) {
         <XAxis 
           dataKey="date" 
           tick={{ fontSize: 12 }}
-          tickFormatter={(value) => new Date(value).toLocaleDateString()}
+          tickFormatter={(value) => safeDate(value, { dateStyle: 'short' })}
         />
         <YAxis tick={{ fontSize: 12 }} />
         <Tooltip
-          labelFormatter={(value) => new Date(value).toLocaleDateString()}
+          labelFormatter={(value) => safeDate(value, { dateStyle: 'short' })}
           formatter={tooltipFormatter}
         />
         <Bar dataKey="successful" stackId="a" fill={chartColors.success} name={labels.successful} />

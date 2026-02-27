@@ -399,5 +399,5 @@ export const darkTheme: Partial<Theme> = {
     textPrimary:   colors.dark.textPrimary,
     textSecondary: colors.dark.textSecondary,
     textMuted:     colors.dark.textMuted,
-  },
+  } as unknown as typeof colors,
 };

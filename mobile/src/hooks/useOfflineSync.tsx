@@ -150,7 +150,7 @@ const bannerStyles = StyleSheet.create({
   },
   text: {
     fontSize: typography.sizes.xs,
-    color: colors.accent[800],
+    color: colors.accent[700],
     fontWeight: typography.weights.medium,
     textAlign: 'center',
   },
