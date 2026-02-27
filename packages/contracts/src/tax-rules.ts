@@ -34,9 +34,14 @@ export const PIT_BRACKETS: readonly PITBracket[] = [
 export const MINIMUM_WAGE_MONTHLY = 70_000;
 export const MINIMUM_WAGE_ANNUAL = MINIMUM_WAGE_MONTHLY * 12; // ₦840,000
 
-/** Consolidated Relief Allowance (CRA): higher of 1% of gross or ₦200,000 + 20% of gross */
+/**
+ * @deprecated CRA is abolished under NTA 2025. Use RRA (Rent Relief Allowance) instead.
+ * Kept for backward compatibility — migrate to RENT_RELIEF_CAP/RENT_RELIEF_RATE + calculateRRA().
+ */
 export const CRA_FIXED = 200_000;
+/** @deprecated Use RENT_RELIEF_RATE and calculateRRA() instead */
 export const CRA_PERCENTAGE = 0.20;
+/** @deprecated Use calculateRRA() from nta2025.ts instead */
 export const CRA_MIN_PERCENTAGE = 0.01;
 
 /** Rent Relief: lower of ₦500,000 or 20% of annual rent (Section 30(2)) */

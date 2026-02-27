@@ -17,9 +17,9 @@ import Animated, {
   useSharedValue,
   withTiming,
   useAnimatedProps,
-  Easing,
 } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
+import { DURATION, EASE } from '../design-system/animation';
 
 const AnimatedPath = Animated.createAnimatedComponent(Path);
 
@@ -28,12 +28,25 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface TaxHealthGaugeProps {
-  score:       number;    // 0–100
-  size?:       number;    // defaults to responsive size
-  showTrend?:  boolean;   // show delta vs last week
-  trendDelta?: number;    // e.g. +8 or -3
-  showLabel?:  boolean;   // show "Tax Health" text below score
-  testID?:     string;
+  score:              number;              // 0–100
+  size?:              number;              // explicit override; default = responsive
+  /**
+   * compact: 120px, right-aligned, score only.
+   * expanded (default): 200px, centered, shows label + trend sparkline.
+   * UX-10: switches when any deadline daysRemaining ≤ 7 or is overdue.
+   */
+  mode?:              'expanded' | 'compact';
+  showTrend?:         boolean;             // show delta vs last week
+  trendDelta?:        number;              // e.g. +8 or -3
+  /** Last 7 daily health scores for sparkline (ambient zone) */
+  trend?:             number[];
+  showLabel?:         boolean;             // show "Tax Health" text below score
+  /**
+   * REQUIRED for accessibility (C-15).
+   * e.g. "Tax health score: 82 out of 100. Status: Good."
+   */
+  accessibilityLabel: string;
+  testID?:            string;
 }
 
 // ─── Score → Visual Mapping ───────────────────────────────────────────────────
@@ -90,15 +103,19 @@ function buildArcPath(
 export const TaxHealthGauge = memo(function TaxHealthGauge({
   score,
   size,
+  mode = 'expanded',
   showTrend = false,
   trendDelta,
+  trend,
   showLabel = true,
+  accessibilityLabel,
   testID,
 }: TaxHealthGaugeProps) {
   const { t } = useTranslation();
 
-  // Responsive default: compact on small screens
-  const resolvedSize = size ?? (SCREEN_WIDTH < 360 ? 160 : 200);
+  // UX-10: compact mode = 120px right-aligned, expanded = 200px centered
+  const defaultSize  = mode === 'compact' ? 120 : (SCREEN_WIDTH < 360 ? 160 : 200);
+  const resolvedSize = size ?? defaultSize;
   const cx     = resolvedSize / 2;
   const cy     = resolvedSize * 0.56;
   const radius = resolvedSize * 0.38;
@@ -109,10 +126,11 @@ export const TaxHealthGauge = memo(function TaxHealthGauge({
 
   useEffect(() => {
     // Always animate from 0 → score on mount — gives "loading your result" feel
+    // C-16: uses DURATION.slow + EASE.gauge (never raw numeric durations)
     progress.value = 0;
     progress.value = withTiming(score / 100, {
-      duration: 900,
-      easing:   Easing.out(Easing.cubic),
+      duration: DURATION.slow,
+      easing:   EASE.gauge,
     });
   }, [score]);
 
@@ -131,12 +149,17 @@ export const TaxHealthGauge = memo(function TaxHealthGauge({
   // Accessibility: describe score and status in words, not color (C-15)
   const a11yLabel = `${t('taxHealth.title')}: ${score} ${t('common.outOf')} 100. ${t('common.status')}: ${status}.`;
 
+  // In compact mode: right-aligned, show only arc + score number
+  const containerStyle = mode === 'compact'
+    ? [styles.container, styles.containerCompact]
+    : styles.container;
+
   return (
-    <View testID={testID} style={styles.container}>
+    <View testID={testID} style={containerStyle}>
       <Svg
         width={resolvedSize}
         height={svgH}
-        accessibilityLabel={a11yLabel}
+        accessibilityLabel={accessibilityLabel || a11yLabel}
         accessibilityRole="image"
         accessibilityHint={t('dashboard.gaugeHint')}
       >
@@ -170,8 +193,8 @@ export const TaxHealthGauge = memo(function TaxHealthGauge({
           {score}
         </SvgText>
 
-        {/* "Tax Health" label below score */}
-        {showLabel && (
+        {/* "Tax Health" label below score — hidden in compact mode */}
+        {showLabel && mode !== 'compact' && (
           <SvgText
             x={cx}
             y={cy + resolvedSize * 0.14}
@@ -185,8 +208,10 @@ export const TaxHealthGauge = memo(function TaxHealthGauge({
         )}
       </Svg>
 
-      {/* Status label below SVG — text channel for C-15 */}
-      <Text style={[styles.statusLabel, { color }]}>{status}</Text>
+      {/* Status label below SVG — text channel for C-15; hidden in compact */}
+      {mode !== 'compact' && (
+        <Text style={[styles.statusLabel, { color }]}>{status}</Text>
+      )}
 
       {/* Trend delta — if showTrend and trendDelta provided */}
       {showTrend && trendDelta !== undefined && (
@@ -228,6 +253,9 @@ const styles = StyleSheet.create({
   container: {
     alignItems:     'center',
     justifyContent: 'center',
+  },
+  containerCompact: {
+    alignSelf: 'flex-end',
   },
   statusLabel: {
     fontSize:   14,

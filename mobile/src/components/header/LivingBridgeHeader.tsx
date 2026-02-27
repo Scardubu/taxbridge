@@ -19,6 +19,7 @@ import Animated, {
   Easing,
   FadeIn,
 } from 'react-native-reanimated';
+import { DURATION, EASE } from '../../design-system/animation';
 import { useTranslation } from 'react-i18next';
 import { colors, radii, spacing, typography } from '../../theme/tokens';
 import HeaderBackground from './HeaderBackground';
@@ -158,8 +159,8 @@ function LivingBridgeHeader({
     if (!isCompact) {
       pulseScale.value = withRepeat(
         withSequence(
-          withTiming(1.03, { duration: 1800, easing: Easing.inOut(Easing.ease) }),
-          withTiming(1, { duration: 1800, easing: Easing.inOut(Easing.ease) })
+          withTiming(1.03, { duration: DURATION.breathe, easing: EASE.enter }),
+          withTiming(1,    { duration: DURATION.breathe, easing: EASE.exit  })
         ),
         -1,
         true

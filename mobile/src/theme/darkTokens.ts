@@ -99,9 +99,13 @@ export const darkColors: ColorTokens = {
   disabled:            '#4B5563',
 
   // ── Neutral ────────────────────────────────────────────────────────────
+  neutral:             '#4B5563',
   neutralDark:         '#9CA3AF',
   neutralBg:           '#1F2937',
+  neutralBgSubtle:     '#1F2937',
   neutralLight:        '#374151',
+  neutralBorder:       '#374151',
+  neutralText:         '#9CA3AF',
 
   // ── Tip ────────────────────────────────────────────────────────────────
   tipBg:               '#3B1F00',

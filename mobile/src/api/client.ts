@@ -213,6 +213,32 @@ export interface DashboardStats {
   recentAnomalies:  number;
 }
 
+// Composite Dashboard — maps to GET /api/v1/dashboard (C-14)
+export interface DashboardComposite {
+  stats: DashboardStats;
+  forecast: TaxForecast | null;
+  nrsHealth: NrsHealth;
+  topAnomalies: Array<Anomaly & {
+    anomalyReason_pidgin?: string;
+    severity: 'low' | 'medium' | 'high';
+  }>;
+  upcomingDeadlines: Array<{
+    id: string;
+    type: string;
+    dueDate: string;
+    daysRemaining: number;
+    penaltyIfLate?: string;
+    status: 'upcoming' | 'overdue' | 'filed';
+  }>;
+  cachedAt: string;
+  /** F1 — HealthRing 4-quadrant pillar scores */
+  pillars?: Array<{ key: string; score: number; trend?: string }>;
+  /** F4 — DonutChart YTD tax breakdown slices */
+  taxBreakdown?: Array<{ key: string; label: string; value: number }>;
+  /** F2 — SparklineBarChart last-12-months monthly revenue */
+  sparkData?: Array<{ value: number; flagged: boolean; label: string }>;
+}
+
 // ─── Token Management ─────────────────────────────────────────────────────────
 
 let refreshPromise: Promise<string | null> | null = null;
@@ -554,6 +580,12 @@ export const taxApi = {
 export const dashboardApi = {
   stats: () =>
     apiFetch<ApiResponse<DashboardStats>>('/api/v1/dashboard/stats'),
+
+  /** C-14: Single composite call — replaces stats + forecast + nrsHealth */
+  composite: () =>
+    apiFetch<{ success: boolean; data: DashboardComposite; fromCache: boolean }>(
+      '/api/v1/dashboard',
+    ),
 };
 
 export const healthApi = {

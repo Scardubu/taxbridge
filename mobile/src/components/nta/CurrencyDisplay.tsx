@@ -2,6 +2,7 @@ import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import Animated, { FadeIn, SlideInRight } from 'react-native-reanimated';
 import { colors, spacing, typography } from '../../theme/tokens';
+import { DURATION } from '../../design-system/animation';
 import { formatNaira } from '../../services/tax/engine';
 import { Text } from '../ui/Text';
 
@@ -27,7 +28,7 @@ export function CurrencyDisplay({
     : formatNaira(amount);
 
   const Container = animated ? Animated.View : View;
-  const animationProps = animated ? { entering: FadeIn.duration(300).delay(100) } : {};
+  const animationProps = animated ? { entering: FadeIn.duration(DURATION.transition).delay(100) } : {};
 
   return (
     <Container style={styles[variant]} {...animationProps}>

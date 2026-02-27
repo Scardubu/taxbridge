@@ -80,8 +80,8 @@ export interface InvoiceDetail {
   template: string;
   status: string;
   nrsCompliant: boolean;
-  firsCSID: string | null;
-  firsIRN: string | null;
+  nrsCSID: string | null;
+  nrsIRN: string | null;
   nrsReference: string | null;
   qrCode: string | null;
   pdfUrl: string | null;

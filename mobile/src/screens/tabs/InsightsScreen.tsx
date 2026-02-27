@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useTranslation } from 'react-i18next';
+import { DURATION } from '../../design-system/animation';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -87,8 +88,8 @@ function FadeIn({ delay = 0, children }: { delay?: number; children: React.React
 
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(opacity, { toValue: 1, duration: 400, delay, useNativeDriver: true }),
-      Animated.timing(translateY, { toValue: 0, duration: 400, delay, useNativeDriver: true }),
+      Animated.timing(opacity, { toValue: 1, duration: DURATION.standard, delay, useNativeDriver: true }),
+      Animated.timing(translateY, { toValue: 0, duration: DURATION.standard, delay, useNativeDriver: true }),
     ]).start();
   }, []);
 
@@ -495,7 +496,7 @@ const styles = StyleSheet.create({
   severityBadge: { paddingHorizontal: 7, paddingVertical: 2, borderRadius: 99 },
   severityText: { fontSize: 9, fontWeight: '800', letterSpacing: 0.5 },
   anomalyType: { fontSize: 11, color: T.slate400, textTransform: 'capitalize' },
-  anomalyMessage: { fontSize: 13, color: T.slate700 as any, lineHeight: 19 },
+  anomalyMessage: { fontSize: 13, color: T.slate800, lineHeight: 19 },
 
   allClear: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 8 },
   allClearEmoji: { fontSize: 36 },

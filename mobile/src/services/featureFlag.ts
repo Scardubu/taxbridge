@@ -199,7 +199,7 @@ export async function setFeatureFlagOverride(
     cacheData.flags[key] = value;
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(cacheData));
     
-    console.log(`[FeatureFlags] Override set: ${key} = ${value}`);
+    if (__DEV__) console.log(`[FeatureFlags] Override set: ${key} = ${value}`);
   } else {
     console.warn('[FeatureFlags] Overrides only available in development');
   }
@@ -213,6 +213,6 @@ export async function clearFeatureFlagOverrides(): Promise<void> {
   if (__DEV__) {
     await AsyncStorage.removeItem(STORAGE_KEY);
     flags = { ...SAFE_DEFAULTS, ...getEnvironmentDefaults() };
-    console.log('[FeatureFlags] Overrides cleared, reset to defaults');
+    if (__DEV__) console.log('[FeatureFlags] Overrides cleared, reset to defaults');
   }
 }

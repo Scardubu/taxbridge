@@ -78,3 +78,6 @@ load-test-results.json
 # Generated files
 lib/ubl-invoice-2.1.xsd
 eas-build-log.txt
+
+## prompts/
+## New_files/

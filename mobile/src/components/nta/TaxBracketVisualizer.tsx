@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { View, StyleSheet } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, withDelay } from 'react-native-reanimated';
+import { DURATION } from '../../design-system/animation';
 import { useTranslation } from 'react-i18next';
 import { colors, spacing, radii, typography } from '../../theme/tokens';
 import { formatNaira } from '../../services/tax/engine';
@@ -51,8 +52,8 @@ function BracketBar({ bracket, income, delay }: { bracket: PITBracket; income: n
     const maxBracketRange = (bracket.max ?? income) - bracket.min;
     const fillPercentage = Math.max(0, Math.min(100, (bracketIncome / maxBracketRange) * 100));
 
-    width.value = withDelay(delay, withTiming(fillPercentage, { duration: 800 }));
-    opacity.value = withDelay(delay, withTiming(1, { duration: 400 }));
+    width.value = withDelay(delay, withTiming(fillPercentage, { duration: DURATION.slow }));
+    opacity.value = withDelay(delay, withTiming(1, { duration: DURATION.standard }));
   }, [income, bracket.min, bracket.max, delay, width, opacity]);
 
   const animatedStyle = useAnimatedStyle(() => ({ width: `${width.value}%` }));

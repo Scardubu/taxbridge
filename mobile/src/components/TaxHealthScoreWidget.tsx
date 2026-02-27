@@ -38,6 +38,7 @@ import Reanimated, {
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '../hooks/useTheme';
 import { spacing, radii, typography } from '../theme/tokens';
+import { DURATION } from '../design-system/animation';
 
 // ─── Types (mirrored from backend service to avoid cross-boundary imports) ────
 
@@ -129,8 +130,8 @@ function SkeletonWidget({ isDark }: { isDark: boolean }) {
   useEffect(() => {
     const anim = Animated.loop(
       Animated.sequence([
-        Animated.timing(pulse, { toValue: 1, duration: 800, useNativeDriver: true }),
-        Animated.timing(pulse, { toValue: 0, duration: 800, useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 1, duration: DURATION.slow, useNativeDriver: true }),
+        Animated.timing(pulse, { toValue: 0, duration: DURATION.slow, useNativeDriver: true }),
       ])
     );
     anim.start();
@@ -183,7 +184,7 @@ function TaxHealthScoreWidget({
     const targetOffset = CIRCUMFERENCE * (1 - Math.max(0, Math.min(100, score)) / 100);
     Animated.timing(dashOffset, {
       toValue:         targetOffset,
-      duration:        1200,
+      duration:        DURATION.skeleton,
       useNativeDriver: false,   // SVG props are not supported by native driver
     }).start();
   }, [dashOffset, score, isLoading]);
@@ -399,7 +400,7 @@ function BreakdownBar({ label, value, max, color, isDark, textColor }: Breakdown
   useEffect(() => {
     Animated.timing(width, {
       toValue:         pct,
-      duration:        900,
+      duration:        DURATION.sweep,
       delay:           300,
       useNativeDriver: false,
     }).start();

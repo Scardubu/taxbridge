@@ -1,13 +1,22 @@
 /**
- * TaxBridge Dashboard Screen — V3.0 Production Build
+ * TaxBridge Dashboard Screen — V10.3 Production Build
  *
  * Fixes applied:
  *   C-13  SVG arc gauge via react-native-svg (no ProgressBar)
  *   C-14  Single useDashboard() composite hook (no waterfall)
- *   CF-02 TopAnomaliesSection rendered when anomalies exist
+ *   C-16  All animations use DURATION.* + EASE.* tokens
+ *   C-17  All 5 zones present: apex, signal, action, context, ambient
+ *   C-18  Every dashboard section wrapped in <DashboardZone>
+ *   C-19  Anomaly empty state = null (silent, never misleading)
+ *   C-20  scale(0.97) visual ack <100ms on all Pressable elements
+ *   CF-02 TopAnomaliesSection rendered via SectionState + DashboardZone
  *   CF-04 useTheme() for all colors — dark-mode safe
- *   CF-06 Multi-deadline ComplianceCalendar section
- *   CF-15 Severity indicators: color + shape icon + text label (WCAG 2.1 AA)
+ *   CF-06 Multi-deadline ComplianceCalendar via SectionState
+ *   CF-08 DashboardZone choreography — single skeleton → staggered reveal
+ *   ER-07 DashboardZone wrappers for all 5 zones
+ *   ER-08 DashboardSkeleton with geometry contract
+ *   ER-09 SectionState replaces all raw ternaries
+ *   UX-10 gaugeMode useMemo: compact when deadline ≤7d or overdue
  */
 
 import React, { useCallback, useMemo } from 'react';
@@ -15,10 +24,21 @@ import {
   View, Text, ScrollView, RefreshControl,
   StyleSheet, Pressable, StatusBar,
 } from 'react-native';
-import TaxHealthGauge from '@components/TaxHealthGauge';
+import { TaxHealthGauge } from '../../components/TaxHealthGauge';
+import { DashboardZone } from '../../components/dashboard/DashboardZone';
+import { DashboardSkeleton, SectionSkeletonRows } from '../../components/dashboard/DashboardSkeleton';
+import { SectionState, InlineError } from '../../components/dashboard/SectionState';
+import { TopAnomaliesSection } from '../../components/dashboard/TopAnomaliesSection';
+import { ComplianceCalendar } from '../../components/dashboard/ComplianceCalendar';
+import { OfflineSyncStatus } from '../../components/dashboard/OfflineSyncStatus';
+import { HealthRing, type PillarData } from '../../components/dashboard/HealthRing';
+import { SparklineBarChart, type SparkBarDatum } from '../../components/dashboard/SparklineBarChart';
+import { DonutChart, type DonutSlice } from '../../components/charts/DonutChart';
+import { computeQuickActions } from '../../utils/computeQuickActions';
+import type { QuickActionDef } from '../../utils/computeQuickActions';
+import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
-import { router } from 'expo-router';
+import Animated, { FadeIn } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
 import NetInfo from '@react-native-community/netinfo';
 import { useCurrentUser } from '@store/authStore';
@@ -29,6 +49,16 @@ import {
 } from '@ds/components';
 import { typography, spacing, shadows, radii } from '@ds/tokens';
 import type { DashboardComposite } from '@api/client';
+
+// ─── Donut config — F4: WCAG-passing colors with shape + text labels ─────────
+// Colors chosen for 4.5:1 contrast on white surface (WCAG 2.1 AA, C-15)
+const DONUT_CONFIG: Record<string, { color: string; glyph: string }> = {
+  vat:     { color: '#0284C7', glyph: '🔵' },  // sky-700
+  paye:    { color: '#B45309', glyph: '🟡' },  // amber-700
+  devLevy: { color: '#7C3AED', glyph: '🟣' },  // violet-700
+  wht:     { color: '#047857', glyph: '🟢' },  // emerald-700
+  cit:     { color: '#B91C1C', glyph: '🔴' },  // red-700
+};
 
 // ─── Severity vocab — CF-15 (color + shape + text, never color alone) ────────
 const SEVERITY_GLYPH: Record<string, string> = {
@@ -44,9 +74,21 @@ export default function DashboardScreen() {
   const user              = useCurrentUser();
   const network           = NetInfo.useNetInfo();
   const { colors, isDark } = useTheme();  // CF-04 dark-mode safe
+  const navigation            = useNavigation<any>();
 
   // C-14: single composite hook — replaces useDashboardStats + useTaxForecast + useNrsHealth
   const { data, isLoading, isRefetching, refetch, isError } = useDashboard();
+
+  // UX-10: compact gauge when any deadline ≤7 days or overdue
+  const gaugeMode = useMemo((): 'expanded' | 'compact' => {
+    if (!data) return 'expanded';
+    const urgent  = data.upcomingDeadlines?.some((dl: { daysRemaining: number }) => dl.daysRemaining <= 7) ?? false;
+    const overdue = data.upcomingDeadlines?.some((dl: { daysRemaining: number }) => dl.daysRemaining <  0) ?? false;
+    return (urgent || overdue) ? 'compact' : 'expanded';
+  }, [data]);
+
+  // ER-07: urgent prop for CONTEXT zone — high anomaly collapses stagger delay to 0ms
+  const hasHighAnomaly = data?.topAnomalies?.some((a: { severity: string }) => a.severity === 'high') ?? false;
 
   const isOffline  = !network.isConnected;
   const stats      = data?.stats;
@@ -65,22 +107,56 @@ export default function DashboardScreen() {
     ? t('dashboard.goodAfternoon')
     : t('dashboard.goodEvening');
 
+  // P1-E: context-driven quick actions ordering
+  const quickActions = useMemo(() => computeQuickActions(data), [data]);
+
+  // F1: PillarData[] for HealthRing — maps backend pillar[] to typed PillarData[]
+  const pillarData = useMemo((): PillarData[] => {
+    if (!data?.pillars?.length) return [];
+    return data.pillars.map((p) => ({
+      key:   p.key as PillarData['key'],
+      score: p.score,
+      trend: p.trend as PillarData['trend'],
+    }));
+  }, [data?.pillars]);
+
+  // F2: SparkBarDatum[] for SparklineBarChart — last 12 months revenue
+  const sparkBarData = useMemo((): SparkBarDatum[] => {
+    if (!data?.sparkData?.length) return [];
+    return data.sparkData;
+  }, [data?.sparkData]);
+
+  // F4: DonutSlice[] for DonutChart — YTD tax liability breakdown
+  const donutSlices = useMemo((): DonutSlice[] => {
+    if (!data?.taxBreakdown?.length) return [];
+    return data.taxBreakdown.map((s) => ({
+      key:   s.key,
+      label: t(`dashboard.donut.${s.key}`) || s.label,
+      value: s.value,
+      color: DONUT_CONFIG[s.key]?.color ?? '#6B7280',
+      glyph: DONUT_CONFIG[s.key]?.glyph ?? '□',
+    }));
+  }, [data?.taxBreakdown, t]);
+
   // Dynamic styles that depend on theme colors (CF-04)
   const d = useMemo(() => StyleSheet.create({
-    root:          { flex: 1, backgroundColor: colors.background },
+    root:          { flex: 1, backgroundColor: colors.surface },
     scroll:        { paddingHorizontal: spacing.screenPadding, paddingTop: spacing[2] },
-    offlineBanner: { backgroundColor: colors.accent[100], paddingHorizontal: spacing.md, paddingVertical: spacing[2] },
-    offlineText:   { color: colors.accent[700], fontSize: typography.sizes.sm, fontWeight: typography.weights.medium, textAlign: 'center' as const },
-    nrsWarning:    { backgroundColor: colors.accent[100], borderRadius: radii.md, padding: spacing[3], marginBottom: spacing[3], borderWidth: 1, borderColor: colors.accent[300] },
-    nrsWarningText:{ color: colors.accent[700], fontSize: typography.sizes.sm, fontWeight: typography.weights.medium },
+    offlineBanner: { backgroundColor: colors.warningBg, paddingHorizontal: spacing.md, paddingVertical: spacing[2] },
+    offlineText:   { color: colors.warningDark, fontSize: typography.sizes.sm, fontWeight: typography.weights.medium, textAlign: 'center' as const },
+    nrsWarning:    { backgroundColor: colors.warningBg, borderRadius: radii.md, padding: spacing[3], marginBottom: spacing[3], borderWidth: 1, borderColor: colors.warningBorder },
+    nrsWarningText:{ color: colors.warningDark, fontSize: typography.sizes.sm, fontWeight: typography.weights.medium },
     sectionTitle:  { fontSize: typography.sizes.xs, fontWeight: typography.weights.semibold, color: colors.textSecondary, textTransform: 'uppercase' as const, letterSpacing: 0.8, marginBottom: spacing[2], marginTop: spacing[4] },
   }), [colors]);
+
+  // ER-08: single skeleton gate — one skeleton, one reveal, zero flash (C-14 / CF-08)
+  if (isLoading && !data) return <DashboardSkeleton />;
 
   return (
     <View style={[d.root, { paddingTop: insets.top }]}>
       <StatusBar
         barStyle={isDark ? 'light-content' : 'dark-content'}
-        backgroundColor={colors.background}
+        backgroundColor={colors.surface}
       />
 
       {/* Offline banner */}
@@ -99,123 +175,171 @@ export default function DashboardScreen() {
           <RefreshControl
             refreshing={isRefetching}
             onRefresh={onRefresh}
-            tintColor={colors.primary[500]}
-            colors={[colors.primary[500]]}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
           />
         }
       >
-        {/* ── APEX: Header ─────────────────────────────────────────────── */}
-        <Animated.View entering={FadeInDown.duration(400)} style={s.header}>
-          <View>
-            <Text style={[s.greeting, { color: colors.textMuted }]}>{greeting},</Text>
-            <Text style={[s.name,     { color: colors.textPrimary }]}>{firstName} 👋</Text>
-          </View>
-          <Pressable
-            onPress={() => router.push('/(tabs)/profile')}
-            style={s.avatarButton}
-            accessibilityLabel={t('dashboard.profileButton')}
-            accessibilityRole="button"
-          >
-            <View style={[s.avatar, { backgroundColor: colors.primary[500] }]}>
-              <Text style={[s.avatarText, { color: colors.textInverse }]}>
-                {firstName.charAt(0).toUpperCase()}
-              </Text>
+        {/* ── APEX: Gauge + Greeting ─────────────────────────────────── */}
+        <DashboardZone zone="apex" visible={!isLoading}>
+          <View style={s.header}>
+            <View>
+              <Text style={[s.greeting, { color: colors.textMuted }]}>{greeting},</Text>
+              <Text style={[s.name,     { color: colors.textPrimary }]}>{firstName} 👋</Text>
             </View>
-          </Pressable>
-        </Animated.View>
+            {/* C-20: scale visual ack before navigation */}
+            <Pressable
+              onPress={() => navigation.navigate('Settings')}
+              style={({ pressed }) => [s.avatarButton, pressed && { transform: [{ scale: 0.97 }] }]}
+              accessibilityLabel={t('dashboard.profileButton')}
+              accessibilityRole="button"
+            >
+              <View style={[s.avatar, { backgroundColor: colors.primary }]}>
+                <Text style={[s.avatarText, { color: colors.textOnPrimary }]}>
+                  {firstName.charAt(0).toUpperCase()}
+                </Text>
+              </View>
+            </Pressable>
+          </View>
 
-        {/* NRS Circuit Breaker — CF-15: ▲ shape + color + text */}
-        {nrsHealth?.circuitBreakerOpen && (
-          <Animated.View entering={FadeIn} style={d.nrsWarning}>
-            <Text style={d.nrsWarningText}>
-              ▲ ⚠️ {t('dashboard.nrsCircuitOpen')} — {t('dashboard.nrsCircuitDetail')}
-            </Text>
-          </Animated.View>
-        )}
+          {/* NRS Circuit Breaker — CF-15: ▲ shape + color + text */}
+          {nrsHealth?.circuitBreakerOpen && (
+            <Animated.View entering={FadeIn} style={d.nrsWarning}>
+              <Text style={d.nrsWarningText}>
+                ▲ ⚠️ {t('dashboard.nrsCircuitOpen')} — {t('dashboard.nrsCircuitDetail')}
+              </Text>
+            </Animated.View>
+          )}
 
-        {/* ── APEX: Tax Health Gauge — C-13 SVG arc ────────────────────── */}
-        <Animated.View entering={FadeInDown.delay(80).duration(400)}>
-          {isLoading
-            ? <SkeletonCard />
-            : <TaxHealthGauge score={stats?.taxHealthScore ?? 0} showLabel />
-          }
-        </Animated.View>
-
-        {/* ── SIGNAL: Anomaly alerts — CF-02 ───────────────────────────── */}
-        {anomalies.length > 0 && (
-          <Animated.View entering={FadeInDown.delay(120).duration(400)}>
-            <Text style={d.sectionTitle}>{t('dashboard.anomalyTitle')}</Text>
-            <TopAnomaliesSection anomalies={anomalies} colors={colors} t={t} />
-          </Animated.View>
-        )}
-
-        {/* ── SIGNAL: Key Metrics ──────────────────────────────────────── */}
-        <Animated.View entering={FadeInDown.delay(160).duration(400)} style={s.metricsRow}>
-          <MetricCard
-            label={t('dashboard.totalInvoices')}
-            value={stats?.totalInvoices}
-            loading={isLoading}
-            emoji="🧾"
-            onPress={() => router.push('/(tabs)/invoices')}
-            colors={colors}
-          />
-          <MetricCard
-            label={t('dashboard.totalRevenue')}
-            value={stats?.totalRevenue !== undefined
-              ? `₦${(stats.totalRevenue / 1_000_000).toFixed(1)}M`
-              : undefined}
-            loading={isLoading}
-            emoji="💰"
-            onPress={() => router.push('/(tabs)/invoices')}
-            colors={colors}
-          />
-          <MetricCard
-            label={t('dashboard.pendingNrs')}
-            value={stats?.pendingNrs}
-            loading={isLoading}
-            emoji="📤"
-            accentColor={stats?.pendingNrs && stats.pendingNrs > 0 ? colors.accent[500] : undefined}
-            onPress={() => router.push('/(tabs)/invoices?status=PENDING_NRS')}
-            colors={colors}
-          />
-        </Animated.View>
-
-        {/* ── CONTEXT: Upcoming deadlines — CF-06 multi-deadline ───────── */}
-        {(isLoading || deadlines.length > 0) && (
-          <Animated.View entering={FadeInDown.delay(200).duration(400)}>
-            <Text style={d.sectionTitle}>{t('dashboard.upcomingDeadlines')}</Text>
-            <ComplianceCalendar
-              deadlines={deadlines}
-              loading={isLoading}
-              colors={colors}
-              t={t}
+          {/* C-13: SVG arc — F1: HealthRing when pillars available, TaxHealthGauge fallback */}
+          {pillarData.length > 0 ? (
+            <HealthRing
+              totalScore={stats?.taxHealthScore ?? 0}
+              pillars={pillarData}
+              accessibilityLabel={`${t('taxHealth.title')}: ${stats?.taxHealthScore ?? 0} ${t('common.outOf')} 100`}
             />
-          </Animated.View>
-        )}
+          ) : (
+            <TaxHealthGauge
+              score={stats?.taxHealthScore ?? 0}
+              mode={gaugeMode}
+              showLabel
+              accessibilityLabel={`${t('taxHealth.title')}: ${stats?.taxHealthScore ?? 0} ${t('common.outOf')} 100`}
+            />
+          )}
+        </DashboardZone>
 
-        {/* ── ACTION: Quick Actions ─────────────────────────────────────── */}
-        <Animated.View entering={FadeInDown.delay(240).duration(400)}>
+        {/* ── SIGNAL: Key Metrics ─────────────────────────────────────── */}
+        <DashboardZone zone="signal" visible={!isLoading}>
+          <View style={s.metricsRow}>
+            <MetricCard
+              label={t('dashboard.totalInvoices')}
+              value={stats?.totalInvoices}
+              loading={false}
+              emoji="🧾"
+              onPress={() => navigation.navigate('Invoices')}
+              colors={colors}
+            />
+            <MetricCard
+              label={t('dashboard.totalRevenue')}
+              value={stats?.totalRevenue !== undefined
+                ? `₦${(stats.totalRevenue / 1_000_000).toFixed(1)}M`
+                : undefined}
+              loading={false}
+              emoji="💰"
+              onPress={() => navigation.navigate('Invoices')}
+              colors={colors}
+            />
+            <MetricCard
+              label={t('dashboard.pendingNrs')}
+              value={stats?.pendingNrs}
+              loading={false}
+              emoji="📤"
+              accentColor={stats?.pendingNrs && stats.pendingNrs > 0 ? colors.actionOrangeAccent : undefined}
+              onPress={() => navigation.navigate('Invoices')}
+              colors={colors}
+            />
+          </View>
+        </DashboardZone>
+
+        {/* ── ACTION: Quick Actions ──────────────────────────────────── */}
+        <DashboardZone zone="action" visible={!isLoading}>
           <Text style={d.sectionTitle}>{t('dashboard.quickActions')}</Text>
           <View style={s.actionsGrid}>
-            <QuickAction emoji="🧾" label={t('dashboard.newInvoice')}    onPress={() => router.push('/invoices/create')}    accentColor={colors.primary[500]} colors={colors} />
-            <QuickAction emoji="📷" label={t('dashboard.scanReceipt')}   onPress={() => router.push('/scan')}               accentColor={colors.accent[500]}  colors={colors} />
-            <QuickAction emoji="🧮" label={t('dashboard.taxCalculator')} onPress={() => router.push('/(tabs)/tools')}       accentColor={colors.info}         colors={colors} />
-            <QuickAction emoji="💳" label={t('dashboard.payTax')}        onPress={() => router.push('/payment')}            accentColor={colors.primary[700]} colors={colors} />
-            <QuickAction emoji="📊" label={t('dashboard.expenses')}      onPress={() => router.push('/(tabs)/expenses')}    accentColor={colors.error}        colors={colors} />
-            <QuickAction emoji="🎓" label={t('dashboard.learn')}         onPress={() => router.push('/(tabs)/learn')}       accentColor="#8B5CF6"             colors={colors} />
+            {quickActions.map((a: QuickActionDef) => (
+              <QuickAction
+                key={a.id}
+                emoji={a.emoji}
+                label={t(a.labelKey)}
+                onPress={() => navigation.navigate(a.route as any)}
+                accentColor={
+                  a.accentColorKey.startsWith('#')
+                    ? a.accentColorKey
+                    : (colors as any)[a.accentColorKey] ?? colors.primary
+                }
+                colors={colors}
+              />
+            ))}
           </View>
-        </Animated.View>
+        </DashboardZone>
 
-        {/* ── CONTEXT: AI Tax Forecast ──────────────────────────────────── */}
-        {(isLoading || forecast) && (
-          <Animated.View entering={FadeInDown.delay(280).duration(400)}>
-            <TaxForecastCard forecast={forecast} loading={isLoading} colors={colors} t={t} />
-          </Animated.View>
-        )}
+        {/* ── CONTEXT: Anomalies + Deadlines + Forecast ────────────── */}
+        <DashboardZone zone="context" visible={!isLoading} urgent={hasHighAnomaly}>
 
-        {/* ── CONTEXT: VAT Liability ────────────────────────────────────── */}
-        {stats?.vatLiability !== undefined && stats.vatLiability > 0 && (
-          <Animated.View entering={FadeInDown.delay(320).duration(400)}>
+          {/* CF-02: TopAnomaliesSection via SectionState; C-19: empty={null} */}
+          <SectionState
+            data={data?.topAnomalies}
+            isLoading={false}
+            error={isError ? new Error('load failed') : null}
+            isEmpty={(d) => d.length === 0}
+            loading={<SectionSkeletonRows count={2} />}
+            empty={null}
+            errorView={
+              <InlineError
+                icon="🔍"
+                message={t('dashboard.anomaliesLoadError')}
+                action={t('common.retry')}
+                onAction={() => refetch()}
+              />
+            }
+          >
+            {(anom) => (
+              <TopAnomaliesSection
+                anomalies={anom}
+                onPress={() => navigation.navigate('Invoices')}
+              />
+            )}
+          </SectionState>
+
+          {/* CF-06: Multi-deadline calendar via SectionState */}
+          <SectionState
+            data={data?.upcomingDeadlines}
+            isLoading={false}
+            error={isError ? new Error('load failed') : null}
+            isEmpty={(d) => d.length === 0}
+            loading={<SectionSkeletonRows count={1} />}
+            empty={null}
+            errorView={
+              <InlineError
+                icon="📅"
+                message={t('dashboard.calendarLoadError')}
+                action={t('common.retry')}
+                onAction={() => refetch()}
+              />
+            }
+          >
+            {(dl) => (
+              <ComplianceCalendar
+                deadlines={dl}
+                onPress={(_e) => navigation.navigate('Invoices')}
+              />
+            )}
+          </SectionState>
+
+          {/* AI Tax Forecast */}
+          {forecast && <TaxForecastCard forecast={forecast} loading={false} colors={colors} t={t} />}
+
+          {/* VAT Liability — C-20: navigate synchronously */}
+          {stats?.vatLiability !== undefined && stats.vatLiability > 0 && (
             <Card variant="warning" style={s.vatCard}>
               <View style={s.vatRow}>
                 <View>
@@ -225,137 +349,76 @@ export default function DashboardScreen() {
                   </Text>
                 </View>
                 <Pressable
-                  style={[s.vatAction, { backgroundColor: colors.primary[500] }]}
-                  onPress={() => router.push('/filing/vat')}
+                  style={({ pressed }) => [
+                    s.vatAction,
+                    { backgroundColor: colors.primary },
+                    pressed && { transform: [{ scale: 0.97 }] },
+                  ]}
+                  onPress={() => navigation.navigate('Invoices')}
                   accessibilityRole="button"
                 >
-                  <Text style={[s.vatActionText, { color: colors.textInverse }]}>{t('dashboard.fileNow')}</Text>
+                  <Text style={[s.vatActionText, { color: colors.textOnPrimary }]}>{t('dashboard.fileNow')}</Text>
                 </Pressable>
               </View>
             </Card>
-          </Animated.View>
-        )}
+          )}
+        </DashboardZone>
 
-        {/* Error state */}
-        {isError && !isLoading && !data && (
-          <EmptyState
-            emoji="⚠️"
-            title={t('common.errorTitle')}
-            body={t('common.errorSubtitle')}
-            action={{ label: t('common.retry'), onPress: () => refetch() }}
-          />
-        )}
+        {/* ── AMBIENT: F2 SparklineBarChart + F4 DonutChart + offline sync ───────── */}
+        <DashboardZone zone="ambient" visible={!isLoading}>
+
+          {/* F2: Last-12-months revenue sparkline — anomalous months flagged coral */}
+          <SectionState
+            data={sparkBarData}
+            isLoading={false}
+            error={isError ? new Error('load failed') : null}
+            isEmpty={(d) => !d?.length}
+            loading={<SectionSkeletonRows count={1} />}
+            empty={null}
+            errorView={
+              <InlineError
+                icon="📈"
+                message={t('dashboard.chartsLoadError')}
+                action={t('common.retry')}
+                onAction={() => refetch()}
+              />
+            }
+          >
+            {(bars) => (
+              <SparklineBarChart
+                data={bars}
+                unit="₦"
+                threshold={bars.reduce((s, b) => s + b.value, 0) / (bars.length || 1)}
+                accessibilityLabel={t('dashboard.sparkline.accessLabel')}
+              />
+            )}
+          </SectionState>
+
+          {/* F4: YTD tax-type breakdown donut — tapping a slice filters Invoices */}
+          <SectionState
+            data={donutSlices}
+            isLoading={false}
+            error={isError ? new Error('load failed') : null}
+            isEmpty={(d) => !d?.length}
+            loading={<SectionSkeletonRows count={2} />}
+            empty={null}
+            errorView={null}
+          >
+            {(slices) => (
+              <DonutChart
+                slices={slices}
+                accessibilityLabel={t('dashboard.donut.title')}
+                onSlicePress={(key) =>
+                  navigation.navigate('Invoices', { filter: key } as any)
+                }
+              />
+            )}
+          </SectionState>
+
+          {/* Offline sync status — always visible at bottom of ambient */}
+          <OfflineSyncStatus />
+        </DashboardZone>
       </ScrollView>
-    </View>
-  );
-}
-
-// ─── TopAnomaliesSection — CF-02 (visibility) + CF-15 (shape+color+text) ─────
-
-type Anomaly = NonNullable<DashboardComposite['topAnomalies']>[number];
-
-function TopAnomaliesSection({
-  anomalies, colors, t,
-}: { anomalies: Anomaly[]; colors: any; t: (k: string) => string }) {
-  return (
-    <View style={s.anomaliesList}>
-      {anomalies.slice(0, 4).map((a, i) => {
-        const sev      = (a.severity ?? 'low') as 'high' | 'medium' | 'low';
-        // CF-15: severity expressed via shape glyph + color + text label — never color alone
-        const sevColor = sev === 'high' ? colors.error : sev === 'medium' ? colors.accent[600] : colors.info;
-        const glyph    = SEVERITY_GLYPH[sev];
-        const sevLabel = sev === 'high'
-          ? t('dashboard.severityHigh')
-          : sev === 'medium'
-          ? t('dashboard.severityMedium')
-          : t('dashboard.severityLow');
-
-        return (
-          <Pressable
-            key={a.expenseId ?? String(i)}
-            style={[
-              s.anomalyRow,
-              { backgroundColor: colors.surface, borderColor: sevColor + '44' },
-            ]}
-            onPress={() => router.push('/(tabs)/insights')}
-            accessibilityRole="button"
-            accessibilityLabel={`${sevLabel}: ${a.anomalyReason}. ₦${a.amount}`}
-          >
-            <Text style={[s.anomalySevGlyph, { color: sevColor }]} accessibilityElementsHidden>
-              {glyph}
-            </Text>
-            <View style={s.anomalyBody}>
-              <Text style={[s.anomalyReason, { color: colors.textPrimary }]} numberOfLines={2}>
-                {a.anomalyReason}
-              </Text>
-              {/* CF-15: text label always present alongside color */}
-              <Text style={[s.anomalySevLabel, { color: sevColor }]}>
-                {glyph} {sevLabel}
-              </Text>
-            </View>
-            <Text style={[s.anomalyAmount, { color: colors.textPrimary }]}>
-              ₦{a.amount.toLocaleString('en-NG', { maximumFractionDigits: 0 })}
-            </Text>
-          </Pressable>
-        );
-      })}
-    </View>
-  );
-}
-
-// ─── ComplianceCalendar — CF-06: multi-deadline list ─────────────────────────
-
-type Deadline = NonNullable<DashboardComposite['upcomingDeadlines']>[number];
-
-function ComplianceCalendar({
-  deadlines, loading, colors, t,
-}: { deadlines: Deadline[]; loading: boolean; colors: any; t: (k: string) => string }) {
-  if (loading) return <Skeleton height={64} style={{ marginBottom: spacing[3] }} />;
-  if (deadlines.length === 0) return null;
-
-  return (
-    <View style={s.deadlineList}>
-      {deadlines.slice(0, 5).map((d) => {
-        const isOverdue = d.status === 'overdue';
-        const isUrgent  = !isOverdue && d.daysRemaining <= 7;
-
-        // CF-15: shape (▲/■/●) + color + text — never color alone
-        const glyph      = isOverdue ? '▲' : isUrgent ? '■' : '●';
-        const badgeColor = isOverdue ? colors.error : isUrgent ? colors.accent[500] : colors.primary[500];
-        const statusText = isOverdue
-          ? t('dashboard.deadlineOverdue')
-          : isUrgent
-          ? t('common.urgent')
-          : t('common.upcoming');
-
-        return (
-          <Pressable
-            key={d.id}
-            style={[
-              s.deadlineRow,
-              { backgroundColor: colors.surface, borderLeftColor: badgeColor },
-            ]}
-            onPress={() => router.push('/(tabs)/tools')}
-            accessibilityRole="button"
-            accessibilityLabel={`${d.type}, ${statusText}, ${d.daysRemaining} ${t('dashboard.daysRemaining')}`}
-          >
-            <View style={s.deadlineLeft}>
-              <Text style={[s.deadlineGlyph, { color: badgeColor }]}>{glyph}</Text>
-              <View>
-                <Text style={[s.deadlineType, { color: colors.textPrimary }]}>{d.type}</Text>
-                <Text style={[s.deadlineDue,  { color: colors.textMuted }]}>{d.dueDate}</Text>
-              </View>
-            </View>
-            <View style={s.deadlineRight}>
-              <Text style={[s.deadlineDays, { color: badgeColor }]}>
-                {isOverdue ? t('common.overdue') : `${d.daysRemaining}d`}
-              </Text>
-              {/* CF-15: always show status text label */}
-              <Text style={[s.deadlineStatus, { color: badgeColor }]}>{statusText}</Text>
-            </View>
-          </Pressable>
-        );
-      })}
     </View>
   );
 }
@@ -371,7 +434,11 @@ function MetricCard({
   return (
     <Pressable
       onPress={onPress}
-      style={[s.metricCard, { backgroundColor: colors.surface, ...shadows.sm }]}
+      style={({ pressed }) => [
+        s.metricCard,
+        { backgroundColor: colors.surface, ...shadows.sm },
+        pressed && { transform: [{ scale: 0.97 }] },
+      ]}
       accessibilityRole="button"
       accessibilityLabel={`${label}: ${value ?? 'loading'}`}
     >
@@ -423,11 +490,11 @@ function TaxForecastCard({
           <ForecastRow label="Dev. Levy" value={forecast.breakdown.devLevy}  colors={colors} />
         </View>
       )}
-      <View style={[s.forecastProvision, { backgroundColor: (colors.primary as any)[50] ?? colors.surface }]}>
+      <View style={[s.forecastProvision, { backgroundColor: colors.primaryBgSubtle }]}>
         <Text style={[s.forecastProvisionLabel, { color: colors.textSecondary }]}>
           {t('dashboard.monthlyProvision')}:
         </Text>
-        <Text style={[s.forecastProvisionValue, { color: colors.primary[600] }]}>
+        <Text style={[s.forecastProvisionValue, { color: colors.primaryDark }]}>
           ₦{Math.round(forecast.recommendedMonthlyProvision).toLocaleString('en-NG')}
         </Text>
       </View>
@@ -455,11 +522,12 @@ function QuickAction({
 }) {
   return (
     <Pressable
-      onPress={onPress}
+      onPress={() => onPress()}
       style={({ pressed }) => [
         s.quickAction,
         { backgroundColor: colors.surface, ...shadows.sm },
         pressed && s.quickActionPressed,
+        pressed && { transform: [{ scale: 0.97 }] },
       ]}
       accessibilityRole="button"
       accessibilityLabel={label}
@@ -490,7 +558,6 @@ const s = StyleSheet.create({
   healthTop:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   gaugeOverlay:  {
     position: 'absolute',
-    width: GAUGE_SIZE, height: GAUGE_SIZE,
     alignItems: 'center', justifyContent: 'center',
   },
   healthScore:   { fontSize: typography.sizes['3xl'], fontWeight: typography.weights.extrabold, lineHeight: 40 },

@@ -4,6 +4,7 @@ import Animated, { FadeIn, FadeInDown } from 'react-native-reanimated';
 import * as Haptics from '../../utils/safeHaptics';
 import { useTranslation } from 'react-i18next';
 import { colors, spacing, radii, typography, shadows } from '../../theme/tokens';
+import { DURATION, STAGGER } from '../../design-system/animation';
 import { PITCalculation, TaxOptimization, formatNaira, formatPercentage } from '../../services/tax/engine';
 
 interface TaxBreakdownProps {
@@ -34,7 +35,7 @@ export function TaxBreakdown({ calculation, optimization, onOptimizationPress }:
   return (
     <View style={styles.container}>
       {/* Header Card */}
-      <Animated.View entering={FadeInDown.duration(300)} style={styles.headerCard}>
+      <Animated.View entering={FadeInDown.duration(DURATION.transition)} style={styles.headerCard}>
         <View style={styles.headerRow}>
           <View style={styles.headerLeft}>
             <Text style={styles.headerLabel}>{t('tax.grossIncome')}</Text>
@@ -62,8 +63,8 @@ export function TaxBreakdown({ calculation, optimization, onOptimizationPress }:
         </View>
       </Animated.View>
 
-      {/* CRA Card */}
-      <Animated.View entering={FadeInDown.duration(300).delay(100)} style={styles.card}>
+      {/* Relief Deductions Card (NTA 2025 — Pension + NHF + RRA) */}
+      <Animated.View entering={FadeInDown.duration(DURATION.transition).delay(100)} style={styles.card}>
         <View style={styles.cardHeader}>
           <Text style={styles.cardIcon}>🛡️</Text>
           <Text style={styles.cardTitle}>{t('tax.craTitle')}</Text>
@@ -80,7 +81,7 @@ export function TaxBreakdown({ calculation, optimization, onOptimizationPress }:
       </Animated.View>
 
       {/* Bracket Breakdown */}
-      <Animated.View entering={FadeInDown.duration(300).delay(200)} style={styles.card}>
+      <Animated.View entering={FadeInDown.duration(DURATION.transition).delay(200)} style={styles.card}>
         <View style={styles.cardHeader}>
           <Text style={styles.cardIcon}>📊</Text>
           <Text style={styles.cardTitle}>{t('tax.bracketBreakdown')}</Text>
@@ -112,7 +113,7 @@ export function TaxBreakdown({ calculation, optimization, onOptimizationPress }:
 
       {/* Optimization Card */}
       {optimization && optimization.potentialSavings > 0 && (
-        <Animated.View entering={FadeInDown.duration(300).delay(400)} style={styles.optimizationCard}>
+        <Animated.View entering={FadeInDown.duration(DURATION.transition).delay(400)} style={styles.optimizationCard}>
           <View style={styles.optimizationHeader}>
             <View style={styles.optimizationTitleRow}>
               <Text style={styles.optimizationIcon}>💡</Text>
@@ -163,7 +164,7 @@ export function TaxBreakdown({ calculation, optimization, onOptimizationPress }:
       )}
 
       {/* Compliance Notice */}
-      <Animated.View entering={FadeInDown.duration(300).delay(500)} style={styles.complianceNotice}>
+      <Animated.View entering={FadeInDown.duration(DURATION.transition).delay(500)} style={styles.complianceNotice}>
         <Text style={styles.complianceIcon}>🏛️</Text>
         <Text style={styles.complianceText}>
           {t('tax.complianceNotice')}

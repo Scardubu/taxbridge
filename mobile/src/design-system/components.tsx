@@ -14,6 +14,7 @@ import Animated, {
   useSharedValue, useAnimatedStyle, withSpring, withTiming,
   interpolate, withRepeat, Easing, runOnJS,
 } from 'react-native-reanimated';
+import { DURATION, EASE } from './animation';
 import * as Haptics from 'expo-haptics';
 import { colors, typography, spacing, radii, shadows, animation } from './tokens';
 
@@ -174,11 +175,11 @@ export function NairaInput({
         : isFocused.value === 1
           ? colors.primary[500]
           : colors.border,
-      { duration: 150 }
+      { duration: DURATION.instant }
     ),
     borderWidth: withTiming(
       isFocused.value === 1 ? 2 : 1.5,
-      { duration: 150 }
+      { duration: DURATION.instant }
     ),
   }));
 
@@ -260,9 +261,9 @@ export function TextInputField({
   const borderAnimStyle = useAnimatedStyle(() => ({
     borderColor: withTiming(
       error ? colors.error : isFocused.value ? colors.primary[500] : colors.border,
-      { duration: 150 }
+      { duration: DURATION.instant }
     ),
-    borderWidth: withTiming(isFocused.value ? 2 : 1.5, { duration: 150 }),
+    borderWidth: withTiming(isFocused.value ? 2 : 1.5, { duration: DURATION.instant }),
   }));
 
   return (
@@ -279,7 +280,7 @@ export function TextInputField({
         <TextInput
           onFocus={() => { isFocused.value = 1; }}
           onBlur={() => { isFocused.value = 0; }}
-          style={[inputStyles.input, leftIcon && inputStyles.inputWithIcon]}
+          style={[inputStyles.input, leftIcon ? inputStyles.inputWithIcon : undefined]}
           placeholderTextColor={colors.textDisabled}
           accessible
           accessibilityLabel={label}
@@ -302,7 +303,7 @@ interface CardProps {
   children:   React.ReactNode;
   variant?:   'default' | 'elevated' | 'outlined' | 'success' | 'warning' | 'error';
   padding?:   number;
-  style?:     ViewStyle;
+  style?:     ViewStyle | (ViewStyle | false | undefined)[];
   onPress?:   () => void;
   testID?:    string;
 }
@@ -541,7 +542,7 @@ export function ProgressBar({
 
   React.useEffect(() => {
     width.value = animated
-      ? withTiming(Math.min(1, Math.max(0, value)), { duration: 600 })
+      ? withTiming(Math.min(1, Math.max(0, value)), { duration: DURATION.deliberate })
       : Math.min(1, Math.max(0, value));
   }, [value, animated]);
 

@@ -115,7 +115,7 @@ export function useCreateInvoice() {
       // Optimistically insert into list cache
       qc.setQueriesData<any>(
         { queryKey: ['invoices'], exact: false },
-        (old) => old
+        (old: any) => old
           ? { ...old, pages: [{ data: [invoice, ...(old.pages[0]?.data ?? [])], meta: old.pages[0]?.meta }, ...old.pages.slice(1)] }
           : old
       );

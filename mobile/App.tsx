@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useFonts } from 'expo-font';
 import { StatusBar } from 'expo-status-bar';
 import * as ExpoSplashScreen from 'expo-splash-screen';
 import { NavigationContainer, type NavigationContainerRef, DefaultTheme } from '@react-navigation/native';
@@ -52,11 +53,13 @@ import { AuthProvider, useAuth } from './src/contexts/AuthContext';
 import { FeatureFlagProvider } from './src/contexts/FeatureFlagContext';
 import { LoadingProvider } from './src/contexts/LoadingContext';
 import { OnboardingProvider, useOnboarding } from './src/contexts/OnboardingContext';
+import { ThemeProvider } from './src/contexts/ThemeContext';
 import { ToastProvider } from './src/providers/ToastProvider';
 import LoadingOverlay from './src/components/LoadingOverlay';
 import BrandedLoading from './src/components/BrandedLoading';
 import NetworkStatus from './src/components/NetworkStatus';
-import HomeScreen from './src/screens/HomeScreen';
+import DashboardScreen from './src/screens/tabs/DashboardScreen';
+// HomeScreen retired in V10.3 — DashboardScreen (composite hook) is the Home tab
 import CreateInvoiceScreen from './src/screens/CreateInvoiceScreen';
 import InvoicesScreen from './src/screens/InvoicesScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
@@ -187,7 +190,7 @@ function TabNavigator() {
     >
       <Tab.Screen 
         name="Home" 
-        component={HomeScreen}
+        component={DashboardScreen}
         options={{
           tabBarLabel: t('navigation.home'),
           tabBarIcon: ({ color, size }) => (
@@ -235,6 +238,10 @@ function TabNavigator() {
 }
 
 export default function App() {
+  // BUG-S01: Load Ionicons font before rendering navigation to prevent □ squares
+  const [fontsLoaded] = useFonts({
+    ...Ionicons.font,
+  });
   const [booted, setBooted] = useState(false);
   const [bootError, setBootError] = useState<Error | null>(null);
   const [bootData, setBootData] = useState<{ deviceInfo: any; persistedState: any } | null>(null);
@@ -279,7 +286,8 @@ export default function App() {
     }
   }, [booted]);
 
-  if (!booted) {
+  // BUG-S01: Hold on splash until fonts are loaded to prevent □ icon flash
+  if (!booted || !fontsLoaded) {
     return <SplashScreen onFinish={(data) => {
       try {
         setBootData(data || null);
@@ -308,6 +316,7 @@ export default function App() {
   return (
     <I18nextProvider i18n={i18n}>
       <ErrorBoundary>
+        <ThemeProvider>
         <NetworkProvider>
           <DeviceProvider 
             initialDeviceInfo={bootData?.deviceInfo}
@@ -361,6 +370,7 @@ export default function App() {
           </SyncProvider>
         </DeviceProvider>
       </NetworkProvider>
+        </ThemeProvider>
     </ErrorBoundary>
     </I18nextProvider>
   );

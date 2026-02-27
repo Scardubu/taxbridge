@@ -3,6 +3,7 @@
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAdminI18n } from '@/lib/i18n';
+import { safeDate } from '@/lib/utils';
 
 export interface LaunchMetricsData {
   timestamp: string;
@@ -84,8 +85,8 @@ function getStatus(value: number, thresholds: { healthy: number; watch: number }
 }
 
 function formatWindowRange(start: string, end: string) {
-  const format = new Intl.DateTimeFormat('en-NG', { month: 'short', day: 'numeric' });
-  return `${format.format(new Date(start))} – ${format.format(new Date(end))}`;
+  const opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' };
+  return `${safeDate(start, opts)} – ${safeDate(end, opts)}`;
 }
 
 const MetricTile = ({
@@ -265,7 +266,7 @@ export function LaunchMetricsWidget({ metrics, isLoading }: LaunchMetricsWidgetP
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-slate-500">{t('launch.comparison.lastRefresh')}</span>
-                <span className="font-medium">{new Date(metrics.timestamp).toLocaleTimeString()}</span>
+                <span className="font-medium">{safeDate(metrics.timestamp, { timeStyle: 'short' })}</span>
               </div>
             </div>
           </div>

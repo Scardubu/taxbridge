@@ -26,6 +26,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { useAdminI18n } from '@/lib/i18n';
+import { safeDate } from '@/lib/utils';
 import { fetchDevices, fetchSyncStats, forceDeviceSync, type Device } from '@/lib/api/devices';
 import { Smartphone, RefreshCw, AlertCircle, CheckCircle2, Users } from 'lucide-react';
 
@@ -66,8 +67,10 @@ export default function DevicesPage() {
     }
   };
 
-  const formatTimestamp = (timestamp: string) => {
+  const formatTimestamp = (timestamp: string | null | undefined) => {
+    if (!timestamp) return '—';
     const date = new Date(timestamp);
+    if (isNaN(date.getTime())) return '—';
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffMins = Math.floor(diffMs / 60000);
@@ -78,9 +81,11 @@ export default function DevicesPage() {
     return date.toLocaleDateString('en-NG', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
   };
 
-  const isDeviceActive = (lastHeartbeat: string) => {
-    const now = new Date();
+  const isDeviceActive = (lastHeartbeat: string | null | undefined) => {
+    if (!lastHeartbeat) return false;
     const heartbeat = new Date(lastHeartbeat);
+    if (isNaN(heartbeat.getTime())) return false;
+    const now = new Date();
     const diffMins = (now.getTime() - heartbeat.getTime()) / 60000;
     return diffMins < 10; // Active if heartbeat within 10 minutes
   };

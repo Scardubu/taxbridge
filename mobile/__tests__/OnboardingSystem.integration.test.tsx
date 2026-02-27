@@ -16,7 +16,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { OnboardingProvider } from '../src/contexts/OnboardingContext';
 import OnboardingScreen from '../src/screens/OnboardingScreen';
 import { calculateFullPIT, calculatePIT, checkVATThreshold, checkCITRate } from '../src/utils/taxCalculator';
-import { stampInvoiceMock } from '../src/services/mockFIRS';
+import { stampInvoiceMock } from '../src/services/mockNRS';
 
 // Mock i18n
 jest.mock('react-i18next', () => ({
@@ -86,8 +86,8 @@ jest.mock('../src/hooks/useHapticFeedback', () => ({
   }),
 }));
 
-// Mock FIRS service to avoid timeouts
-jest.mock('../src/services/mockFIRS', () => ({
+// Mock NRS service to avoid timeouts
+jest.mock('../src/services/mockNRS', () => ({
   stampInvoiceMock: jest.fn().mockResolvedValue({
     success: true,
     stampCode: 'MOCK-1234567890-ABC123DEF',
@@ -149,22 +149,22 @@ describe('Onboarding System Integration Tests', () => {
         expect(result.breakdown).toHaveLength(2); // Band 1 (exempt) + Band 2 (taxed)
       });
 
-      it('should calculate tax correctly for ₦12M (₦2.112M)', () => {
+      it('should calculate tax correctly for ₦12M (₦1.95M)', () => {
         const result = calculatePIT(12000000);
-        // Band 1: ₦0 (₦0-800k @ 0%)
-        // Band 2: ₦360k (₦800k-3.2M @ 15%)
-        // Band 3: ₦912k (₦3.2M-8M @ 19%)
-        // Band 4: ₦840k (₦8M-12M @ 21%)
-        // Total: ₦2.112M
-        expect(result.estimatedTax).toBe(2112000);
-        expect(result.breakdown).toHaveLength(4);
+        // NTA 2025 bands:
+        // Band 1: ₦800k @ 0%  = ₦0
+        // Band 2: ₦2.2M @ 15% = ₦330k
+        // Band 3: ₦9M @ 18%   = ₦1,620k
+        // Total: ₦1,950k
+        expect(result.estimatedTax).toBe(1950000);
+        expect(result.breakdown).toHaveLength(3);
       });
 
       it('should calculate tax correctly for ₦100M (high earner)', () => {
         const result = calculatePIT(100000000);
-        // Complex calculation across all 5 bands
+        // NTA 2025: all 6 bands; Total = ₦22,930k
         expect(result.estimatedTax).toBeGreaterThan(10000000);
-        expect(result.breakdown).toHaveLength(5);
+        expect(result.breakdown).toHaveLength(6);
         expect(result.effectiveRate).toBeLessThan(0.25); // Always less than top marginal rate
       });
 
@@ -217,13 +217,13 @@ describe('Onboarding System Integration Tests', () => {
     });
 
     describe('CIT Rates', () => {
-      it('should return 0% for turnover ≤₦50M', () => {
-        const result = checkCITRate(30000000);
+      it('should return 0% for turnover ≤₦25M', () => {
+        const result = checkCITRate(20000000);
         expect(result.rate).toBe(0);
         expect(result.bracket).toBe('small');
       });
 
-      it('should return 20% for turnover ₦50M-₦100M', () => {
+      it('should return 20% for turnover ₦25M-₦100M', () => {
         const result = checkCITRate(75000000);
         expect(result.rate).toBeCloseTo(0.2);
         expect(result.bracket).toBe('medium');
@@ -236,15 +236,15 @@ describe('Onboarding System Integration Tests', () => {
       });
 
       it('should handle exact threshold values', () => {
-        expect(checkCITRate(50000000).rate).toBe(0); // Edge: ≤₦50M
-        expect(checkCITRate(50000001).rate).toBeCloseTo(0.2); // Just above
+        expect(checkCITRate(25000000).rate).toBe(0); // Edge: ≤₦25M
+        expect(checkCITRate(25000001).rate).toBeCloseTo(0.2); // Just above
         expect(checkCITRate(100000000).rate).toBeCloseTo(0.2); // Edge: ≤₦100M
         expect(checkCITRate(100000001).rate).toBeCloseTo(0.3); // Just above
       });
     });
   });
 
-  describe('Mock FIRS API Tests', () => {
+  describe('Mock NRS API Tests', () => {
     it('should return mock stamp response with all required fields', async () => {
       const invoice = {
         invoiceNumber: 'INV-001',

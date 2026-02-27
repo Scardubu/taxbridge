@@ -326,9 +326,13 @@ export const colors = {
   disabled: specializedColors.disabled,
 
   // Status: Neutral
+  neutral: semanticColors.neutral,
   neutralDark: semanticColors.neutralDark,
   neutralBg: semanticColors.neutralBg,
+  neutralBgSubtle: semanticColors.neutralBgSubtle,
   neutralLight: semanticColors.neutralLight,
+  neutralBorder: semanticColors.neutralBorder,
+  neutralText: semanticColors.neutralText,
 
   // Tip colors
   tipBg: specializedColors.tipBg,

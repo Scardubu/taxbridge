@@ -66,17 +66,22 @@ describe('NTA 2025 Contracts', () => {
     });
 
     test('₦3.6M annual income — correct PIT', () => {
+      // NTA 2025 bands: 0% on first ₦800k, 15% on next ₦2.2M
+      // CRA = max(1%×3.6M=36k, ₦200k+20%×3.6M=920k) = 920k
+      // taxableIncome = 3,600,000 - 920,000 = 2,680,000
+      // tax = 0% on 800k + 15% on 1,880k = ₦282,000
       const { totalTax, effectiveRate } = calculatePIT(3_600_000);
-      expect(totalTax).toBeGreaterThan(400_000);
-      expect(totalTax).toBeLessThan(600_000);
-      expect(effectiveRate).toBeLessThan(0.24);
-      expect(effectiveRate).toBeGreaterThan(0.10);
+      expect(totalTax).toBeGreaterThan(200_000);
+      expect(totalTax).toBeLessThan(350_000);
+      expect(effectiveRate).toBeLessThan(0.15);
+      expect(effectiveRate).toBeGreaterThan(0.05);
     });
 
     test('All 6 PIT bands defined (NTA 2025 §1-40)', () => {
       expect(NTA_2025.PIT.bands.length).toBe(6);
-      expect(NTA_2025.PIT.bands[0].rate).toBe(0.07);
-      expect(NTA_2025.PIT.bands[5].rate).toBe(0.24);
+      // NTA 2025 Fourth Schedule: 0% tax-free band, 25% top band
+      expect(NTA_2025.PIT.bands[0].rate).toBe(0.00);
+      expect(NTA_2025.PIT.bands[5].rate).toBe(0.25);
     });
 
     test('bandBreakdown never returns empty for positive income', () => {
@@ -116,9 +121,10 @@ describe('NTA 2025 Contracts', () => {
       expect(devLevy).toBe(400_000);
     });
 
-    test('Small companies exempt from dev levy', () => {
+    test('Small companies still pay dev levy (NTA 2025 §60A)', () => {
       const { devLevy } = calculateCIT(10_000_000, 5_000_000);
-      expect(devLevy).toBe(0);
+      // Dev levy 4% applies to all companies regardless of size tier
+      expect(devLevy).toBe(200_000);
     });
   });
 

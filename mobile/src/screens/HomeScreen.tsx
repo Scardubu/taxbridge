@@ -30,6 +30,7 @@ import FloatingActionButton from '../components/FloatingActionButton';
 import GlobalSearch from '../components/GlobalSearch';
 import SyncQueueViewer from '../components/SyncQueueViewer';
 import { colors, radii, spacing, typography, shadows } from '../theme/tokens';
+import { DURATION } from '../design-system/animation';
 
 const { width } = Dimensions.get('window');
 
@@ -426,7 +427,7 @@ function HomeScreen(props: any) {
       />
 
       {/* Search Bar Trigger */}
-      <Animated.View entering={isWeb ? undefined : FadeInDown.duration(300).delay(100)}>
+      <Animated.View entering={isWeb ? undefined : FadeInDown.duration(DURATION.transition).delay(100)}>
         <Pressable
           style={styles.searchTrigger}
           onPress={handleOpenSearch}

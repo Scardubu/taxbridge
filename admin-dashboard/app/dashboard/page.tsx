@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { FetchError, fetchJson } from '@/lib/fetcher';
 import { useAdminI18n } from '@/lib/i18n';
+import { safeDate } from '@/lib/utils';
 import { SkeletonCard } from '@/components/ui/skeleton-table';
 import { useBackendWarmup } from '@/hooks/useBackendWarmup';
 
@@ -159,7 +160,7 @@ export default function DashboardPage() {
   }, [stats]);
 
   const lastLaunchRefresh = useMemo(() => {
-    return launchMetrics ? new Date(launchMetrics.timestamp).toLocaleTimeString() : '';
+    return launchMetrics ? safeDate(launchMetrics.timestamp, { timeStyle: 'medium' }) : '';
   }, [launchMetrics]);
 
   const classifyAnomaly = (message: string) => {

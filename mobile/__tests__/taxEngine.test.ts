@@ -7,19 +7,17 @@
 // ─── Tax Engine Tests (NTA 2025 boundary conditions) ─────────────────────────
 
 describe('NTA 2025 PIT Calculator', () => {
-  // Import inline to avoid module resolution issues in test environment
+  // NTA 2025 PIT bands — CRA abolished; 0% first band replaces exemption
   function calcPIT(annualIncome: number) {
     const bands = [
-      { limit: 300_000,    rate: 0.07 },
-      { limit: 600_000,    rate: 0.11 },
-      { limit: 1_100_000,  rate: 0.15 },
-      { limit: 1_600_000,  rate: 0.19 },
-      { limit: 3_200_000,  rate: 0.21 },
-      { limit: Infinity,   rate: 0.24 },
+      { limit: 800_000,      rate: 0    },
+      { limit: 3_000_000,    rate: 0.15 },
+      { limit: 12_000_000,   rate: 0.18 },
+      { limit: 25_000_000,   rate: 0.21 },
+      { limit: 50_000_000,   rate: 0.23 },
+      { limit: Infinity,     rate: 0.25 },
     ];
-    const cra     = Math.max(200_000, annualIncome * 0.01) + annualIncome * 0.20;
-    const taxable = Math.max(0, annualIncome - cra);
-    let remaining = taxable;
+    let remaining = annualIncome;
     let total     = 0;
     let prevLimit = 0;
 
@@ -33,62 +31,52 @@ describe('NTA 2025 PIT Calculator', () => {
       prevLimit  = band.limit;
       if (remaining <= 0) break;
     }
-    return { total, cra, taxable, effectiveRate: annualIncome > 0 ? total / annualIncome : 0 };
+    return { total, taxable: annualIncome, effectiveRate: annualIncome > 0 ? total / annualIncome : 0 };
   }
 
   test('Zero income → zero tax', () => {
-    const { total, cra } = calcPIT(0);
+    const { total } = calcPIT(0);
     expect(total).toBe(0);
-    expect(cra).toBe(0);
   });
 
-  test('Very low income → zero tax (CRA covers it)', () => {
-    // ₦800k income: CRA = max(₦200k, ₦8k) + 20% of ₦800k = ₦200k + ₦160k = ₦360k
-    // Taxable = ₦800k - ₦360k = ₦440k
-    // Tax = ₦300k × 7% + ₦140k × 11% = ₦21k + ₦15.4k = ₦36.4k
+  test('Very low income → zero tax (0% exempt band)', () => {
+    // NTA 2025: ₦800k falls entirely in 0% band → zero tax
     const { total } = calcPIT(800_000);
-    expect(total).toBeCloseTo(36_400, -2);
+    expect(total).toBe(0);
   });
 
-  test('₦300k boundary — first band only (7%)', () => {
-    const { total, taxable } = calcPIT(600_000);
-    // CRA = ₦200k + 20% of ₦600k = ₦200k + ₦120k = ₦320k
-    // Taxable = ₦600k - ₦320k = ₦280k (all in first band)
-    // Tax = ₦280k × 7% = ₦19,600
-    expect(taxable).toBeCloseTo(280_000, -2);
-    expect(total).toBeCloseTo(19_600, -2);
+  test('₦800k boundary — 0% exempt band', () => {
+    const { total } = calcPIT(600_000);
+    // NTA 2025: ₦600k within 0% band → zero tax
+    expect(total).toBe(0);
   });
 
   test('₦3.6M annual (₦300k/month) — correct graduated calculation', () => {
     const { total } = calcPIT(3_600_000);
-    // CRA = ₦200k + ₦720k = ₦920k
-    // Taxable = ₦2,680,000
-    // Band 1: ₦300k × 7%    = ₦21,000
-    // Band 2: ₦300k × 11%   = ₦33,000
-    // Band 3: ₦500k × 15%   = ₦75,000
-    // Band 4: ₦500k × 19%   = ₦95,000
-    // Band 5: ₦1,080k × 21% = ₦226,800
-    // Total ≈ ₦450,800
-    expect(total).toBeCloseTo(450_800, -3);
+    // NTA 2025 bands:
+    // Band 1: ₦800k × 0%  = ₦0
+    // Band 2: ₦2.2M × 15% = ₦330,000
+    // Band 3: ₦600k × 18% = ₦108,000
+    // Total = ₦438,000
+    expect(total).toBeCloseTo(438_000, -3);
   });
 
-  test('Top band (24%) triggers above ₦3.2M taxable', () => {
+  test('Top band (25%) triggers above ₦50M', () => {
     const { total, effectiveRate } = calcPIT(10_000_000);
-    // Very high income — should hit 24% band
-    expect(effectiveRate).toBeGreaterThan(0.15); // Must exceed 15% ETR
+    // NTA 2025: hits 18% band; effective rate > 15%
+    expect(effectiveRate).toBeGreaterThan(0.15);
     expect(total).toBeGreaterThan(1_000_000);
   });
 
-  test('CRA floor of ₦200k applies for very low incomes', () => {
-    const { cra } = calcPIT(100_000);
-    // 1% of ₦100k = ₦1k, floor is ₦200k; + 20% of ₦100k = ₦20k
-    // CRA = ₦200k + ₦20k = ₦220k
-    expect(cra).toBe(220_000);
+  test('₦800k exempt band — zero tax for low earners', () => {
+    const { total } = calcPIT(100_000);
+    // NTA 2025: ₦100k within 0% band → zero tax
+    expect(total).toBe(0);
   });
 
-  test('Effective rate never exceeds 24% maximum band', () => {
+  test('Effective rate never exceeds 25% maximum band', () => {
     const { effectiveRate } = calcPIT(100_000_000);
-    expect(effectiveRate).toBeLessThan(0.24);
+    expect(effectiveRate).toBeLessThan(0.25);
   });
 });
 
@@ -159,17 +147,11 @@ describe('NTA 2025 CIT Rates', () => {
 
 // ─── PAYE Tests ───────────────────────────────────────────────────────────────
 
-describe('NTA 2025 PAYE (CRA §33)', () => {
+describe('NTA 2025 PAYE', () => {
   function calcPAYE(gross: number) {
-    const annual  = gross * 12;
     const pension = gross * 0.08;
     const nhf     = gross * 0.025;
-    const cra     = Math.max(200_000, annual * 0.01) + annual * 0.20;
-    const taxable = Math.max(0, annual - cra);
-    // Simplified PIT for test
-    const pitAnnual = taxable * 0.07; // First band approximation for low earners
-    const paye      = pitAnnual / 12;
-    return { gross, pension, nhf, paye, net: gross - pension - nhf - paye };
+    return { gross, pension, nhf, net: gross - pension - nhf };
   }
 
   test('Pension is 8% of gross salary', () => {

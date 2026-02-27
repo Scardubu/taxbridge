@@ -1,0 +1,31 @@
+{
+  "name": "@taxbridge/prompts",
+  "version": "3.0.0",
+  "description": "TaxBridge AI Operating Context System — modular prompt library for AI-assisted development",
+  "private": true,
+  "scripts": {
+    "prompts:load": "npx ts-node --project tsconfig.json loaders/prompt-loader.ts",
+    "prompts:bootstrap": "npx ts-node --project tsconfig.json loaders/bootstrap.ts",
+    "prompts:verify": "npx ts-node --project tsconfig.json -e \"require('./loaders/prompt-loader').verifyAllModules()\"",
+    "prompts:build": "npm run prompts:verify",
+    "prompts:query": "npx ts-node --project tsconfig.json loaders/embedding-pipeline.ts query",
+    "prompts:embeddings:build": "npx ts-node --project tsconfig.json loaders/embedding-pipeline.ts build",
+    "prompts:embeddings:verify": "npx ts-node --project tsconfig.json loaders/embedding-pipeline.ts verify",
+    "prompts:lint": "node loaders/prompt-linter.js",
+    "prompts:test": "npx ts-node --project tsconfig.json loaders/prompt-loader.test.ts",
+    "prompts:stats": "node -e \"const fs=require('fs'); const files=fs.readdirSync('.', {recursive:true}).filter(f=>f.endsWith('.md')); console.log('Module files:', files.length); files.forEach(f=>{ const lines=fs.readFileSync(f,'utf-8').split('\\n').length; console.log(f+': '+lines+' lines'); });\"",
+    "test": "npx ts-node --project tsconfig.json loaders/embedding-pipeline.ts verify"
+  },
+  "devDependencies": {
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.0",
+    "@types/node": "^20.0.0"
+  },
+  "optionalDependencies": {
+    "@xenova/transformers": "^2.17.0",
+    "openai": "^4.28.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

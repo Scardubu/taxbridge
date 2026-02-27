@@ -3,7 +3,7 @@
 import { useMemo, useState, useEffect } from 'react';
 import useSWR from 'swr';
 import { Navigation } from './Navigation';
-import { cn } from '@/lib/utils';
+import { cn, safeDate } from '@/lib/utils';
 import { FetchError, fetchJson } from '@/lib/fetcher';
 import { useAdminI18n, type AdminLanguage } from '@/lib/i18n';
 
@@ -137,7 +137,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     }
 
     const ts = integrationsHealth?.timestamp;
-    const lastCheckedLabel = ts ? new Date(ts).toLocaleTimeString('en-NG', { hour: '2-digit', minute: '2-digit' }) : undefined;
+    const lastCheckedLabel = safeDate(ts, { hour: '2-digit', minute: '2-digit' }) || undefined;
 
     return {
       systemStatus: computedOverall,

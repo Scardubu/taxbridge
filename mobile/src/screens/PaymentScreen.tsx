@@ -8,6 +8,7 @@ import { LoadingContext } from '../contexts/LoadingContext';
 import { useNetwork } from '../contexts/NetworkContext';
 import { getAccessToken } from '../services/authTokens';
 import { showToast } from '../components/ui/Toast';
+import { DURATION } from '../design-system/animation';
 import { SkeletonLoader } from '../components/ui/SkeletonLoader';
 import { colors, spacing, radii, typography } from '../theme/tokens';
 
@@ -221,7 +222,7 @@ export default function PaymentScreen({ route: propRoute }: PaymentScreenProps =
         type: 'error',
         message: cleanMessage,
         haptic: 'error',
-        duration: 5000,
+        duration: DURATION.notice,
       });
     } finally {
       if (isMountedRef.current) {
@@ -303,7 +304,7 @@ export default function PaymentScreen({ route: propRoute }: PaymentScreenProps =
         type: 'error',
         message: cleanMessage,
         haptic: 'error',
-        duration: 5000,
+        duration: DURATION.notice,
       });
     } finally {
       if (isMountedRef.current) {

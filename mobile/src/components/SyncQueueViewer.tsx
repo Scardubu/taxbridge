@@ -38,6 +38,7 @@ import Animated, {
   SlideInDown,
   SlideOutDown,
 } from 'react-native-reanimated';
+import { DURATION } from '../design-system/animation';
 import { useTranslation } from 'react-i18next';
 import * as Haptics from '../utils/safeHaptics';
 import { colors, spacing, radii, typography, shadows } from '../theme/tokens';
@@ -171,7 +172,7 @@ const SyncProgressBar = memo(({ progress, isActive }: SyncProgressBarProps) => {
     animatedWidth.value = withSpring(progress, { damping: 15, stiffness: 100 });
     if (isActive) {
       pulseOpacity.value = withRepeat(
-        withSequence(withTiming(0.6, { duration: 800 }), withTiming(1, { duration: 800 })),
+        withSequence(withTiming(0.6, { duration: DURATION.slow }), withTiming(1, { duration: DURATION.slow })),
         -1,
         true
       );
@@ -213,7 +214,7 @@ const QueueItem = memo(({ item, onRetry, onResolve, onDiscard }: QueueItemProps)
   
   React.useEffect(() => {
     if (item.status === 'syncing') {
-      rotateAnimation.value = withRepeat(withTiming(360, { duration: 1500 }), -1, false);
+      rotateAnimation.value = withRepeat(withTiming(360, { duration: DURATION.skeleton }), -1, false);
     } else {
       rotateAnimation.value = withTiming(0);
     }

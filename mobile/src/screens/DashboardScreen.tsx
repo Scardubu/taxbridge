@@ -21,6 +21,7 @@ import { calculatePIT, getTaxOptimization, formatNaira, formatPercentage } from 
 import { VAT_RATE } from '@taxbridge/contracts';
 import { calculatePIT as calculateLegacyPIT } from '../services/taxCalculator';
 import { colors, spacing, radii, typography, shadows } from '../theme/tokens';
+import { DURATION } from '../design-system/animation';
 import { getSyncQueueCount } from '../services/syncQueue';
 
 const { width } = Dimensions.get('window');
@@ -114,7 +115,7 @@ interface MetricCardProps {
 
 const MetricCard = memo(({ icon, label, value, sublabel, variant = 'default', delay = 0 }: MetricCardProps) => (
   <Animated.View
-    entering={FadeInDown.duration(300).delay(delay)}
+    entering={FadeInDown.duration(DURATION.transition).delay(delay)}
     style={[
       styles.metricCard,
       variant === 'primary' && styles.metricCardPrimary,
@@ -152,7 +153,7 @@ interface QuickActionProps {
 }
 
 const QuickAction = memo(({ icon, label, sublabel, onPress, delay = 0 }: QuickActionProps) => (
-  <Animated.View entering={FadeIn.duration(300).delay(delay)}>
+  <Animated.View entering={FadeIn.duration(DURATION.transition).delay(delay)}>
     <Pressable
       style={styles.quickAction}
       onPress={onPress}
@@ -214,7 +215,7 @@ const TaxInsightsCard = memo(({ annualRevenue, onViewDetails }: TaxInsightsCardP
   }, [annualRevenue, pitCalc.totalTax, taxEngineV2Enabled]);
 
   return (
-    <Animated.View entering={FadeInDown.duration(300).delay(400)} style={styles.taxInsightsCard}>
+    <Animated.View entering={FadeInDown.duration(DURATION.transition).delay(400)} style={styles.taxInsightsCard}>
       <View style={styles.taxInsightsHeader}>
         <View style={styles.taxInsightsTitleRow}>
           <Text style={styles.taxInsightsIcon}>📊</Text>
@@ -270,7 +271,7 @@ const ComplianceCard = memo(() => {
   const { isOnline } = useNetwork();
 
   return (
-    <Animated.View entering={FadeInDown.duration(300).delay(500)} style={styles.complianceCard}>
+    <Animated.View entering={FadeInDown.duration(DURATION.transition).delay(500)} style={styles.complianceCard}>
       <View style={styles.complianceHeader}>
         <Text style={styles.complianceIcon}>🏛️</Text>
         <Text style={styles.complianceTitle}>{t('dashboard.complianceStatus')}</Text>
@@ -429,7 +430,7 @@ function DashboardScreen(props: any) {
         accessibilityLabel={t('dashboard.mainContent')}
       >
         {/* Header */}
-        <Animated.View entering={FadeInDown.duration(300)} style={styles.header}>
+        <Animated.View entering={FadeInDown.duration(DURATION.transition)} style={styles.header}>
           <View>
             <Text style={styles.headerTitle}>{t('dashboard.title')}</Text>
             <Text style={styles.headerSubtitle}>{t('dashboard.subtitle')}</Text>
@@ -448,7 +449,7 @@ function DashboardScreen(props: any) {
 
         {/* Network Status */}
         <Animated.View
-          entering={FadeInDown.duration(300).delay(100)}
+          entering={FadeInDown.duration(DURATION.transition).delay(100)}
           style={[styles.networkBadge, isOnline ? styles.networkOnline : styles.networkOffline]}
         >
           <Text style={styles.networkIcon}>{isOnline ? '🟢' : '🔴'}</Text>
@@ -461,7 +462,7 @@ function DashboardScreen(props: any) {
         {/* Device Sync Queue Badge */}
         {deviceSyncEnabled && syncQueueCount > 0 && (
           <Animated.View
-            entering={FadeInDown.duration(300).delay(150)}
+            entering={FadeInDown.duration(DURATION.transition).delay(150)}
             style={styles.syncQueueBadge}
           >
             <Text style={styles.syncQueueIcon}>📤</Text>
@@ -472,7 +473,7 @@ function DashboardScreen(props: any) {
         )}
 
         {/* Quick Actions */}
-        <Animated.View entering={FadeInDown.duration(300).delay(200)} style={styles.quickActionsSection}>
+        <Animated.View entering={FadeInDown.duration(DURATION.transition).delay(200)} style={styles.quickActionsSection}>
           <Text style={styles.sectionTitle}>{t('dashboard.quickActions')}</Text>
           <View style={styles.quickActionsGrid}>
             <QuickAction
@@ -555,7 +556,7 @@ function DashboardScreen(props: any) {
         <ComplianceCard />
 
         {/* App Version Footer */}
-        <Animated.View entering={FadeIn.duration(300).delay(600)} style={styles.footer}>
+        <Animated.View entering={FadeIn.duration(DURATION.transition).delay(600)} style={styles.footer}>
           <Text style={styles.footerText}>{t('settings.appName', { version: '5.0.4' })}</Text>
           <Text style={styles.footerSubtext}>{t('dashboard.footerTagline')}</Text>
         </Animated.View>

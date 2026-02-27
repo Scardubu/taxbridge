@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
+import { DURATION } from '../design-system/animation';
 import Constants from 'expo-constants';
 
 import i18n, { type SupportedLanguage } from '../i18n';
@@ -568,7 +569,7 @@ function SettingsScreen() {
           type: 'success',
           message: t('settings.exportCompleteMsg', { path: fileUri }),
           haptic: 'success',
-          duration: 5000
+          duration: DURATION.notice
         });
       }
     } catch (error) {
@@ -618,7 +619,7 @@ function SettingsScreen() {
         accessibilityLabel={t('settings.mainContent')}
       >
         {/* Header */}
-        <Animated.View entering={isWeb ? undefined : FadeInDown.duration(300)} style={styles.header}>
+        <Animated.View entering={isWeb ? undefined : FadeInDown.duration(DURATION.transition)} style={styles.header}>
           <Text style={styles.headerIcon}>⚙️</Text>
           <View>
             <Text style={styles.h1}>{t('settings.title')}</Text>

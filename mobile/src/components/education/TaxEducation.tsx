@@ -12,6 +12,7 @@ import Animated, { FadeIn, FadeOut, SlideInDown } from 'react-native-reanimated'
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { colors, typography, spacing, radii, shadows } from '../../design-system/tokens';
+import { DURATION } from '../../design-system/animation';
 import { Card, Button, ProgressBar } from '../../design-system/components';
 
 // ─── Tooltip Content Library ──────────────────────────────────────────────────
@@ -111,11 +112,11 @@ export const TAX_TOOLTIPS: Record<string, TaxTooltipContent> = {
     statute: 'NTA 2025 §19',
   },
   cra: {
-    term: 'CRA (Consolidated Relief Allowance)',
-    plain: 'A deduction from your taxable income: the higher of ₦200,000 or 1% of gross income, PLUS 20% of gross income.',
-    pidgin: 'CRA na money wey dem go remove from your income before dem calculate tax. E reduce how much tax you go pay.',
-    example: 'Gross income ₦3M. CRA = max(₦200k, ₦30k) + 20% of ₦3M = ₦200k + ₦600k = ₦800k deduction.',
-    statute: 'NTA 2025 §33',
+    term: 'RRA (Rent Relief Allowance)',
+    plain: 'Replaces the abolished CRA. A deduction based on your rent: min(20% × annual rent, ₦500,000). Reduces your taxable income if you pay rent.',
+    pidgin: 'RRA na new relief wey replace CRA. Dem go remove money from your income based on rent wey you dey pay — up to ₦500k.',
+    example: 'Annual rent ₦2M. RRA = min(20% × ₦2M, ₦500k) = min(₦400k, ₦500k) = ₦400k deduction.',
+    statute: 'NTA 2025 §30(2)',
   },
   nrs: {
     term: 'NRS (Nigeria Revenue Service)',
@@ -173,7 +174,7 @@ export function TaxTooltip({ tooltipKey, children }: TaxTooltipProps) {
       >
         <Pressable style={styles.overlay} onPress={close}>
           <Animated.View
-            entering={SlideInDown.duration(300).springify()}
+            entering={SlideInDown.duration(DURATION.transition).springify()}
             style={styles.sheet}
           >
             <Pressable onPress={() => {}} accessible={false}>

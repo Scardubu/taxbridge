@@ -20,6 +20,7 @@ import {
   EmptyState, Skeleton, TrustBadge,
 } from '../../design-system/components';
 import { colors, typography, spacing, radii, shadows } from '../../design-system/tokens';
+import { DURATION } from '../../design-system/animation';
 import type { Expense, CreateExpenseRequest } from '../../api/client';
 
 // ─── NTA 2025 expense categories (M03 spec) ───────────────────────────────────
@@ -95,7 +96,7 @@ export default function ExpensesScreen() {
           onEndReached={() => hasNextPage && fetchNextPage()}
           onEndReachedThreshold={0.3}
           renderItem={({ item, index }) => (
-            <Animated.View entering={FadeInDown.delay(index * 30).duration(300)}>
+            <Animated.View entering={FadeInDown.delay(index * 30).duration(DURATION.transition)}>
               <ExpenseItem expense={item} />
             </Animated.View>
           )}

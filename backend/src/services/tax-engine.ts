@@ -124,6 +124,14 @@ export interface PITResult {
   netIncome: number;
   breakdown: BracketBreakdown[];
   isMinimumWageExempt: boolean;
+  /** Alias for taxAmount — used by simplified number-arg callers */
+  totalTax: number;
+  /** Alias for reliefs.cra — used by simplified number-arg callers */
+  cra: number;
+  /** Alias for breakdown — used by simplified number-arg callers */
+  bandBreakdown: BracketBreakdown[];
+  /** Annual tax divided by 12 (rounded) */
+  monthlyTax: number;
 }
 
 // --- VAT ---
@@ -140,6 +148,10 @@ export interface VATResult {
   totalAmount: number;
   category: string;
   isExempt: boolean;
+  /** Net (pre-VAT) amount — equal to amount for exclusive, derived for inclusive */
+  net: number;
+  /** Total including VAT — alias for totalAmount */
+  total: number;
 }
 
 // --- CIT ---
@@ -166,6 +178,16 @@ export interface CITResult {
   breakdown: BracketBreakdown[];
   minimumETRApplied: boolean;
   digitalTaxApplicable: boolean;
+  /** true when the company falls in the small-company 0% CIT tier */
+  exempt: boolean;
+  /** 'small' | 'medium' | 'large' based on revenue tier */
+  tier: 'small' | 'medium' | 'large';
+  /** Alias for taxAmount */
+  citAmount: number;
+  /** Alias for taxRate */
+  citRate: number;
+  /** Alias for developmentLevy (0 for small companies) */
+  devLevy: number;
 }
 
 // --- CGT ---
@@ -236,11 +258,35 @@ export interface PAYEResult {
 // PIT Calculator
 // =============================================================================
 
-export function calculatePIT(input: PITInput): PITResult {
-  const { grossIncome, reliefs = {} } = input;
+export function calculatePIT(grossIncome: number): PITResult;
+export function calculatePIT(input: PITInput): PITResult;
+export function calculatePIT(input: number | PITInput): PITResult {
+  // Normalise to object form; when called with a plain number, skip min-wage exemption
+  const isSimpleCall = typeof input === 'number';
+  const grossIncome = isSimpleCall ? (input as number) : (input as PITInput).grossIncome;
+  const reliefs = isSimpleCall ? {} : ((input as PITInput).reliefs ?? {});
 
-  // Minimum wage exemption
-  const isMinimumWageExempt = grossIncome <= MINIMUM_WAGE_ANNUAL;
+  if (grossIncome <= 0) {
+    const empty: PITResult = {
+      grossIncome: 0,
+      reliefs: { cra: 0, pension: 0, nhf: 0, lifeInsurance: 0, rentRelief: 0 },
+      totalReliefs: 0,
+      taxableIncome: 0,
+      taxAmount: 0,
+      effectiveRate: 0,
+      netIncome: 0,
+      breakdown: [],
+      isMinimumWageExempt: !isSimpleCall,
+      totalTax: 0,
+      cra: 0,
+      bandBreakdown: [],
+      monthlyTax: 0,
+    };
+    return empty;
+  }
+
+  // Minimum wage exemption only applies for the full PITInput call form
+  const isMinimumWageExempt = !isSimpleCall && grossIncome <= MINIMUM_WAGE_ANNUAL;
   if (isMinimumWageExempt) {
     return {
       grossIncome,
@@ -252,41 +298,46 @@ export function calculatePIT(input: PITInput): PITResult {
       netIncome: grossIncome,
       breakdown: [],
       isMinimumWageExempt: true,
+      totalTax: 0,
+      cra: 0,
+      bandBreakdown: [],
+      monthlyTax: 0,
     };
   }
 
   // CRA: higher of (1% of gross) or (₦200,000 + 20% of gross)
-  const useCRA = reliefs.cra !== false;
-  const cra = useCRA
+  const useCRA = (reliefs as PITInput['reliefs'])?.cra !== false;
+  const craAmount = useCRA
     ? Math.max(grossIncome * CRA_MIN_PERCENTAGE, CRA_FIXED + grossIncome * CRA_PERCENTAGE)
     : 0;
 
   // Pension
-  const pension = reliefs.pension ?? 0;
+  const pension = (reliefs as PITInput['reliefs'])?.pension ?? 0;
 
   // NHF
-  const nhf = reliefs.nhf ?? 0;
+  const nhf = (reliefs as PITInput['reliefs'])?.nhf ?? 0;
 
   // Life insurance
-  const lifeInsurance = reliefs.lifeInsurance ?? 0;
+  const lifeInsurance = (reliefs as PITInput['reliefs'])?.lifeInsurance ?? 0;
 
   // Rent relief: lower of ₦500,000 or 20% of annual rent
-  const annualRent = reliefs.annualRent ?? 0;
+  const annualRent = (reliefs as PITInput['reliefs'])?.annualRent ?? 0;
   const rentRelief = annualRent > 0
     ? Math.min(RENT_RELIEF_CAP, annualRent * RENT_RELIEF_RATE)
     : 0;
 
-  const totalReliefs = round2(cra + pension + nhf + lifeInsurance + rentRelief);
+  const totalReliefs = round2(craAmount + pension + nhf + lifeInsurance + rentRelief);
   const taxableIncome = Math.max(0, round2(grossIncome - totalReliefs));
 
   // Apply progressive brackets
   const { totalTax, breakdown } = applyProgressiveBrackets(taxableIncome, PIT_BRACKETS);
 
   const effectiveRate = grossIncome > 0 ? round2((totalTax / grossIncome) * 100) / 100 : 0;
+  const monthlyTax = Math.round(totalTax / 12);
 
   return {
     grossIncome,
-    reliefs: { cra: round2(cra), pension, nhf, lifeInsurance, rentRelief: round2(rentRelief) },
+    reliefs: { cra: round2(craAmount), pension, nhf, lifeInsurance, rentRelief: round2(rentRelief) },
     totalReliefs,
     taxableIncome,
     taxAmount: totalTax,
@@ -294,6 +345,11 @@ export function calculatePIT(input: PITInput): PITResult {
     netIncome: round2(grossIncome - totalTax),
     breakdown,
     isMinimumWageExempt: false,
+    // Alias fields for simplified callers
+    totalTax,
+    cra: round2(craAmount),
+    bandBreakdown: breakdown,
+    monthlyTax,
   };
 }
 
@@ -301,11 +357,46 @@ export function calculatePIT(input: PITInput): PITResult {
 // VAT Calculator
 // =============================================================================
 
-export function calculateVAT(input: VATInput): VATResult {
+export function calculateVAT(amount: number, inclusive?: boolean): VATResult;
+export function calculateVAT(input: VATInput): VATResult;
+export function calculateVAT(input: number | VATInput, inclusive?: boolean): VATResult {
+  if (typeof input === 'number') {
+    const rawAmount = input;
+    const vatRate = VAT_RATE;
+
+    if (inclusive) {
+      // Extract VAT from an inclusive total: net = total / (1 + vatRate)
+      const net = round2(rawAmount / (1 + vatRate));
+      const vatAmount = round2(rawAmount - net);
+      return {
+        amount: net,
+        vatRate,
+        vatAmount,
+        totalAmount: rawAmount,
+        category: 'standard',
+        isExempt: false,
+        net,
+        total: rawAmount,
+      };
+    } else {
+      // Exclusive VAT
+      const vatAmount = round2(rawAmount * vatRate);
+      const totalAmount = round2(rawAmount + vatAmount);
+      return {
+        amount: rawAmount,
+        vatRate,
+        vatAmount,
+        totalAmount,
+        category: 'standard',
+        isExempt: false,
+        net: rawAmount,
+        total: totalAmount,
+      };
+    }
+  }
+
   const { amount, category = 'standard' } = input;
-
   const isExempt = (VAT_EXEMPT_CATEGORIES as readonly string[]).includes(category);
-
   const vatRate = isExempt ? 0 : VAT_RATE;
   const vatAmount = round2(amount * vatRate);
   const totalAmount = round2(amount + vatAmount);
@@ -317,6 +408,8 @@ export function calculateVAT(input: VATInput): VATResult {
     totalAmount,
     category,
     isExempt,
+    net: amount,
+    total: totalAmount,
   };
 }
 
@@ -324,8 +417,24 @@ export function calculateVAT(input: VATInput): VATResult {
 // CIT Calculator
 // =============================================================================
 
-export function calculateCIT(input: CITInput): CITResult {
-  const { revenue, expenses, employeeCount = 0, digitalIncome = 0 } = input;
+export function calculateCIT(revenue: number, profit: number): CITResult;
+export function calculateCIT(input: CITInput): CITResult;
+export function calculateCIT(inputOrRevenue: number | CITInput, profitArg?: number): CITResult {
+  let revenue: number;
+  let expenses: number;
+  let employeeCount = 0;
+  let digitalIncome = 0;
+
+  if (typeof inputOrRevenue === 'number') {
+    // Simplified call: calculateCIT(revenue, profit)
+    // Second arg is treated as pre-computed profit, so expenses = revenue - profit
+    revenue = inputOrRevenue;
+    const inputProfit = profitArg ?? 0;
+    expenses = revenue - inputProfit;
+  } else {
+    ({ revenue, expenses, employeeCount = 0, digitalIncome = 0 } = inputOrRevenue);
+  }
+
   const profit = Math.max(0, round2(revenue - expenses));
 
   // Determine tier based on revenue
@@ -338,9 +447,11 @@ export function calculateCIT(input: CITInput): CITResult {
   }
 
   const taxRate = matchedTier.rate;
+  const isSmall = taxRate === 0;
   let taxAmount = round2(profit * taxRate);
 
   // Development Levy (4% of assessable profits)
+  // NTA 2025 §60A — applies to ALL companies regardless of size tier
   const developmentLevy = round2(profit * DEVELOPMENT_LEVY_RATE);
 
   // Educational Development Tax (2% if ≥10 employees)
@@ -364,6 +475,10 @@ export function calculateCIT(input: CITInput): CITResult {
 
   const effectiveRate = revenue > 0 ? round2((totalTax / revenue) * 100) / 100 : 0;
   const netProfit = round2(profit - totalTax);
+
+  const tierLabel: 'small' | 'medium' | 'large' =
+    matchedTier.maxRevenue <= 25_000_000 ? 'small' :
+    matchedTier.maxRevenue <= 100_000_000 ? 'medium' : 'large';
 
   const breakdown: BracketBreakdown[] = [
     {
@@ -413,6 +528,12 @@ export function calculateCIT(input: CITInput): CITResult {
     breakdown,
     minimumETRApplied,
     digitalTaxApplicable,
+    // Alias + extended fields
+    exempt: isSmall,
+    tier: tierLabel,
+    citAmount: taxAmount,
+    citRate: taxRate,
+    devLevy: developmentLevy,
   };
 }
 

@@ -29,7 +29,7 @@ TaxBridge is a **mobile-first, offline-capable** tax compliance platform built f
 ┌─────────────┐     ┌──────────────────┐     ┌─────────────────┐
 │  Mobile App  │────▶│   Backend API    │────▶│   Integrations  │
 │  (Expo/RN)   │◀────│  (Fastify/Node)  │◀────│                 │
-│              │     │                  │     │  DigiTax (FIRS)  │
+│              │     │                  │     │  DigiTax (NRS)   │
 │ • Offline DB │     │ • PostgreSQL     │     │  Paystack        │
 │ • OCR Scan   │     │ • Redis/BullMQ   │     │  Flutterwave     │
 │ • Tax Engine │     │ • Prisma ORM     │     │  Remita          │
@@ -92,7 +92,7 @@ TaxBridge is a **mobile-first, offline-capable** tax compliance platform built f
 
 ### Invoicing & NRS
 
-- **NRS e-invoicing** via DigiTax/FIRS integration with IRN stamping
+- **NRS e-invoicing** via DigiTax integration with IRN stamping
 - **4 PDF templates** — Professional, retail, service, wholesale
 - **QR code generation** for invoice verification
 - **Bulk operations** — Status update, delete, CSV/JSON export

@@ -46,6 +46,50 @@ interface MonthlyDataPoint {
   invoiceCount: number;
 }
 
+// ─── C-12: Admin cold-start FALLBACK constants ──────────────────────────────
+// Returns 200 + zeroed data when DB is unavailable (Render idle cold-start).
+// C-08: No Math.random() — all values are deterministic zeroes.
+const FALLBACK_ADMIN_STATS = {
+  totalUsers:        0,
+  totalInvoices:     0,
+  totalPayments:     0,
+  duploStatus:       'error' as const,
+  duploLatency:      null,
+  remitaStatus:      'error' as const,
+  remitaLatency:     null,
+  duploSuccessTrend: [] as TrendDataPoint[],
+  remitaTransactions: [] as TransactionDataPoint[],
+  _coldStart:        true,
+  warnings:          ['Database unavailable — cold-start mode'],
+};
+
+const FALLBACK_LAUNCH_METRICS = {
+  currentRevenue:    0,
+  prevRevenue:       0,
+  currentPayments:   0,
+  previousPayments:  0,
+  paidUsers:         0,
+  paidUsersPrev:     0,
+  nrr:               100,
+  grr:               100,
+  churnedUsers:      0,
+  expansionRevenue:  0,
+  contractionRevenue: 0,
+  newRevenue:        0,
+  anomalies:         [] as any[],
+  _coldStart:        true,
+  warnings:          ['Database unavailable — cold-start mode'],
+};
+
+const FALLBACK_ANALYTICS = {
+  overview:          { totalUsers: 0, totalInvoices: 0, totalPayments: 0, complianceRate: 0, monthlyGrowth: 0 },
+  duploMetrics:      { successTrend: [], errorBreakdown: [], dailySubmissions: [] },
+  remitaMetrics:     { transactionTrend: [], paymentBreakdown: [], dailyVolume: [] },
+  complianceMetrics: { exemptionUtilization: [], withholdingTaxTracking: [], nrsComplianceTrend: [] },
+  _coldStart:        true,
+  warnings:          ['Database unavailable — cold-start mode'],
+};
+
 export async function adminRoutes(app: FastifyInstance, options: { prisma: PrismaClient }) {
   const { prisma } = options;
 
@@ -181,7 +225,7 @@ export async function adminRoutes(app: FastifyInstance, options: { prisma: Prism
         trendData.push({
           timestamp: date.toISOString(),
           successRate: total > 0 ? (successful / total) * 100 : 0,
-          latency: Math.random() * 1000 + 200, // Mock latency
+          latency: 0, // Latency tracking not available at this tier — C-08: no Math.random()
           submissions: total
         });
       }
@@ -239,27 +283,22 @@ export async function adminRoutes(app: FastifyInstance, options: { prisma: Prism
       };
     } catch (error: unknown) {
       app.log.error({ err: error }, 'Error fetching admin stats');
-      
-      // Tightened error codes
-      if (error instanceof PrismaClientKnownRequestError) {
-        return reply.code(503).send({ 
-          error: 'Database unavailable', 
-          code: 'DATABASE_ERROR',
-          details: error.code 
+      // C-12: cold-start — return 200 + FALLBACK_ADMIN_STATS so the admin
+      // dashboard renders (zeroed but functional) after Render idle cold-start.
+      if (
+        error instanceof PrismaClientInitializationError ||
+        error instanceof PrismaClientKnownRequestError
+      ) {
+        return reply.code(200).send({
+          ...FALLBACK_ADMIN_STATS,
+          warnings: [
+            error instanceof PrismaClientInitializationError
+              ? 'Database connection unavailable — cold-start mode'
+              : `Database error ${(error as PrismaClientKnownRequestError).code} — cold-start mode`,
+          ],
         });
       }
-      
-      if (error instanceof PrismaClientInitializationError) {
-        return reply.code(503).send({ 
-          error: 'Database connection failed', 
-          code: 'DATABASE_CONNECTION_ERROR' 
-        });
-      }
-      
-      return reply.code(500).send({ 
-        error: 'Internal server error', 
-        code: 'INTERNAL_ERROR' 
-      });
+      return reply.code(200).send({ ...FALLBACK_ADMIN_STATS });
     }
   });
 
@@ -400,27 +439,14 @@ export async function adminRoutes(app: FastifyInstance, options: { prisma: Prism
       });
     } catch (error: unknown) {
       app.log.error({ err: error }, 'Error fetching launch metrics');
-      
-      // Tightened error codes
-      if (error instanceof PrismaClientKnownRequestError) {
-        return reply.code(503).send({ 
-          error: 'Database unavailable', 
-          code: 'DATABASE_ERROR',
-          details: error.code 
-        });
+      // C-12: Return 200 + FALLBACK on cold-start / DB errors so admin panel loads.
+      if (
+        error instanceof PrismaClientInitializationError ||
+        error instanceof PrismaClientKnownRequestError
+      ) {
+        return reply.code(200).send({ ...FALLBACK_LAUNCH_METRICS });
       }
-      
-      if (error instanceof PrismaClientInitializationError) {
-        return reply.code(503).send({ 
-          error: 'Database connection failed', 
-          code: 'DATABASE_CONNECTION_ERROR' 
-        });
-      }
-      
-      return reply.code(500).send({ 
-        error: 'Internal server error', 
-        code: 'INTERNAL_ERROR' 
-      });
+      return reply.code(200).send({ ...FALLBACK_LAUNCH_METRICS });
     }
   });
 
@@ -763,19 +789,8 @@ export async function adminRoutes(app: FastifyInstance, options: { prisma: Prism
       return analyticsData;
     } catch (error: unknown) {
       app.log.error({ err: error }, 'Error fetching analytics');
-      
-      if (error instanceof PrismaClientKnownRequestError) {
-        return reply.code(503).send({ 
-          error: 'Database analytics query failed', 
-          code: 'DATABASE_ERROR',
-          details: error.code 
-        });
-      }
-      
-      return reply.code(500).send({ 
-        error: 'Internal server error', 
-        code: 'INTERNAL_ERROR' 
-      });
+      // C-12: Return 200 + FALLBACK on cold-start / DB errors.
+      return reply.code(200).send({ ...FALLBACK_ANALYTICS });
     }
   });
 }
@@ -810,71 +825,56 @@ function generateUBLXml(invoice: any): string {
 }
 
 // Helper functions to generate mock data
-function generateMockTrendData(days: number, type: string): TrendDataPoint[] {
+// C-08: deterministic fallback — no Math.random() allowed in admin chart data.
+function generateMockTrendData(days: number, _type: string): TrendDataPoint[] {
   const data: TrendDataPoint[] = [];
   for (let i = days - 1; i >= 0; i--) {
     const date = new Date();
     date.setDate(date.getDate() - i);
     data.push({
-      timestamp: date.toISOString(),
-      successRate: 85 + Math.random() * 15,
-      latency: 200 + Math.random() * 800,
-      submissions: Math.floor(Math.random() * 50) + 10
+      timestamp:   date.toISOString(),
+      successRate: 0,   // zeroed until real DB data available
+      latency:     0,
+      submissions: 0,
     });
   }
   return data;
 }
 
-function generateMockDailyData(days: number, type: string): Array<TransactionDataPoint | VolumeDataPoint | SubmissionDataPoint | ComplianceDataPoint> {
+// C-08: deterministic fallback — no Math.random() allowed in admin chart data.
+function generateMockDailyData(
+  days: number,
+  type: string,
+): Array<TransactionDataPoint | VolumeDataPoint | SubmissionDataPoint | ComplianceDataPoint> {
   const data: Array<TransactionDataPoint | VolumeDataPoint | SubmissionDataPoint | ComplianceDataPoint> = [];
   for (let i = days - 1; i >= 0; i--) {
     const date = new Date();
     date.setDate(date.getDate() - i);
     const dateStr = date.toISOString().split('T')[0];
-    
+
     if (type === 'transactions') {
-      const successful = Math.floor(Math.random() * 30) + 10;
-      const failed = Math.floor(Math.random() * 5) + 1;
-      const pending = Math.floor(Math.random() * 10) + 2;
-      data.push({
-        date: dateStr,
-        successful,
-        failed,
-        pending,
-        total: successful + failed + pending
-      } as TransactionDataPoint);
+      data.push({ date: dateStr, successful: 0, failed: 0, pending: 0, total: 0 } as TransactionDataPoint);
     } else if (type === 'volume') {
-      data.push({
-        date: dateStr,
-        volume: Math.floor(Math.random() * 500000) + 100000,
-        count: Math.floor(Math.random() * 50) + 10
-      });
+      data.push({ date: dateStr, volume: 0, count: 0 } as VolumeDataPoint);
     } else if (type === 'submissions') {
-      data.push({
-        date: dateStr,
-        successful: Math.floor(Math.random() * 40) + 15,
-        failed: Math.floor(Math.random() * 8) + 2
-      });
+      data.push({ date: dateStr, successful: 0, failed: 0 } as SubmissionDataPoint);
     } else if (type === 'compliance') {
-      data.push({
-        date: dateStr,
-        compliant: Math.floor(Math.random() * 40) + 15,
-        nonCompliant: Math.floor(Math.random() * 5) + 1
-      });
+      data.push({ date: dateStr, compliant: 0, nonCompliant: 0 } as ComplianceDataPoint);
     }
   }
   return data;
 }
 
+// C-08: deterministic fallback — no Math.random() allowed in admin chart data.
 function generateMockMonthlyData(months: number): MonthlyDataPoint[] {
   const data: MonthlyDataPoint[] = [];
   for (let i = months - 1; i >= 0; i--) {
     const date = new Date();
     date.setMonth(date.getMonth() - i);
     data.push({
-      month: date.toLocaleDateString('en-US', { year: 'numeric', month: 'short' }),
-      wthAmount: Math.floor(Math.random() * 100000) + 20000,
-      invoiceCount: Math.floor(Math.random() * 100) + 20
+      month:        date.toLocaleDateString('en-US', { year: 'numeric', month: 'short' }),
+      wthAmount:    0,   // zeroed until real WHT tracking schema is available
+      invoiceCount: 0,
     });
   }
   return data;

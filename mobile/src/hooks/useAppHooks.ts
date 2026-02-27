@@ -315,6 +315,7 @@ import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import * as Haptics from '../utils/safeHaptics';
 import { showToast } from '../components/ui/Toast';
+import { DURATION } from '../design-system/animation';
 
 export const useInvoiceExport = () => {
   const [isExporting, setIsExporting] = useState(false);
@@ -357,7 +358,7 @@ export const useInvoiceExport = () => {
           type: 'success',
           message: t('settings.exportCompleteMsg', { path: fileUri }),
           haptic: 'success',
-          duration: 5000,
+          duration: DURATION.notice,
         });
       }
       

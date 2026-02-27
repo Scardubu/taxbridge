@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { FetchError, fetchJson } from '@/lib/fetcher';
 import { useAdminI18n } from '@/lib/i18n';
+import { safeDate } from '@/lib/utils';
 
 interface User {
   id: string;
@@ -360,7 +361,7 @@ function UsersContent({
                       </p>
                       <p className="text-xs text-slate-500 flex items-center gap-1 justify-end">
                         <Calendar className="h-3 w-3" />
-                        {t('users.list.joined', { date: new Date(user.createdAt).toLocaleDateString() })}
+                        {t('users.list.joined', { date: safeDate(user.createdAt, { dateStyle: 'short' }) })}
                       </p>
                     </div>
                     {getStatusBadge(user.status)}

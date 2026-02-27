@@ -10,6 +10,7 @@ import Animated, {
   withTiming,
   Easing,
 } from 'react-native-reanimated';
+import { DURATION, EASE } from '../design-system/animation';
 import { useNetwork } from '../contexts/NetworkContext';
 import { useSyncContext } from '../contexts/SyncContext';
 import { colors, radii, spacing, typography } from '../theme/tokens';
@@ -31,7 +32,7 @@ function SyncStatusBar({ pendingCount = 0, onSyncPress }: SyncStatusBarProps) {
   useEffect(() => {
     if (isSyncing) {
       spinRotation.value = withRepeat(
-        withTiming(360, { duration: 1000, easing: Easing.linear }),
+        withTiming(360, { duration: DURATION.skeleton, easing: EASE.shimmer }),
         -1,
         false
       );
@@ -44,8 +45,8 @@ function SyncStatusBar({ pendingCount = 0, onSyncPress }: SyncStatusBarProps) {
     if (pendingCount > 0 && isOnline && !isSyncing) {
       pulseOpacity.value = withRepeat(
         withSequence(
-          withTiming(0.6, { duration: 800, easing: Easing.inOut(Easing.ease) }),
-          withTiming(1, { duration: 800, easing: Easing.inOut(Easing.ease) })
+          withTiming(0.6, { duration: DURATION.slow, easing: EASE.enter }),
+          withTiming(1,   { duration: DURATION.slow, easing: EASE.exit  })
         ),
         -1,
         true
