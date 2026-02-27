@@ -10,6 +10,7 @@ build/
 # Environment files
 .env
 .env.*
+!.env.example
 !.env.production.example
 !.env.local.example
 RENDER_SECRETS.txt

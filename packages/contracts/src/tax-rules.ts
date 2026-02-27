@@ -65,8 +65,8 @@ export const LIFE_INSURANCE_MAX_RATE = 0.07;
 /** Standard VAT rate */
 export const VAT_RATE = 0.075;
 
-/** VAT registration threshold (₦) — mandatory above this annual turnover */
-export const VAT_REGISTRATION_THRESHOLD = 100_000_000;
+/** VAT registration threshold (₦) — mandatory above this annual turnover (NTA 2025 §12) */
+export const VAT_REGISTRATION_THRESHOLD = 25_000_000;
 
 /** VAT-exempt categories */
 export const VAT_EXEMPT_CATEGORIES = [
@@ -233,7 +233,7 @@ export const NTA_2025_RULES = {
   pit: {
     brackets: PIT_BRACKETS,
     minimumWageAnnual: MINIMUM_WAGE_ANNUAL,
-    cra: { fixed: CRA_FIXED, percentage: CRA_PERCENTAGE, minPercentage: CRA_MIN_PERCENTAGE },
+    // CRA abolished under NTA 2025 — use rentRelief (RRA) instead
     rentRelief: { cap: RENT_RELIEF_CAP, rate: RENT_RELIEF_RATE },
     pension: PENSION_RATE,
     nhf: NHF_RATE,

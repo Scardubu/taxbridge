@@ -116,11 +116,14 @@ model Employee {
   name            String
   email           String?
   phone           String?
+  tin             String?   @map("tin")
   grossSalary     Decimal   @db.Decimal(15, 2) @map("gross_salary")
   housingAllowance  Decimal @default(0) @db.Decimal(15, 2) @map("housing_allowance")
   transportAllowance Decimal @default(0) @db.Decimal(15, 2) @map("transport_allowance")
   mealAllowance   Decimal   @default(0) @db.Decimal(15, 2) @map("meal_allowance")
   otherAllowances Decimal   @default(0) @db.Decimal(15, 2) @map("other_allowances")
+  annualRentPaid  Decimal   @default(0) @db.Decimal(15, 2) @map("annual_rent_paid")
+  pensionOptOut   Boolean   @default(false) @map("pension_opt_out")
   startDate       DateTime  @map("start_date")
   status          String    @default("active") // active, inactive, suspended
   createdAt       DateTime  @default(now()) @map("created_at")
@@ -744,4 +747,15 @@ model PillarScore {
   @@index([userId, computedAt])
   @@index([businessId])
   @@map("pillar_scores")
+}
+
+// ============================================
+// Filing Status Enum (NTA 2025 §3)
+// ============================================
+
+enum FilingStatus {
+  DRAFT
+  SUBMITTED
+  ACCEPTED
+  REJECTED
 }

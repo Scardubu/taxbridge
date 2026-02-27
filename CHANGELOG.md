@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [3.2.4] - 2026-02-28 - Regulatory Compliance · Schema Hardening · i18n Parity
+
+### 🚨 Critical Regulatory Fix
+
+- **VAT Registration Threshold** — Corrected `VAT_REGISTRATION_THRESHOLD` from ₦100,000,000 to ₦25,000,000 per NTA 2025 §12 (packages/contracts/src/tax-rules.ts)
+
+### 🔧 Fixes
+
+#### Tax Engine (packages/contracts)
+- **Removed CRA from NTA_2025_RULES aggregate** — CRA is abolished under NTA 2025; deprecated individual exports kept for backward compatibility, but removed from canonical `NTA_2025_RULES.pit` object to prevent accidental usage
+- **Added NTA 2025 §12 reference** to VAT threshold JSDoc comment
+
+#### Database Schema (backend/prisma)
+- **Added `FilingStatus` enum** — `DRAFT | SUBMITTED | ACCEPTED | REJECTED` per NTA 2025 §3
+- **Added Employee PAYE fields** — `tin`, `annualRentPaid` (Decimal), `pensionOptOut` (Boolean) for complete payroll/PAYE calculation support
+
+#### i18n Parity (mobile/src/i18n)
+- **Added missing English keys** — `dashboard.deadlineSoonDays` ("{{count}} days remaining") and `dashboard.suggestedAction` ("Suggested action") to match pidgin.json
+
+#### Environment Configuration
+- **Expanded `mobile/.env.example`** — Full development environment template matching `.env.production.example` structure with all feature flags, OCR, sync, and payment gateway placeholders
+
+### ✅ Verification
+- **Backend tsc**: 0 errors ✅
+- **Mobile tsc**: 0 errors ✅
+- **Admin tsc**: 0 errors ✅
+- **Contracts tsc**: 0 errors ✅
+- **FIRS contamination**: 0 results ✅
+- **NRSt typo scan**: 0 results ✅
+- **Math.random admin source**: 0 results ✅
+- **ProgressBar in DashboardScreen**: 0 results (comment only) ✅
+- **CRA in NTA_2025_RULES**: removed ✅
+
+---
+
 ## [3.2.3] - 2026-02-27 - TypeScript Zero-Error · Production Hardening
 
 ### 🔧 Fixes

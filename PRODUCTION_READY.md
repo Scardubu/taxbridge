@@ -1,8 +1,8 @@
 # ✅ TAXBRIDGE PRODUCTION READINESS - FINAL STATUS
 
-**Date**: February 27, 2026  
+**Date**: February 28, 2026  
 **Status**: 🚀 **READY FOR PRODUCTION DEPLOYMENT**  
-**Version**: 3.2.3
+**Version**: 3.2.4
 
 ---
 
@@ -10,7 +10,15 @@
 
 TaxBridge is **production-ready** and fully compliant with all Nigerian tax regulations (NTA 2025) and e-invoicing standards (NRS 2026). All critical systems have been implemented, tested, validated, and polished for deployment.
 
-**Latest Updates (v3.2.3 - Feb 27, 2026):**
+**Latest Updates (v3.2.4 - Feb 28, 2026):**
+- 🚨 **VAT Threshold Fixed** - Corrected ₦100M → ₦25M per NTA 2025 §12 (REGULATORY)
+- ✅ **CRA Removed from Aggregate** - NTA_2025_RULES.pit no longer exports abolished CRA constants
+- ✅ **FilingStatus Enum Added** - DRAFT/SUBMITTED/ACCEPTED/REJECTED in Prisma schema
+- ✅ **Employee PAYE Fields** - tin, annualRentPaid, pensionOptOut added to Employee model
+- ✅ **i18n Parity Achieved** - 2 missing English keys added (deadlineSoonDays, suggestedAction)
+- ✅ **mobile/.env.example Expanded** - Full development environment template
+
+**Previous Updates (v3.2.3 - Feb 27, 2026):**
 - ✅ **Mobile TypeScript Zero Errors** - Resolved all 80 TS errors across 20 files
 - ✅ **Missing Dependencies Installed** - zustand, @tanstack/react-query, expo-local-auth, expo-image-manipulator
 - ✅ **Dark Mode Type Safety** - Proper assertions for `as const` color token overrides
