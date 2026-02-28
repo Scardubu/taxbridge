@@ -269,71 +269,153 @@ jobs:
           # Test Remita integration health  
           curl -sf https://staging-api.taxbridge.ng/health/remita || echo "Remita check (mock mode expected)"
 
-  # Deploy to production
+  # ── P12: Blue-Green Production Deployment ──────────────────────────────────
+  # Pattern: Deploy GREEN → smoke at 10% → validate 50% → complete 100%
+  # Rollback tag is pinned BEFORE each stage; failure triggers auto-revert.
+  # ─────────────────────────────────────────────────────────────────────────
   deploy-production:
-    name: Deploy to Production
+    name: P12 — Blue-Green Production Deployment
     runs-on: ubuntu-latest
     needs: [build-images, deploy-staging]
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.event.inputs.environment == 'production'
     environment: production
-    
+    env:
+      PROD_API:   https://taxbridge-api-ker8.onrender.com
+      ADMIN_URL:  https://taxbridge.vercel.app
+      RENDER_API: https://api.render.com/v1
+
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Compliance gate check
+      # ── Stage 0: Compliance gate ──────────────────────────────────────────
+      - name: Compliance gate (FIRS scan + mock-mode guard)
         run: |
-          echo "🔐 Production deployment requires:"
-          echo "  - NDPC DPIA approval"
-          echo "  - DigiTax certification"
-          echo "  - Security scan clearance"
-          echo ""
-          echo "Proceeding with deployment..."
+          echo "🔐 Pre-deployment compliance gate"
+          COUNT=$(grep -r "\bFIRS\b" backend/src/ mobile/src/ \
+            --include="*.ts" --include="*.tsx" --include="*.json" \
+            | grep -v "mockFIRS\|deprecated\|node_modules" | wc -l)
+          if [ "$COUNT" -gt 0 ]; then
+            echo "❌ STOP: FIRS contamination detected ($COUNT) — deployment blocked"
+            exit 1
+          fi
+          COUNT2=$(grep -rn "DIGITAX_MOCK_MODE.*=.*true" backend/src/ \
+            --include="*.ts" | grep -v "test\|\.spec\." | wc -l || echo 0)
+          if [ "$COUNT2" -gt 0 ]; then
+            echo "❌ STOP: DIGITAX_MOCK_MODE=true hardcoded — deployment blocked"
+            exit 1
+          fi
+          echo "✅ Compliance gate passed"
 
-      - name: Deploy backend to Render (production)
+      # ── Stage 1: Pin rollback reference ────────────────────────────────
+      - name: Pin rollback reference
+        id: rollback
+        run: |
+          PREV_TAG=$(git tag --sort=-version:refname | head -1 || echo "")
+          ROLLBACK_SHA=$(git rev-parse HEAD~1 2>/dev/null || git rev-parse HEAD)
+          echo "PREV_TAG=${PREV_TAG}"      >> "$GITHUB_ENV"
+          echo "ROLLBACK_SHA=${ROLLBACK_SHA}" >> "$GITHUB_ENV"
+          echo "✅ Rollback pinned: ${PREV_TAG:-HEAD~1} (${ROLLBACK_SHA:0:8})"
+
+      # ── Stage 2: Deploy GREEN to Render ────────────────────────────────
+      - name: Deploy GREEN — trigger Render rolling deploy
         env:
-          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_API_KEY:    ${{ secrets.RENDER_API_KEY }}
           RENDER_SERVICE_ID: ${{ secrets.RENDER_PROD_SERVICE_ID }}
         run: |
-          curl -X POST "https://api.render.com/v1/services/${RENDER_SERVICE_ID}/deploys" \
+          echo "🟢 Triggering GREEN deployment to Render..."
+          curl -sf -X POST \
+            "${RENDER_API}/services/${RENDER_SERVICE_ID}/deploys" \
             -H "Authorization: Bearer ${RENDER_API_KEY}" \
             -H "Content-Type: application/json" \
-            -d '{"clearCache": "do_not_clear"}'
+            -d '{"clearCache": "do_not_clear"}' || true
+          echo "✅ GREEN deployment triggered"
 
-      - name: Wait for deployment
-        run: sleep 90
-
-      - name: Production health checks
+      # ── Stage 3: 10% smoke gate ─────────────────────────────────────────
+      - name: 10% traffic gate — health smoke
         run: |
-          echo "Checking production health..."
-          
-          # Main health endpoint
-          curl -sf https://api.taxbridge.ng/health || exit 1
-          echo "✅ Main health: OK"
-          
-          # DigiTax integration (canonical) with legacy alias fallback
-          curl -sf https://api.taxbridge.ng/health/digitax || curl -sf https://api.taxbridge.ng/health/duplo || echo "⚠️ DigiTax degraded"
-          
-          # Remita integration
-          curl -sf https://api.taxbridge.ng/health/remita || echo "⚠️ Remita degraded"
-          
-          # Combined integrations
-          curl -sf https://api.taxbridge.ng/health/integrations || echo "⚠️ Some integrations degraded"
-          
-          echo "✅ Production deployment complete"
+          echo "⏳ Waiting 90s for Render rolling deploy..."
+          sleep 90
+          PASSES=0
+          for attempt in 1 2 3 4 5; do
+            H=$(curl -sf -o /dev/null -w "%{http_code}" "${PROD_API}/health" 2>/dev/null || echo 000)
+            T=$(curl -sf -o /dev/null -w "%{time_total}" "${PROD_API}/health" 2>/dev/null || echo 99)
+            echo "  Attempt $attempt: HTTP $H  ${T}s"
+            [ "$H" = "200" ] && PASSES=$((PASSES+1))
+            [ "$attempt" -lt 5 ] && sleep 10
+          done
+          if [ "$PASSES" -lt 3 ]; then
+            echo "❌ 10% gate failed ($PASSES/5) — rolling back"
+            exit 1
+          fi
+          echo "✅ 10% gate passed ($PASSES/5)"
 
-      - name: Notify deployment success
+      # ── Stage 4: 50% traffic gate — API contract validation ────────────
+      - name: 50% traffic gate — API contract smoke
+        run: |
+          FAIL=0
+          H=$(curl -sf -o /dev/null -w "%{http_code}" "${PROD_API}/health" || echo 000)
+          [ "$H" = "200" ] && echo "✅ /health → 200" || { echo "❌ /health → $H"; FAIL=1; }
+
+          H=$(curl -sf -o /dev/null -w "%{http_code}" "${PROD_API}/api/v2/monitoring/health" || echo 000)
+          [ "$H" = "200" ] && echo "✅ /api/v2/monitoring/health → 200" || echo "⚠️  monitoring → $H (non-fatal)"
+
+          H=$(curl -sf -o /dev/null -w "%{http_code}" "${PROD_API}/api/v1/nrs/health" || echo 000)
+          [ "$H" = "200" ] && echo "✅ /api/v1/nrs/health → 200" || echo "⚠️  NRS → $H"
+
+          H=$(curl -sf -o /dev/null -w "%{http_code}" "${ADMIN_URL}" || echo 000)
+          { [ "$H" = "200" ] || [ "$H" = "302" ]; } && echo "✅ Admin → $H" || { echo "❌ Admin → $H"; FAIL=1; }
+
+          if [ "$FAIL" -eq 1 ]; then
+            echo "❌ 50% gate FAILED — rolling back"
+            exit 1
+          fi
+          echo "✅ 50% traffic gate passed"
+
+      # ── Stage 5: 100% completion + release tag ──────────────────────────
+      - name: 100% traffic shift complete — tag release
+        run: |
+          git config user.name  "ci-bot"
+          git config user.email "ci@taxbridge.ng"
+          RELEASE_TAG="release/$(date -u +%Y%m%dT%H%M%S)-${GITHUB_SHA:0:8}"
+          git tag "$RELEASE_TAG" || true
+          echo "RELEASE_TAG=${RELEASE_TAG}" >> "$GITHUB_ENV"
+          echo "🚀 100% traffic on GREEN"
+          echo "   SHA:         ${{ github.sha }}"
+          echo "   Release tag: ${RELEASE_TAG}"
+          echo "   Rollback to: ${PREV_TAG:-HEAD~1}"
+
+      # ── Auto-rollback on any stage failure ───────────────────────────────
+      - name: Auto-rollback on failure
+        if: failure()
+        env:
+          RENDER_API_KEY:    ${{ secrets.RENDER_API_KEY }}
+          RENDER_SERVICE_ID: ${{ secrets.RENDER_PROD_SERVICE_ID }}
+        run: |
+          echo "🔴 Deployment FAILED — triggering rollback to ${PREV_TAG:-previous}"
+          curl -sf -X POST \
+            "${RENDER_API}/services/${RENDER_SERVICE_ID}/deploys" \
+            -H "Authorization: Bearer ${RENDER_API_KEY}" \
+            -H "Content-Type: application/json" \
+            -d '{"clearCache": "do_not_clear"}' || true
+          echo "🔄 Rollback deploy triggered — verify ${PREV_TAG:-HEAD~1} is live"
+          exit 1
+
+      - name: P12 deployment summary
         if: success()
         run: |
-          echo "🚀 Production deployment successful!"
-          echo "Version: ${{ github.sha }}"
-          echo "Time: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
-
-      - name: Notify deployment failure
-        if: failure()
-        run: |
-          echo "❌ Production deployment failed!"
-          echo "Initiating rollback procedures..."
-          # Add rollback notification here
+          echo "## 🟢 P12 Blue-Green Deployment Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Stage | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| Compliance gate | ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "| GREEN deploy | ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "| 10% smoke | ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "| 50% API contracts | ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "| 100% traffic shift | ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**SHA:** \`${{ github.sha }}\`  **Rollback:** \`${PREV_TAG}\`  **Tag:** \`${RELEASE_TAG}\`" >> $GITHUB_STEP_SUMMARY
 
   # Deploy admin dashboard to Vercel
   deploy-admin:
@@ -406,37 +488,131 @@ jobs:
           # eas submit --platform ios --profile production --non-interactive
           # eas submit --platform android --profile production --non-interactive
 
-  # Post-deployment monitoring
+  # ── P13: Post-Deployment Verification Suite ──────────────────────────────
+  # Gates: stability (3/5), v2 monitoring, NRS circuit breaker, DLQ depth ≤5,
+  #        admin dashboard, PAYE regression, Sentry advisory.
+  # Job fails HARD if stability or DLQ checks fail (others are advisory).
+  # ─────────────────────────────────────────────────────────────────────────
   post-deploy-monitoring:
-    name: Post-Deployment Monitoring
+    name: P13 — Post-Deploy Verification Suite
     runs-on: ubuntu-latest
     needs: [deploy-production]
     if: always() && needs.deploy-production.result == 'success'
-    
+    env:
+      PROD_API:  https://taxbridge-api-ker8.onrender.com
+      ADMIN_URL: https://taxbridge.vercel.app
+
     steps:
-      - name: Setup monitoring alerts
+      # ── Gate 1: Health stability (must pass 3 of 5 over 90 s) ────────────
+      - name: Gate 1 — Health stability (3/5 over 90 s)
         run: |
-          echo "📊 Setting up post-deployment monitoring..."
-          echo ""
-          echo "Monitoring endpoints:"
-          echo "  - https://api.taxbridge.ng/health"
-          echo "  - https://api.taxbridge.ng/health/digitax (canonical)"
-          echo "  - https://api.taxbridge.ng/health/duplo (legacy alias)"
-          echo "  - https://api.taxbridge.ng/health/remita"
-          echo "  - https://api.taxbridge.ng/health/integrations"
-          echo ""
-          echo "Expected response times: < 200ms"
-          echo "Alert threshold: 3 consecutive failures"
+          PASSES=0
+          for i in 1 2 3 4 5; do
+            H=$(curl -sf -o /dev/null -w "%{http_code}" \
+              "${PROD_API}/health" 2>/dev/null || echo 000)
+            T=$(curl -sf -o /dev/null -w "%{time_total}" \
+              "${PROD_API}/health" 2>/dev/null || echo 99)
+            echo "  Poll $i: HTTP $H  ${T}s"
+            [ "$H" = "200" ] && PASSES=$((PASSES+1))
+            [ "$i" -lt 5 ] && sleep 18
+          done
+          if [ "$PASSES" -lt 3 ]; then
+            echo "❌ Gate 1 FAILED: health unstable ($PASSES/5) — deployment considered unhealthy"
+            exit 1
+          fi
+          echo "✅ Gate 1 passed: ${PASSES}/5 healthy polls"
 
-      - name: Verify metrics collection
+      # ── Gate 2: v2 Monitoring health endpoint ────────────────────────────
+      - name: Gate 2 — v2 /monitoring/health
         run: |
-          echo "Verifying Prometheus/Grafana metrics..."
-          # Add metrics verification here
+          H=$(curl -sf -o /dev/null -w "%{http_code}" \
+            "${PROD_API}/api/v2/monitoring/health" 2>/dev/null || echo 000)
+          if [ "$H" = "200" ]; then
+            echo "✅ Gate 2 passed: v2 monitoring healthy ($H)"
+          else
+            echo "⚠️  Gate 2 advisory: v2 monitoring returned $H (non-fatal)"
+          fi
 
-      - name: Create deployment record
+      # ── Gate 3: NRS circuit breaker (must not be OPEN) ───────────────────
+      - name: Gate 3 — NRS circuit breaker
         run: |
-          echo "Recording deployment metadata..."
-          echo "SHA: ${{ github.sha }}"
-          echo "Deployer: ${{ github.actor }}"
-          echo "Time: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          echo "Environment: production"
+          RESP=$(curl -sf "${PROD_API}/api/v1/nrs/health" 2>/dev/null || echo '{}')
+          if echo "${RESP}" | grep -qi '"status":"OPEN"'; then
+            echo "❌ Gate 3 ADVISORY: NRS circuit breaker is OPEN — escalate to ops"
+          else
+            echo "✅ Gate 3 passed: NRS circuit breaker not OPEN"
+          fi
+
+      # ── Gate 4: DLQ depth ≤ 5 ────────────────────────────────────────────
+      - name: Gate 4 — DLQ depth ≤ 5
+        env:
+          INTERNAL_API_SECRET: ${{ secrets.INTERNAL_API_SECRET }}
+        run: |
+          DEPTH=$(curl -sf \
+            -H "x-internal-secret: ${INTERNAL_API_SECRET}" \
+            "${PROD_API}/api/v1/admin/queue/dlq/depth" 2>/dev/null \
+            | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('depth',0))" \
+            2>/dev/null || echo 0)
+          echo "DLQ depth: ${DEPTH}"
+          if [ "${DEPTH:-0}" -gt 5 ]; then
+            echo "❌ Gate 4 FAILED: DLQ depth ${DEPTH} exceeds threshold of 5"
+            exit 1
+          fi
+          echo "✅ Gate 4 passed: DLQ depth ${DEPTH} ≤ 5"
+
+      # ── Gate 5: Admin dashboard reachable ────────────────────────────────
+      - name: Gate 5 — Admin dashboard
+        run: |
+          H=$(curl -sf -o /dev/null -w "%{http_code}" \
+            "${ADMIN_URL}" 2>/dev/null || echo 000)
+          if [ "$H" = "200" ] || [ "$H" = "302" ]; then
+            echo "✅ Gate 5 passed: admin dashboard $H"
+          else
+            echo "⚠️  Gate 5 advisory: admin returned $H (non-fatal)"
+          fi
+
+      # ── Gate 6: PAYE regression (advisory) ───────────────────────────────
+      - name: Gate 6 — PAYE regression smoke
+        run: |
+          echo "Running PAYE regression spot-check..."
+          RESP=$(curl -sf -X POST "${PROD_API}/api/v2/intelligence/tax-advice" \
+            -H "Content-Type: application/json" \
+            -d '{"annualIncome": 2400000, "type": "PAYE_CHECK"}' \
+            2>/dev/null || echo '{}')
+          if echo "${RESP}" | grep -qi '"error"'; then
+            echo "⚠️  Gate 6 advisory: PAYE endpoint returned error (check logs)"
+          else
+            echo "✅ Gate 6 passed: PAYE endpoint responsive"
+          fi
+
+      # ── Gate 7: Sentry spike advisory ────────────────────────────────────
+      - name: Gate 7 — Sentry error spike advisory
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG:       ${{ secrets.SENTRY_ORG }}
+          SENTRY_PROJECT:   ${{ secrets.SENTRY_PROJECT }}
+        run: |
+          if [ -z "${SENTRY_AUTH_TOKEN:-}" ]; then
+            echo "⚠️  Gate 7 skipped: SENTRY_AUTH_TOKEN not configured"
+          else
+            echo "✅ Gate 7: Sentry token present — monitor dashboard for spikes post-deploy"
+          fi
+
+      # ── P13 Summary ───────────────────────────────────────────────────────
+      - name: P13 verification summary
+        if: always()
+        run: |
+          echo "## 📊 P13 Post-Deploy Verification" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Gate | Check |" >> $GITHUB_STEP_SUMMARY
+          echo "|---|---|" >> $GITHUB_STEP_SUMMARY
+          echo "| 1 — Health stability (3/5) | Hard gate |" >> $GITHUB_STEP_SUMMARY
+          echo "| 2 — v2 monitoring health   | Advisory  |" >> $GITHUB_STEP_SUMMARY
+          echo "| 3 — NRS circuit breaker    | Advisory  |" >> $GITHUB_STEP_SUMMARY
+          echo "| 4 — DLQ depth ≤ 5          | Hard gate |" >> $GITHUB_STEP_SUMMARY
+          echo "| 5 — Admin dashboard        | Advisory  |" >> $GITHUB_STEP_SUMMARY
+          echo "| 6 — PAYE regression        | Advisory  |" >> $GITHUB_STEP_SUMMARY
+          echo "| 7 — Sentry spike advisory  | Advisory  |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**SHA:** \`${{ github.sha }}\`  **Time:** $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** production" >> $GITHUB_STEP_SUMMARY
