@@ -10,6 +10,20 @@ require('@testing-library/react-native/dont-cleanup-after-each');
 const { cleanup } = require('@testing-library/react-native');
 global.testingLibraryCleanup = cleanup;
 
+afterEach(() => {
+  jest.clearAllMocks();
+  jest.clearAllTimers();
+  try {
+    cleanup();
+  } catch {
+    // Some suites intentionally control cleanup timing; ignore teardown edge-cases.
+  }
+});
+
+afterAll(() => {
+  jest.useRealTimers();
+});
+
 // Mock expo-constants to silence test warnings
 jest.mock('expo-constants', () => ({
   __esModule: true,

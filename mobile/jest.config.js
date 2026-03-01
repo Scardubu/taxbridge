@@ -24,8 +24,8 @@ module.exports = {
   },
   // Increased timeout for async tests
   testTimeout: 30000,
-  // Force exit after tests complete to handle open handles
-  forceExit: true,
-  // Detect open handles that may cause warnings
+  // Teardown/cleanup is handled in jest.setup.js; avoid forced shutdown warnings
+  forceExit: false,
+  // Keep disabled by default for speed; enable ad-hoc with CLI when diagnosing leaks
   detectOpenHandles: false,
 };

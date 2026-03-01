@@ -228,7 +228,7 @@ function InvoicesScreen() {
         <FlatList
           data={filteredRows}
           keyExtractor={(item) => item.id}
-          renderItem={({ item, index }) => (
+          renderItem={({ item, index }: { item: LocalInvoiceRow; index: number }) => (
             <Animated.View entering={isWeb ? undefined : FadeIn.delay(index * 50).duration(200)}>
               <SwipeableInvoiceCard
                 invoice={item}

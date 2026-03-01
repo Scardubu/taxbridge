@@ -95,7 +95,7 @@ export default function ExpensesScreen() {
           }
           onEndReached={() => hasNextPage && fetchNextPage()}
           onEndReachedThreshold={0.3}
-          renderItem={({ item, index }) => (
+          renderItem={({ item, index }: { item: Expense; index: number }) => (
             <Animated.View entering={FadeInDown.delay(index * 30).duration(DURATION.transition)}>
               <ExpenseItem expense={item} />
             </Animated.View>

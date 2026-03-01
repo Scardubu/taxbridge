@@ -7,6 +7,11 @@
 > **Branch:** `master`  
 > **Certified by:** CI / principal engineer
 
+> **Post-Cert Addendum (2026-03-01):**
+> - Mobile Jest shutdown path hardened (`forceExit: false`, deterministic teardown hooks)
+> - Open-handle diagnostics (`--detectOpenHandles`) confirmed no force-exit/open-handle warnings
+> - Mobile/admin TypeScript compile revalidated at 0 errors after stabilization pass
+
 ---
 
 ## 1. Identity

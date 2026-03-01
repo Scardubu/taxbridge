@@ -464,7 +464,7 @@ function GlobalSearch({
               <FlatList
                 data={results}
                 keyExtractor={item => item.id}
-                renderItem={({ item }) => (
+                renderItem={({ item }: { item: SearchResult }) => (
                   <SearchResultItem
                     result={item}
                     onPress={() => handleSelectResult(item)}

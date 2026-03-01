@@ -354,8 +354,8 @@ export default function DashboardScreen() {
             return (
               <DeadlineCountdown
                 daysRemaining={mostUrgent.daysRemaining}
-                taxType={mostUrgent.taxType ?? mostUrgent.type ?? 'Tax Filing'}
-                dueDate={mostUrgent.dueDate ?? mostUrgent.date ?? ''}
+                taxType={mostUrgent.type ?? 'Tax Filing'}
+                dueDate={mostUrgent.dueDate ?? ''}
                 onPress={() => navigation.navigate('Invoices')}
               />
             );
@@ -494,6 +494,7 @@ function MetricCard({
   label: string; value?: string | number; loading: boolean;
   emoji: string; onPress: () => void; accentColor?: string; colors: any;
 }) {
+  const { t } = useTranslation();
   return (
     <Pressable
       onPress={onPress}

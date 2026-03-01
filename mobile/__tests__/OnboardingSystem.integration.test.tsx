@@ -120,13 +120,19 @@ describe('Onboarding System Integration Tests', () => {
       expect(true).toBe(true);
     });
 
-    it('should render OnboardingProvider without crashing', () => {
+    it('should render OnboardingProvider without crashing', async () => {
       // Simple smoke test to verify the provider can be instantiated
-      const { getByTestId } = render(
+      const { unmount } = render(
         <OnboardingProvider>
           <></>
         </OnboardingProvider>
       );
+
+      await waitFor(() => {
+        expect(true).toBe(true);
+      });
+
+      unmount();
       // Provider renders without error
       expect(true).toBe(true);
     });

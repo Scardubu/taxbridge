@@ -310,7 +310,20 @@ function CreateInvoiceScreen(props: any) {
   const quantityRef = useRef<TextInput>(null);
   const unitPriceRef = useRef<TextInput>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
-  const draftSaveTaskRef = useRef<ReturnType<typeof InteractionManager.runAfterInteractions> | null>(null);
+  const draftSaveTaskRef = useRef<{ cancel: () => void } | null>(null);
+
+  const scheduleAfterInteractions = useCallback((work: () => void): { cancel: () => void } => {
+    const interactionManager: any = InteractionManager as any;
+    if (interactionManager && typeof interactionManager.runAfterInteractions === 'function') {
+      const task = interactionManager.runAfterInteractions(work);
+      if (task && typeof task.cancel === 'function') {
+        return { cancel: () => task.cancel() };
+      }
+    }
+
+    const timeoutId = setTimeout(work, 0);
+    return { cancel: () => clearTimeout(timeoutId) };
+  }, []);
 
   // Wizard state
   const [currentStep, setCurrentStep] = useState<WizardStep>('customer');
@@ -388,12 +401,12 @@ function CreateInvoiceScreen(props: any) {
       timestamp: Date.now(),
     };
 
-    draftSaveTaskRef.current = InteractionManager.runAfterInteractions(() => {
+    draftSaveTaskRef.current = scheduleAfterInteractions(() => {
       AsyncStorage.setItem(INVOICE_CONSTANTS.DRAFT_KEY, JSON.stringify(draft)).catch((error) => {
         if (__DEV__) console.error('Failed to save draft:', error);
       });
     });
-  }, [values.customerName, items]);
+  }, [values.customerName, items, scheduleAfterInteractions]);
 
   const debouncedSaveDraft = useMemo(
     () => debounce(saveDraft, INVOICE_CONSTANTS.AUTO_SAVE_DELAY_MS),

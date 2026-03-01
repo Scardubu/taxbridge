@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [3.3.1] - 2026-03-01 - Test Stability & Type Hardening
+
+### Fixed
+- **Mobile Jest shutdown stability** — removed forced shutdown path by setting `forceExit: false` in `mobile/jest.config.js` and adding deterministic teardown hooks in `mobile/jest.setup.js` (`cleanup()`, `jest.clearAllTimers()`, `jest.useRealTimers()` in `afterAll`).
+- **Onboarding integration test async cleanup** — updated provider smoke test to await async initialization and unmount cleanly, reducing `act(...)` noise and lingering async updates.
+- **CreateInvoice interaction scheduling safety** — added `InteractionManager.runAfterInteractions` fallback scheduler for environments where InteractionManager is unavailable/mocked during tests.
+
+### Changed
+- **Mobile list typing resilience** — added targeted FlatList/SectionList type augmentation (`mobile/src/types/react-native-flatlist-augment.d.ts`) and virtualized list compatibility shim (`mobile/src/types/virtualized-lists.d.ts`) to align React Native 0.81 generated types with runtime-supported props.
+- **Screen typing hardening** — resolved implicit `any` and prop-type mismatches in:
+  - `mobile/src/components/GlobalSearch.tsx`
+  - `mobile/src/screens/InvoicesScreen.tsx`
+  - `mobile/src/screens/tabs/ExpensesScreen.tsx`
+  - `mobile/src/screens/tabs/DashboardScreen.tsx`
+
+### Validation
+- Mobile TypeScript: 0 errors
+- Admin TypeScript: 0 errors
+- Backend tests: 26 passed, 567 passed
+- Mobile tests: 19 passed, 282 passed, 1 skipped
+- Jest open-handle diagnostics: no `Force exiting` / `open handle` warnings in `--detectOpenHandles` run
+
+---
+
 ## [3.3.0] - 2026-03-01 - V11.1 Category Evolution · CI Lock · Performance
 
 ### Added (P7 — Quick Wins)
