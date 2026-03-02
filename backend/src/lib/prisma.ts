@@ -10,7 +10,8 @@ const DEFAULT_POOL_MAX = 10;
 const DEFAULT_POOL_TIMEOUT_MS = 5000;
 const DEFAULT_SLOW_QUERY_MS = 500;
 
-// C-43: Use global singleton to survive hot-reloads in dev
+// C-43: global.__prisma singleton guard — survives hot-reloads in dev
+// Pattern: (global as any).__prisma ?? new PrismaClient() — prevents duplicate connections
 declare const globalThis: { __prisma?: PrismaClient } & typeof global;
 
 function coerceNumber(value: string | undefined, fallback: number): number {

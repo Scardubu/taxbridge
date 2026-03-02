@@ -18,6 +18,7 @@ import type { FastifyInstance } from 'fastify';
 import jwt from 'jsonwebtoken';
 
 import { ComplianceService } from '../services/compliance';
+import { runCompliancePreFlight } from '../services/compliancePreFlight';
 import { AuthenticationError, NotFoundError } from '../lib/errors';
 import { createLogger } from '../lib/logger';
 
@@ -292,6 +293,59 @@ export default async function complianceRoutes(
 
       const accrual = await complianceService.computePenaltyAccrual(userId, businessId);
       return reply.send({ success: true, data: accrual });
+    },
+  );
+
+  // =========================================================================
+  // V12 — Pre-Flight Compliance Checks (GAP-13, smoke test #9)
+  // GET /api/v1/filings/preflight?taxType=CIT&turnoverHint=95000000
+  // =========================================================================
+  app.get<{
+    Querystring: {
+      taxType: string;
+      turnoverHint?: string;
+      orgId?: string;
+    };
+  }>(
+    '/api/v1/filings/preflight',
+    async (req, reply) => {
+      const userId = await authenticate(req);
+      const { taxType, turnoverHint, orgId } = req.query;
+
+      if (!taxType) {
+        return reply.code(400).send({ success: false, error: 'taxType query parameter required (VAT|WHT|PAYE|CIT|NIL)' });
+      }
+
+      // Resolve org context — either from query or from user's default org
+      let resolvedOrgId = orgId;
+      if (!resolvedOrgId) {
+        try {
+          const membership = await (prisma as any).orgMembership.findFirst({
+            where:  { userId },
+            select: { orgId: true },
+          });
+          resolvedOrgId = membership?.orgId;
+        } catch {
+          // Fallback to userId-based org lookup
+          const user = await (prisma as any).user.findUnique({
+            where:  { id: userId },
+            select: { defaultOrgId: true },
+          });
+          resolvedOrgId = user?.defaultOrgId;
+        }
+      }
+
+      if (!resolvedOrgId) {
+        return reply.code(400).send({ success: false, error: 'Could not resolve organisation. Provide orgId query parameter.' });
+      }
+
+      const hint = turnoverHint ? Number(turnoverHint) : undefined;
+      const result = await runCompliancePreFlight(resolvedOrgId, taxType.toUpperCase(), hint);
+
+      return reply.send({
+        success: true,
+        data:    result,
+      });
     },
   );
 }

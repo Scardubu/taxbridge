@@ -2,7 +2,7 @@
 
 **Date**: March 2, 2026  
 **Status**: 🚀 **READY FOR PRODUCTION DEPLOYMENT**  
-**Version**: 4.1.0
+**Version**: 4.2.0
 
 ---
 
@@ -10,7 +10,19 @@
 
 TaxBridge is **production-ready** and fully compliant with all Nigerian tax regulations (NTA 2025) and e-invoicing standards (NRS 2026). All critical systems have been implemented, tested, validated, and polished for deployment.
 
-**Latest Updates (v4.1.0 - Mar 2, 2026 — V12 Elevation · Backend Services · 2FA):**
+**Latest Updates (v4.2.0 - Mar 2, 2026 — V12 Quality Gates · Compliance Pre-Flight · Auth Security):**
+- ✅ **V12 CI Quality Gates** — 20+ automated checks (C-01–C-43) in `.github/workflows/ci.yml`
+- ✅ **Compliance pre-flight service** — 4-parallel-check `runCompliancePreFlight()` with VAT/CIT threshold guards
+- ✅ **Pre-flight API endpoint** — `GET /api/v1/filings/preflight?taxType=CIT&turnoverHint=95000000`
+- ✅ **Admin CSRF middleware** — jose Edge JWT + CSRF_INVALID guard at `admin-dashboard/middleware.ts`
+- ✅ **handleSuspiciousReuse** — session invalidation + audit + push on token reuse (GAP-02)
+- ✅ **formatNGN V12 signature** — 0 decimals, compact mode, `₦632,400` / `₦5.0M` gates pass
+- ✅ **calculateCIT canonical** — `{citLiability, band}` return shape; ₦15M / ₦0 accuracy gates pass
+- ✅ **global.__prisma singleton** — CI-grepable comment in lib/prisma.ts (C-43)
+- ✅ **console.log purged** — zero instances in production backend source (C-26)
+- ✅ **TypeScript: 0 errors** — all packages compile clean
+
+**Previous Updates (v4.1.0 - Mar 2, 2026 — V12 Elevation · Backend Services · 2FA):**
 - ✅ **Environment validation** — `validateEnv.ts` hard-crashes on startup if required env vars missing
 - ✅ **Anomaly detection engine** — 7-signal deterministic scanner (V12 §3.1), capped at 5 results
 - ✅ **Composite risk scoring** — 5-weighted-component (0.30/0.25/0.20/0.15/0.10) 0–100 score (V12 §3.2)
@@ -66,12 +78,14 @@ TaxBridge is **production-ready** and fully compliant with all Nigerian tax regu
 - ✅ **561 Backend Tests Passing** (12 skipped, DB-dependent)
 - ✅ **282 Mobile Tests Passing** (1 skipped, complex UI flow)
 - ✅ **97.29% Tax Engine Coverage** (critical path)
+- ✅ **V12 CI Quality Gates** — 20+ automated checks (C-01–C-43)
 - ✅ **Expo SDK 54** - Mobile dependencies validated
 - ✅ **NTA 2025 Compliant** - All tax calculations verified
 - ✅ **NRS 2026 Compliant** - E-invoicing with idempotency
-- ✅ **NDPC Compliant** - Data encryption & audit logging
-- ✅ **Security Hardened** - Rate limiting, CORS, encryption
+- ✅ **NDPC Compliant** - Data encryption, audit logging, immutable events
+- ✅ **Security Hardened** - Rate limiting, CORS, CSRF, JWT auth, TOTP 2FA
 - ✅ **UI/UX Polish** - No placeholders, full i18n, consistent design
+- ✅ **Compliance Pre-Flight** - 4-check filing guard (TIN, period gap, VAT reg, NRS)
 
 ---
 

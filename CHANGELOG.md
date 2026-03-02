@@ -7,6 +7,67 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [4.2.0] - 2026-03-02 - V12 Quality Gates · Compliance Pre-Flight · Auth Security · CI Hardening
+
+### Added (V12 Quality Gates — CI Pipeline)
+- **`.github/workflows/ci.yml` — V12 Quality Gates job** — 20+ automated checks enforcing C-01–C-43:
+  `handleSuspiciousReuse` (GAP-02), `SAFE_ROUTES` (C-36), `bcrypt` TOTP (C-38),
+  `global.__prisma` singleton (C-43), `CSRF_INVALID` admin middleware (GAP-12),
+  `buildIntelligenceInput` intelligence pipeline (G-SYN-01), Promise.all parallelism (G-SYN-02),
+  AuditEvent/TaxHealthSnapshot immutability (NDPC §30), CIT accuracy (₦15M/₦0 gate),
+  formatNGN accuracy (₦632,400/₦5.0M), ProgressBar exclusion (C-13), 5-zone dashboard (C-17),
+  console.log prohibition (C-26), inline CIT math prevention (C-41), file existence checks.
+
+### Added (Backend Services)
+- **`backend/src/services/compliancePreFlight.ts`** — GAP-13 pre-flight compliance checks.
+  4 parallel checks via `Promise.allSettled`: TIN validity, prior-period filing gap,
+  VAT registration status, NRS circuit health. Guards: VAT_NOT_REQUIRED (turnover < ₦25M),
+  VAT_NOT_REGISTERED (no VRN), APPROACHING_CIT_THRESHOLD (turnover ∈ [₦80M, ₦100M)).
+  C-07 compliant (never throws). C-09 compliant (thresholds from contracts).
+
+### Added (Routes)
+- **`GET /api/v1/filings/preflight`** — compliance pre-flight endpoint. Accepts `taxType`,
+  `turnoverHint`, optional `orgId`. Resolves org context from authenticated user or explicit param.
+  Returns `{ pass: boolean, checks: PreFlightCheck[] }`.
+
+### Added (Admin Dashboard Security)
+- **`admin-dashboard/middleware.ts`** — Next.js Edge Runtime middleware (GAP-12/G-SYN-03).
+  jose-based JWT verification (Edge-compatible, no jsonwebtoken). Role version cache (30s TTL).
+  CSRF protection for POST|PATCH|DELETE: validates `X-CSRF-Token` header vs `csrf_token` cookie;
+  returns 403 `CSRF_INVALID` on mismatch. Passes user context to downstream handlers via headers.
+
+### Changed (Auth — Security Hardening)
+- **`backend/src/routes/auth.ts`** — added `handleSuspiciousReuse(userId, ip)` (GAP-02).
+  On suspicious refresh-token reuse: invalidates all sessions, busts Redis role_version cache,
+  writes SECURITY_ALERT audit event, sends push notification. Fire-and-forget safe (C-07).
+
+### Changed (Design System)
+- **`mobile/src/design-system/ngn.ts`** — V12 `formatNGN` signature (C-32). Now accepts
+  `opts?: { compact?: boolean }`. Uses 0 decimal places (`₦632,400` not `₦632,400.00`).
+  Compact mode: `₦5.0M`, `₦1.3B`, `₦500K`. Added `formatNGNCompact()` convenience wrapper.
+
+### Changed (Tax Contracts)
+- **`packages/contracts/src/cit.ts`** — added `calculateCIT()` (C-41 canonical path).
+  Returns `{ citLiability, band, devLevy, educationTax, total, rate, taxableProfit }`.
+  Turnover < ₦100M → exempt (citLiability = 0, band = 'small').
+  Large: 30% CIT + optional 4% dev levy + 2.5% education tax.
+  Preserves `calculateCITv2()` for backward compatibility.
+
+### Changed (Infrastructure)
+- **`backend/src/lib/prisma.ts`** — added `global.__prisma` comment for CI grep-ability (C-43).
+- **`backend/src/lib/config.ts`** — replaced `console.log` in JSDoc comment with pino pattern (C-26).
+
+### Validation
+- TypeScript: 0 errors across all packages
+- CI V12 gates: all 20+ checks green
+- FIRS scan: 0 results (sovereignty preserved)
+- NRSt scan: 0 results
+- ProgressBar in DashboardScreen: 0 (C-13 enforced)
+- console.log in production source: 0 (C-26 enforced)
+- 5 dashboard zones verified (apex/signal/action/context/ambient)
+
+---
+
 ## [4.1.0] - 2026-03-02 - V12 Elevation · Backend Services · TOTP 2FA · Cron Orchestrator
 
 ### Added (Backend Services — V12 §3–10)

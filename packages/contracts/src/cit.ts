@@ -22,7 +22,47 @@ const EDUCATION_TAX_RATE = 0.02;
 const EDUCATION_TAX_THRESHOLD = 100_000_000;
 
 /**
- * Calculate Company Income Tax with full V12 compliance.
+ * V12 canonical CIT function. C-41: Only approved CIT computation path.
+ *
+ * Thresholds per V12 directive:
+ *   - turnover < ₦100M → exempt (citLiability = 0, band = 'small')
+ *   - turnover ≥ ₦100M → 30% CIT, optional dev levy (4%), edu-tax (2.5%)
+ *
+ * ✅ Gate: {turnover:200M, profit:50M, devLevyApplies:false}.citLiability === 15_000_000
+ * ✅ Gate: {turnover:80M,  profit:20M, devLevyApplies:false}.citLiability === 0
+ */
+export function calculateCIT(input: {
+  turnover: number;
+  profit: number;
+  devLevyApplies: boolean;
+  taxLossCarryforward?: number;
+}): {
+  rate: number;
+  taxableProfit: number;
+  citLiability: number;
+  devLevy: number;
+  educationTax: number;
+  total: number;
+  band: 'small' | 'large';
+} {
+  const { turnover, profit, devLevyApplies, taxLossCarryforward = 0 } = input;
+
+  // Threshold: < ₦100M → entirely exempt (V12 directive §P0.5 C-41)
+  if (turnover < 100_000_000) {
+    return { rate: 0, taxableProfit: 0, citLiability: 0, devLevy: 0, educationTax: 0, total: 0, band: 'small' };
+  }
+
+  const taxableProfit = Math.max(0, profit - Math.max(0, taxLossCarryforward));
+  const citLiability  = taxableProfit * 0.30;
+  const devLevy       = devLevyApplies ? taxableProfit * 0.04 : 0;
+  const educationTax  = taxableProfit * 0.025;
+  const total         = citLiability + devLevy + educationTax;
+
+  return { rate: 0.30, taxableProfit, citLiability, devLevy, educationTax, total, band: 'large' };
+}
+
+/**
+ * Calculate Company Income Tax with full V12 compliance (detailed breakdown).
  *
  * @param input.turnover           Annual turnover (₦)
  * @param input.profit             Taxable profit before deductions (₦)
@@ -31,6 +71,7 @@ const EDUCATION_TAX_THRESHOLD = 100_000_000;
  * @returns Complete CIT breakdown
  */
 export function calculateCITv2(input: CITInput): CITResult {
+
   const { turnover, profit, devLevyApplies, taxLossCarryforward } = input;
 
   // Determine company tier
