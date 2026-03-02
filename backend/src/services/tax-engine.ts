@@ -13,9 +13,6 @@ import {
   PIT_BRACKETS,
   PITBracket,
   MINIMUM_WAGE_ANNUAL,
-  CRA_FIXED,
-  CRA_PERCENTAGE,
-  CRA_MIN_PERCENTAGE,
   RENT_RELIEF_CAP,
   RENT_RELIEF_RATE,
   PENSION_RATE,
@@ -39,6 +36,7 @@ import {
   EMPLOYEE_PENSION_RATE,
   EMPLOYER_PENSION_RATE,
 } from '@taxbridge/contracts';
+import { calculateRRA } from '@taxbridge/contracts';
 
 // =============================================================================
 // Shared Helpers
@@ -99,11 +97,10 @@ export interface BracketBreakdown {
 export interface PITInput {
   grossIncome: number;
   reliefs?: {
-    /** If true, auto-calculate CRA. Defaults to true. */
-    cra?: boolean;
     pension?: number;
     nhf?: number;
     lifeInsurance?: number;
+    /** Annual rent paid — used to calculate RRA (NTA 2025 §30(2)) */
     annualRent?: number;
   };
 }
@@ -111,7 +108,8 @@ export interface PITInput {
 export interface PITResult {
   grossIncome: number;
   reliefs: {
-    cra: number;
+    /** Rent Relief Allowance — NTA 2025 §30(2). Replaces abolished CRA. */
+    rra: number;
     pension: number;
     nhf: number;
     lifeInsurance: number;
@@ -126,8 +124,8 @@ export interface PITResult {
   isMinimumWageExempt: boolean;
   /** Alias for taxAmount — used by simplified number-arg callers */
   totalTax: number;
-  /** Alias for reliefs.cra — used by simplified number-arg callers */
-  cra: number;
+  /** Alias for reliefs.rra — Rent Relief Allowance (NTA 2025 §30(2)) */
+  rra: number;
   /** Alias for breakdown — used by simplified number-arg callers */
   bandBreakdown: BracketBreakdown[];
   /** Annual tax divided by 12 (rounded) */
@@ -269,7 +267,7 @@ export function calculatePIT(input: number | PITInput): PITResult {
   if (grossIncome <= 0) {
     const empty: PITResult = {
       grossIncome: 0,
-      reliefs: { cra: 0, pension: 0, nhf: 0, lifeInsurance: 0, rentRelief: 0 },
+      reliefs: { rra: 0, pension: 0, nhf: 0, lifeInsurance: 0, rentRelief: 0 },
       totalReliefs: 0,
       taxableIncome: 0,
       taxAmount: 0,
@@ -278,7 +276,7 @@ export function calculatePIT(input: number | PITInput): PITResult {
       breakdown: [],
       isMinimumWageExempt: !isSimpleCall,
       totalTax: 0,
-      cra: 0,
+      rra: 0,
       bandBreakdown: [],
       monthlyTax: 0,
     };
@@ -290,7 +288,7 @@ export function calculatePIT(input: number | PITInput): PITResult {
   if (isMinimumWageExempt) {
     return {
       grossIncome,
-      reliefs: { cra: 0, pension: 0, nhf: 0, lifeInsurance: 0, rentRelief: 0 },
+      reliefs: { rra: 0, pension: 0, nhf: 0, lifeInsurance: 0, rentRelief: 0 },
       totalReliefs: 0,
       taxableIncome: 0,
       taxAmount: 0,
@@ -299,17 +297,15 @@ export function calculatePIT(input: number | PITInput): PITResult {
       breakdown: [],
       isMinimumWageExempt: true,
       totalTax: 0,
-      cra: 0,
+      rra: 0,
       bandBreakdown: [],
       monthlyTax: 0,
     };
   }
 
-  // CRA: higher of (1% of gross) or (₦200,000 + 20% of gross)
-  const useCRA = (reliefs as PITInput['reliefs'])?.cra !== false;
-  const craAmount = useCRA
-    ? Math.max(grossIncome * CRA_MIN_PERCENTAGE, CRA_FIXED + grossIncome * CRA_PERCENTAGE)
-    : 0;
+  // RRA: Rent Relief Allowance — NTA 2025 §30(2). Replaces abolished CRA.
+  const annualRent = (reliefs as PITInput['reliefs'])?.annualRent ?? 0;
+  const rraAmount = calculateRRA(annualRent);
 
   // Pension
   const pension = (reliefs as PITInput['reliefs'])?.pension ?? 0;
@@ -320,13 +316,10 @@ export function calculatePIT(input: number | PITInput): PITResult {
   // Life insurance
   const lifeInsurance = (reliefs as PITInput['reliefs'])?.lifeInsurance ?? 0;
 
-  // Rent relief: lower of ₦500,000 or 20% of annual rent
-  const annualRent = (reliefs as PITInput['reliefs'])?.annualRent ?? 0;
-  const rentRelief = annualRent > 0
-    ? Math.min(RENT_RELIEF_CAP, annualRent * RENT_RELIEF_RATE)
-    : 0;
+  // Rent relief: same as RRA for backward-compat alias
+  const rentRelief = rraAmount;
 
-  const totalReliefs = round2(craAmount + pension + nhf + lifeInsurance + rentRelief);
+  const totalReliefs = round2(rraAmount + pension + nhf + lifeInsurance);
   const taxableIncome = Math.max(0, round2(grossIncome - totalReliefs));
 
   // Apply progressive brackets
@@ -337,7 +330,7 @@ export function calculatePIT(input: number | PITInput): PITResult {
 
   return {
     grossIncome,
-    reliefs: { cra: round2(craAmount), pension, nhf, lifeInsurance, rentRelief: round2(rentRelief) },
+    reliefs: { rra: round2(rraAmount), pension, nhf, lifeInsurance, rentRelief: round2(rentRelief) },
     totalReliefs,
     taxableIncome,
     taxAmount: totalTax,
@@ -347,7 +340,7 @@ export function calculatePIT(input: number | PITInput): PITResult {
     isMinimumWageExempt: false,
     // Alias fields for simplified callers
     totalTax,
-    cra: round2(craAmount),
+    rra: round2(rraAmount),
     bandBreakdown: breakdown,
     monthlyTax,
   };
@@ -603,13 +596,8 @@ export function calculatePAYE(input: PAYEInput): PAYEResult {
   const pensionContribution = round2(grossSalary * EMPLOYEE_PENSION_RATE);
   const nhfContribution = round2(grossSalary * NHF_RATE);
 
-  // CRA on gross income
-  const cra = Math.max(
-    grossIncome * CRA_MIN_PERCENTAGE,
-    CRA_FIXED + grossIncome * CRA_PERCENTAGE,
-  );
-
-  const totalReliefs = round2(cra + pensionContribution + nhfContribution);
+  // PAYE reliefs: pension + NHF only (CRA abolished under NTA 2025; RRA not auto-applied in PAYE)
+  const totalReliefs = round2(pensionContribution + nhfContribution);
   const taxableIncome = Math.max(0, round2(grossIncome - totalReliefs));
 
   // Apply PIT brackets to taxable income

@@ -3,11 +3,11 @@ import {
   View,
   Text,
   StyleSheet,
-  FlatList,
   TouchableOpacity,
   ActivityIndicator,
   ScrollView,
 } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { Ionicons } from '@expo/vector-icons';
 import { tokens } from '../../constants/tokens';
 import { useReconciliation } from '../../hooks/useReconciliation';
@@ -220,7 +220,7 @@ export default function ReconciliationScreen() {
 
     if (activeTab === 'matched') {
       return (
-        <FlatList
+        <FlashList
           data={report.matched}
           renderItem={renderMatchedItem}
           keyExtractor={(item) => `${item.invoiceId}-${item.paymentId}`}
@@ -234,7 +234,7 @@ export default function ReconciliationScreen() {
 
     if (activeTab === 'unmatched-invoices') {
       return (
-        <FlatList
+        <FlashList
           data={report.unmatchedInvoices}
           renderItem={renderUnmatchedInvoice}
           keyExtractor={(item) => item.id}
@@ -247,7 +247,7 @@ export default function ReconciliationScreen() {
     }
 
     return (
-      <FlatList
+      <FlashList
         data={report.unmatchedPayments}
         renderItem={renderUnmatchedPayment}
         keyExtractor={(item) => item.id}

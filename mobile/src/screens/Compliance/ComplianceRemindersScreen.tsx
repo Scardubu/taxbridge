@@ -3,11 +3,11 @@ import {
   View,
   Text,
   StyleSheet,
-  FlatList,
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
 } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { Ionicons } from '@expo/vector-icons';
 import { tokens } from '../../constants/tokens';
 import { useCompliance } from '../../hooks/useCompliance';
@@ -197,7 +197,7 @@ export default function ComplianceRemindersScreen() {
         </TouchableOpacity>
       </View>
 
-      <FlatList<Reminder>
+      <FlashList<Reminder>
         data={filteredReminders}
         renderItem={renderReminderCard}
         keyExtractor={(item) => item.id}

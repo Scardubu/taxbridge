@@ -1,5 +1,6 @@
 import React, { memo, useMemo, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, Dimensions } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { useTranslation } from 'react-i18next';
 import InsightCard, { InsightType } from './InsightCard';
 import { useNetwork } from '../contexts/NetworkContext';
@@ -163,7 +164,7 @@ function InsightsCarousel({
         <Text style={styles.sectionTitle}>{t('insights.sectionTitle')}</Text>
         <Text style={styles.swipeHint}>{t('insights.swipeHint')}</Text>
       </View>
-      <FlatList
+      <FlashList
         data={insights}
         renderItem={renderItem}
         keyExtractor={keyExtractor}

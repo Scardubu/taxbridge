@@ -646,7 +646,7 @@ taxbridge_component_status{component="queues"} ${serverMetrics.componentStatus.q
 taxbridge_component_status{component="sms"} ${serverMetrics.componentStatus.sms === 'healthy' ? 1 : serverMetrics.componentStatus.sms === 'degraded' ? 0.5 : 0}
 `.trim();
 
-        const promExtension = metrics.formatPrometheusMetrics();
+        const promExtension = await metrics.formatPrometheusMetrics();
         const payload = [coreMetrics, promExtension].filter(Boolean).join('\n\n');
         
         reply.header('Content-Type', 'text/plain; version=0.0.4');

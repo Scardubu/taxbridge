@@ -856,3 +856,70 @@ model AcademyNudge {
   @@index([nudgeKey])
   @@map("academy_nudges")
 }
+
+// ============================================
+// Org — V12.0 Multi-Tenant Organization
+// ============================================
+
+model Org {
+  id              String      @id @default(uuid()) @db.Uuid
+  name            String
+  tin             String?
+  cacNumber       String?     @map("cac_number")
+  sector          String?
+  status          String      @default("active") // active, suspended, deleted
+  createdAt       DateTime    @default(now()) @map("created_at")
+
+  members         OrgMember[]
+  auditEvents     AuditEvent[]
+
+  @@index([tin])
+  @@map("orgs")
+}
+
+// ============================================
+// OrgMember — V12.0 Org ↔ User pivot (multi-tenant)
+// ============================================
+
+model OrgMember {
+  id              String      @id @default(uuid()) @db.Uuid
+  orgId           String      @map("org_id") @db.Uuid
+  userId          String      @map("user_id") @db.Uuid
+  role            String      @default("member") // owner, admin, accountant, member, viewer
+  invitedBy       String?     @map("invited_by") @db.Uuid
+  joinedAt        DateTime    @default(now()) @map("joined_at")
+  removedAt       DateTime?   @map("removed_at")
+  createdAt       DateTime    @default(now()) @map("created_at")
+
+  org             Org         @relation(fields: [orgId], references: [id])
+
+  @@unique([orgId, userId])
+  @@index([userId])
+  @@index([orgId, role])
+  @@map("org_members")
+}
+
+// ============================================
+// AuditEvent — V12.0 Immutable audit trail (no updatedAt)
+// ============================================
+
+model AuditEvent {
+  id              String      @id @default(uuid()) @db.Uuid
+  orgId           String?     @map("org_id") @db.Uuid
+  userId          String?     @map("user_id") @db.Uuid
+  action          String
+  resource        String?
+  resourceId      String?     @map("resource_id")
+  metadata        Json        @default("{}")
+  ipAddress       String?     @map("ip_address")
+  userAgent       String?     @map("user_agent") @db.Text
+  createdAt       DateTime    @default(now()) @map("created_at")
+
+  org             Org?        @relation(fields: [orgId], references: [id])
+
+  @@index([orgId])
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_events")
+}

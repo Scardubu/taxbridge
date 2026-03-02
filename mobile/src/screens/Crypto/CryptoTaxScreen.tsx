@@ -3,11 +3,11 @@ import {
   View,
   Text,
   StyleSheet,
-  FlatList,
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
 } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { Ionicons } from '@expo/vector-icons';
 import { tokens } from '../../constants/tokens';
 import { useCrypto } from '../../hooks/useCrypto';
@@ -197,7 +197,7 @@ export default function CryptoTaxScreen() {
         <Text style={styles.headerTitle}>Crypto Tax</Text>
       </View>
 
-      <FlatList<CryptoTransaction>
+      <FlashList<CryptoTransaction>
         data={transactions}
         renderItem={renderTransactionCard}
         keyExtractor={(item) => item.id}
