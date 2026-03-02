@@ -33,20 +33,20 @@ describe('calculatePIT', () => {
     expect(result.isMinimumWageExempt).toBe(true);
   });
 
-  it('should calculate CRA correctly (higher of 1% or ₦200k + 20%)', () => {
-    // For ₦5M: 1% = ₦50k, ₦200k + 20% = ₦1.2M → CRA = ₦1.2M
+  it('should return zero RRA when no rent is paid (RRA replaced CRA — NTA 2025 §30(2))', () => {
+    // No rent paid → RRA = min(20% × ₦0, ₦500k) = ₦0; taxable income = gross
     const result = calculatePIT({ grossIncome: 5_000_000 });
-    expect(result.reliefs.cra).toBe(1_200_000);
-    expect(result.taxableIncome).toBe(3_800_000);
+    expect(result.reliefs.rra).toBe(0);
+    expect(result.taxableIncome).toBe(5_000_000);
   });
 
   it('should apply progressive brackets on taxable income', () => {
-    // ₦2M gross, CRA = max(20k, 200k + 400k) = 600k, taxable = 1.4M
-    // Band 1: ₦800k @ 0% = 0
-    // Band 2: ₦600k @ 15% = 90k
+    // ₦2M gross, no rent → RRA = 0, taxableIncome = ₦2M
+    // Band 1: ₦800k @ 0%  = ₦0
+    // Band 2: ₦1.2M @ 15% = ₦180k
     const result = calculatePIT({ grossIncome: 2_000_000 });
-    expect(result.taxableIncome).toBe(1_400_000);
-    expect(result.taxAmount).toBe(90_000);
+    expect(result.taxableIncome).toBe(2_000_000);
+    expect(result.taxAmount).toBe(180_000);
     expect(result.breakdown).toHaveLength(2);
   });
 
@@ -84,14 +84,16 @@ describe('calculatePIT', () => {
     });
     expect(result.reliefs.pension).toBe(400_000);
     expect(result.reliefs.nhf).toBe(125_000);
-    expect(result.totalReliefs).toBeGreaterThan(1_200_000); // CRA + pension + nhf
+    expect(result.totalReliefs).toBe(525_000); // RRA=0 (no rent) + pension + NHF
   });
 
-  it('should allow disabling CRA', () => {
-    const withCRA = calculatePIT({ grossIncome: 5_000_000 });
-    const withoutCRA = calculatePIT({ grossIncome: 5_000_000, reliefs: { cra: false } });
-    expect(withoutCRA.taxAmount).toBeGreaterThan(withCRA.taxAmount);
-    expect(withoutCRA.reliefs.cra).toBe(0);
+  it('should apply RRA when annual rent is paid (NTA 2025 §30(2))', () => {
+    // ₦2.5M rent: RRA = min(20% × ₦2.5M = ₦500k, cap ₦500k) = ₦500k
+    const withRent    = calculatePIT({ grossIncome: 5_000_000, reliefs: { annualRent: 2_500_000 } });
+    const withoutRent = calculatePIT({ grossIncome: 5_000_000 });
+    expect(withRent.reliefs.rra).toBe(500_000);
+    expect(withRent.taxAmount).toBeLessThan(withoutRent.taxAmount);
+    expect(withoutRent.reliefs.rra).toBe(0);
   });
 
   it('should handle zero income', () => {
@@ -474,9 +476,8 @@ describe('Cross-tax consistency', () => {
     const pitResult = calculatePIT({
       grossIncome: 3_000_000,
       reliefs: {
-        cra: true,
         pension: 3_000_000 * 0.08, // 8% = 240,000
-        nhf: 3_000_000 * 0.025,     // 2.5% = 75,000
+        nhf: 3_000_000 * 0.025,    // 2.5% = 75,000
       },
     });
     

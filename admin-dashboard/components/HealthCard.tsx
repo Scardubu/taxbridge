@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { CheckCircle2, AlertTriangle, XCircle, HelpCircle } from 'lucide-react';
 import { useAdminI18n } from '@/lib/i18n';
 
 interface HealthCardProps {
@@ -12,6 +13,19 @@ interface HealthCardProps {
 
 export function HealthCard({ title, status, latency, lastChecked, description }: HealthCardProps) {
   const { t } = useAdminI18n();
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'healthy':
+        return <CheckCircle2 className="h-3.5 w-3.5 text-green-600" aria-hidden="true" />;
+      case 'degraded':
+        return <AlertTriangle className="h-3.5 w-3.5 text-yellow-600" aria-hidden="true" />;
+      case 'error':
+        return <XCircle className="h-3.5 w-3.5 text-red-600" aria-hidden="true" />;
+      default:
+        return <HelpCircle className="h-3.5 w-3.5 text-gray-500" aria-hidden="true" />;
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'healthy':
@@ -73,7 +87,7 @@ export function HealthCard({ title, status, latency, lastChecked, description }:
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-sm font-medium text-slate-700">{title}</CardTitle>
         <div className="flex items-center space-x-2">
-          <div className={`w-2.5 h-2.5 rounded-full ${getStatusColor(status)} animate-pulse`} />
+          {getStatusIcon(status)}
           <Badge variant={getStatusVariant(status)} className="text-xs font-semibold">
             {t(`healthcard.badge.${status}`)}
           </Badge>

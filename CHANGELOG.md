@@ -7,6 +7,70 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [4.1.0] - 2026-03-02 - V12 Elevation · Backend Services · TOTP 2FA · Cron Orchestrator
+
+### Added (Backend Services — V12 §3–10)
+- **`backend/src/validateEnv.ts`** — hard-crash on startup if required env vars (DATABASE_URL,
+  REDIS_URL, JWT_SECRET, etc.) are missing. Validates JWT secret length ≥ 32.
+- **`backend/src/services/anomalyEngine.ts`** — V12 §3.1 anomaly detection: 7 compliance signals
+  (`vat_gap`, `nil_overuse`, `unfiled_period`, `payroll_spike`, `vat_credit_aging`,
+  `nrs_stamp_delay`, `auth_failure_flood`), capped at 5 results per invocation.
+- **`backend/src/services/riskScoring.ts`** — V12 §3.2 composite risk scorer: 5 weighted
+  sub-components (filingLatency 0.30, paymentGap 0.25, vatCompliance 0.20, nrsStampRate 0.15,
+  nilOveruse 0.10), returns 0–100 score with band label.
+- **`backend/src/services/dashboardService.ts`** — composite dashboard builder (C-14). Single
+  `getDashboardComposite()` call returns risk, anomalies, NRS health, filing classification,
+  and summary. Redis-cached (120s TTL). Returns `FALLBACK_DASHBOARD` on error (C-12).
+- **`backend/src/services/nrsService.ts`** — NRS integration with opossum circuit breaker.
+  Exports `getNrsHealth()` and `submitInvoiceForStamp()`. Mock mode via `DIGITAX_MOCK_MODE=true`.
+  Circuit breaker state exposed as Prometheus gauge `nrs_circuit_state`.
+- **`backend/src/services/audit.ts`** — immutable `writeAuditEvent()` utility. Fire-and-forget
+  safe (never throws). Uses `(prisma as any).auditEvent.create()` per C-01.
+- **`backend/src/workers/pdfWorker.ts`** — BullMQ PDF generation worker. Produces A4 audit
+  PDFs via pdfkit, uploads to Cloudflare R2 via @aws-sdk/client-s3.
+- **`backend/src/cron/orchestrator.ts`** — V12 §10 central cron registry with exactly 7 jobs:
+  taxHealthSnapshot (03:00 WAT), riskScoringUpdate (6h), deadlineReminders (08:00 WAT),
+  nrsStampRetry (hourly), sessionCleanup (00:00 WAT), dlqMonitor (15min), keepAlive (10min).
+  All jobs isolated via `safe()` wrapper — failures log + Sentry but never crash the server.
+
+### Added (Routes)
+- **`backend/src/routes/v1/notifications.ts`** — push token registration/unregistration
+  endpoints. POST `/register` upserts UserDevice record; POST `/unregister` soft-deletes.
+- **`backend/src/routes/v1/auth/totp.ts`** — TOTP 2FA routes (GAP-03/C-38). Endpoints:
+  `/setup` (generate secret + provisioning URI), `/verify` (activate 2FA + generate bcrypt-hashed
+  backup codes), `/disable` (deactivate with current TOTP), `/backup` (regenerate codes).
+  Backup codes use `crypto.randomBytes()` — no `Math.random()`.
+
+### Added (Schema)
+- **UserTotp model** — Prisma model for TOTP enrollment state: `secret`, `pendingSecret`,
+  `active`, `backupCodes` (String[]), `activatedAt`, `disabledAt`. Mapped to `user_totp` table.
+
+### Changed (Server Wiring)
+- **`backend/src/server.ts`** — registered new routes (`notifications` at
+  `/api/v1/notifications`, `totp` at `/api/v1/auth/totp`). Added `startCronOrchestrator()`
+  on startup and `stopCronOrchestrator()` on graceful shutdown. First import is now
+  `import './validateEnv'` for fail-fast on missing env vars.
+
+### Changed (Dockerfile — V12 §10.1)
+- **Node 18→20 LTS upgrade** in Dockerfile multi-stage build.
+- **`yarn` → `npm ci`** — aligned with project's npm-based dependency management.
+- **Non-root user** — `taxbridge:1001` with `chown` on `/app` directory.
+- **Health check** — uses `/api/v2/monitoring/health` endpoint; port defaults to 10000 (Render).
+- **`NODE_ENV=production`** set as build-time default.
+
+### Dependencies
+- Added: `otpauth`, `@aws-sdk/client-s3` (Cloudflare R2 upload), `bcryptjs`, `node-cron`,
+  `opossum`, `pdfkit`, `pino`, `pino-pretty`, `compression`.
+
+### Validation
+- TypeScript: 0 errors (backend)
+- Backend tests: 561 passing (gate: ≥423)
+- Logger pattern: all new files use `log.info('message', { fields })` — message first
+- Redis null guards: all `getRedisConnection()` calls have null safety checks
+- Sovereignty: FIRS=0, NRSt=0
+
+---
+
 ## [4.0.0] - 2026-03-02 - V12.0 Final Elevation · CRA→RRA · FlashList · prom-client
 
 ### Changed (Regulatory — NTA 2025)

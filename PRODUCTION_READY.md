@@ -2,7 +2,7 @@
 
 **Date**: March 2, 2026  
 **Status**: 🚀 **READY FOR PRODUCTION DEPLOYMENT**  
-**Version**: 4.0.0
+**Version**: 4.1.0
 
 ---
 
@@ -10,14 +10,22 @@
 
 TaxBridge is **production-ready** and fully compliant with all Nigerian tax regulations (NTA 2025) and e-invoicing standards (NRS 2026). All critical systems have been implemented, tested, validated, and polished for deployment.
 
-**Latest Updates (v4.0.0 - Mar 2, 2026 — V12.0 Final Elevation):**
-- ✅ **CRA→RRA migration complete** — Abolished Consolidated Relief Allowance replaced by Rent Relief Allowance per NTA 2025 §30(2) in tax-engine.ts; `calculateRRA()` from `@taxbridge/contracts`
-- ✅ **FlatList→FlashList migration** — 9 mobile files migrated to `@shopify/flash-list@2.2.2` for improved scroll performance; `estimatedItemSize` removed (FlashList v2 new arch)
-- ✅ **prom-client singleton** — metrics.ts rewritten with proper Prometheus Registry, Counter/Histogram/Gauge
-- ✅ **Prisma schema extended** — Org, OrgMember (@@unique([orgId, userId])), AuditEvent (immutable) models added
-- ✅ **Health snapshot cron fixed** — 02:00→03:00 WAT per V12 §10
-- ✅ **TypeScript: 0 errors** — backend, mobile, admin all clean
-- ✅ **Sovereignty gates pass** — FIRS=0, NRSt=0, FlatList(source)=0, CRA(code)=0, Registry=1
+**Latest Updates (v4.1.0 - Mar 2, 2026 — V12 Elevation · Backend Services · 2FA):**
+- ✅ **Environment validation** — `validateEnv.ts` hard-crashes on startup if required env vars missing
+- ✅ **Anomaly detection engine** — 7-signal deterministic scanner (V12 §3.1), capped at 5 results
+- ✅ **Composite risk scoring** — 5-weighted-component (0.30/0.25/0.20/0.15/0.10) 0–100 score (V12 §3.2)
+- ✅ **Composite dashboard service** — single-call data assembly (C-14), 120s Redis cache, FALLBACK on error (C-12)
+- ✅ **NRS circuit breaker** — opossum-backed with Prometheus gauge, mock mode for dev/staging
+- ✅ **Audit service** — immutable `writeAuditEvent()` utility, fire-and-forget safe (C-07)
+- ✅ **PDF generation worker** — BullMQ + pdfkit + R2 upload via @aws-sdk/client-s3
+- ✅ **Cron orchestrator** — exactly 7 centralized jobs (V12 §10), `safe()` isolation wrapper
+- ✅ **Push notification routes** — register/unregister with UserDevice upsert
+- ✅ **TOTP 2FA routes** — setup/verify/disable/backup (GAP-03/C-38), bcrypt-hashed backup codes
+- ✅ **UserTotp Prisma model** — pendingSecret/secret/backupCodes lifecycle, mapped to `user_totp`
+- ✅ **server.ts wired** — new routes registered, cron orchestrator started/stopped on lifecycle
+- ✅ **Dockerfile upgraded** — Node 20 LTS, npm ci, non-root user, production health check
+- ✅ **TypeScript: 0 errors** — all new and existing files compile clean
+- ✅ **561 backend tests passing** (gate: ≥423)
 
 **Previous Updates (v3.3.1 - Mar 1, 2026):**
 - ✅ **Jest open-handle warning removed** — `mobile/jest.config.js` now uses `forceExit: false`; cleanup/timer teardown added in `mobile/jest.setup.js`
@@ -55,7 +63,7 @@ TaxBridge is **production-ready** and fully compliant with all Nigerian tax regu
 - ✅ **Route Error Handling** - 12 loading/error state files for admin routes
 
 ### Key Metrics
-- ✅ **567 Backend Tests Passing** (12 skipped, DB-dependent)
+- ✅ **561 Backend Tests Passing** (12 skipped, DB-dependent)
 - ✅ **282 Mobile Tests Passing** (1 skipped, complex UI flow)
 - ✅ **97.29% Tax Engine Coverage** (critical path)
 - ✅ **Expo SDK 54** - Mobile dependencies validated

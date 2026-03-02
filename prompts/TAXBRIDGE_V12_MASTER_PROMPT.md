@@ -1,9 +1,20 @@
-# TAXBRIDGE V12 MASTER PROMPT
-
+# TAXBRIDGE V12 MASTER PROMPT — ELEVATED
 **Path:** `/prompts/v12_master_prompt.md`
-**Repo:** `github.com/Scardubu/taxbridge` | **Branch:** `feat/v12-final-elevation`
-**Supersedes:** V10.3 + V11.0 | **Effective:** 2026-03-01
+**Repo:** `github.com/Scardubu/taxbridge` | **Branch:** `upgrade/v12-elevated-20260302`
+**Supersedes:** V10.3 + V11.0 + V12 FINAL | **Effective:** 2026-03-02
 **Deployment:** Backend → Render | Admin → Vercel | Mobile → EAS (Android + iOS)
+**Architecture Module:** `/prompts/v12_production_architecture_module.md` — companion artifact; read alongside this prompt for AI pipeline, admin analytics, UX flows, Docker, load testing, and security hardening specifications.
+**Authority:** This document is the single, immutable source of truth for all engineering decisions. No deviation is permitted.
+
+---
+
+## 0. FOUNDATIONAL IDENTITY CONTRACT
+
+TaxBridge transforms Nigerian SME tax compliance from an anxiety-inducing obligation into a confident, guided, and even delightful experience. Every line of code must honour this mission.
+
+**The Design Target:** A first-time filer on a Tecno Spark, on 2G in Lagos, with a PAYE deadline in 3 days, who speaks Pidgin. If it works for them, it works for everyone.
+
+**The Engineering Target:** Fintech-grade. Zero-trust. Audit-immutable. Deterministic. Production-sovereign from day one.
 
 ---
 
@@ -22,105 +33,125 @@ taxbridge/
 │   ├── cgt.ts                     # CGT rates
 │   ├── penalties.ts               # NTA 2025 §§153-180 penalty engine
 │   ├── rbac.ts                    # UserRole enum, ROLE_HIERARCHY
-│   └── index.ts                   # Public API surface
+│   ├── types.ts                   # All shared interfaces (DashboardComposite, etc.)
+│   └── index.ts                   # Public API — re-exports everything
 ├── backend/
-│   └── src/
-│       ├── app.ts                 # Entry — validateEnv FIRST import, 0.0.0.0 bind
-│       ├── validateEnv.ts         # Hard-crash on missing env vars
-│       ├── lib/
-│       │   └── logger.ts          # Pino structured logger (NO console.log anywhere)
-│       ├── middleware/
-│       │   ├── auth.ts            # JWT verify (authenticate)
-│       │   ├── requireRole.ts     # RBAC gate (C-24) — fire-and-forget ACCESS_DENIED audit
-│       │   ├── rateLimit.ts       # Per-route rate limits (§6.6)
-│       │   └── tenant.ts          # Org isolation — resolveOrgContext()
-│       ├── routes/
-│       │   ├── v1/
-│       │   │   ├── dashboard.ts   # GET /api/v1/dashboard — ONE composite endpoint
-│       │   │   ├── filings/
-│       │   │   │   ├── nil.ts     # POST /api/v1/filings/nil (C-21, idempotent)
-│       │   │   │   ├── vat.ts     # POST /api/v1/filings/vat + IRN
-│       │   │   │   ├── wht.ts     # POST /api/v1/filings/wht
-│       │   │   │   └── paye.ts    # POST /api/v1/payroll/run
-│       │   │   ├── compliance/
-│       │   │   │   ├── penalty-estimate.ts
-│       │   │   │   └── vat-credit.ts
-│       │   │   ├── onboarding/
-│       │   │   │   ├── tin.ts     # TIN validation + NRS lookup
-│       │   │   │   └── cac.ts     # CAC/RC validation
-│       │   │   ├── documents.ts   # Vault: upload, get (signed URL), soft-delete
-│       │   │   ├── team.ts        # OrgMember CRUD + session invalidation
-│       │   │   └── accountant.ts  # AccountantClient delegation (C-28)
-│       │   ├── v2/
-│       │   │   └── monitoring.ts  # /health (public) + /metrics (ADMIN only)
-│       │   └── webhooks/
-│       │       └── flutterwave.ts # rawBody HMAC verify then process
-│       ├── services/
-│       │   ├── audit.ts           # writeAuditEvent() — always awaited (C-25)
-│       │   ├── dashboardService.ts
-│       │   ├── penaltyService.ts
-│       │   ├── vatCredit.service.ts
-│       │   ├── riskScoring.ts
-│       │   ├── anomalyEngine.ts
-│       │   ├── eventBus.ts        # EventEmitter, setMaxListeners(30)
-│       │   ├── nrsService.ts      # Circuit breaker pattern
-│       │   ├── redis.ts           # Singleton client
-│       │   └── notifications.ts   # Push + SMS
-│       ├── cron/
-│       │   ├── orchestrator.ts    # Exactly 7 jobs — central registry
-│       │   ├── taxHealthSnapshot.ts
-│       │   ├── riskScoringCron.ts
-│       │   └── keepAlive.ts
-│       ├── metrics.ts             # prom-client singleton (§17.1)
-│       └── workers/
-│           └── nrsStampWorker.ts  # BullMQ NRS stamp worker
-├── backend/prisma/                # Prisma lives at backend/ root, not inside src/
-│   ├── schema.prisma
-│   ├── migrations/                # Append-only, timestamped — never rollback in prod
-│   └── seeds/
-│       └── smokeTestUser.ts       # Deterministic smoke-test credentials
+│   ├── src/
+│   │   ├── app.ts                 # Entry — validateEnv FIRST import, 0.0.0.0 bind
+│   │   ├── validateEnv.ts         # Hard-crash on missing env vars
+│   │   ├── lib/
+│   │   │   └── logger.ts          # Pino structured logger (NO console.log anywhere)
+│   │   ├── middleware/
+│   │   │   ├── auth.ts            # JWT verify — checks role_version every request
+│   │   │   ├── requireRole.ts     # RBAC gate — fire-and-forget ACCESS_DENIED audit
+│   │   │   ├── require2FA.ts      # 2FA gate for SUPER_ADMIN critical ops
+│   │   │   ├── rateLimit.ts       # Per-route rate limits (§6.6)
+│   │   │   ├── requestLogger.ts   # Structured request log (method, route, status, ms, orgId)
+│   │   │   └── tenant.ts          # Org isolation — resolveOrgContext()
+│   │   ├── routes/
+│   │   │   ├── v1/
+│   │   │   │   ├── dashboard.ts
+│   │   │   │   ├── filings/
+│   │   │   │   │   ├── nil.ts
+│   │   │   │   │   ├── vat.ts
+│   │   │   │   │   ├── wht.ts
+│   │   │   │   │   └── paye.ts
+│   │   │   │   ├── compliance/
+│   │   │   │   │   ├── penalty-estimate.ts
+│   │   │   │   │   ├── preflight.ts           # runPreFlight() — called before every filing submit
+│   │   │   │   │   └── vat-credit.ts
+│   │   │   │   ├── onboarding/
+│   │   │   │   │   ├── tin.ts
+│   │   │   │   │   ├── cac.ts
+│   │   │   │   │   └── progress.ts            # PATCH /api/v1/onboarding/progress — resume wizard
+│   │   │   │   ├── documents.ts
+│   │   │   │   ├── team.ts
+│   │   │   │   └── accountant.ts
+│   │   │   ├── v2/
+│   │   │   │   ├── monitoring.ts              # health + metrics; health includes db/redis latency
+│   │   │   │   ├── dlq.ts                     # DLQ management: list, retry, resolve (ADMIN+)
+│   │   │   │   └── audit.ts                   # Audit log explorer + NDJSON export (ADMIN+)
+│   │   │   └── webhooks/
+│   │   │       └── flutterwave.ts
+│   │   ├── middleware/
+│   │   │   ├── auth.ts            # JWT verify — checks role_version every request
+│   │   │   ├── requireRole.ts     # RBAC gate — fire-and-forget ACCESS_DENIED audit
+│   │   │   ├── require2FA.ts      # 2FA gate for SUPER_ADMIN critical ops
+│   │   │   ├── rateLimit.ts       # Per-route rate limits (§6.6)
+│   │   │   ├── requestLogger.ts   # Structured request log
+│   │   │   ├── tenant.ts          # Org isolation — resolveOrgContext()
+│   │   │   ├── validate.ts        # Zod schema validation middleware (arch §5.3)
+│   │   │   └── idempotency.ts     # X-Idempotency-Key Redis check (arch §5.4)
+│   │   ├── services/
+│   │   │   ├── audit.ts
+│   │   │   ├── dashboardService.ts
+│   │   │   ├── penaltyService.ts
+│   │   │   ├── vatCredit.service.ts
+│   │   │   ├── riskScoring.ts       # computeRiskScore() — 5-component scoring (arch §3.2)
+│   │   │   ├── anomalyEngine.ts     # computeAnomalies() — 7 signals, capped at 5 (arch §3.1)
+│   │   │   ├── compliancePreFlight.ts  # runPreFlight() — pre-submission checks (arch §8.3)
+│   │   │   ├── eventBus.ts
+│   │   │   ├── nrsService.ts        # Circuit breaker via opossum (arch §3.3)
+│   │   │   ├── redis.ts
+│   │   │   └── notifications.ts
+│   │   ├── cron/
+│   │   │   ├── orchestrator.ts    # Exactly 7 jobs — central registry; no scattered setInterval
+│   │   │   ├── taxHealthSnapshot.ts
+│   │   │   ├── riskScoringCron.ts
+│   │   │   └── keepAlive.ts
+│   │   ├── metrics.ts             # prom-client singleton
+│   │   └── workers/
+│   │       └── nrsStampWorker.ts
+│   └── prisma/
+│       ├── schema.prisma
+│       ├── migrations/            # Append-only, timestamped — never rollback in prod
+│       └── seeds/
+│           └── smokeTestUser.ts
 ├── mobile/
 │   └── src/
 │       ├── design-system/
-│       │   ├── animation.ts       # DURATION, EASE, ENTER_FROM, ZONE_DELAY
-│       │   ├── tokens.ts          # Color, spacing, typography
-│       │   └── ngn.ts             # formatNGN() — C-32
+│       │   ├── animation.ts
+│       │   ├── tokens.ts
+│       │   └── ngn.ts
 │       ├── contexts/
-│       │   └── ThemeContext.tsx   # useTheme(), dark mode provider
+│       │   └── ThemeContext.tsx
 │       ├── components/
-│       │   ├── dashboard/         # DashboardZone, Skeleton, Gauge, QuickActions
-│       │   ├── education/         # ExplainMyTax, TaxAcademy
-│       │   └── shared/            # SectionState, InlineError
+│       │   ├── dashboard/
+│       │   └── shared/
 │       ├── screens/
 │       │   ├── DashboardScreen.tsx
 │       │   ├── OnboardingWizard.tsx
-│       │   └── filings/           # VAT, WHT, PAYE, NIL
+│       │   └── filings/
 │       ├── hooks/
-│       │   ├── useDashboard.ts    # @tanstack/react-query composite
-│       │   ├── useTenant.ts       # Org context hook
-│       │   └── useBiometric.ts    # expo-local-authentication
+│       │   ├── useDashboard.ts
+│       │   ├── useTenant.ts
+│       │   └── useBiometric.ts
 │       ├── i18n/
 │       │   ├── en.json
-│       │   └── pidgin.json        # Natural Lagos Pidgin — not literal
+│       │   └── pidgin.json
 │       └── services/
-│           └── apiClient.ts       # Axios + offline interceptor
+│           └── apiClient.ts
 │   ├── eas.json
-│   └── metro.config.js            # blockList: backend/, admin/, *.test.*
+│   └── metro.config.js
 ├── admin/
 │   └── src/
-│       ├── middleware.ts          # Edge JWT (jose), RBAC route guard
-│       ├── pages/admin/           # Dashboard, audit, DLQ, analytics, team
-│       └── components/            # Mirrors mobile design-system tokens
+│       ├── middleware.ts
+│       ├── pages/admin/
+│       │   ├── analytics/     # 5-panel financial analytics (arch §7.1)
+│       │   ├── dlq/           # DLQ management UI — retry/resolve (arch §7.2)
+│       │   ├── audit/         # Audit log explorer + NDJSON export (arch §7.3)
+│       │   └── team/          # Team RBAC + last-OWNER guard (arch §7.4)
+│       └── components/
 │   └── vercel.json
 ├── infra/
-│   ├── terraform/                 # Render + Cloudflare IaC
+│   ├── terraform/
 │   └── grafana/alerts.yml
 ├── scripts/
-│   ├── check-i18n.ts              # Flatten + diff en vs pidgin keys; exit 1 on mismatch
-│   └── compress-assets.sh         # pngquant pre-build
-├── .husky/pre-commit              # 4 gates enforced locally
-├── .github/workflows/pipeline.yml # 5-stage CI/CD
-├── render.yaml                    # IaC — committed to repo root
+│   ├── check-i18n.ts
+│   └── compress-assets.sh
+├── .husky/pre-commit
+├── .github/workflows/pipeline.yml
+├── render.yaml
 └── CHANGELOG.md
 ```
 
@@ -128,13 +159,15 @@ taxbridge/
 
 | Service | Owns | Cannot Touch |
 |---|---|---|
-| `packages/contracts/` | All tax math, RBAC types | No DB, no HTTP |
-| `backend/` | API, auth, filing, queues | No inline tax math |
-| `mobile/` | UX, offline, filing UX | No tax math, no admin logic |
-| `admin/` | Ops dashboard, RBAC mgmt | No mobile-only logic |
-| `infra/` | IaC, Grafana configs | No application code |
+| `packages/contracts/` | All tax math, RBAC types, shared interfaces, `IntelligenceInput` type | No DB, no HTTP |
+| `backend/` | API, auth, filing, queues, anomaly engine, risk scoring | No inline tax math |
+| `mobile/` | UX, offline, filing UX, onboarding wizard | No tax math, no admin logic |
+| `admin/` | Ops dashboard, RBAC mgmt, DLQ, audit explorer, analytics | No mobile-only logic |
+| `infra/` | IaC, Grafana configs, Dockerfile | No application code |
 
 **Cross-boundary rule:** Tax calculation always flows `mobile → API → contracts`. Never `mobile → contracts` directly in production runtime (bundle size + audit trail requirements).
+
+**Intelligence boundary rule:** `anomalyEngine.ts` and `riskScoring.ts` live in `backend/src/services/`. They consume `IntelligenceInput` from `packages/contracts/src/types.ts`. They never call HTTP or touch the event bus — pure functions called by `dashboardService.ts` and the risk scoring cron.
 
 ### 1.3 Multi-Tenant Org Isolation
 
@@ -147,7 +180,7 @@ export async function resolveOrgContext(req: AuthRequest, res: Response, next: N
   const member = await (prisma as any).orgMember.findFirst({
     where: { userId, orgId, status: 'active', deletedAt: null },
   });
-  if (!member) return res.status(403).json({ error: 'ORG_ACCESS_DENIED' });
+  if (!member) return res.status(403).json({ error: 'ORG_ACCESS_DENIED', message: 'You do not have access to this organisation' });
   req.orgContext = { orgId, role: member.role, memberId: member.id };
   next();
 }
@@ -170,9 +203,9 @@ export function formatNGN(amount: number, opts?: { compact?: boolean }): string 
     minimumFractionDigits: 0, maximumFractionDigits: 0,
   }).format(amount);
 }
-// ✅ formatNGN(632_400)                      → "₦632,400"
+// ✅ formatNGN(632_400)                       → "₦632,400"
 // ✅ formatNGN(5_000_000, { compact: true }) → "₦5.0M"
-// ❌ `₦${amount.toLocaleString()}`           → OEM-dependent, breaks on some Android
+// ❌ `₦${amount.toLocaleString()}`           → OEM-dependent; breaks on some Android
 ```
 
 ---
@@ -185,15 +218,15 @@ export function formatNGN(amount: number, opts?: { compact?: boolean }): string 
 ```typescript
 export const NRS_STAMP_THRESHOLD          = 200_000;
 export const VAT_RATE                     = 0.075;
-export const VAT_REGISTRATION_THRESHOLD   = 25_000_000;   // mandatory reg ≥ ₦25M
-export const VAT_SMALL_CO_EXEMPTION       = 100_000_000;  // exempt if turnover < ₦100M
+export const VAT_REGISTRATION_THRESHOLD   = 25_000_000;
+export const VAT_SMALL_CO_EXEMPTION       = 100_000_000;
 export const SMALL_CO_CIT_THRESHOLD       = 100_000_000;
 export const SMALL_CO_FIXED_ASSETS_MAX    = 250_000_000;
 export const WHT_DEFAULT_RATE             = 0.10;
 export const WHT_PROFESSIONAL_RATE        = 0.10;  // 10% — NOT 5%
 export const WHT_CONSTRUCTION_RATE        = 0.05;  // ONLY construction/contracts
 export const WHT_NONRESIDENT_RATE         = 0.04;
-export const WHT_MONTHLY_EXEMPTION_CAP    = 2_000_000;  // BOTH TIN + ≤₦2M required
+export const WHT_MONTHLY_EXEMPTION_CAP    = 2_000_000;
 export const DEV_LEVY_RATE                = 0.04;
 export const CIT_LARGE_RATE               = 0.30;
 export const CIT_SMALL_RATE               = 0.00;
@@ -231,7 +264,7 @@ export function calculateRRA(annualRentPaid: number): number {
 | CRA formula: `max(₦200k, 1%×gross) + 20%×gross` | `calculateRRA()` | `grep -rn "CRA\|consolidatedRelief"` → 0 |
 | Individual minimum tax: `max(PIT, 1%×gross)` | None — liability = ₦0 if Band 1 | `grep -rn "minTax\|0\.01.*gross"` → 0 |
 | 15% ETR on PIT paths | Corporate MNE only (NTA 2025 §47) | `grep -rn "ETR.*PIT\|15%.*individual"` → 0 |
-| CIT medium band 20% (₦25M–₦100M) | ₦100M threshold, 0% or 30% only | `grep -rn "0\.20.*CIT\|CIT.*20%"` → 0 |
+| CIT medium band 20% | ₦100M threshold, 0% or 30% only | `grep -rn "0\.20.*CIT\|CIT.*medium"` → 0 |
 
 ### 2.2 PIT Accuracy Gate
 
@@ -246,7 +279,7 @@ npx ts-node -e "
 # RRA=120,000 | Taxable=4,680,000 | Band1=0 | Band2=330,000 | Band3=302,400 | Total=632,400
 ```
 
-### 2.3 WHT Rate Decision — Surface in Wizard
+### 2.3 WHT Rate Decision Tree
 
 ```
 Professional / consultancy fees  → 10%  ⚠️ Common error: users expect 5%
@@ -264,25 +297,22 @@ Exemption requires BOTH conditions simultaneously:
 ### 2.4 Penalty Engine — NTA 2025 §§153-180
 
 ```typescript
-// packages/contracts/src/penalties.ts
 // calculatePenalty(input): PenaltyResult
 // disclosurePhase: 'before_audit' | 'during_audit' | 'after_assessment'
 // waiverRate:      before=100%,    during=50%,       after=0%
 // monthsLate   = Math.ceil(daysLate / 30)
 // lateFiling   = firstMonth + Math.max(0, monthsLate - 1) × subsequent
-// cbnMpr       = parseFloat(process.env.CBN_MPR ?? '0.2725')  // NEVER hardcoded (C-27)
+// cbnMpr       = parseFloat(process.env.CBN_MPR ?? '0.2725')  // NEVER hardcoded
 // interest     = taxAmountDue × (cbnMpr + 0.10) × (daysLate / 365)
 // netPenalty   = (lateFiling + interest) × (1 - waiverRate)
-// NIL return late: same penalty schedule as substantive late filing
-// VAT penalty: PENALTY_VAT_CO_MONTH per month (not PENALTY_CO_FIRST_MONTH) — separate schedule
+// NIL return late: same schedule as substantive late filing
+// VAT penalty: PENALTY_VAT_CO_MONTH per month — separate schedule
 ```
 
-**Penalty accuracy gate:**
+**Accuracy gates:**
 ```
-Company, 32 days late, ₦0 tax due:
-  lateFiling = 250,000 + 125,000 = 375,000 | interest = 0 | netPenalty = 375,000
-Individual, 1 day late, ₦100,000 due, before_audit:
-  lateFiling = 50,000 | interest = 100,000 × (CBN_MPR + 0.10) × (1/365) | netPenalty = 0
+Company, 32 days late, ₦0 tax due → lateFiling=375,000 | interest=0 | netPenalty=375,000
+Individual, 1 day late, ₦100k due, before_audit → netPenalty=0
 ```
 
 ---
@@ -292,64 +322,64 @@ Individual, 1 day late, ₦100,000 due, before_audit:
 Execute all 8 before modifying any file. Steps 4–7 must return 0 results or STOP.
 
 ```bash
-# Step 1 — Baseline
+# Step 1
 cat CHANGELOG.md && cat PRODUCTION_READY.md
 
-# Step 2 — Last deployment
+# Step 2
 cat DEPLOYMENT_v11.0_COMPLETE.md 2>/dev/null || cat DEPLOYMENT_v10.3_COMPLETE.md
 
-# Step 3 — Module integrity
+# Step 3
 yarn prompts:verify
 # → must report: "✅ 11/11 modules loaded (M00–M10)"
 
-# Step 4 — FIRS eradication gate
+# Step 4 — FIRS eradication
 grep -rn "FIRS" backend/src mobile/src admin/src packages \
-  --include="*.ts" --include="*.tsx" --include="*.json" --include="*.md" \
-  | grep -v node_modules | grep -v .git
-# → MUST return 0 results
+  --include="*.ts" --include="*.tsx" --include="*.json" --include="*.md" | grep -v node_modules
+# → 0 results
 
-# Step 5 — NRSt typo gate
+# Step 5 — NRSt typo
 grep -rn "NRSt" mobile/src --include="*.json"
-# → MUST return 0 results
+# → 0 results
 
-# Step 6 — CRA abolition gate
+# Step 6 — Abolished provisions
 grep -rn "CRA\b\|consolidatedRelief\|minTax\|0\.01.*gross\|ETR.*PIT" \
   packages/contracts/src backend/src mobile/src --include="*.ts" --include="*.tsx"
-# → MUST return 0 results
+# → 0 results
 
-# Step 7 — Animation token gate
+# Step 7 — Animation token
 grep -rn "withTiming.*[0-9]\{3,4\}" mobile/src --include="*.ts" --include="*.tsx" \
   | grep -v "animation.ts"
-# → MUST return 0 results
+# → 0 results
 
 # Step 8 — Render warm-up
 curl -s -o /dev/null -w "Render: %{http_code} in %{time_total}s\n" \
-  https://taxbridge-api-ker8.onrender.com/api/v2/monitoring/health
+  "${RENDER_EXTERNAL_URL:-https://taxbridge-api-ker8.onrender.com}/api/v2/monitoring/health"
 ```
 
 ---
 
-## 4. AGENT ROLES
+## 4. AGENT ROLES & COLLABORATION PROTOCOL
 
-| Agent | Files Owned | Cannot Modify |
-|---|---|---|
-| **Architect** | `packages/contracts/`, `prisma/schema.prisma`, architecture docs | App logic files |
-| **Security** | `middleware/auth.ts`, `middleware/requireRole.ts`, `middleware/tenant.ts`, `validateEnv.ts` | Business logic |
-| **DevOps** | `render.yaml`, `eas.json`, `.github/workflows/`, `infra/terraform/`, `Dockerfile` | Source code |
-| **UI** | `mobile/src/`, `admin/src/`, `mobile/src/design-system/` | Backend services |
-| **QA** | `**/*.test.ts`, `**/*.spec.ts`, `scripts/check-i18n.ts` | Source implementation |
-| **AI Coding Agent** | All files, guided by this prompt | Must not deviate from constraints |
+| Agent | Files Owned | Cannot Modify | Responsibility |
+|---|---|---|---|
+| **Architect** | `packages/contracts/`, `prisma/schema.prisma`, architecture docs | App logic | Tax math correctness, schema integrity, service boundary enforcement |
+| **Security Guardian** | `middleware/auth.ts`, `requireRole.ts`, `tenant.ts`, `validateEnv.ts` | Business logic | Zero-trust posture, PII controls, NDPR/CBN compliance |
+| **DevOps Maestro** | `render.yaml`, `eas.json`, `.github/workflows/`, `infra/terraform/` | Source code | CI/CD gates, IaC, blue-green deployments, rollback readiness |
+| **Product & UX Visionary** | `mobile/src/`, `admin/src/`, design-system | Backend services | Mobile-first UX, Pidgin quality, animation, WCAG 2.2 AA |
+| **QA Sentinel** | `**/*.test.ts`, `**/*.spec.ts`, `scripts/check-i18n.ts` | Source implementation | Coverage enforcement, accuracy gates, performance thresholds |
+| **AI Coding Artisan** | All files, guided by this prompt | Must not deviate from constraints | Autonomous execution within prompt boundaries only |
 
-**AI Coding Agent rules:**
+**AI Coding Artisan rules — non-negotiable:**
 1. Load task context via `loadContextForTask()` before writing any code.
 2. Read the target file completely before modifying it.
 3. After every file write, run the applicable CI gate for that file's domain.
 4. Never combine unrelated concerns in a single commit.
-5. Comply with C-01 through C-32 without exception.
+5. Comply with C-01 through C-33 without exception.
+6. On any gate failure: stop, fix, re-gate, only then continue.
 
 ---
 
-## 5. ABSOLUTE CONSTRAINTS — C-01 through C-32
+## 5. ABSOLUTE CONSTRAINTS — C-01 through C-33
 
 Format: Rule | ✅ correct | ❌ wrong | CI gate where applicable.
 
@@ -360,9 +390,10 @@ Format: Rule | ✅ correct | ❌ wrong | CI gate where applicable.
 ```
 
 **C-02 — No FIRS**
-`FIRS` must not appear in any file. CI: `grep -rn "FIRS" . --include="*.ts" --include="*.tsx" --include="*.json" | grep -v node_modules` → 0
+`FIRS` must not appear in any file.
+CI: `grep -rn "FIRS" . --include="*.ts" --include="*.tsx" --include="*.json" | grep -v node_modules` → 0
 
-**C-03 — Android SDK (Fixed)**
+**C-03 — Android SDK Fixed**
 `compileSdkVersion: 36`, `targetSdkVersion: 35`. Never change these values.
 
 **C-04 — EAS Config Canonical**
@@ -372,24 +403,25 @@ Format: Rule | ✅ correct | ❌ wrong | CI gate where applicable.
 `npm test --workspaces` → ≥ 550 passing, 0 failing before any merge.
 
 **C-06 — Bilingual i18n**
-Every user-visible string in both `en.json` AND `pidgin.json`. Pidgin must be natural Lagos Pidgin, not literal translation. CI: `yarn i18n:check` → exit 0.
+Every user-visible string in both `en.json` AND `pidgin.json`. Pidgin must be natural Lagos Pidgin, not literal translation.
+CI: `yarn i18n:check` → exit 0
 
 **C-07 — Graceful Degradation**
-No route returns 500 on DB or network failure. Degrade to `FALLBACK_*` constants or inline error response.
+No route returns 500 on DB or network failure. Degrade to `FALLBACK_*` constants.
 
 **C-08 — No Fabricated Data**
 `Math.random()` is forbidden in dashboard, chart, analytics, or tax calculation code.
 
 **C-09 — Tax Math in contracts/ Only**
-Zero inline tax math in `backend/`, `mobile/`, or `admin/`. All calculations via `@taxbridge/contracts`.
+Zero inline tax math in `backend/`, `mobile/`, or `admin/`.
 
 **C-10 — Constants from contracts/constants.ts Only**
-Never hardcode VAT rates, PIT bands, WHT rates, or penalty amounts anywhere outside `constants.ts`.
+Never hardcode VAT rates, PIT bands, WHT rates, or penalty amounts outside `constants.ts`.
 
 **C-11 — Zod: .issues Not .errors**
 ```typescript
-// ✅ res.status(400).json({ errors: result.error.issues });
-// ❌ res.status(400).json({ errors: result.error.errors }); // TypeError
+// ✅ res.status(400).json({ error: 'VALIDATION_ERROR', issues: result.error.issues });
+// ❌ res.status(400).json({ errors: result.error.errors }); // TypeError — Zod v3 uses .issues
 ```
 
 **C-12 — Admin Cold-Start Fallbacks**
@@ -424,8 +456,8 @@ CI: `grep -rn "No anomal\|noAnomal" mobile/src` → 0
 
 **C-20 — Gesture Response ≤ 100ms**
 ```typescript
-// ✅ onPress={() => router.push('/route')}       // synchronous — visual ack immediate
-// ❌ onPress={async () => { await fetch(); router.push('/route'); }} // blocks ack
+// ✅ onPress={() => router.push('/route')}
+// ❌ onPress={async () => { await fetch(); router.push('/route'); }}
 ```
 CI: `grep -rn "await.*router\|router.*await" mobile/src/screens/DashboardScreen.tsx` → 0
 
@@ -435,7 +467,7 @@ CI: `grep -rn "await.*router\|router.*await" mobile/src/screens/DashboardScreen.
 **C-22 — VAT Credit from DB**
 ```typescript
 // ✅ (prisma as any).vatCreditBalance.findFirst({ where: { orgId, period, usedInPeriod: null } })
-// ❌ recomputeVATFromTransactions() // double-counts, produces stale results
+// ❌ recomputeVATFromTransactions() // double-counts, stale results
 ```
 
 **C-23 — WHT Exemption: Both Conditions Required**
@@ -443,17 +475,17 @@ WHT exemption only when: (a) counterparty TIN validated AND (b) monthly total �
 
 **C-24 — RBAC via Middleware Only**
 ```typescript
-// ✅ router.post('/payroll', authenticate, resolveOrgContext, requireRole('accountant'), handler)
+// ✅ router.post('/payroll', authenticate, resolveOrgContext, requireRole('ACCOUNTANT'), handler)
 // ❌ if (req.user.role === 'admin') { ... } // inline bypass — forbidden
 ```
 
 **C-25 — Audit Events Always Awaited**
 ```typescript
 // ✅ await writeAuditEvent({ ... }, prisma);
-// ❌ writeAuditEvent({ ... }).catch(() => {}); // EXCEPTION: ACCESS_DENIED in requireRole only
+// Exception: ACCESS_DENIED in requireRole() → fire-and-forget .catch(() => {})
 ```
 
-**C-26 — Pino Logger (No console.log in Backend)**
+**C-26 — Pino Logger Only**
 ```typescript
 // ✅ logger.info({ orgId, userId }, 'NIL return filed')
 // ❌ console.log('NIL return filed')
@@ -482,7 +514,7 @@ CI: `grep -rn "0\.2725\b" packages/contracts/src backend/src` → 0
 **C-30 — Docker Secrets as Files**
 ```typescript
 // ✅ fs.readFileSync('/run/secrets/db_password', 'utf8').trim()
-// ❌ process.env.DB_PASSWORD // Docker Swarm mounts secrets as files, not env vars
+// ❌ process.env.DB_PASSWORD // Docker Swarm mounts secrets as files
 ```
 
 **C-31 — Org Isolation on All Business Queries**
@@ -497,6 +529,26 @@ CI: `grep -rn "0\.2725\b" packages/contracts/src backend/src` → 0
 // ❌ `₦${amount.toLocaleString()}` // OEM-dependent locale behavior
 ```
 
+**C-33 — SENTRY_DSN Placeholder Gate**
+`REPLACE_WITH_ACTUAL_DSN_SECRET` must never appear in committed code.
+CI: `grep '"SENTRY_DSN": "REPLACE' mobile/eas.json` → 0
+
+**C-34 — validate() Middleware on All Mutation Routes**
+```typescript
+// ✅ router.post('/filings/nil', authenticate, resolveOrgContext, validate(NilSchema), handler)
+// ❌ const data = nilSchema.parse(req.body); // inside handler — no middleware protection
+```
+Every POST/PATCH handler with a body schema must use the `validate()` middleware.
+Never call `schema.parse()` directly inside a route handler.
+
+**C-35 — Idempotency on Exactly-Once Operations**
+```typescript
+// ✅ router.post('/filings/nil', authenticate, resolveOrgContext, idempotency, validate(NilSchema), handler)
+// ❌ POST /api/v1/filings/nil with no idempotency → duplicate filing risk on network retry
+```
+Applies to: `POST /api/v1/filings/nil`, `POST /api/v1/filings/vat`, `POST /api/v1/filings/wht`, `POST /api/v1/payroll/run`, `POST /api/v1/payments/initiate`.
+Client sends `X-Idempotency-Key: <uuid>`. Backend caches response in Redis 24h.
+
 ---
 
 ## 6. SECURITY CONTROLS
@@ -504,56 +556,44 @@ CI: `grep -rn "0\.2725\b" packages/contracts/src backend/src` → 0
 ### 6.1 Authentication
 
 ```typescript
-// JWT: RS256 preferred in production; HS256 acceptable in dev
+// JWT: RS256 in production; HS256 acceptable in dev
 // Access token TTL:  15 minutes
 // Refresh token TTL: 7 days, rotated on every use, single-use
 // Token storage: expo-secure-store (mobile); httpOnly cookie (admin)
 // Never: localStorage, AsyncStorage for tokens
 
-// Refresh flow:
-// 1. Mobile sends expired access token → 401
-// 2. Mobile sends refresh token → POST /api/v1/auth/refresh
-// 3. Backend: verify refresh, check role_version in Redis, issue new pair
-// 4. Old refresh token invalidated immediately
-
 // Role-version invalidation on role change:
 await redis.setex(`role_version:${userId}`, 60 * 60 * 24 * 7, Date.now().toString());
-// TTL = 7 days — matches refresh token lifetime; stale tokens rejected on every request
+// Middleware checks role_version on EVERY authenticated request — stale tokens rejected immediately
 ```
 
-### 6.2 Biometric Authentication (MOD-41)
+### 6.2 Biometric Authentication
 
 ```typescript
 // mobile/src/hooks/useBiometric.ts
-import * as LocalAuthentication from 'expo-local-authentication';
-
 export async function authenticateWithBiometric(): Promise<boolean> {
   const hasHardware = await LocalAuthentication.hasHardwareAsync();
   const isEnrolled  = await LocalAuthentication.isEnrolledAsync();
   if (!hasHardware || !isEnrolled) return false; // fall through to PIN — never block login
   const result = await LocalAuthentication.authenticateAsync({
     promptMessage: 'Authenticate to access TaxBridge',
-    cancelLabel: 'Use PIN',
-    fallbackLabel: 'Use PIN',
-    disableDeviceFallback: false,
+    cancelLabel: 'Use PIN', fallbackLabel: 'Use PIN', disableDeviceFallback: false,
   });
   return result.success;
 }
-// Biometric consent stored in expo-secure-store, not AsyncStorage
-// Re-prompt after 5min inactivity (configurable per org settings)
+// Re-prompt after 5min inactivity. Consent in expo-secure-store, not AsyncStorage.
 ```
 
 ### 6.3 PII Scrubbing (Sentry)
 
 ```typescript
-// Order matters — longest pattern first prevents partial masking of longer numbers
+// Order matters — longest pattern first prevents partial masking
 beforeSend(event) {
   const raw    = JSON.stringify(event);
   const masked = raw
-    .replace(/\b\d{11}\b/g, '[BVN_REDACTED]')   // BVN: exactly 11 digits
-    .replace(/\b\d{10}\b/g, '[ACCT_REDACTED]')  // Account: exactly 10 digits
-    .replace(/\b\d{8}\b/g,  '[TIN_REDACTED]');  // TIN: exactly 8 digits
-  // \b word-boundary ensures 4-digit years (2025, 2026) are NOT matched
+    .replace(/\b\d{11}\b/g, '[BVN_REDACTED]')   // BVN: 11 digits
+    .replace(/\b\d{10}\b/g, '[ACCT_REDACTED]')  // Account: 10 digits
+    .replace(/\b\d{8}\b/g,  '[TIN_REDACTED]');  // TIN: 8 digits
   try { return JSON.parse(masked); } catch { return event; }
 }
 ```
@@ -562,19 +602,17 @@ beforeSend(event) {
 
 ```typescript
 // backend/src/app.ts — exact middleware order required
-// NOTE: Helmet CSP below applies to the backend API server.
-// Admin panel (Next.js/Vercel) has its own CSP in admin/vercel.json headers config.
-import './validateEnv';                            // MUST be first import
+import './validateEnv'; // MUST be first import
 
 app.use(helmet({
   contentSecurityPolicy: {
     directives: {
-      defaultSrc:              ["'self'"],
-      scriptSrc:               ["'self'"],
-      styleSrc:                ["'self'", "'unsafe-inline'"],
-      connectSrc:              ["'self'", "https://taxbridge-api-ker8.onrender.com",
-                                "https://o*.ingest.sentry.io"],   // Sentry error reporting
-      frameAncestors:          ["'none'"],
+      defaultSrc: ["'self'"],
+      scriptSrc:  ["'self'"],
+      styleSrc:   ["'self'", "'unsafe-inline'"],
+      connectSrc: ["'self'", process.env.RENDER_EXTERNAL_URL ?? 'https://taxbridge-api-ker8.onrender.com',
+                   "https://o4506000000000000.ingest.sentry.io"],
+      frameAncestors: ["'none'"],
       upgradeInsecureRequests: [],
     },
   },
@@ -582,17 +620,19 @@ app.use(helmet({
 }));
 
 app.use(cors({
-  origin:      ['https://taxbridge.vercel.app', 'https://app.taxbridge.ng'],
+  origin: (process.env.CORS_ORIGIN ?? 'https://taxbridge.vercel.app').split(','),
   credentials: true,
 }));
+
+// Gzip compression — reduce payload size on slow connections
+app.use(compression({ level: 6, threshold: 1024 }));
 
 // express.raw BEFORE express.json — rawBody preserved for Flutterwave HMAC
 app.use('/webhooks', express.raw({ type: 'application/json' }));
 app.use(express.json({ limit: '1mb' }));
-app.set('trust proxy', 1); // Cloudflare + Render in front
+app.set('trust proxy', 1);
 
-// Bind — Render requires 0.0.0.0 (not localhost)
-app.listen(parseInt(process.env.PORT!), '0.0.0.0', () => {
+app.listen(parseInt(process.env.PORT!, 10), '0.0.0.0', () => {
   logger.info({ port: process.env.PORT }, 'Server started');
 });
 ```
@@ -600,7 +640,6 @@ app.listen(parseInt(process.env.PORT!), '0.0.0.0', () => {
 ### 6.5 Flutterwave HMAC
 
 ```typescript
-// Only correct implementation — rawBody.toString('utf8'), never JSON.stringify(req.body)
 const hmac = crypto
   .createHmac('sha256', process.env.FLUTTERWAVE_SECRET!)
   .update((req.body as Buffer).toString('utf8'))
@@ -619,25 +658,68 @@ if (!crypto.timingSafeEqual(Buffer.from(hmac), Buffer.from(received))) {
 | `GET /api/v1/dashboard` | 30 req/min per userId |
 | `POST /api/v1/filings/*` | 10 req/min per orgId |
 | `POST /api/v1/filings/nil` | 5 req/min per orgId |
+| `POST /api/v1/onboarding/tin` | 3 req/min per IP |
+| `POST /api/v1/onboarding/cac` | 3 req/min per IP |
 | `GET /api/v2/monitoring/health` | Unlimited (public) |
 | `GET /api/v2/monitoring/metrics` | 10 req/min, ADMIN only |
 
-### 6.7 TIN + CAC/RC Validation (Onboarding)
+### 6.7 TIN + CAC/RC Onboarding Validation
 
 ```typescript
-// POST /api/v1/onboarding/tin
-// Body: { tin: string } — exactly 8 digits
-// Action: NRS TIN lookup → validate active, not suspended
+// POST /api/v1/onboarding/tin — Body: { tin: string } — exactly 8 digits
+// NRS TIN lookup → validate active, not suspended
 // Response: { valid, tin, entityName, entityType, registrationDate }
-// Rate limit: 3 req/min per IP (prevents brute-force TIN enumeration)
 // Audit: await writeAuditEvent — TIN lookups are sensitive PII access
+// TIN inline state machine (mobile):
+//   IDLE → VALIDATING (8 digits entered, debounced 800ms) →
+//     SUCCESS: green ✅, entityName displayed, step unlocked
+//     FAILED:  red ❌ + "TIN invalid — check and retry" + retry button
+//     NETWORK_ERROR: amber ⚠️ + "Network issue — try again" + retry button
 
-// POST /api/v1/onboarding/cac
-// Body: { rcNumber: string } — format: RC-NNNNNN
-// Action: CAC API lookup → entity name, directors, status
+// POST /api/v1/onboarding/cac — Body: { rcNumber: string } — format: RC-NNNNNN
+// CAC API → entity name, directors, status
 // Store: orgProfile.cacRcNumber, orgProfile.entityName (verified)
-// Rate limit: 3 req/min per IP
 // Audit: await writeAuditEvent
+
+// PATCH /api/v1/onboarding/progress — Body: { step, tinVerified?, cacVerified?, selectedObligations? }
+// Upsert OnboardingProgress for req.orgContext.orgId
+// Return: { currentStep, completed, nextRoute }
+// Offline resilience: mobile queues to AsyncStorage on network error, syncs on reconnect
+// Resume: if OnboardingProgress.completed===false AND currentStep>1 → show resume prompt on launch
+// Completion: router.replace('/dashboard') — never router.push (prevents back navigation to wizard)
+```
+
+### 6.8 NRS Service — Circuit Breaker
+
+```typescript
+// backend/src/services/nrsService.ts
+// Dependencies: opossum + @types/opossum
+const breaker = new CircuitBreaker(callNRSAPI, {
+  timeout:                  10_000,  // 10s — NRS API can be slow
+  errorThresholdPercentage: 50,
+  resetTimeout:             30_000,  // retry at half-open after 30min
+  volumeThreshold:          5,
+});
+// State transitions update the nrsCircuitState prom-client Gauge:
+// closed=0 (healthy) | half-open=1 | open=2 (unreachable)
+// DIGITAX_MOCK_MODE=true → bypass circuit, return { irn: `MOCK-IRN-${Date.now()}` }
+// On open: logger.warn + Sentry.captureException + notify ADMIN (eventBus: nrs.circuitOpened)
+```
+
+### 6.9 Pre-Filing Compliance Check
+
+```typescript
+// backend/src/services/compliancePreFlight.ts
+// Called via GET /api/v1/filings/preflight?taxType=&period=
+// Returns: { pass: boolean, warnings: Check[], failures: Check[] }
+// Checks performed in parallel:
+//   1. TIN validity (not suspended in NRS)
+//   2. Prior period filing gap (no gap > 30 days for this taxType)
+//   3. VAT registration status (if taxType=VAT, org must be VAT-registered)
+//   4. NRS circuit health (warn if open — filing will queue, not block)
+// Failures block submission client-side (client renders them before showing Submit CTA)
+// Warnings are shown inline as informational notices
+// Client mobile: call preflight BEFORE showing "Submit" CTA on all filing wizards
 ```
 
 ---
@@ -651,12 +733,7 @@ if (!crypto.timingSafeEqual(Buffer.from(hmac), Buffer.from(received))) {
 export type UserRole = 'SUPER_ADMIN' | 'ADMIN' | 'OWNER' | 'ACCOUNTANT' | 'EMPLOYEE' | 'VIEWER';
 
 export const ROLE_HIERARCHY: Readonly<Record<UserRole, number>> = {
-  SUPER_ADMIN: 6,
-  ADMIN:       5,
-  OWNER:       4,
-  ACCOUNTANT:  3,
-  EMPLOYEE:    2,
-  VIEWER:      1,
+  SUPER_ADMIN: 6, ADMIN: 5, OWNER: 4, ACCOUNTANT: 3, EMPLOYEE: 2, VIEWER: 1,
 } as const;
 ```
 
@@ -672,16 +749,18 @@ export const ROLE_HIERARCHY: Readonly<Record<UserRole, number>> = {
 | Tax filings submit | ✓ | ✓ | ✓ | ✓ | — | — |
 | Document vault | ✓ | ✓ | ✓ | ✓ | — | — |
 | Team management | ✓ | ✓ | ✓ | — | — | — |
-| RBAC assign | ✓ | ✓ | ✓ | — | — | — |
+| RBAC assign | ✓ | ✓ | ✓¹ | — | — | — |
 | Audit log read | ✓ | ✓ | — | — | — | — |
 | System / admin panel | ✓ | ✓ | — | — | — | — |
 | DLQ management | ✓ | ✓ | — | — | — | — |
 | NRS circuit override | ✓ | — | — | — | — | — |
 
+¹ OWNER may assign roles up to OWNER level within own org only. Backend `requireRole` enforces upper-bound — an actor can never assign a role ≥ their own level.
+
 ### 7.3 Accountant Delegation
 
 ```typescript
-// Every delegation query must check revokedAt: null (C-28)
+// Every delegation query must check revokedAt: null
 async function resolveAccountantScope(accountantUserId: string, targetOrgId: string) {
   const delegation = await (prisma as any).accountantClient.findFirst({
     where: { accountantId: accountantUserId, clientOrgId: targetOrgId, revokedAt: null },
@@ -694,10 +773,8 @@ async function resolveAccountantScope(accountantUserId: string, targetOrgId: str
 ### 7.4 Session Invalidation on Role Change
 
 ```typescript
-// On any role change or delegation revocation:
 await redis.del(`sessions:${userId}`);
 await redis.setex(`role_version:${userId}`, 60 * 60 * 24 * 7, Date.now().toString());
-// TTL = 7 days — matches refresh token lifetime
 // JWT middleware checks role_version on every authenticated request; stale tokens rejected immediately
 ```
 
@@ -730,8 +807,6 @@ model AuditEvent {
 }
 ```
 
-`writeAuditEvent()` call signature:
-
 ```typescript
 await writeAuditEvent({
   orgId:      req.orgContext.orgId,
@@ -744,31 +819,24 @@ await writeAuditEvent({
   ip:         req.ip ?? '0.0.0.0',
   userAgent:  req.headers['user-agent'],
 }, prisma);
-// EXCEPTION: ACCESS_DENIED events in requireRole() are fire-and-forget
-// (.catch(() => {})) — 403 response must not be delayed by audit write latency
+// EXCEPTION: ACCESS_DENIED in requireRole() → .catch(() => {}) — 403 must not wait on audit write
 ```
 
 ### 8.2 Structured Logging (Pino)
 
 ```typescript
 // backend/src/lib/logger.ts
-import pino from 'pino';
 export const logger = pino({
   level: process.env.LOG_LEVEL ?? 'info',
-  ...(process.env.LOG_FORMAT === 'json'
-    ? {}
-    : { transport: { target: 'pino-pretty' } }),
+  ...(process.env.LOG_FORMAT === 'json' ? {} : { transport: { target: 'pino-pretty' } }),
   redact: ['req.headers.authorization', 'body.password', 'body.tin', 'body.bvn'],
 });
-// Always include orgId + userId for traceability:
-// logger.info({ orgId, userId, filingRef }, 'NIL return filed');
-// logger.error({ orgId, err }, 'VAT submission failed');
-// logger.warn({ orgId, circuitState }, 'NRS circuit open');
+// production: LOG_LEVEL=info | staging: LOG_LEVEL=debug | dev: LOG_LEVEL=debug + pino-pretty
 ```
 
 ### 8.3 Required Audit Points
 
-| Action | Audit Method | C-25 |
+| Action | Method | Requirement |
 |---|---|---|
 | Tax filing submit (any type) | `await` | Mandatory |
 | NIL return file | `await` | Mandatory |
@@ -779,7 +847,7 @@ export const logger = pino({
 | TIN lookup | `await` | Mandatory |
 | CAC lookup | `await` | Mandatory |
 | Accountant delegation grant/revoke | `await` | Mandatory |
-| ACCESS_DENIED | `.catch(()=>{})` fire-and-forget | Exception |
+| ACCESS_DENIED | `.catch(()=>{})` | Exception only |
 
 ---
 
@@ -787,43 +855,107 @@ export const logger = pino({
 
 ### 9.1 Filed Return Invariants
 
-Once a `TaxReturn` record reaches `status: 'submitted'`:
-- No field may be updated except `receiptUrl` (NRS receipt attachment)
+Once `TaxReturn.status === 'submitted'`:
+- No field may be updated except `receiptUrl`
 - Amendments create a NEW `TaxReturn` with `amendedReturnId` pointing to original
-- Original return `status` changes to `'amended'` (not deleted)
+- Original return `status` changes to `'amended'` — never deleted
 - All amendments audited with `action: 'AMEND'` and `before`/`after` diff
 
 ### 9.2 NRS Stamp Immutability
 
 ```prisma
 model Invoice {
-  // After nrsStampedAt is set, these fields are locked:
-  // amount, vatAmount, buyerTin, sellerTin, lineItems
-  // Backend rejects PATCH on stamped invoices
-  // UI: stamped invoices show 🔒 indicator, all edit controls disabled
-  nrsStampedAt  DateTime? // null = unstamped, non-null = immutable
-  nrsIRN        String?   // Invoice Reference Number from NRS
+  nrsStampedAt  DateTime? // null = unstamped; non-null = fields below are locked
+  nrsIRN        String?   // Invoice Reference Number
   stampAttempts Int       @default(0)
+  // After nrsStampedAt: amount, vatAmount, buyerTin, sellerTin, lineItems LOCKED
+  // Backend rejects PATCH on stamped invoices
+  // UI: 🔒 indicator; all edit controls disabled
 }
 ```
 
 ### 9.3 Document Vault
 
-- Encrypted at rest: AES-256-GCM, key from AWS KMS, annual rotation
-- Retention: 5 years minimum (NTA 2025 requirement)
-- Deletion: soft-delete only; hard delete only via SUPER_ADMIN after 7-year retention
-- Access: logged to `AuditEvent`; shared links expire in 24h
-- Storage: Cloudflare R2 (preferred for Nigerian latency)
+- Encrypted at rest: AES-256-GCM; KMS rotation annual
+- KMS provider set via `DOCUMENT_VAULT_KMS_PROVIDER` env var (Cloudflare preferred for NG latency)
+- Retention: 5 years minimum (NTA 2025); hard delete only via SUPER_ADMIN after 7 years
+- Access: signed URL expiry 24h; every access logged to `AuditEvent`
+- Storage: Cloudflare R2
 
 ---
 
-## 10. EVENT-DRIVEN FLOWS
+## 9A. API STANDARDIZATION
+
+### 9A.1 Error Response Schema — Universal
+
+```typescript
+// Every error response, every route, every status code — this exact shape:
+interface ApiError {
+  error:   string;     // SCREAMING_SNAKE_CASE — never changes between versions
+  message: string;     // Human-readable EN — safe to display to users
+  issues?: ZodIssue[]; // Present only on 400 VALIDATION_ERROR
+  code?:   number;     // HTTP status echo — optional client convenience
+}
+
+// Complete error code registry (add new codes here, never invent ad-hoc strings):
+// 400 VALIDATION_ERROR        — Zod .issues present
+// 401 UNAUTHORIZED            — missing or expired token
+// 401 TOKEN_EXPIRED           — access token expired; client should refresh
+// 403 ORG_ACCESS_DENIED       — not a member of this org
+// 403 INSUFFICIENT_ROLE       — authenticated but wrong role
+// 403 2FA_REQUIRED            — TOTP window expired for SUPER_ADMIN op
+// 403 DELEGATION_NOT_ACTIVE   — accountant delegation revoked
+// 409 DUPLICATE_FILING        — idempotency conflict on (orgId, taxType, period)
+// 409 LAST_OWNER              — cannot demote/remove last OWNER
+// 422 NRS_SUBMISSION_FAILED   — NRS returned error; circuit may be open
+// 429 RATE_LIMITED            — express-rate-limit triggered
+// 500 INTERNAL_ERROR          — global error handler catch-all
+// 503 NRS_CIRCUIT_OPEN        — NRS unavailable; set DIGITAX_MOCK_MODE=true to unblock
+```
+
+### 9A.2 API Versioning
+
+```
+/api/v1/  — Stable: auth, filings, dashboard, team, documents, onboarding
+/api/v2/  — Ops: /health (public), /metrics (ADMIN), /dlq (ADMIN), /audit (ADMIN)
+/api/v3/  — Reserved (P2 roadmap: graph-based query layer)
+
+Policy: v1 routes receive ≥ 6 months notice before sunset.
+Version is always in path — never in Accept-Version header.
+```
+
+### 9A.3 validate() Middleware — Mandatory on All Mutation Routes (C-34)
+
+```typescript
+// Usage: router.post('/route', authenticate, resolveOrgContext, idempotency, validate(MySchema), handler)
+export function validate(schema: ZodSchema) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    const result = schema.safeParse(req.body);
+    if (!result.success) {
+      return res.status(400).json({ error: 'VALIDATION_ERROR', issues: result.error.issues });
+    }
+    req.body = result.data; // replace with coerced, typed data
+    next();
+  };
+}
+// Never call schema.parse() directly in a route handler (C-34)
+```
+
+### 9A.4 Idempotency Middleware — Exactly-Once Operations (C-35)
+
+```typescript
+// Client sends: X-Idempotency-Key: <uuid> header on mutation requests
+// Backend: check Redis `idem:${key}` — if hit, return cached response immediately
+// After handler success: redis.setex(`idem:${key}`, 86_400, JSON.stringify(responseBody))
+// Required on: POST filings/nil, filings/vat, filings/wht, payroll/run, payments/initiate
+```
+
+---
 
 ### 10.1 Event Bus
 
 ```typescript
 // backend/src/services/eventBus.ts
-import EventEmitter from 'events';
 const bus = new EventEmitter();
 bus.setMaxListeners(30);
 export const eventBus = bus;
@@ -833,10 +965,10 @@ export const eventBus = bus;
 
 ```
 anomaly.detected →
-  1. redis.del(`dashboard:composite:v1:${orgId}:${userId}`)  [cache invalidate]
-  2. if severity HIGH|CRITICAL: runTaxHealthSnapshot(orgId, userId)  [immediate recompute]
-  3. if severity HIGH|CRITICAL: sendAnomalyNotification(orgId, userId) [push + SMS]
-  4. await writeAuditEvent(...)                               [immutable record]
+  1. redis.del(`dashboard:composite:v1:${orgId}:${userId}`)
+  2. if severity HIGH|CRITICAL: runTaxHealthSnapshot(orgId, userId)
+  3. if severity HIGH|CRITICAL: sendAnomalyNotification(orgId, userId)
+  4. await writeAuditEvent(...)
 
 invoice.created (amount >= NRS_STAMP_THRESHOLD) →
   1. Enqueue NRS stamp job to BullMQ (priority: high)
@@ -844,9 +976,9 @@ invoice.created (amount >= NRS_STAMP_THRESHOLD) →
 
 filing.submitted →
   1. await writeAuditEvent(...)
-  2. Enqueue receipt PDF generation to BullMQ (priority: normal)
+  2. Enqueue receipt PDF generation (priority: normal)
   3. sendFilingConfirmation(orgId, filing)
-  4. Update SMERiskRecord.filingConsistency
+  4. Update SMERiskRecord.filingScore
 
 nrs.circuitOpened →
   1. logger.warn + Sentry alert
@@ -854,7 +986,7 @@ nrs.circuitOpened →
   3. Notify ADMIN via push + Slack webhook
 
 payment.completed →
-  1. Verify HMAC (Flutterwave rawBody — §6.5)
+  1. Verify HMAC (Flutterwave rawBody)
   2. Update SubscriptionPlan.status
   3. await writeAuditEvent(action: 'PAYMENT_RECEIVED')
   4. Unlock premium features for orgId
@@ -864,56 +996,36 @@ payment.completed →
 
 ```
 Queue: 'nrs-stamp'       priority: high   — blocks filing completion
-Queue: 'notifications'   priority: normal — push/SMS delivery
-Queue: 'pdf-generation'  priority: low    — receipt PDF, non-blocking
-Queue: 'analytics'       priority: low    — health snapshot, risk scoring
-DLQ: any job failing 3 attempts → DLQJob model → admin alert if depth > 10
+Queue: 'notifications'   priority: normal
+Queue: 'pdf-generation'  priority: low
+Queue: 'analytics'       priority: low
+DLQ: job failing 3 attempts → DLQJob model → admin alert if depth > 10
 Retry: exponential backoff 1s → 10s → 60s
 ```
 
 ### 10.4 Error Handling Standards
 
-**API error response shape — always use this structure:**
+**API error response shape — always:**
 ```typescript
-// All error responses must return this shape. Never naked strings or unstructured objects.
 interface ApiError {
-  error:   string;   // machine-readable code  e.g. 'ORG_ACCESS_DENIED', 'INSUFFICIENT_ROLE'
-  message: string;   // human-readable (EN)    e.g. 'You do not have access to this organisation'
-  code?:   number;   // optional HTTP status echo for client convenience
+  error:   string;  // machine-readable: 'ORG_ACCESS_DENIED'
+  message: string;  // human-readable: 'You do not have access to this organisation'
+  code?:   number;
 }
-
-// ✅ res.status(403).json({ error: 'ORG_ACCESS_DENIED', message: 'You do not have access to this organisation' })
+// ✅ res.status(403).json({ error: 'ORG_ACCESS_DENIED', message: '...' })
 // ❌ res.status(403).json('Forbidden')
-// ❌ res.status(403).json({ message: 'Access denied' })   // missing machine-readable 'error' field
 ```
 
-**Zod validation errors — always use .issues:**
+**FALLBACK_* constants — define at top of dashboardService.ts:**
 ```typescript
-const result = schema.safeParse(req.body);
-if (!result.success) return res.status(400).json({ error: 'VALIDATION_ERROR', issues: result.error.issues });
-// ❌ result.error.errors  — TypeError; Zod v3 uses .issues not .errors (C-11)
+const FALLBACK_STATS:      DashboardStats    = { taxHealthScore: 0, userName: '', vatLiability: 0, trend: [], outstandingPAYE: 0, unfiledPeriods: 0 };
+const FALLBACK_ANOMALIES:  AnomalySignal[]   = [];
+const FALLBACK_DEADLINES:  ComplianceEvent[] = [];
+const FALLBACK_NRS_HEALTH: NrsHealth         = { circuitState: 'open', lastSuccessAt: null, pendingJobs: 0 };
+// Any .catch() must return FALLBACK_* + Sentry.captureException + logger.error
 ```
 
-**FALLBACK_* constants — define at top of each service file that owns dashboard data:**
-```typescript
-// backend/src/services/dashboardService.ts
-const FALLBACK_STATS:      DashboardStats     = { taxHealthScore: 0, userName: '', vatLiability: 0, trend: [], outstandingPAYE: 0, unfiledPeriods: 0 };
-const FALLBACK_ANOMALIES:  AnomalySignal[]    = [];
-const FALLBACK_DEADLINES:  ComplianceEvent[]  = [];
-const FALLBACK_NRS_HEALTH: NrsHealth          = { circuitState: 'open', lastSuccessAt: null, pendingJobs: 0 };
-// Any .catch() in Promise.all MUST return the appropriate FALLBACK_* — never undefined or null
-```
-
-**Sentry capture — required in every .catch() that returns a FALLBACK:**
-```typescript
-getDashboardStats(orgId, userId).catch(e => {
-  Sentry.captureException(e, { extra: { orgId, userId, service: 'getDashboardStats' } });
-  logger.error({ orgId, userId, err: e }, 'getDashboardStats failed — returning FALLBACK');
-  return FALLBACK_STATS;
-})
-```
-
-**Global error handler (backend/src/app.ts) — must be last middleware:**
+**Global error handler (last middleware in app.ts):**
 ```typescript
 app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
   Sentry.captureException(err);
@@ -930,78 +1042,45 @@ app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
 
 **VAT Monthly Filing (MOD-22)**
 ```
-Entry points:
-  QuickActionsGrid "File VAT" → urgent badge if ≤7 days to 21st
-  ComplianceCalendar "File Now" CTA
-  Anomaly signal 7 (VAT gap) "Fix Now" → pre-fills flagged period
-
 Wizard steps:
   1. Period selection (auto-selects last unfiled month)
   2. Output VAT: pulled from NRS-stamped invoices for period
-  3. Input VAT: pulled from receipted expenses for period
-  4. Prior-period credit: read from VATCreditBalance (C-22, never recomputed)
+  3. Input VAT: pulled from receipted expenses
+  4. Prior-period credit: read from VATCreditBalance (C-22 — never recomputed)
   5. Net calculation via calculateVAT from @taxbridge/contracts
-  6. Net > 0: remittance instructions + Flutterwave payment
-  7. Net < 0: credit carryforward persisted to VATCreditBalance
-  8. NRS submission → IRN returned
-  9. Filing artifact: PDF receipt stored in Document Vault
+  6. Net > 0: Flutterwave remittance + NRS submission → IRN
+  7. Net < 0: credit carryforward → VATCreditBalance persist
+  8. Filing artifact: PDF stored in Document Vault
 
 NIL condition: no invoices AND no expenses → auto-suggest NIL return
-Deadline display: "Due {{date}} — {{daysRemaining}} days"
+Deadline: "Due {{date}} — {{daysRemaining}} days" + red badge ≤ 5 days
 ```
 
 **WHT Remittance (MOD-23)**
 ```
-Entry points:
-  QuickActionsGrid "Remit WHT"
-  Invoice detail (≥₦200k with WHT-applicable category)
-
-Wizard steps:
-  1. Select payment(s) for WHT period
-  2. Display rate per category: 10% amber, 5% blue, 4% green
-  3. Warn if professional fee miscategorized at 5% → should be 10%
-  4. Exemption eligibility check (TIN + monthly total — C-23)
-  5. Calculated WHT payable (formatNGN)
-  6. Remittance to NRS → WHT credit note
-  7. Filing artifact: PDF stored in Document Vault
-
-Deadline: 21st of following month — red badge if ≤5 days
+Rate display: 10% amber | 5% blue | 4% green
+Warn: professional fee at 5% → inline warning (should be 10%)
+Exemption: C-23 — both TIN + ≤₦2M required simultaneously
+Deadline: 21st of following month
 ```
 
 **PAYE Payroll (MOD-25)**
 ```
-Entry: QuickActionsGrid "Run PAYE"
-
-Per employee:
-  Input:  grossSalary, basicPay, housingAllowance, transportAllowance, rentPaid, pension
-  Calc:   calculatePIT({ grossIncome, rentPaid, pension }) from @taxbridge/contracts
-  Output: formatNGN(taxLiability) displayed per employee
-
-Batch:
-  Total PAYE liability summed across all active employees
-  Generate payroll schedule PDF
-  Submit to NRS → PAYE credit note
-  Fund disbursement via Flutterwave (bulk payout)
-
-Accuracy gate: ₦5M gross + ₦600k rent + ₦200k pension → must produce ₦632,400 ±₦1
+Per employee: calculatePIT({ grossIncome, rentPaid, pension }) from @taxbridge/contracts
+Accuracy gate: ₦5M + ₦600k + ₦200k → ₦632,400 ±₦1
+Batch: total PAYE summed → NRS submission → Flutterwave bulk payout
 ```
 
 **NIL Return (MOD-21)**
 ```
-Entry:
-  ComplianceCalendar "File NIL Return"
-  Anomaly: "No activity detected — NIL return required"
-
-Fields: taxType, period (YYYY-MM), reason (NilReason enum)
-Reasons (displayed in UI):
-  NO_REVENUE_THIS_PERIOD         → "No revenue this period"
-  BUSINESS_INACTIVE              → "Business temporarily inactive"
-  EXEMPT_SUPPLY_ONLY             → "Exempt supply only"
-  BELOW_REGISTRATION_THRESHOLD   → "Below registration threshold"
+NilReason enum (UI display):
+  NO_REVENUE_THIS_PERIOD       → "No revenue this period"
+  BUSINESS_INACTIVE            → "Business temporarily inactive"
+  EXEMPT_SUPPLY_ONLY           → "Exempt supply only"
+  BELOW_REGISTRATION_THRESHOLD → "Below registration threshold"
 
 Idempotency: 409 if same (orgId, taxType, period) already filed
-Audit: await writeAuditEvent (C-25)
-Penalty warning: displayed if filing late (same schedule as substantive late)
+Penalty warning: displayed if late — same schedule as substantive filing
 ```
 
 ### 11.2 Compliance Calendar (Multi-Deadline)
@@ -1010,49 +1089,108 @@ Penalty warning: displayed if filing late (same schedule as substantive late)
 const COMPLIANCE_EVENTS = [
   { type: 'VAT',  label: 'VAT Return',       deadline: '21st of each month' },
   { type: 'WHT',  label: 'WHT Remittance',   deadline: '21st of each month' },
-  { type: 'PAYE', label: 'PAYE Filing',       deadline: '10th of each month' },
+  { type: 'PAYE', label: 'PAYE Filing',       deadline: '10 working days after month-end' },
   { type: 'CIT',  label: 'CIT Assessment',    deadline: '6 months after year-end' },
   { type: 'PIT',  label: 'Annual PIT Return', deadline: '90 days after year-end' },
 ];
-// Color coding: 0-3 days = RED | 4-7 days = AMBER | 8-14 days = YELLOW | 15+ = GREEN
-// Each deadline: "File Now" CTA → routes to correct wizard
-// Overdue deadlines: show formatNGN(calculatePenalty(...).netPenalty) estimate
+// 0-3 days = RED | 4-7 days = AMBER | 8-14 days = YELLOW | 15+ = GREEN
+// Each deadline: "File Now" CTA → routes to wizard
+// Overdue: show formatNGN(calculatePenalty(...).netPenalty) estimate
 ```
 
 ### 11.3 Offline Resilience
 
 ```
-Tax rates (constants.ts):       bundled — always available
-EXPLAIN_COPY:                   bundled — always available
-Draft filings:                  AsyncStorage — queue for sync on reconnect
-Dashboard data:                 React Query cache (gcTime: 5min) — stale with offline banner
-Invoice list:                   AsyncStorage with last-sync timestamp
-NRS stamp:                      BullMQ retry queue on backend — mobile shows "pending"
+Tax rates (constants.ts):  bundled — always available
+EXPLAIN_COPY:              bundled — always available
+Draft filings:             AsyncStorage — queued for sync on reconnect
+Dashboard data:            React Query cache (gcTime: 5min) — stale + offline banner
+Invoice list:              AsyncStorage + last-sync timestamp
+NRS stamp:                 BullMQ retry queue on backend — mobile shows "pending"
 
-OfflineSyncStatus component (AMBIENT zone):
-  Shows: last sync time, pending actions count, connection quality indicator
-  Retry: pull-to-refresh OR automatic on reconnect (NetInfo listener)
-  Display: t('common.offline') EN:     "You're offline — showing cached data"
-                                Pidgin: "Network no dey — we dey show you wetin we save"
+OfflineSyncStatus (AMBIENT zone):
+  EN:     "You're offline — showing cached data"
+  Pidgin: "Network no dey — we dey show you wetin we save"
 ```
 
 ---
 
-## 12. MOBILE UX — DASHBOARD ARCHITECTURE
+## 11A. AI INTELLIGENCE PIPELINE
 
-### 12.1 Animation Vocabulary (CREATE FIRST — All Components Import This)
+### 11A.1 IntelligenceInput — Canonical Data Contract
+
+```typescript
+// packages/contracts/src/types.ts — shared by anomalyEngine + riskScoring
+interface IntelligenceInput {
+  orgId:          string;
+  filingHistory:  { taxType: string; period: string; daysLate: number; isNil: boolean }[];
+  invoiceStats:   { unstampedCount: number; totalValue: number; oldestUnstampedDays: number };
+  vatPosition:    { outputVAT: number; inputVAT: number; creditBalance: number };
+  authEvents:     { failedAttempts: number; uniqueIPs: number; windowHours: number };
+  payrollGrowth:  { headcount: number; priorMonthHeadcount: number; payrollChange: number };
+}
+// Built by buildIntelligenceInput(orgId, prisma) in dashboardService.ts
+// Consumed by: computeAnomalies(), computeRiskScore(), and admin analytics panels
+```
+
+### 11A.2 Anomaly Engine — 7 Signals
+
+```typescript
+// backend/src/services/anomalyEngine.ts
+// Pure function — no HTTP, no event bus, no side effects
+// Fail-safe: wrapped in try/catch → on throw, return [] + Sentry.captureException + logger.error
+```
+
+| Signal | Condition | Severity | CTA Route |
+|---|---|---|---|
+| `vat_gap` | outputVAT > 0 AND no VAT filing in current period | high | `/filings/vat` |
+| `nrs_stamp_delay` | unstampedCount > 0 AND oldestUnstampedDays > 7 | medium | `/invoices` |
+| `auth_failure_flood` | failedAttempts > 10 within 1h per IP | critical | `/team` |
+| `nil_overuse` | isNil count ≥ 3 consecutive periods | medium | `/filings/vat` |
+| `payroll_spike` | payrollChange > 50% month-on-month | medium | `/filings/paye` |
+| `unfiled_period` | any taxType with period gap > 30 days | high | filing wizard |
+| `vat_credit_aging` | creditBalance > 0 AND usedInPeriod null > 90 days | low | `/compliance/vat-credit` |
+
+Hard cap: `return signals.slice(0, 5)` — never surface more than 5 anomalies to the dashboard.
+
+Every `AnomalySignal.description` is an i18n key (bilingual EN + Pidgin), not inline text. Cites the specific data point that triggered it (e.g. "3 unstamped invoices — oldest 9 days").
+
+### 11A.3 Risk Scoring Engine — 5-Component Score
+
+```typescript
+// backend/src/services/riskScoring.ts
+// Called by: riskScoringCron (daily 04:00 WAT) + filing.submitted event
+// Output: upserted to SMERiskRecord; consumed by TaxHealthGauge (taxHealthScore) + admin analytics
+// Score components: filingScore(0-30) + anomalyScore(0-25) + healthScore(0-25)
+//                   + vatScore(0-10) + dataScore(0-10) = total 0-100
+// Bands: ≥80=healthy | ≥60=low | ≥40=medium | ≥20=high | <20=critical
+// ENFORCE: score = Math.max(0, Math.min(100, computedTotal)) before any DB write
+```
+
+### 11A.4 ExplainMyTax — 7 Bundled Concepts (Offline-Safe)
+
+```typescript
+// mobile/src/components/education/ExplainMyTax.tsx
+// Content bundled in mobile app — zero API calls, works on 2G and offline
+// 7 keys: vat, wht, paye, nil_return, tin, cit, penalty
+// Each entry: { en: string, pidgin: string, example: string }
+// Pidgin must be natural Lagos Pidgin — not literal translation
+// Component: <ExplainMyTax concept="wht" /> → toggleable inline card EN/Pidgin
+```
+
+---
+
+### 12.1 Animation Vocabulary (CREATE FIRST)
 
 ```typescript
 // mobile/src/design-system/animation.ts
-import { Easing } from 'react-native-reanimated';
-
 export const DURATION = {
-  instant:    100,  // tap feedback (C-20 visual ack)
-  fast:       200,  // urgent overrides, mode switches
-  standard:   400,  // content entrance, layout changes
-  deliberate: 600,  // chart arc, sparkline draw-in
-  slow:       800,  // TaxHealthGauge arc (emotional weight)
-  skeleton:   1200, // shimmer — DO NOT CHANGE (2G patience tuned)
+  instant:    100,
+  fast:       200,
+  standard:   400,
+  deliberate: 600,
+  slow:       800,
+  skeleton:   1200, // shimmer — DO NOT CHANGE
 } as const;
 
 export const EASE = {
@@ -1075,7 +1213,7 @@ export const ZONE_DELAY = {
   apex:    0,
   signal:  80,
   action:  160,
-  context: 240,  // overridden to 0ms when urgent=true (HIGH/CRITICAL anomaly)
+  context: 240,  // overridden to 0 when urgent=true
   ambient: 320,
 } as const;
 ```
@@ -1083,10 +1221,7 @@ export const ZONE_DELAY = {
 ### 12.2 DashboardZone Component
 
 ```typescript
-// mobile/src/components/dashboard/DashboardZone.tsx
-// Exhaustive useEffect deps enforced — no stale closure violations
-export type DashboardZoneName = 'apex' | 'signal' | 'action' | 'context' | 'ambient';
-
+// Exhaustive useEffect deps — no stale closures
 export function DashboardZone({ zone, visible, urgent = false, children }: DashboardZoneProps) {
   const opacity    = useSharedValue(0);
   const translateY = useSharedValue(ENTER_FROM.below.translateY);
@@ -1096,7 +1231,7 @@ export function DashboardZone({ zone, visible, urgent = false, children }: Dashb
   useEffect(() => {
     if (!visible) return;
     const cfg = { duration: DURATION.standard, easing: EASE.enter };
-    opacity.value = withDelay(delay, withTiming(1, cfg));
+    opacity.value    = withDelay(delay, withTiming(1, cfg));
     if (zone === 'apex')          scale.value      = withDelay(delay, withTiming(1, cfg));
     else if (zone !== 'ambient')  translateY.value = withDelay(delay, withTiming(0, cfg));
   }, [visible, delay, zone, opacity, scale, translateY]);
@@ -1106,14 +1241,11 @@ export function DashboardZone({ zone, visible, urgent = false, children }: Dashb
     if (zone === 'ambient') return { opacity: opacity.value };
     return { opacity: opacity.value, transform: [{ translateY: translateY.value }] };
   });
-
   return <Animated.View style={animStyle}>{children}</Animated.View>;
 }
 ```
 
 ### 12.3 DashboardSkeleton — 0px Layout Shift Contract
-
-Skeleton block dimensions must match rendered content ±0px. Verify with RN Profiler.
 
 | Zone | Block Specification |
 |---|---|
@@ -1132,9 +1264,8 @@ Skeleton block dimensions must match rendered content ±0px. Verify with RN Prof
 ### 12.4 TaxHealthGauge SVG Arc
 
 ```typescript
-// WORKLET — both functions must be marked 'worklet' (runs on UI thread)
 function buildArcPath(score: number, size: number): string {
-  'worklet';
+  'worklet'; // MUST be first line
   const r = size * 0.4; const cx = size / 2; const cy = size / 2;
   const deg = -205 + 230 * (score / 100);
   const toRad = (d: number) => (d * Math.PI) / 180;
@@ -1144,38 +1275,36 @@ function buildArcPath(score: number, size: number): string {
 }
 
 function scoreToStroke(score: number): string {
-  'worklet';
+  'worklet'; // MUST be first line
   if (score >= 75) return '#1DB954';
   if (score >= 50) return '#F59E0B';
   return '#DC2626';
 }
 // Animate: withTiming(score, { duration: DURATION.slow, easing: EASE.gauge })
 // Modes:   expanded=200px centered | compact=120px right-aligned
-// Compact: any upcomingDeadline.daysRemaining ≤ 7 OR < 0
-// accessibilityRole="progressbar" + accessibilityLabel={t('a11y.taxHealthGauge', { score, label })}
+// Compact trigger: any upcomingDeadline.daysRemaining ≤ 7 OR < 0
+// accessibilityRole="progressbar" + accessibilityLabel required
 ```
 
-### 12.5 Canonical DashboardScreen
+### 12.5 Canonical DashboardScreen Structure
 
 ```typescript
-// DO NOT DEVIATE from this structure (C-17, C-18, C-19, C-20)
+// DO NOT DEVIATE — enforced by C-17, C-18, C-19, C-20
 const { data, isLoading, isRefetching, error, refetch } = useDashboard();
-const gaugeMode       = useMemo(() => computeGaugeMode(data), [data]);
-const hasHighAnomaly  = useMemo(
-  () => data?.topAnomalies?.some(a => ['high', 'critical'].includes(a.severity)) ?? false,
+const gaugeMode      = useMemo(() => computeGaugeMode(data), [data]);
+const hasHighAnomaly = useMemo(
+  () => data?.topAnomalies?.some(a => ['high','critical'].includes(a.severity)) ?? false,
   [data],
 );
-const handleRefetch   = useCallback(() => refetch(), [refetch]);
+const handleRefetch  = useCallback(() => refetch(), [refetch]);
 
-// Single skeleton gate — no other isLoading checks below this line
 if (isLoading && !data) return <DashboardSkeleton />;
 
 return (
   <ScrollView refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={handleRefetch} />}>
     <DashboardZone zone="apex" visible={!isLoading}>
       <Greeting userName={data?.stats.userName} />
-      <TaxHealthGauge score={data?.stats.taxHealthScore ?? 0} mode={gaugeMode}
-        accessibilityLabel={t('a11y.taxHealthGauge', { score: data?.stats.taxHealthScore, label: gaugeMode })} />
+      <TaxHealthGauge score={data?.stats.taxHealthScore ?? 0} mode={gaugeMode} />
       {gaugeMode === 'compact' && <UrgentDeadlineCard deadline={data?.upcomingDeadlines?.[0]} />}
     </DashboardZone>
 
@@ -1234,21 +1363,37 @@ const QUICK_ACTIONS: QuickAction[] = [
 ```
 ABOVE FOLD  (0–812px):    Gauge, greeting, VAT liability if > ₦0, deadline if ≤14 days
                           HIGH anomaly → promoted above fold | Overdue → compact gauge
-FIRST SCROLL (812px+):   Quick Actions (always visible) | Anomalies (≥1, ≥ medium)
+FIRST SCROLL (812px+):   Quick Actions | Anomalies (≥1, severity ≥ medium)
                           Compliance Calendar strip
 SECOND SCROLL (1600px+): Trend sparklines | OfflineSyncStatus
 ```
 
-### 12.8 Haptic Feedback (MOD-42)
+### 12.8 Haptic Feedback
 
 ```typescript
 import * as Haptics from 'expo-haptics';
-// Tap:          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-// Success:      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
-// Error:        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
-// Warning:      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+// Tap:     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+// Success: Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
+// Error:   Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
+// Warning: Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
 // Fire BEFORE any await — visual + haptic ack within DURATION.instant (100ms)
 ```
+
+### 12.9 Micro-UX Standards
+
+**Loading hierarchy:** DashboardSkeleton (initial) → SectionSkeletonRows (partial) → inline CTA spinner (submit). Never `<ActivityIndicator />` in place of content.
+
+**Empty states:** Always icon + heading + body + CTA button. Exception: anomaly section → `empty={null}` (C-19).
+
+**Error states:** Always icon + message + retry tap. Single tap → clear error → refetch → optimistic loading.
+
+**Pressable feedback:** `transform: [{ scale: 0.97 }], opacity: 0.85` on press. Required on all interactive elements.
+
+**Toast pattern:** Success = 3s auto-dismiss green. Error = 6s dismissible red. Never `Alert.alert()` for business logic.
+
+**Keyboard avoiding:** All filing wizards: `KeyboardAvoidingView + ScrollView keyboardShouldPersistTaps="handled"`.
+
+**Accessibility (WCAG 2.2 AA):** Minimum 44×44px touch targets. 4.5:1 contrast for normal text. `accessibilityLabel + accessibilityRole + accessibilityHint` on all interactive elements.
 
 ---
 
@@ -1256,75 +1401,52 @@ import * as Haptics from 'expo-haptics';
 
 ```typescript
 // GET /api/v1/dashboard
-// Auth:  authenticate + resolveOrgContext
-// Rate:  30 req/min per userId
 // Cache: Redis key `dashboard:composite:v1:${orgId}:${userId}` TTL 120s
+// Invalidated by: new invoice, new expense, NRS status change, anomaly.detected
+
+// packages/contracts/src/types.ts — single source of truth for all interfaces
 
 interface DashboardStats {
-  taxHealthScore:    number;          // 0–100
-  userName:          string;
-  vatLiability:      number;          // current period net VAT due (NGN)
-  trend:             TrendPoint[];    // last 6 months health score snapshots
-  outstandingPAYE:   number;          // NGN, 0 if none
-  unfiledPeriods:    number;          // count of unfiled months
+  taxHealthScore:  number;      // 0–100
+  userName:        string;
+  vatLiability:    number;      // NGN
+  trend:           TrendPoint[];
+  outstandingPAYE: number;
+  unfiledPeriods:  number;
 }
 
-interface AnomalySignal {
-  id:          string;
-  signal:      string;            // e.g. 'vat_gap', 'auth_failure', 'nrs_stamp_delay'
-  severity:    'low'|'medium'|'high'|'critical';
-  description: string;
-  detectedAt:  string;            // ISO 8601
-  ctaRoute?:   string;            // deep-link to resolution wizard
-}
-
-interface ComplianceEvent {
-  type:           'VAT'|'WHT'|'PAYE'|'CIT'|'PIT';
-  label:          string;
-  deadline:       string;         // ISO 8601 date
-  daysRemaining:  number;         // negative = overdue
-  penaltyEstimate?: number;       // NGN — shown if overdue
-}
-
-interface NrsHealth {
-  circuitState:   'closed'|'half-open'|'open';
-  lastSuccessAt:  string | null;  // ISO 8601
-  pendingJobs:    number;
-}
+interface TrendPoint    { period: string; score: number; label: string; }
+interface AnomalySignal { id: string; signal: string; severity: 'low'|'medium'|'high'|'critical'; description: string; detectedAt: string; ctaRoute?: string; }
+interface ComplianceEvent { type: 'VAT'|'WHT'|'PAYE'|'CIT'|'PIT'; label: string; deadline: string; daysRemaining: number; penaltyEstimate?: number; }
+interface NrsHealth     { circuitState: 'closed'|'half-open'|'open'; lastSuccessAt: string | null; pendingJobs: number; }
 
 interface DashboardComposite {
-  stats:              DashboardStats;
-  topAnomalies:       AnomalySignal[];      // max 3, severity ≥ medium
-  upcomingDeadlines:  ComplianceEvent[];    // sorted by daysRemaining ASC
-  nrsHealth:          NrsHealth;
-  meta:               { cached: boolean; cacheAge?: number };
+  stats:             DashboardStats;
+  topAnomalies:      AnomalySignal[];   // max 3, severity ≥ medium
+  upcomingDeadlines: ComplianceEvent[]; // sorted by daysRemaining ASC
+  nrsHealth:         NrsHealth;
+  meta:              { cached: boolean; cacheAge?: number };
 }
 
-// Internal implementation:
-// const [stats, anomalies, deadlines, nrs] = await Promise.all([
-//   getDashboardStats(orgId, userId),
-//   getTopAnomalies(orgId, userId),
-//   getUpcomingDeadlines(orgId),
-//   getNrsHealth(),
-// ]);
-// Each: .catch(e => { Sentry.captureException(e); logger.error({ orgId, err: e }, '...'); return FALLBACK_* })
-// Cache write: non-blocking fire-and-forget .catch() with corrupt-entry guard
-// Invalidated by: new invoice, new expense, NRS status change, anomaly.detected event
+// Implementation:
+// const [stats, anomalies, deadlines, nrs] = await Promise.all([...])
+// each .catch: Sentry.captureException + logger.error + return FALLBACK_*
+// Cache write: non-blocking fire-and-forget .catch()
 ```
 
 ---
 
-## 14. PRISMA SCHEMA — V12.0 ADDITIONS
+## 14. PRISMA SCHEMA — V12 ADDITIONS
 
 ### 14.1 New Enums
 
 ```prisma
-enum UserRole      { SUPER_ADMIN ADMIN OWNER ACCOUNTANT EMPLOYEE VIEWER }
-enum NilReason     { NO_REVENUE_THIS_PERIOD BUSINESS_INACTIVE EXEMPT_SUPPLY_ONLY BELOW_REGISTRATION_THRESHOLD }
-enum AuditAction   { CREATE UPDATE DELETE FILE AMEND APPROVE OVERRIDE REVOKE INVITE EXPORT
-                     ACCESS_DENIED ROLE_CHANGE LOGIN LOGOUT NRS_STAMP PAYMENT_RECEIVED }
-enum RiskBand      { critical high medium low healthy }
-enum OrgStatus     { active suspended pending_verification }
+enum UserRole    { SUPER_ADMIN ADMIN OWNER ACCOUNTANT EMPLOYEE VIEWER }
+enum NilReason   { NO_REVENUE_THIS_PERIOD BUSINESS_INACTIVE EXEMPT_SUPPLY_ONLY BELOW_REGISTRATION_THRESHOLD }
+enum AuditAction { CREATE UPDATE DELETE FILE AMEND APPROVE OVERRIDE REVOKE INVITE EXPORT
+                   ACCESS_DENIED ROLE_CHANGE LOGIN LOGOUT NRS_STAMP PAYMENT_RECEIVED }
+enum RiskBand    { critical high medium low healthy }
+enum OrgStatus   { active suspended pending_verification }
 ```
 
 ### 14.2 Multi-Tenant Org Model
@@ -1333,8 +1455,8 @@ enum OrgStatus     { active suspended pending_verification }
 model Organisation {
   id          String    @id @default(cuid())
   name        String
-  tinNumber   String    @unique   // 8-digit NRS TIN — validated at onboarding
-  cacRcNumber String?             // CAC RC number — validated at onboarding
+  tinNumber   String    @unique
+  cacRcNumber String?
   status      OrgStatus @default(pending_verification)
   plan        String    @default("free")
   createdAt   DateTime  @default(now())
@@ -1351,15 +1473,35 @@ model OrgMember {
   status    String    @default("active")
   deletedAt DateTime?
   createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
   org       Organisation @relation(fields: [orgId], references: [id])
   @@unique([orgId, userId])
   @@index([userId, status])
 }
 ```
 
-### 14.3 V12.0 Models (Append to schema.prisma)
+### 14.3 V12 Models
 
 ```prisma
+model TaxReturn {
+  id              String     @id @default(cuid())
+  orgId           String
+  taxType         String
+  period          String
+  status          String
+  filingReference String     @unique
+  isNil           Boolean    @default(false)
+  nilReason       NilReason?
+  taxAmountDue    Float      @default(0)
+  receiptUrl      String?
+  amendedReturnId String?
+  submittedAt     DateTime?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  @@unique([orgId, taxType, period])
+  @@index([orgId, status, period])
+}
+
 model AccountantClient {
   id           String    @id @default(cuid())
   accountantId String
@@ -1374,17 +1516,17 @@ model AccountantClient {
 }
 
 model VATCreditBalance {
-  id                 String    @id @default(cuid())
-  orgId              String
-  period             String    // YYYY-MM
-  inputVAT           Float
-  outputVAT          Float
-  netCredit          Float
-  carriedFromPeriod  String?   // null when this is the originating credit (no prior period)
-  usedInPeriod       String?
-  refundClaimed      Boolean   @default(false)
-  refundClaimDate    DateTime?
-  createdAt          DateTime  @default(now())
+  id                String    @id @default(cuid())
+  orgId             String
+  period            String
+  inputVAT          Float
+  outputVAT         Float
+  netCredit         Float
+  carriedFromPeriod String?
+  usedInPeriod      String?
+  refundClaimed     Boolean   @default(false)
+  refundClaimDate   DateTime?
+  createdAt         DateTime  @default(now())
   @@index([orgId, period])
   @@index([orgId, refundClaimed])
 }
@@ -1411,7 +1553,8 @@ model SMERiskRecord {
   healthScore  Int
   vatScore     Int
   dataScore    Int
-  computedAt   DateTime @default(now())
+  computedAt   DateTime @updatedAt  // auto-updates on upsert
+  createdAt    DateTime @default(now())
   @@index([band, computedAt])
 }
 
@@ -1437,16 +1580,16 @@ model AuditEvent {
 }
 
 model DLQJob {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   queueName   String
   jobId       String
   payload     Json
   failReason  String
   attempts    Int
   lastAttempt DateTime
-  resolved    Boolean  @default(false)
+  resolved    Boolean   @default(false)
   resolvedAt  DateTime?
-  createdAt   DateTime @default(now())
+  createdAt   DateTime  @default(now())
   @@index([queueName, resolved, createdAt])
 }
 
@@ -1476,25 +1619,40 @@ model UserSession {
   createdAt   DateTime @default(now())
   @@index([userId, expiresAt])
 }
+
+model TaxHealthSnapshot {
+  id        String   @id @default(cuid())
+  orgId     String
+  userId    String
+  score     Int
+  period    String   // YYYY-MM — written by taxHealthSnapshot cron every 6h
+  band      RiskBand
+  createdAt DateTime @default(now())
+  // NO updatedAt — insert-only; used for trend sparklines in DashboardStats.trend[]
+  @@index([orgId, userId, period])
+  @@index([orgId, createdAt])
+}
+// ADDITIONAL PERFORMANCE INDEXES — add to existing models:
+// TaxReturn:        @@index([orgId, taxType, submittedAt])         ← admin analytics
+// AuditEvent:       @@index([orgId, action, createdAt])            ← compliance export
+// VATCreditBalance: @@index([orgId, usedInPeriod, refundClaimed])  ← carryforward lookup
+// SMERiskRecord:    @@index([band, computedAt]), @@index([score])  ← risk dashboard
+// UserSession:      @@index([expiresAt])                           ← cleanup cron sweep
 ```
 
 ### 14.4 Zero-Downtime Migration Pattern
 
 ```bash
-# Step 1: New columns as NULLABLE (backward-compatible — deploy with no downtime)
+# Step 1: Nullable columns (backward-compatible)
 npx prisma migrate dev --name "v12_step1_nullable"
-
-# Step 2: Deploy app code handling both old and new schema
-
-# Step 3: Backfill via BullMQ background job — NOT in migration
+# Step 2: Deploy code handling both old + new schema
+# Step 3: Backfill via BullMQ background job
 yarn workspace backend ts-node scripts/backfill-v12.ts
-
-# Step 4: Add NOT NULL constraints + performance indexes in separate migration
+# Step 4: NOT NULL + indexes
 npx prisma migrate dev --name "v12_step2_constraints"
-
-# ⚠️ Never run prisma migrate deploy between 08:00–20:00 WAT
-# Schedule at 02:00–04:00 WAT with rollback migration ready
-# Never use prisma migrate rollback in production — apply forward migration only
+# Production CI/CD only: npx prisma migrate deploy
+# ⚠️ Never run between 08:00–20:00 WAT
+# Never use prisma migrate rollback in production — forward migrations only
 ```
 
 ---
@@ -1508,11 +1666,13 @@ services:
   - type: web
     name: taxbridge-api
     runtime: node
-    region: frankfurt
+    region: frankfurt  # benchmark vs ohio for Nigerian latency
     plan: starter
     buildCommand: yarn workspace backend build
     startCommand: node backend/dist/app.js
     healthCheckPath: /api/v2/monitoring/health
+    logDrain:
+      destination: "https://logs.grafana.net/loki/api/v1/push"
     envVars:
       - { key: NODE_ENV,            value: production }
       - { key: PORT,                value: 10000 }
@@ -1527,6 +1687,8 @@ services:
       - { key: FLUTTERWAVE_SECRET,  sync: false }
       - { key: SENTRY_DSN,          sync: false }
       - { key: CBN_MPR,             sync: false }
+      - { key: CORS_ORIGIN,         sync: false }
+      - { key: DOCUMENT_VAULT_KMS_PROVIDER, sync: false }
 
   - type: redis
     name: taxbridge-redis
@@ -1551,7 +1713,7 @@ databases:
       "extends": "base",
       "developmentClient": true,
       "distribution": "internal",
-      "android": { "buildType": "apk" },
+      "android": { "buildType": "apk", "compileSdkVersion": 36, "targetSdkVersion": 35 },
       "env": { "EXPO_PUBLIC_API_URL": "http://localhost:3000", "DIGITAX_MOCK_MODE": "true" }
     },
     "staging": {
@@ -1559,7 +1721,7 @@ databases:
       "distribution": "internal",
       "android": { "buildType": "apk", "compileSdkVersion": 36, "targetSdkVersion": 35 },
       "cache": { "key": "taxbridge-v12-staging-{{ hashFiles('yarn.lock') }}" },
-      "env": { "EXPO_PUBLIC_API_URL": "https://taxbridge-api-ker8.onrender.com", "SENTRY_DSN": "REPLACE" }
+      "env": { "EXPO_PUBLIC_API_URL": "https://taxbridge-api-ker8.onrender.com", "SENTRY_DSN": "SET_VIA_EAS_SECRET" }
     },
     "production": {
       "extends": "base",
@@ -1568,7 +1730,7 @@ databases:
       "android": { "buildType": "app-bundle", "compileSdkVersion": 36, "targetSdkVersion": 35 },
       "ios": { "buildConfiguration": "Release" },
       "cache": { "key": "taxbridge-v12-prod-{{ hashFiles('yarn.lock') }}" },
-      "env": { "EXPO_PUBLIC_API_URL": "https://taxbridge-api-ker8.onrender.com", "SENTRY_DSN": "REPLACE" }
+      "env": { "EXPO_PUBLIC_API_URL": "https://taxbridge-api-ker8.onrender.com", "SENTRY_DSN": "SET_VIA_EAS_SECRET" }
     }
   },
   "submit": {
@@ -1578,18 +1740,20 @@ databases:
     }
   }
 }
+// SENTRY_DSN set via: eas secret:create --scope project --name SENTRY_DSN --value <dsn>
+// C-33 gate: grep '"SENTRY_DSN": "REPLACE' mobile/eas.json → 0
 ```
 
 ### 15.3 validateEnv.ts — First Import in app.ts
 
 ```typescript
-// backend/src/validateEnv.ts
 const REQUIRED_ALWAYS = [
   'DATABASE_URL', 'REDIS_URL', 'JWT_SECRET', 'JWT_REFRESH_SECRET',
   'NRS_API_KEY', 'PORT', 'NODE_ENV',
 ];
 const REQUIRED_PRODUCTION = [
-  'SENTRY_DSN', 'RENDER_EXTERNAL_URL', 'FLUTTERWAVE_SECRET', 'CBN_MPR',
+  'SENTRY_DSN', 'RENDER_EXTERNAL_URL', 'FLUTTERWAVE_SECRET',
+  'CBN_MPR', 'CORS_ORIGIN', 'DOCUMENT_VAULT_KMS_PROVIDER',
 ];
 const missing = [
   ...REQUIRED_ALWAYS,
@@ -1604,87 +1768,77 @@ if (missing.length > 0) {
 
 ## 16. CI/CD ENFORCEMENT GATES
 
-### 16.1 Five-Stage Pipeline
+### 16.1 Five-Stage Pipeline (.github/workflows/pipeline.yml)
 
 **Stage 1 — Quality Gates (parallel, blocks all downstream)**
-
 ```yaml
-lint-typecheck:
-  gates:
-    - yarn workspaces foreach -A run lint
-    - yarn workspaces foreach -A run type-check             # 0 TypeScript errors
-    - grep -rn "FIRS" . | grep -v node_modules             # → 0 (C-02)
-    - grep -rn "withTiming.*[0-9]{3,4}" mobile/src | grep -v animation.ts  # → 0 (C-16)
-    - grep -rn "CRA\b|consolidatedRelief|minTax" packages/contracts/src     # → 0
-    - grep -rn "console\.log" backend/src                  # → 0 (C-26)
-    - grep -rn "0\.2725\b" packages/contracts/src backend/src  # → 0 (C-27, both scopes)
-    - grep '"compileSdkVersion": 36' mobile/eas.json | wc -l  # → ≥ 2
-    - yarn i18n:check                                       # → exit 0
-    - yarn prompts:verify                                   # → "11/11 modules"
-    # PIT accuracy gate — must exit 0
-    - npx ts-node -e "const {calculatePIT}=require('./packages/contracts/src');const r=calculatePIT({grossIncome:5000000,rentPaid:600000,pension:200000});if(Math.abs(r.taxLiability-632400)>1)process.exit(1)"
-    # Penalty accuracy gate — must exit 0
-    - npx ts-node -e "const {calculatePenalty}=require('./packages/contracts/src');const r=calculatePenalty({entityType:'company',daysLate:32,taxAmountDue:0,disclosurePhase:'after_assessment'});if(r.netPenalty!==375000)process.exit(1)"
+gates:
+  - yarn workspaces foreach -A run lint
+  - yarn workspaces foreach -A run type-check
+  - grep -rn "FIRS" . | grep -v node_modules                                               # → 0
+  - grep -rn "withTiming.*[0-9]{3,4}" mobile/src | grep -v animation.ts                   # → 0
+  - grep -rn "CRA\b|consolidatedRelief|minTax" packages/contracts/src                      # → 0
+  - grep -rn "console\.log" backend/src                                                    # → 0
+  - grep -rn "0\.2725\b" packages/contracts/src backend/src                                # → 0
+  - grep '"compileSdkVersion": 36' mobile/eas.json | wc -l                                # → 3
+  - grep '"SENTRY_DSN": "REPLACE' mobile/eas.json                                         # → 0 (C-33)
+  - grep -rn "schema\.parse(" backend/src/routes --include="*.ts"                         # → 0 (C-34: use validate() middleware)
+  - yarn i18n:check
+  - yarn prompts:verify
+  - npx ts-node -e "const {calculatePIT}=require('./packages/contracts/src');const r=calculatePIT({grossIncome:5000000,rentPaid:600000,pension:200000});if(Math.abs(r.taxLiability-632400)>1)process.exit(1)"
+  - npx ts-node -e "const {calculatePenalty}=require('./packages/contracts/src');const r=calculatePenalty({entityType:'company',daysLate:32,taxAmountDue:0,disclosurePhase:'after_assessment'});if(r.netPenalty!==375000)process.exit(1)"
 ```
 
 **Stage 2 — Tests (requires Stage 1)**
-
 ```yaml
-test:
-  services: [postgres:16-alpine, redis:7-alpine]
-  steps:
-    - npx prisma migrate deploy
-    - yarn workspace backend ts-node prisma/seeds/smokeTestUser.ts
-    - yarn workspaces foreach -A run test -- --coverage --ci --runInBand
-    - npx nyc check-coverage --lines 95 --functions 95 --branches 90
+services: [postgres:16-alpine, redis:7-alpine]
+steps:
+  - npx prisma migrate deploy
+  - yarn workspace backend ts-node backend/prisma/seeds/smokeTestUser.ts
+  - yarn workspaces foreach -A run test -- --coverage --ci --runInBand
+  - npx nyc check-coverage --lines 95 --functions 95 --branches 90
 ```
 
 **Stage 3 — Security (parallel with Stage 2)**
-
 ```yaml
-security:
-  steps:
-    - npx snyk test --all-projects --severity-threshold=high   # 0 HIGH/CRITICAL
-    - head -5 backend/src/app.ts | grep -q "validateEnv"       # validateEnv.ts is first import
-    - git ls-files | grep -E '\.env\.' | grep -v example       # → 0 (no .env committed)
-    - grep -q "updatedAt" backend/prisma/schema.prisma && grep -B5 "updatedAt" backend/prisma/schema.prisma | grep -q "AuditEvent" && exit 1 || exit 0  # AuditEvent must have no updatedAt
-    - grep -q '@@unique(\[orgId, userId\])' backend/prisma/schema.prisma  # OrgMember constraint present
-    - grep -rn "0\.2725\b" backend/src packages/contracts/src  # → 0 (CBN_MPR never hardcoded)
+steps:
+  - npx snyk test --all-projects --severity-threshold=high
+  - head -5 backend/src/app.ts | grep -q "validateEnv"
+  - git ls-files | grep -E '\.env\.' | grep -v example                                    # → 0
+  - awk '/^model AuditEvent/,/^}/' backend/prisma/schema.prisma | grep -q "updatedAt" && exit 1 || exit 0
+  - awk '/^model TaxHealthSnapshot/,/^}/' backend/prisma/schema.prisma | grep -q "updatedAt" && exit 1 || exit 0
+  - grep -q '@@unique(\[orgId, userId\])' backend/prisma/schema.prisma
+  - grep -rn "0\.2725\b" backend/src packages/contracts/src                                # → 0
+  - grep -rn "schema\.parse(" backend/src/routes --include="*.ts"                         # → 0 (C-34)
+  - grep -q "opossum" backend/src/services/nrsService.ts                                  # circuit breaker present
 ```
 
 **Stage 4 — Builds (requires Stages 2 + 3)**
-
 ```yaml
-builds:
-  build-backend: yarn workspace backend build
-  build-admin:   yarn workspace admin build
-  build-mobile:  eas build --platform android --profile staging --non-interactive
+build-backend: yarn workspace backend build
+build-admin:   yarn workspace admin build
+build-mobile:  eas build --platform android --profile staging --non-interactive
 ```
 
-**Stage 5 — Deploy + Smoke (requires Stage 4)**
-
+**Stage 5 — Deploy + Smoke (requires Stage 4, main branch only)**
 ```yaml
 deploy-backend:
-  if: github.ref == 'refs/heads/main'
-  environment: production
-  steps:
-    - Validate all production secrets present (CBN_MPR required)
-    - Deploy to green slot (Render blue-green)
-    - Health check green: GET /api/v2/monitoring/health → {"status":"healthy"}
-    - Canary: 5% traffic → monitor 2min (error rate < 0.5%)
-    - Canary: 25% traffic → monitor 3min
-    - Swap: green → production 100%
-    - Rollback trigger: error rate > 1% at any stage → swap back immediately
+  - Validate all production secrets present (CBN_MPR required)
+  - Deploy to green slot (Render blue-green)
+  - Health check green: GET /api/v2/monitoring/health → {"status":"healthy"}
+  - Canary 5% → monitor 2min (error rate < 0.5%) → rollback if > 1%
+  - Canary 25% → monitor 3min
+  - Swap green → production 100%
+  - Rollback trigger: error rate > 1% at any stage → swap back immediately
 
 smoke-test:
-  steps:
-    - GET  /api/v2/monitoring/health                          → {"status":"healthy"}
-    - POST /api/v1/auth/login (smoke credentials)            → accessToken present
-    - GET  /api/v1/dashboard                                 → stats.taxHealthScore is integer
-    - POST /api/v1/filings/nil                               → 200 + filingReference
-    - GET  /api/v1/compliance/penalty-estimate               → netPenalty is number
-    - VIEWER role → PATCH /api/v2/rbac/assign                → 403
-    - Admin panel GET taxbridge.vercel.app                   → HTTP 200
+  - GET  /api/v2/monitoring/health                → {"status":"healthy"}
+  - POST /api/v1/auth/login (smoke credentials)  → accessToken present
+  - GET  /api/v1/dashboard                       → stats.taxHealthScore is integer
+  - POST /api/v1/filings/nil                     → 200 + filingReference
+  - GET  /api/v1/compliance/penalty-estimate     → netPenalty is number
+  - VIEWER role → PATCH /api/v2/rbac/assign      → 403
+  - Admin panel GET taxbridge.vercel.app         → HTTP 200
 
 release (idempotent):
   - git tag v12.0.0 2>/dev/null || echo "tag exists"
@@ -1695,18 +1849,14 @@ release (idempotent):
 
 ```bash
 #!/usr/bin/env sh
-# .husky/pre-commit
-set -e
-
-FAIL=0
+set -e; FAIL=0
 check() {
   local count=$(grep -rn "$1" $2 --include="*.ts" --include="*.tsx" --include="*.json" 2>/dev/null | wc -l)
   [ "$count" -gt "0" ] && echo "❌ $3 ($count occurrences)" && FAIL=1
 }
-
-check "FIRS"          "backend/src mobile/src admin/src packages" "FIRS found — use NRS (C-02)"
-check "NRSt"          "mobile/src/i18n"                            "NRSt typo — use NRS"
-check "console\.log"  "backend/src"                                "console.log in backend — use Pino (C-26)"
+check "FIRS"         "backend/src mobile/src admin/src packages" "FIRS found — use NRS (C-02)"
+check "NRSt"         "mobile/src/i18n"                           "NRSt typo — use NRS"
+check "console\.log" "backend/src"                               "console.log in backend — use Pino (C-26)"
 
 RAW_ANIM=$(grep -rn "withTiming.*[0-9]\{3,4\}" mobile/src --include="*.ts" --include="*.tsx" 2>/dev/null | grep -v "animation.ts" | wc -l)
 [ "$RAW_ANIM" -gt "0" ] && echo "❌ Raw animation durations — use DURATION.* (C-16)" && FAIL=1
@@ -1725,46 +1875,46 @@ npx lint-staged
 ```typescript
 // backend/src/metrics.ts
 declare global { var __taxbridge_prom_registry: Registry | undefined; }
-
 const register = global.__taxbridge_prom_registry ?? new Registry();
 if (!global.__taxbridge_prom_registry) {
   global.__taxbridge_prom_registry = register;
   register.setDefaultLabels({ app: 'taxbridge', version: process.env.npm_package_version ?? '12.0.0' });
 }
-
 function safeMetric<T>(factory: () => T, name: string): T {
   return (register.getSingleMetric(name) ?? factory()) as T;
 }
 
-export const httpDuration    = safeMetric(() => new Histogram({ name: 'taxbridge_api_request_duration_seconds',
-  labelNames: ['route', 'method', 'status'], buckets: [0.05, 0.1, 0.2, 0.5, 1, 2, 5] }), 'taxbridge_api_request_duration_seconds');
+export const httpDuration    = safeMetric(() => new Histogram({ name: 'taxbridge_api_request_duration_seconds', labelNames: ['route','method','status'], buckets: [0.05,0.1,0.2,0.5,1,2,5] }), 'taxbridge_api_request_duration_seconds');
 export const nrsStampSuccess = safeMetric(() => new Counter({ name: 'taxbridge_nrs_stamp_success_total', labelNames: ['orgId'] }), 'taxbridge_nrs_stamp_success_total');
 export const nrsStampFailure = safeMetric(() => new Counter({ name: 'taxbridge_nrs_stamp_failure_total', labelNames: ['reason'] }), 'taxbridge_nrs_stamp_failure_total');
-export const anomalyDetected = safeMetric(() => new Counter({ name: 'taxbridge_anomaly_detected_total', labelNames: ['signal', 'severity'] }), 'taxbridge_anomaly_detected_total');
+export const anomalyDetected = safeMetric(() => new Counter({ name: 'taxbridge_anomaly_detected_total', labelNames: ['signal','severity'] }), 'taxbridge_anomaly_detected_total');
 export const dlqDepth        = safeMetric(() => new Gauge({ name: 'taxbridge_dlq_depth', labelNames: ['queue_name'] }), 'taxbridge_dlq_depth');
 export const penaltyEstimate = safeMetric(() => new Counter({ name: 'taxbridge_penalty_estimate_total', labelNames: ['taxType'] }), 'taxbridge_penalty_estimate_total');
-// Circuit state: 0 = closed (healthy), 1 = half-open, 2 = open (NRS unreachable)
-// Referenced by Grafana alert in §17.3 — must be exported from this file
+// 0 = closed (healthy) | 1 = half-open | 2 = open (NRS unreachable)
 export const nrsCircuitState = safeMetric(() => new Gauge({ name: 'taxbridge_nrs_circuit_state' }), 'taxbridge_nrs_circuit_state');
-// nrsService.ts must call nrsCircuitState.set(0|1|2) on every circuit transition
+// nrsService.ts calls nrsCircuitState.set(0|1|2) on every circuit transition
 export { register };
 ```
 
-### 17.2 Endpoints
+### 17.2 Monitoring Endpoints
 
 ```
-GET /api/v2/monitoring/health  — PUBLIC — no auth required — Render health check
-  Response: { status: 'healthy', version, ts, env, nrs: { state } }
+GET /api/v2/monitoring/health  — PUBLIC — {
+  status: 'healthy' | 'degraded',
+  version, ts, env,
+  nrs: { state: 'closed'|'half-open'|'open' },
+  db:    { latencyMs: number },    // > 500ms → status becomes 'degraded' (still HTTP 200)
+  redis: { latencyMs: number },    // > 500ms → status becomes 'degraded' (still HTTP 200)
+}
+// NEVER returns 503 from health check — Render blue-green swap uses this endpoint
+// 'degraded' is HTTP 200 — allows Render to keep routing traffic while alerting ops
 
-GET /api/v2/monitoring/metrics — ADMIN only — Prometheus text format
-  Auth: authenticate + requireRole('ADMIN')
-  Content-Type: text/plain; version=0.0.4
+GET /api/v2/monitoring/metrics — ADMIN only — Prometheus text format (register.metrics())
 ```
 
 ### 17.3 Grafana Alert Thresholds
 
 ```yaml
-# infra/grafana/alerts.yml
 - name: API Error Rate
   expr: rate(taxbridge_api_request_duration_seconds_count{status=~"5.."}[5m]) > 0.01
   for: 2m | severity: critical | action: PagerDuty
@@ -1789,16 +1939,34 @@ GET /api/v2/monitoring/metrics — ADMIN only — Prometheus text format
 ### 17.4 Cron Orchestrator — All 7 Jobs
 
 ```typescript
-// backend/src/cron/orchestrator.ts — single registry, no scattered setInterval
+// backend/src/cron/orchestrator.ts
 const CRON_JOBS = [
-  { name: 'taxHealthSnapshot',  schedule: '0 */6 * * *',   handler: runTaxHealthSnapshotAll },
-  { name: 'riskScoring',        schedule: '0 3 * * *',      handler: runRiskScoringCron },    // 04:00 WAT
-  { name: 'nrsQueueDrain',      schedule: '*/30 * * * *',   handler: drainNrsQueue },
-  { name: 'complianceReminder', schedule: '0 8 * * *',      handler: sendComplianceReminders }, // 09:00 WAT
-  { name: 'anomalyDigest',      schedule: '0 7 * * 1',      handler: sendWeeklyAnomalyDigest }, // Mon 08:00 WAT
-  { name: 'sessionCleanup',     schedule: '0 1 * * *',      handler: expireOldSessions },    // 02:00 WAT
-  { name: 'keepAlive',          schedule: '*/14 * * * *',   handler: pingKeepAlive },          // prevent Render cold-start
+  { name: 'taxHealthSnapshot',  schedule: '0 */6 * * *',  handler: runTaxHealthSnapshotAll },
+  { name: 'riskScoring',        schedule: '0 3 * * *',    handler: runRiskScoringCron },      // 04:00 WAT
+  { name: 'nrsQueueDrain',      schedule: '*/30 * * * *', handler: drainNrsQueue },
+  { name: 'complianceReminder', schedule: '0 8 * * *',    handler: sendComplianceReminders }, // 09:00 WAT
+  { name: 'anomalyDigest',      schedule: '0 7 * * 1',    handler: sendWeeklyAnomalyDigest }, // Mon 08:00 WAT
+  { name: 'sessionCleanup',     schedule: '0 1 * * *',    handler: expireOldSessions },       // 02:00 WAT
+  { name: 'keepAlive',          schedule: '*/14 * * * *', handler: pingKeepAlive },
 ];
+// No scattered setInterval() calls anywhere else in the codebase
+```
+
+### 17.5 Request Logger Middleware
+
+```typescript
+app.use((req, res, next) => {
+  const startAt = process.hrtime.bigint();
+  res.on('finish', () => {
+    const durationMs = Number(process.hrtime.bigint() - startAt) / 1_000_000;
+    logger.info({
+      method: req.method, route: req.route?.path ?? req.path,
+      status: res.statusCode, durationMs: durationMs.toFixed(2),
+      orgId: (req as any).orgContext?.orgId, userId: (req as any).user?.id, ip: req.ip,
+    }, 'request completed');
+  });
+  next();
+});
 ```
 
 ---
@@ -1806,29 +1974,25 @@ const CRON_JOBS = [
 ## 18. ROLLBACK MECHANISMS
 
 ```bash
-# Backend — Render blue-green (execute within 60s of smoke failure)
+# Backend — blue-green swap (60s decision window)
 render traffic swap --from prod --to blue --api-key "$RENDER_API_KEY"
-# Blue slot holds previous release. Never delete until next successful deploy.
+# Blue slot: never delete until next successful deploy
 
 # Admin — Vercel
 npx vercel rollback --token="$VERCEL_TOKEN" --cwd admin
 
-# Mobile — OTA (JS-only regressions; no native, no SDK, no schema changes)
+# Mobile — OTA (JS-only; no native/SDK/schema changes)
 eas update --branch production --message "revert: rollback" \
   --git-commit-hash $(git rev-parse HEAD~1)
 
-# Database — NEVER prisma migrate rollback in production
-# Apply a forward migration that undoes the change:
-# Step 1: Write a new migration reversing the schema change
-npx prisma migrate dev --name "v12_hotfix_$(date +%Y%m%d)"   # LOCAL dev only — generates SQL
-# Step 2: Deploy that new migration to production
-npx prisma migrate deploy                                       # PRODUCTION — applies committed migrations only
+# Database — NEVER prisma migrate rollback
+# Write forward migration to undo change; deploy via prisma migrate deploy
 
-# Rollback decision matrix:
+# Decision matrix:
 # Error rate > 1%      → blue-green swap within 60s
 # P99 latency > 5s     → blue-green swap within 60s
-# DB migration panic   → forward migration only — no rollback
-# Mobile crash > 1%    → OTA if JS-only; full EAS build if native
+# DB migration panic   → forward migration only
+# Mobile crash > 1%    → OTA if JS-only; full EAS build if native change
 ```
 
 ---
@@ -1838,62 +2002,57 @@ npx prisma migrate deploy                                       # PRODUCTION —
 ### 19.1 Coverage Requirements
 
 ```
-Lines:      ≥ 95%
-Functions:  ≥ 95%
-Branches:   ≥ 90%
-Passing:    ≥ 550 tests, 0 failures
+Lines:     ≥ 95% | Functions: ≥ 95% | Branches: ≥ 90%
+Passing:   ≥ 550 tests, 0 failures
 ```
 
 ### 19.2 Mandatory Test Cases
 
 ```typescript
-// contracts/penalties.test.ts
-// Company, 32 days late, ₦0 tax due:
-//   lateFiling = 250,000 + 125,000 = 375,000 | interest = 0 | netPenalty = 375,000
-// Individual, 1 day late, ₦100,000 due, before_audit waiver → netPenalty = 0
+// packages/contracts/src/penalties.test.ts
+// Company, 32d late, ₦0 due → netPenalty === 375,000
+// Individual, 1d late, ₦100k, before_audit → netPenalty === 0
 
-// contracts/pit.test.ts
-// ₦5M gross + ₦600k rent + ₦200k pension → taxLiability === 632,400 (±₦1)
+// packages/contracts/src/pit.test.ts
+// ₦5M + ₦600k rent + ₦200k pension → taxLiability === 632,400 (±₦1)
 
-// routes/filings/nil.test.ts
-// POST → 200 with filingReference on first call
-// POST (duplicate) → 409 with existing filingReference
-// AuditEvent created: orgId, action='FILE', after.isNil=true
+// backend/src/routes/v1/filings/nil.test.ts
+// POST → 200 + filingReference | duplicate → 409 + existing reference
+// AuditEvent created: action='FILE', after.isNil=true
 
-// middleware/requireRole.test.ts
-// VIEWER → admin route → 403 + error: 'INSUFFICIENT_ROLE'
-// OWNER  → owner route → passes through
+// backend/src/middleware/requireRole.test.ts
+// VIEWER → admin route → 403 + error:'INSUFFICIENT_ROLE'
+// OWNER → owner route → passes
 
-// middleware/tenant.test.ts
-// orgA user → orgB data → 403 + error: 'ORG_ACCESS_DENIED'
+// backend/src/middleware/tenant.test.ts
+// orgA user → orgB data → 403 + error:'ORG_ACCESS_DENIED'
 
-// services/vatCredit.test.ts
-// getVATCreditPosition never recomputes — reads VATCreditBalance from DB (C-22)
+// backend/src/services/vatCredit.test.ts
+// getVATCreditPosition reads VATCreditBalance from DB — never recomputes (C-22)
 
-// routes/dashboard.test.ts
-// DB failure → 200 with FALLBACK_* (not 500) (C-07, C-12)
+// backend/src/routes/v1/dashboard.test.ts
+// DB failure → 200 with FALLBACK_* (not 500)
 // Cache hit: second call within 120s → meta.cached === true
 ```
 
 ### 19.3 Performance Gates
 
 ```
-k6 / Artillery:
-  2000 concurrent users × 60 seconds
+k6/Artillery:
+  2000 concurrent × 60s
   GET /api/v1/dashboard P95 < 200ms | P99 < 800ms
   POST /api/v1/filings/nil P95 < 500ms
 
-2G simulation (Chrome DevTools throttling):
-  Dashboard initial paint:  < 800ms first meaningful paint
-  Dashboard data visible:   < 2000ms on simulated 2G (RTT 400ms, 750kbps)
+2G simulation:
+  Dashboard initial paint:  < 800ms
+  Dashboard data visible:   < 2000ms (RTT 400ms, 750kbps)
 
-Lighthouse (admin panel):
-  Performance: ≥ 98 | Accessibility: ≥ 98 | Best Practices: ≥ 100 | SEO: ≥ 90
+Lighthouse (admin):
+  Performance ≥ 98 | Accessibility ≥ 98 | Best Practices ≥ 100 | SEO ≥ 90
 
 React Native Profiler:
-  Skeleton → content transition:  0 dropped frames
-  Layout shift on data arrival:   0px
-  Dashboard zone reveal:          ≥ 55fps sustained
+  Skeleton → content transition: 0 dropped frames, 0px layout shift
+  Dashboard zone reveal: ≥ 55fps sustained
 ```
 
 ---
@@ -1901,21 +2060,19 @@ React Native Profiler:
 ## 20. MODULE CONTEXT LOADING
 
 ```typescript
-// prompts/loaders/prompt-loader.ts
 // yarn prompts:verify → "✅ 11/11 modules loaded (M00–M10)"
-
 const TASK_MODULES: Record<string, string[]> = {
-  'backend-api':              ['M00', 'M01'],
-  'mobile-ui':                ['M00', 'M02', 'M08'],
-  'dashboard-ux':             ['M00', 'M02', 'M08'],
-  'mobile-enhancements':      ['M00', 'M02', 'M08', 'M09'],
-  'ai-features':              ['M00', 'M01', 'M03', 'M05'],
-  'nrs-compliance':           ['M00', 'M01', 'M04', 'M05'],
-  'compliance-intelligence':  ['M00', 'M01', 'M05', 'M10'],
-  'devops':                   ['M00', 'M06'],
-  'growth':                   ['M00', 'M07'],
-  'education':                ['M00', 'M02', 'M09', 'M10'],
-  'full-audit':               ['M00','M01','M02','M03','M04','M05','M06','M07','M08','M09','M10'],
+  'backend-api':             ['M00', 'M01'],
+  'mobile-ui':               ['M00', 'M02', 'M08'],
+  'dashboard-ux':            ['M00', 'M02', 'M08'],
+  'mobile-enhancements':     ['M00', 'M02', 'M08', 'M09'],
+  'ai-features':             ['M00', 'M01', 'M03', 'M05'],
+  'nrs-compliance':          ['M00', 'M01', 'M04', 'M05'],
+  'compliance-intelligence': ['M00', 'M01', 'M05', 'M10'],
+  'devops':                  ['M00', 'M06'],
+  'growth':                  ['M00', 'M07'],
+  'education':               ['M00', 'M02', 'M09', 'M10'],
+  'full-audit':              ['M00','M01','M02','M03','M04','M05','M06','M07','M08','M09','M10'],
 };
 ```
 
@@ -1937,70 +2094,78 @@ const TASK_MODULES: Record<string, string[]> = {
 
 ## 21. WORK QUEUE — SEQUENCED BY DEPENDENCY
 
-### P0 — Session 1 (Blocking — Must Complete Before Any Feature Work)
+### P0 — Blocking Foundation
 
 ```
-1.  Run 8-step session opening (§3). Stop immediately on any gate failure.
+1.  Run 8-step session opening (§3). Gate failure = STOP.
 2.  yarn prompts:verify → "11/11 modules"
 3.  Fix BUG-S01: @expo-google-fonts/inter + useFonts in App.tsx
-4.  Fix BUG-S02: sed -i 's/NRSt/NRS/g' mobile/src/i18n/en.json mobile/src/i18n/pidgin.json
-5.  Fix BUG-S03/S04: initImmediate: false in i18n config; add common.offline to both locales
-6.  CREATE: mobile/src/design-system/animation.ts (§12.1) ← ALL subsequent files import this
+4.  Fix BUG-S02: sed -i 's/NRSt/NRS/g' mobile/src/i18n/*.json
+5.  Fix BUG-S03/S04: initImmediate: false; add common.offline to both locales
+6.  CREATE: mobile/src/design-system/animation.ts (§12.1)
 7.  CREATE: mobile/src/design-system/ngn.ts (§1.4)
 8.  CREATE: mobile/src/design-system/tokens.ts
 9.  CREATE: mobile/src/contexts/ThemeContext.tsx
 10. CREATE: mobile/src/components/dashboard/DashboardZone.tsx (§12.2)
 11. CREATE: mobile/src/components/dashboard/DashboardSkeleton.tsx (§12.3)
-12. REPLACE: TaxHealthGauge → SVG arc (§12.4). buildArcPath + scoreToStroke marked 'worklet'.
+12. REPLACE: TaxHealthGauge → SVG arc (§12.4). Both worklet functions marked 'worklet'.
 13. CREATE: mobile/src/components/shared/SectionState.tsx
 14. CREATE: mobile/src/components/shared/InlineError.tsx
-15. VERIFY/CREATE: backend/src/validateEnv.ts (§15.3) — first import in app.ts
-16. VERIFY/UPDATE: backend/src/app.ts — express.raw before express.json; 0.0.0.0; PORT from env
-17. VERIFY/CREATE: backend/src/lib/logger.ts (Pino, PII redact)
-18. VERIFY/CREATE: backend/src/metrics.ts (prom-client singleton §17.1)
-19. VERIFY/CREATE: backend/src/middleware/requireRole.ts
-20. VERIFY/CREATE: backend/src/middleware/tenant.ts (resolveOrgContext §1.3)
-21. VERIFY/CREATE: backend/src/services/audit.ts (writeAuditEvent §8.1)
-22. CREATE: backend/src/services/dashboardService.ts (each fn: .catch → FALLBACK_*)
-23. CREATE: backend/src/routes/v1/dashboard.ts — Promise.all, Redis 120s TTL
-24. CREATE: mobile/src/hooks/useDashboard.ts
-25. UPDATE: mobile/src/screens/DashboardScreen.tsx → canonical zone structure (§12.5)
-26. VERIFY: POST /api/v1/filings/nil (MOD-21/C-21)
-27. VERIFY: prom-client singleton + /api/v2/monitoring/health
-28. VERIFY: resolveOrgContext on all business routes (C-31)
-29. UPDATE: prisma/schema.prisma — all enums + models (§14.1-14.3)
-30. RUN: npx prisma migrate dev --name "v12_foundation"    # LOCAL only; CI/CD uses prisma migrate deploy
+15. CREATE: packages/contracts/src/types.ts — including IntelligenceInput interface (§11A.1)
+16. VERIFY/CREATE: backend/src/validateEnv.ts (§15.3)
+17. CREATE: backend/src/middleware/validate.ts (§9A.3, C-34)
+18. CREATE: backend/src/middleware/idempotency.ts (§9A.4, C-35)
+19. VERIFY/UPDATE: backend/src/app.ts — compression + express.raw order + 0.0.0.0 + PORT
+20. VERIFY/CREATE: backend/src/lib/logger.ts
+21. VERIFY/CREATE: backend/src/metrics.ts (§17.1)
+22. VERIFY/CREATE: backend/src/middleware/requireRole.ts
+23. VERIFY/CREATE: backend/src/middleware/tenant.ts
+24. VERIFY/CREATE: backend/src/services/audit.ts
+25. CREATE: backend/src/services/anomalyEngine.ts — 7 signals, capped 5, fail→[] (§11A.2)
+26. CREATE: backend/src/services/riskScoring.ts — 5-component, clamp 0-100 (§11A.3)
+27. VERIFY/UPDATE: backend/src/services/nrsService.ts — opossum circuit breaker (§6.8)
+28. CREATE: backend/src/services/compliancePreFlight.ts (§6.9)
+29. CREATE: backend/src/services/dashboardService.ts (FALLBACK_* on every .catch)
+30. CREATE: backend/src/routes/v1/dashboard.ts (Promise.all, Redis 120s TTL)
+31. CREATE: backend/src/routes/v1/compliance/preflight.ts
+32. CREATE: backend/src/routes/v1/onboarding/progress.ts (PATCH — resume wizard)
+33. CREATE: mobile/src/hooks/useDashboard.ts + AppState 'active' invalidation
+34. REPLACE: mobile/src/screens/DashboardScreen.tsx → canonical zone structure (§12.5)
+35. CREATE: mobile/src/screens/OnboardingWizard.tsx — resilient with AsyncStorage resume (§6.7)
+36. VERIFY: POST /api/v1/filings/nil with idempotency middleware (C-21, C-35)
+37. VERIFY: prom-client singleton + /api/v2/monitoring/health (db + redis latency in response)
+38. VERIFY: resolveOrgContext on all business routes (C-31)
+39. UPDATE: backend/prisma/schema.prisma — all enums + models + TaxHealthSnapshot + indexes (§14)
+40. RUN: npx prisma migrate dev --name "v12_foundation"
 ```
-
-CI gate after P0: all Phase 1 Validation commands in §22.1 must pass.
 
 ### P1 — Sprint 1
 
 ```
-A. SectionState on all conditional dashboard sections
-B. ThemeContext + useTheme() across all components
+A. SectionState wrapping all conditional dashboard sections
+B. ThemeContext + useTheme() across all components; no raw hex in components
 C. TaxHealthSnapshot model + /trends endpoint + sparklines
 D. Multi-deadline ComplianceCalendar with "File Now" CTAs
-E. computeQuickActions() urgency sort (§12.6)
+E. computeQuickActions() urgency sort
 F. OfflineSyncStatus in AMBIENT zone + NetInfo listener
-G. Pidgin error text in useNrsHealth
-H. gaugeMode useMemo + compact/expanded (§12.4)
-I. scale(0.97) Pressable on all 6 interactive dashboard elements (C-20)
-J. ExplainMyTax component — 7 keys, offline-safe, bundled
-K. SME risk scoring cron (03:00 WAT daily)
+G. Pidgin natural language pass + i18n:check
+H. gaugeMode useMemo + compact/expanded
+I. scale(0.97) Pressable on all 6 QuickAction tiles
+J. ExplainMyTax — 7 keys, offline-safe, bundled
+K. SME risk scoring cron (04:00 WAT daily)
 L. @shopify/flash-list — replace ALL FlatList instances
-M. Biometric login — expo-local-authentication (§6.2)
-N. Haptic feedback on all interactions (§12.8)
+M. Biometric login — expo-local-authentication
+N. Haptic feedback on all interactions
 ```
 
 ### P1 — Feature Build
 
 ```
-MOD-22: VAT filing wizard (IRN generation + VATCreditBalance carryforward)
-MOD-23: WHT remittance (rate decision tree + exemption check C-23)
-MOD-25: PAYE payroll (calculatePIT per employee; gate: ₦5M → ₦632,400 ±₦1)
-MOD-21: NIL return screen (if not production-verified)
-MOD-26: Document vault (AES-256-GCM, Cloudflare R2, 5-year retention)
+MOD-22: VAT filing wizard (IRN + VATCreditBalance carryforward)
+MOD-23: WHT remittance (rate decision tree + exemption check)
+MOD-25: PAYE payroll (calculatePIT per employee; ₦5M → ₦632,400 gate)
+MOD-21: NIL return screen
+MOD-26: Document vault (AES-256-GCM, Cloudflare R2, 5yr retention)
 MOD-27: Multi-org team management (5 roles, OrgMember)
 MOD-40: TaxAcademy Lessons 1–12 + quizzes + Lottie confetti
 TIN + CAC onboarding validation routes (§6.7)
@@ -2010,9 +2175,9 @@ TIN + CAC onboarding validation routes (§6.7)
 
 ```
 MOD-35: calculateTaxOptimizer() — AI deduction suggestions
-MOD-37: Stripe billing (subscription plans, feature gating by orgId)
+MOD-37: Stripe billing (subscription plans, feature gating)
 MOD-43: Lottie confetti on milestone events
-V12-04: /api/v3 versioned gateway (backward-compatible)
+V12-04: /api/v3 versioned gateway
 V12-05: PgBouncer connection pooling
 V12-06: BullMQ priority queue separation
 V12-07: iOS TestFlight submission
@@ -2041,19 +2206,20 @@ grep -rn "FIRS" . --include="*.ts" --include="*.tsx" --include="*.json" | grep -
 grep -rn "withTiming.*[0-9]\{3,4\}" mobile/src | grep -v animation.ts                           # → 0
 grep -rn "CRA\b\|consolidatedRelief\|minTax\|0\.01.*gross\|ETR.*PIT" packages/contracts/src     # → 0
 grep -rn "console\.log" backend/src --include="*.ts"                                             # → 0
-grep -rn "0\.2725\b" packages/contracts/src backend/src                                          # → 0 (C-27)
+grep -rn "0\.2725\b" packages/contracts/src backend/src                                          # → 0
 grep 'zone="' mobile/src/screens/DashboardScreen.tsx | wc -l                                    # → 5
 grep -rn "No anomal\|noAnomal" mobile/src                                                        # → 0
 grep -rn "await.*router\|router.*await" mobile/src/screens/DashboardScreen.tsx                  # → 0
-grep '"compileSdkVersion": 36' mobile/eas.json | wc -l                                          # → ≥ 2
+grep '"compileSdkVersion": 36' mobile/eas.json | wc -l                                          # → 3
+grep '"SENTRY_DSN": "REPLACE' mobile/eas.json                                                   # → 0
+grep -rn "schema\.parse(" backend/src/routes --include="*.ts"                                   # → 0 (C-34)
+grep -rn "FlatList" mobile/src --include="*.tsx" | grep -v node_modules                         # → 0
 yarn prompts:verify                                                                              # → "11/11 modules"
 yarn i18n:check                                                                                  # → exit 0
 npm test --workspaces -- --coverage                                                              # → ≥ 550 passing, 0 failing
 npx nyc check-coverage --lines 95 --functions 95 --branches 90                                  # → pass
 npx snyk test --all-projects --severity-threshold=high                                          # → 0 HIGH/CRITICAL
-# PIT accuracy gate (must exit 0):
 npx ts-node -e "const {calculatePIT}=require('./packages/contracts/src');const r=calculatePIT({grossIncome:5000000,rentPaid:600000,pension:200000});if(Math.abs(r.taxLiability-632400)>1)process.exit(1)"
-# Penalty accuracy gate (must exit 0):
 npx ts-node -e "const {calculatePenalty}=require('./packages/contracts/src');const r=calculatePenalty({entityType:'company',daysLate:32,taxAmountDue:0,disclosurePhase:'after_assessment'});if(r.netPenalty!==375000)process.exit(1)"
 ```
 
@@ -2064,7 +2230,7 @@ GET /api/v2/monitoring/health → {"status":"healthy"} within 500ms
 GET /api/v1/dashboard (cache hit) P95 < 50ms
 GET /api/v1/dashboard (cache miss) P95 < 800ms
 POST /api/v1/filings/nil P95 < 500ms
-Admin panel Lighthouse performance ≥ 98
+Admin Lighthouse performance ≥ 98
 Dashboard 2G load < 2000ms first meaningful paint
 Mobile crash rate (Sentry) < 0.1%
 NRS stamp success rate > 97%
@@ -2077,21 +2243,37 @@ API error rate (5xx) < 0.5% over any 5-minute window
 ```
 □ validateEnv.ts is first import in backend/src/app.ts
 □ Express bound to 0.0.0.0, PORT from process.env.PORT
+□ compression middleware active before routes (gzip level 6, threshold 1024)
 □ express.raw('/webhooks') precedes express.json() in app.ts
 □ Flutterwave HMAC uses rawBody.toString('utf8') + timingSafeEqual
 □ Sentry PII regex order: BVN(11d) → ACCT(10d) → TIN(8d)
 □ prom-client singleton: global.__taxbridge_prom_registry guard present
 □ Redis cache write is non-blocking (.catch() fire-and-forget)
 □ AuditEvent model has no updatedAt field
-□ All 7 cron jobs registered in orchestrator (including keepAlive */14)
+□ TaxHealthSnapshot model has no updatedAt field (insert-only)
+□ All 7 cron jobs registered in orchestrator — no scattered setInterval
+□ validate() middleware applied to all POST/PATCH mutation routes (C-34)
+□ idempotency middleware applied to all exactly-once mutation routes (C-35)
+□ opossum circuit breaker wired in nrsService.ts; nrsCircuitState metric updates
+□ anomalyEngine.ts wrapped in try/catch — returns [] on throw
+□ riskScoring.ts clamps score 0-100 before DB write
+□ OnboardingWizard: router.replace on completion, AsyncStorage resume path
+□ compliancePreFlight.ts called before Submit CTA in all filing wizards
+□ DLQ admin UI at /admin/dlq with retry + resolve controls
+□ Admin analytics at /admin/analytics with all 5 panels
+□ TaxHealthSnapshot model present in schema
 □ render.yaml committed to repo root
+□ render.yaml logDrain destination set to Grafana Loki
 □ CBN_MPR in Render environment variables (sync: false)
-□ EAS staging + production: compileSdkVersion=36, targetSdkVersion=35
-□ SENTRY_DSN in EAS staging + production env blocks
+□ CORS_ORIGIN in Render environment variables (sync: false)
+□ DOCUMENT_VAULT_KMS_PROVIDER in Render environment variables (sync: false)
+□ EAS all 3 profiles: compileSdkVersion=36, targetSdkVersion=35
+□ SENTRY_DSN set via EAS secret — not placeholder
 □ .env files not committed (git ls-files | grep '\.env\.' | grep -v example → 0)
+□ Docker: multi-stage build, non-root user, HEALTHCHECK directive
 □ Blue-green green slot passes health check before traffic swap
-□ Canary at 5% observed for ≥ 2min with error rate < 0.5%
-□ iOS eas.json production entry has buildConfiguration: "Release"
+□ Canary at 5% observed ≥ 2min with error rate < 0.5%
+□ iOS eas.json production: buildConfiguration: "Release"
 □ jose installed in admin workspace (Edge Runtime JWT)
 □ All 7 smoke-test checks pass post-deploy
 □ SMOKE_TEST_EMAIL, SMOKE_TEST_PASSWORD, RENDER_API_KEY, CBN_MPR in GitHub Secrets
@@ -2099,8 +2281,8 @@ API error rate (5xx) < 0.5% over any 5-minute window
 □ resolveOrgContext applied to all business routes
 □ requireRole applied to all non-public routes
 □ BiometricAuth falls through to PIN — never blocks login
-□ All FlatList instances replaced with @shopify/flash-list (grep -rn "FlatList" mobile/src → 0)
-□ prisma/seeds/smokeTestUser.ts exists and SMOKE_TEST_EMAIL credentials are deterministic
+□ All FlatList replaced with @shopify/flash-list (grep -rn "FlatList" mobile/src → 0)
+□ prisma/seeds/smokeTestUser.ts exists with deterministic credentials
 ```
 
 ---
@@ -2110,23 +2292,33 @@ API error rate (5xx) < 0.5% over any 5-minute window
 | Symptom | Root Cause | Remediation |
 |---|---|---|
 | TypeScript errors after Prisma change | Generated types referenced | Replace with `(prisma as any)` (C-01) |
-| WHT professional fee shown as 5% | Rate lookup defaulting to construction rate | Check category mapping — only construction/contracts is 5%; professional fees are 10% (C-10, §2.3) |
-| EAS build fails (AAR incompatibility) | Wrong SDK version | Verify `compileSdkVersion: 36, targetSdkVersion: 35` in eas.json |
-| NRS circuit stuck open | NRS API down | Set `DIGITAX_MOCK_MODE=true` in Render env → unblocks filing |
+| Dashboard P99 > 800ms under load | Redis TTL inadvertently 0 | Verify `dashboard:composite:v1:${orgId}:${userId}` TTL is 120s |
+| WHT professional fee shown as 5% | Rate lookup defaulting to construction | Check category mapping — professional is 10% (C-10, §2.3) |
+| EAS build fails (AAR incompatibility) | Wrong SDK version | Verify `compileSdkVersion: 36, targetSdkVersion: 35` (C-03) |
+| NRS circuit stuck open | NRS API down | Set `DIGITAX_MOCK_MODE=true` in Render env |
 | Raw i18n keys on device | `initImmediate: true` | Set `initImmediate: false` → `eas update --branch production` |
 | Admin 500 on cold start | Missing FALLBACK_* | All 3 admin routes must `.catch(() => FALLBACK_*)` (C-12) |
-| Gauge not rendering | worklet missing or wrong SVG version | Verify `'worklet'` on `buildArcPath` + `scoreToStroke` |
-| Composite API > 800ms P99 | Redis miss or sequential await | Verify TTL=120s; verify Promise.all not sequential |
+| Gauge not rendering | worklet missing | Verify `'worklet'` on `buildArcPath` + `scoreToStroke` (§12.4) |
+| Composite API > 800ms P99 | Sequential await | Verify Promise.all not sequential; TTL=120s |
 | prom-client crash on hot reload | Double registration | Verify `global.__taxbridge_prom_registry` singleton guard |
-| Flutterwave HMAC always false | Buffer stringification | Use `rawBody.toString('utf8')` not `JSON.stringify(req.body)` |
-| Sentry masking years (2025/2026) | Regex order wrong | BVN(11d) must precede ACCT(10d) must precede TIN(8d) |
-| Penalty calculation wrong | CBN_MPR hardcoded | Read from `process.env.CBN_MPR` — never literal value |
+| Flutterwave HMAC always false | Buffer stringification | Use `rawBody.toString('utf8')` not `JSON.stringify(req.body)` (§6.5) |
+| Sentry masking years | Regex order wrong | BVN(11d) → ACCT(10d) → TIN(8d) — order is mandatory (§6.3) |
+| Penalty calculation wrong | CBN_MPR hardcoded | Read from `process.env.CBN_MPR` — never literal (C-27) |
 | Accountant sees wrong org data | revokedAt unchecked | Add `revokedAt: null` to AccountantClient query (C-28) |
-| Zone animation not playing | visible prop false | Verify `data !== undefined` before setting `visible={true}` |
-| Skeleton layout shift | Geometry mismatch | Measure SkeletonBlock height vs real component height |
-| OTA update not applying | Native code changed | Full EAS build required |
-| 15% ETR on individual PIT | Old code path | Delete — NTA 2025 §47 scope is corporate MNE only |
-| "No anomalies" text visible | empty prop not null | Set `empty={null}` on SectionState for anomaly section (C-19) |
+| Zone animation not playing | visible prop false | Verify `data !== undefined` before `visible={true}` |
+| Skeleton layout shift | Geometry mismatch | Measure SkeletonBlock vs real component height (§12.3) |
+| 15% ETR on individual PIT | Old code path | Delete — NTA 2025 §47 is corporate MNE only (§2.1) |
+| "No anomalies" text visible | empty not null | Set `empty={null}` on SectionState for anomaly section (C-19) |
+| SENTRY_DSN placeholder in build | Unconfigured secret | `eas secret:create --scope project --name SENTRY_DSN --value <dsn>` (C-33) |
+| validate() not a middleware | schema.parse() in handler | Move to `validate(MySchema)` in route chain (C-34) |
+| Duplicate filing on network retry | Missing idempotency key | Apply `idempotency` middleware; client must send `X-Idempotency-Key` (C-35) |
+| Anomaly engine throws → dashboard fails | computeAnomalies not wrapped | Ensure try/catch → return [] + Sentry in anomalyEngine.ts |
+| Risk score outside 0-100 | Unclamped computation | Add `Math.max(0, Math.min(100, total))` in computeRiskScore before upsert |
+| NRS circuit opens repeatedly | Mock mode not enabled | Set `DIGITAX_MOCK_MODE=true` in Render env; circuit resets on toggle |
+| Onboarding resets to step 1 | No resume path | Implement PATCH /api/v1/onboarding/progress + AsyncStorage fallback |
+| Admin analytics page blank | Missing intelligence input build | Verify buildIntelligenceInput(orgId, prisma) is implemented in dashboardService.ts |
+| Health check returns 503 | degraded state misconfigured | Health endpoint must always return 200 — use 'degraded' status string, not HTTP 503 |
+| TaxHealthSnapshot growing unbounded | No retention policy | Snapshot cron prunes entries older than 24 months per org — add to riskScoringCron |
 
 ---
 
@@ -2137,18 +2329,23 @@ API error rate (5xx) < 0.5% over any 5-minute window
 | Tax numbers are defensible | Every calculation from `@taxbridge/contracts`, cites NTA 2025 §XX |
 | Offline is invisible | React Query cache + AsyncStorage queue; OfflineSyncStatus in AMBIENT |
 | Pidgin is first-class | Natural Lagos Pidgin; CI blocks raw keys and literal translations |
-| Performance is trust | Single composite call; FlashList; 60fps gauge; 2G < 2s |
+| Performance is trust | Single composite call; FlashList; 60fps gauge; gzip compression; 2G < 2s |
 | Multi-tenant always | `orgId` on every business query; `resolveOrgContext` on every business route |
-| Audit trail is immutable | AuditEvent has no `updatedAt`; all writes awaited (C-25) |
-| Gestures are instant | Visual ack + haptic ≤ 100ms; `router.push()` never awaited |
+| Audit trail is immutable | AuditEvent + TaxHealthSnapshot have no `updatedAt`; all filing writes awaited (C-25) |
+| Gestures are instant | Visual ack + haptic ≤ 100ms; `router.push()` never awaited (C-20) |
 | Empty states help | Never blank; silence on no anomalies (C-19); errors = InlineError + retry |
 | WCAG 2.2 AA everywhere | 3-channel status indicators; SVG gauge with accessibilityLabel |
-| Compliance is proactive | NIL returns required; penalty estimates before deadlines; ExplainMyTax inline |
+| Compliance is proactive | NIL returns required; preflight checks before submission; penalty estimates before deadlines |
+| Intelligence is explainable | Anomaly descriptions cite specific data points; no black-box output; fail → [] not exception |
+| Validation is layered | validate() middleware on routes; Zod in contracts; idempotency on mutations (C-34, C-35) |
+| Security is zero-trust | Every route: authenticate + resolveOrgContext + requireRole. No exceptions. |
+| Secrets are never literals | CBN_MPR, CORS, KMS, SENTRY_DSN — always from env. Never hardcoded. |
 
 > **Build for:** A first-time filer on a Tecno Spark, on 2G in Lagos, with a PAYE deadline in 3 days, who speaks Pidgin. If it works for them, it works for everyone.
 
 ---
 
-**TAXBRIDGE V12 MASTER PROMPT**
+**TAXBRIDGE V12 MASTER PROMPT — ELEVATED + FINAL**
 Path: `/prompts/v12_master_prompt.md` | Repo: `github.com/Scardubu/taxbridge`
-Effective: 2026-03-01 | Supersedes: V10.3 + V11.0
+Effective: 2026-03-02 | Branch: `upgrade/v12-elevated-20260302` | Supersedes: V10.3 + V11.0 + V12 FINAL
+Architecture Module: `/prompts/v12_production_architecture_module.md` — read alongside for AI pipeline (§11A), admin analytics (§7.x), Docker (§10.1), UX flows (§6.x), performance hardening (§12.x), and security hardening (§11.x).

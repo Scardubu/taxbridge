@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { UBLViewer } from '@/components/UBLViewer';
-import { MoreHorizontal, Eye, RefreshCw, FileText } from 'lucide-react';
+import { MoreHorizontal, Eye, RefreshCw, FileText, CheckCircle2, Loader2, Clock, XCircle, HelpCircle } from 'lucide-react';
 import { logError } from '@/lib/logger';
 import { FetchError, fetchJson } from '@/lib/fetcher';
 import { useAdminI18n } from '@/lib/i18n';
@@ -97,6 +97,21 @@ export default function InvoicesPage() {
     if (error instanceof Error) return error.message;
     return t('invoices.error.loadFailed');
   }, [error, t]);
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'stamped':
+        return <CheckCircle2 className="h-3 w-3 text-green-600" aria-hidden="true" />;
+      case 'processing':
+        return <Loader2 className="h-3 w-3 text-blue-600 animate-spin" aria-hidden="true" />;
+      case 'queued':
+        return <Clock className="h-3 w-3 text-yellow-600" aria-hidden="true" />;
+      case 'failed':
+        return <XCircle className="h-3 w-3 text-red-600" aria-hidden="true" />;
+      default:
+        return <HelpCircle className="h-3 w-3 text-gray-500" aria-hidden="true" />;
+    }
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -282,8 +297,8 @@ export default function InvoicesPage() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={getStatusVariant(invoice.status)} className="flex items-center gap-1 w-fit">
-                      <div className={`w-2 h-2 rounded-full ${getStatusColor(invoice.status)}`} />
+                    <Badge variant={getStatusVariant(invoice.status)} className="flex items-center gap-1.5 w-fit">
+                      {getStatusIcon(invoice.status)}
                       {invoice.status}
                     </Badge>
                   </TableCell>

@@ -10,8 +10,8 @@ const DEFAULT_POOL_MAX = 10;
 const DEFAULT_POOL_TIMEOUT_MS = 5000;
 const DEFAULT_SLOW_QUERY_MS = 500;
 
-// Singleton Prisma Client instance
-let prismaInstance: PrismaClient | undefined;
+// C-43: Use global singleton to survive hot-reloads in dev
+declare const globalThis: { __prisma?: PrismaClient } & typeof global;
 
 function coerceNumber(value: string | undefined, fallback: number): number {
   if (!value) return fallback;
@@ -82,13 +82,13 @@ function buildDatasourceUrl(): string {
  * Attaches encryption middleware automatically.
  */
 export function getPrismaClient(): PrismaClient {
-  if (!prismaInstance) {
+  if (!globalThis.__prisma) {
     log.info('Creating new Prisma Client instance');
 
     const datasourceUrl = buildDatasourceUrl();
     const slowQueryThreshold = coerceNumber(process.env.PRISMA_SLOW_QUERY_MS, DEFAULT_SLOW_QUERY_MS);
 
-    prismaInstance = new PrismaClient({
+    globalThis.__prisma = new PrismaClient({
       datasources: {
         db: {
           url: datasourceUrl
@@ -101,13 +101,13 @@ export function getPrismaClient(): PrismaClient {
     });
 
     // Attach encryption middleware
-    attachEncryptionMiddleware(prismaInstance);
+    attachEncryptionMiddleware(globalThis.__prisma);
 
     // Attach query logging middleware for performance monitoring
-    prismaInstance.$use(createQueryLoggingMiddleware());
+    globalThis.__prisma.$use(createQueryLoggingMiddleware());
 
     // Log Prisma warnings and errors
-    prismaInstance.$on('warn' as never, (e: any) => {
+    globalThis.__prisma.$on('warn' as never, (e: any) => {
       log.warn('Prisma warning', { message: e.message });
     });
 
@@ -116,7 +116,7 @@ export function getPrismaClient(): PrismaClient {
     let lastPrismaErrorAt = 0;
     let suppressedCount = 0;
 
-    prismaInstance.$on('error' as never, (e: any) => {
+    globalThis.__prisma.$on('error' as never, (e: any) => {
       const msg = String(e.message || '').split('\n')[0];
       const now = Date.now();
 
@@ -137,7 +137,7 @@ export function getPrismaClient(): PrismaClient {
     });
 
     // Surface slow queries for easier performance tuning
-    prismaInstance.$use(async (params, next) => {
+    globalThis.__prisma.$use(async (params, next) => {
       const start = Date.now();
       const result = await next(params);
       const duration = Date.now() - start;
@@ -155,7 +155,7 @@ export function getPrismaClient(): PrismaClient {
     log.info('Prisma Client initialized with encryption middleware and pooling');
   }
 
-  return prismaInstance;
+  return globalThis.__prisma;
 }
 
 /**
@@ -163,10 +163,10 @@ export function getPrismaClient(): PrismaClient {
  * Should be called during application shutdown.
  */
 export async function disconnectPrisma(): Promise<void> {
-  if (prismaInstance) {
+  if (globalThis.__prisma) {
     log.info('Disconnecting Prisma Client');
-    await prismaInstance.$disconnect();
-    prismaInstance = undefined;
+    await globalThis.__prisma.$disconnect();
+    globalThis.__prisma = undefined;
   }
 }
 
