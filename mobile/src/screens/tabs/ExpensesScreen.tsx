@@ -6,8 +6,9 @@
 import React, { useState, useCallback } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, Pressable,
-  RefreshControl, FlatList, Alert, KeyboardAvoidingView, Platform,
+  RefreshControl, Alert, KeyboardAvoidingView, Platform,
 } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import Animated, { FadeInDown, FadeIn, SlideInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
@@ -86,7 +87,7 @@ export default function ExpensesScreen() {
           action={{ label: t('expenses.addFirst'), onPress: () => setShowAdd(true) }}
         />
       ) : (
-        <FlatList
+        <FlashList
           data={expenses}
           keyExtractor={e => e.id}
           contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 100 }]}

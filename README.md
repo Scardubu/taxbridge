@@ -12,7 +12,7 @@
 [![Coverage](https://img.shields.io/badge/coverage-97.29%25-brightgreen?logo=jest)](/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-blue?logo=typescript)](/)
 [![NRS](https://img.shields.io/badge/NRS%202026-compliant-green?logo=shield)](/)
-[![Production](https://img.shields.io/badge/version-v3.0.0-blue?logo=git)](/)
+[![Production](https://img.shields.io/badge/version-v4.0.0-blue?logo=git)](/)
 [![License](https://img.shields.io/badge/license-proprietary-lightgrey)](/)
 
 **[Live API](https://taxbridge-api-ker8.onrender.com/health)** · **[Admin Console](https://taxbridge.vercel.app)** · **[API Docs](https://taxbridge-api-ker8.onrender.com/docs)** · **[Changelog](CHANGELOG.md)**

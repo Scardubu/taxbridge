@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, useRef, memo, useMemo } from 'react';
-import { FlatList, RefreshControl, SafeAreaView, StyleSheet, Text, View, Pressable, Alert, Dimensions, Platform } from 'react-native';
+import { RefreshControl, SafeAreaView, StyleSheet, Text, View, Pressable, Alert, Dimensions, Platform } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import Animated, { FadeIn, FadeInDown, FadeInUp } from 'react-native-reanimated';
 
 const isWeb = Platform.OS === 'web';
@@ -225,7 +226,7 @@ function InvoicesScreen() {
         </Animated.View>
 
         {/* Invoice List */}
-        <FlatList
+        <FlashList
           data={filteredRows}
           keyExtractor={(item) => item.id}
           renderItem={({ item, index }: { item: LocalInvoiceRow; index: number }) => (

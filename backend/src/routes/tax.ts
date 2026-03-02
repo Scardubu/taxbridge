@@ -28,7 +28,6 @@ import {
 const PITBodySchema = z.object({
   grossIncome: z.number().positive(),
   reliefs: z.object({
-    cra: z.boolean().optional(),
     pension: z.number().min(0).optional(),
     nhf: z.number().min(0).optional(),
     lifeInsurance: z.number().min(0).optional(),

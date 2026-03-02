@@ -1,58 +1,52 @@
 import * as Sentry from '@sentry/node';
+import { Registry, Counter, Histogram, Gauge } from 'prom-client';
 
-interface LatencyTracker {
-  sumMs: number;
-  count: number;
-}
+// ── V12 §17.1: prom-client Registry singleton ──────────────────────────
+// Exactly one Registry instance for the entire backend process.
+// Enforcement gate: `grep -rn "new Registry()" backend/src` → 1 match.
+export const registry = new Registry();
 
-function createLatencyTracker(): LatencyTracker {
-  return { sumMs: 0, count: 0 };
-}
+registry.setDefaultLabels({ app: 'taxbridge' });
 
-function recordLatency(tracker: LatencyTracker, durationMs: number): void {
-  if (!Number.isFinite(durationMs) || durationMs < 0) {
-    return;
-  }
-  tracker.sumMs += durationMs;
-  tracker.count += 1;
-}
+// ── Prometheus metric definitions ──────────────────────────────────────
 
-function getAverageMs(tracker: LatencyTracker): number {
-  return tracker.count === 0 ? 0 : tracker.sumMs / tracker.count;
-}
+// Duplo / DigiTax APP
+const duploOAuthTotal = new Counter({ name: 'duplo_oauth_total', help: 'Total Duplo OAuth token exchanges', labelNames: ['success'] as const, registers: [registry] });
+const duploOAuthDuration = new Histogram({ name: 'duplo_oauth_duration_ms', help: 'Duplo OAuth latency (ms)', buckets: [50, 100, 250, 500, 1000, 2500, 5000], registers: [registry] });
+const duploSubmissionTotal = new Counter({ name: 'duplo_submission_total', help: 'Total Duplo invoice submissions', labelNames: ['success'] as const, registers: [registry] });
+const duploSubmissionDuration = new Histogram({ name: 'duplo_submission_duration_ms', help: 'Duplo submission latency (ms)', buckets: [100, 250, 500, 1000, 2500, 5000, 10000], registers: [registry] });
+const duploSubmissionMissingFields = new Gauge({ name: 'duplo_submission_missing_fields', help: 'Last observed missing mandatory UBL fields count', registers: [registry] });
+const duploStatusTotal = new Counter({ name: 'duplo_status_total', help: 'Total Duplo status checks', labelNames: ['success'] as const, registers: [registry] });
+const duploStatusDuration = new Histogram({ name: 'duplo_status_duration_ms', help: 'Duplo status check latency (ms)', buckets: [50, 100, 250, 500, 1000, 2500], registers: [registry] });
+
+// Remita
+const remitaPaymentTotal = new Counter({ name: 'remita_payment_total', help: 'Total Remita RRR generations', labelNames: ['success'] as const, registers: [registry] });
+const remitaPaymentDuration = new Histogram({ name: 'remita_payment_duration_ms', help: 'Remita payment latency (ms)', buckets: [100, 250, 500, 1000, 2500, 5000], registers: [registry] });
+const remitaPaymentAmountSum = new Counter({ name: 'remita_payment_amount_naira_sum', help: 'Total amount initialized via Remita (naira)', registers: [registry] });
+const remitaStatusTotal = new Counter({ name: 'remita_status_total', help: 'Total Remita status checks', labelNames: ['success'] as const, registers: [registry] });
+const remitaStatusDuration = new Histogram({ name: 'remita_status_duration_ms', help: 'Remita status check latency (ms)', buckets: [50, 100, 250, 500, 1000, 2500], registers: [registry] });
+const remitaWebhookTotal = new Counter({ name: 'remita_webhook_total', help: 'Remita webhook events', labelNames: ['success'] as const, registers: [registry] });
+
+// Paystack
+const paystackPaymentTotal = new Counter({ name: 'paystack_payment_total', help: 'Total Paystack transactions', labelNames: ['success'] as const, registers: [registry] });
+const paystackPaymentDuration = new Histogram({ name: 'paystack_payment_duration_ms', help: 'Paystack payment latency (ms)', buckets: [100, 250, 500, 1000, 2500, 5000], registers: [registry] });
+const paystackStatusTotal = new Counter({ name: 'paystack_status_total', help: 'Total Paystack status checks', labelNames: ['success'] as const, registers: [registry] });
+const paystackWebhookTotal = new Counter({ name: 'paystack_webhook_total', help: 'Paystack webhook events', labelNames: ['success'] as const, registers: [registry] });
+
+// Flutterwave
+const flutterwavePaymentTotal = new Counter({ name: 'flutterwave_payment_total', help: 'Total Flutterwave transactions', labelNames: ['success'] as const, registers: [registry] });
+const flutterwavePaymentDuration = new Histogram({ name: 'flutterwave_payment_duration_ms', help: 'Flutterwave payment latency (ms)', buckets: [100, 250, 500, 1000, 2500, 5000], registers: [registry] });
+const flutterwaveStatusTotal = new Counter({ name: 'flutterwave_status_total', help: 'Total Flutterwave status checks', labelNames: ['success'] as const, registers: [registry] });
+const flutterwaveWebhookTotal = new Counter({ name: 'flutterwave_webhook_total', help: 'Flutterwave webhook events', labelNames: ['success'] as const, registers: [registry] });
+
+// UBL
+const ublValidationTotal = new Counter({ name: 'ubl_validation_total', help: 'Automated UBL validation checks', labelNames: ['valid'] as const, registers: [registry] });
+const ublValidationMissingFields = new Gauge({ name: 'ubl_validation_missing_fields', help: 'Missing mandatory UBL fields from last check', registers: [registry] });
+const ublValidationLastRun = new Gauge({ name: 'ubl_validation_last_run', help: 'Timestamp of last automated UBL validation (unix seconds)', registers: [registry] });
+
+// ── MetricsService (preserves existing public API) ─────────────────────
 
 class MetricsService {
-  private duplo = {
-    oauth: { total: 0, failures: 0, latency: createLatencyTracker() },
-    submission: { total: 0, success: 0, failures: 0, latency: createLatencyTracker(), lastMissingFields: 0 },
-    status: { total: 0, failures: 0, latency: createLatencyTracker() }
-  };
-
-  private remita = {
-    payment: { total: 0, success: 0, failures: 0, amountSum: 0, latency: createLatencyTracker() },
-    status: { total: 0, failures: 0, latency: createLatencyTracker() },
-    webhook: { processed: 0, failed: 0 }
-  };
-
-  private paystack = {
-    payment: { total: 0, success: 0, failures: 0, amountSum: 0, latency: createLatencyTracker() },
-    status: { total: 0, failures: 0, latency: createLatencyTracker() },
-    webhook: { processed: 0, failed: 0 }
-  };
-
-  private flutterwave = {
-    payment: { total: 0, success: 0, failures: 0, amountSum: 0, latency: createLatencyTracker() },
-    status: { total: 0, failures: 0, latency: createLatencyTracker() },
-    webhook: { processed: 0, failed: 0 }
-  };
-
-  private ubl = {
-    validations: 0,
-    failures: 0,
-    lastMissingFields: 0,
-    lastRunAt: 0
-  };
-
   private sentryAvailable(): boolean {
     try {
       return Boolean(Sentry.getCurrentHub().getClient());
@@ -62,114 +56,66 @@ class MetricsService {
   }
 
   private withSentryMetrics(action: () => void): void {
-    if (!this.sentryAvailable()) {
-      return;
-    }
-
-    try {
-      action();
-    } catch {
-      // Ignore metric emission failures
-    }
+    if (!this.sentryAvailable()) return;
+    try { action(); } catch { /* Ignore metric emission failures */ }
   }
 
   recordDuploOAuth(success: boolean, durationMs: number): void {
-    if (durationMs >= 0) {
-      recordLatency(this.duplo.oauth.latency, durationMs);
-    }
-
-    this.duplo.oauth.total += 1;
-    if (!success) {
-      this.duplo.oauth.failures += 1;
-    }
+    duploOAuthTotal.inc({ success: success.toString() });
+    if (durationMs >= 0) duploOAuthDuration.observe(durationMs);
 
     this.withSentryMetrics(() => {
       Sentry.metrics.increment('duplo.oauth.total', 1, { tags: { success: success.toString() } });
-      if (durationMs >= 0) {
-        Sentry.metrics.distribution('duplo.oauth.latency_ms', durationMs, { unit: 'millisecond' });
-      }
+      if (durationMs >= 0) Sentry.metrics.distribution('duplo.oauth.latency_ms', durationMs, { unit: 'millisecond' });
     });
   }
 
   recordDuploSubmission(success: boolean, durationMs: number, missingFields = 0): void {
-    this.duplo.submission.total += 1;
-    recordLatency(this.duplo.submission.latency, durationMs);
-    this.duplo.submission.lastMissingFields = missingFields;
-
-    if (success) {
-      this.duplo.submission.success += 1;
-    } else {
-      this.duplo.submission.failures += 1;
-    }
+    duploSubmissionTotal.inc({ success: success.toString() });
+    if (durationMs >= 0) duploSubmissionDuration.observe(durationMs);
+    duploSubmissionMissingFields.set(missingFields);
 
     this.withSentryMetrics(() => {
       Sentry.metrics.increment('duplo.submission.total', 1, { tags: { success: success.toString() } });
-      if (durationMs >= 0) {
-        Sentry.metrics.distribution('duplo.submission.latency_ms', durationMs, { unit: 'millisecond' });
-      }
-      if (missingFields > 0) {
-        Sentry.metrics.gauge('ubl.validation.missing_fields', missingFields);
-      }
+      if (durationMs >= 0) Sentry.metrics.distribution('duplo.submission.latency_ms', durationMs, { unit: 'millisecond' });
+      if (missingFields > 0) Sentry.metrics.gauge('ubl.validation.missing_fields', missingFields);
     });
   }
 
   recordDuploStatus(success: boolean, durationMs: number): void {
-    this.duplo.status.total += 1;
-    recordLatency(this.duplo.status.latency, durationMs);
-    if (!success) {
-      this.duplo.status.failures += 1;
-    }
+    duploStatusTotal.inc({ success: success.toString() });
+    if (durationMs >= 0) duploStatusDuration.observe(durationMs);
 
     this.withSentryMetrics(() => {
       Sentry.metrics.increment('duplo.status.total', 1, { tags: { success: success.toString() } });
-      if (durationMs >= 0) {
-        Sentry.metrics.distribution('duplo.status.latency_ms', durationMs, { unit: 'millisecond' });
-      }
+      if (durationMs >= 0) Sentry.metrics.distribution('duplo.status.latency_ms', durationMs, { unit: 'millisecond' });
     });
   }
 
   recordRemitaPayment(success: boolean, amount: number, durationMs: number): void {
-    this.remita.payment.total += 1;
-    recordLatency(this.remita.payment.latency, durationMs);
-    if (success) {
-      this.remita.payment.success += 1;
-      this.remita.payment.amountSum += amount;
-    } else {
-      this.remita.payment.failures += 1;
-    }
+    remitaPaymentTotal.inc({ success: success.toString() });
+    if (durationMs >= 0) remitaPaymentDuration.observe(durationMs);
+    if (success && amount > 0) remitaPaymentAmountSum.inc(amount);
 
     this.withSentryMetrics(() => {
       Sentry.metrics.increment('remita.payment.total', 1, { tags: { success: success.toString() } });
-      if (durationMs >= 0) {
-        Sentry.metrics.distribution('remita.payment.latency_ms', durationMs, { unit: 'millisecond' });
-      }
-      if (success && amount > 0) {
-        Sentry.metrics.distribution('remita.payment.amount_naira', amount, { unit: 'naira' });
-      }
+      if (durationMs >= 0) Sentry.metrics.distribution('remita.payment.latency_ms', durationMs, { unit: 'millisecond' });
+      if (success && amount > 0) Sentry.metrics.distribution('remita.payment.amount_naira', amount, { unit: 'naira' });
     });
   }
 
   recordRemitaStatus(success: boolean, durationMs: number): void {
-    this.remita.status.total += 1;
-    recordLatency(this.remita.status.latency, durationMs);
-    if (!success) {
-      this.remita.status.failures += 1;
-    }
+    remitaStatusTotal.inc({ success: success.toString() });
+    if (durationMs >= 0) remitaStatusDuration.observe(durationMs);
 
     this.withSentryMetrics(() => {
       Sentry.metrics.increment('remita.status.total', 1, { tags: { success: success.toString() } });
-      if (durationMs >= 0) {
-        Sentry.metrics.distribution('remita.status.latency_ms', durationMs, { unit: 'millisecond' });
-      }
+      if (durationMs >= 0) Sentry.metrics.distribution('remita.status.latency_ms', durationMs, { unit: 'millisecond' });
     });
   }
 
   recordRemitaWebhook(success: boolean): void {
-    if (success) {
-      this.remita.webhook.processed += 1;
-    } else {
-      this.remita.webhook.failed += 1;
-    }
+    remitaWebhookTotal.inc({ success: success.toString() });
 
     this.withSentryMetrics(() => {
       Sentry.metrics.increment('remita.webhook.total', 1, { tags: { success: success.toString() } });
@@ -179,39 +125,26 @@ class MetricsService {
   // --- Paystack metrics ---
 
   recordPaystackPayment(success: boolean, amount: number, durationMs: number): void {
-    this.paystack.payment.total += 1;
-    recordLatency(this.paystack.payment.latency, durationMs);
-    if (success) {
-      this.paystack.payment.success += 1;
-      this.paystack.payment.amountSum += amount;
-    } else {
-      this.paystack.payment.failures += 1;
-    }
+    paystackPaymentTotal.inc({ success: success.toString() });
+    if (durationMs >= 0) paystackPaymentDuration.observe(durationMs);
+
     this.withSentryMetrics(() => {
       Sentry.metrics.increment('paystack.payment.total', 1, { tags: { success: success.toString() } });
-      if (durationMs >= 0) {
-        Sentry.metrics.distribution('paystack.payment.latency_ms', durationMs, { unit: 'millisecond' });
-      }
+      if (durationMs >= 0) Sentry.metrics.distribution('paystack.payment.latency_ms', durationMs, { unit: 'millisecond' });
     });
   }
 
   recordPaystackStatus(success: boolean, durationMs: number): void {
-    this.paystack.status.total += 1;
-    recordLatency(this.paystack.status.latency, durationMs);
-    if (!success) {
-      this.paystack.status.failures += 1;
-    }
+    paystackStatusTotal.inc({ success: success.toString() });
+
     this.withSentryMetrics(() => {
       Sentry.metrics.increment('paystack.status.total', 1, { tags: { success: success.toString() } });
     });
   }
 
   recordPaystackWebhook(success: boolean): void {
-    if (success) {
-      this.paystack.webhook.processed += 1;
-    } else {
-      this.paystack.webhook.failed += 1;
-    }
+    paystackWebhookTotal.inc({ success: success.toString() });
+
     this.withSentryMetrics(() => {
       Sentry.metrics.increment('paystack.webhook.total', 1, { tags: { success: success.toString() } });
     });
@@ -220,145 +153,47 @@ class MetricsService {
   // --- Flutterwave metrics ---
 
   recordFlutterwavePayment(success: boolean, amount: number, durationMs: number): void {
-    this.flutterwave.payment.total += 1;
-    recordLatency(this.flutterwave.payment.latency, durationMs);
-    if (success) {
-      this.flutterwave.payment.success += 1;
-      this.flutterwave.payment.amountSum += amount;
-    } else {
-      this.flutterwave.payment.failures += 1;
-    }
+    flutterwavePaymentTotal.inc({ success: success.toString() });
+    if (durationMs >= 0) flutterwavePaymentDuration.observe(durationMs);
+
     this.withSentryMetrics(() => {
       Sentry.metrics.increment('flutterwave.payment.total', 1, { tags: { success: success.toString() } });
     });
   }
 
   recordFlutterwaveStatus(success: boolean, durationMs: number): void {
-    this.flutterwave.status.total += 1;
-    recordLatency(this.flutterwave.status.latency, durationMs);
-    if (!success) {
-      this.flutterwave.status.failures += 1;
-    }
+    flutterwaveStatusTotal.inc({ success: success.toString() });
+
     this.withSentryMetrics(() => {
       Sentry.metrics.increment('flutterwave.status.total', 1, { tags: { success: success.toString() } });
     });
   }
 
   recordFlutterwaveWebhook(success: boolean): void {
-    if (success) {
-      this.flutterwave.webhook.processed += 1;
-    } else {
-      this.flutterwave.webhook.failed += 1;
-    }
+    flutterwaveWebhookTotal.inc({ success: success.toString() });
+
     this.withSentryMetrics(() => {
       Sentry.metrics.increment('flutterwave.webhook.total', 1, { tags: { success: success.toString() } });
     });
   }
 
   recordUBLValidation(result: { valid: boolean; missingCount: number }): void {
-    this.ubl.validations += 1;
-    this.ubl.lastRunAt = Date.now();
-    this.ubl.lastMissingFields = result.missingCount;
-    if (!result.valid) {
-      this.ubl.failures += 1;
-    }
+    ublValidationTotal.inc({ valid: result.valid.toString() });
+    ublValidationMissingFields.set(result.missingCount);
+    ublValidationLastRun.set(Math.floor(Date.now() / 1000));
 
     this.withSentryMetrics(() => {
-      if (!result.valid) {
-        Sentry.metrics.increment('ubl.validation.errors', 1);
-      }
+      if (!result.valid) Sentry.metrics.increment('ubl.validation.errors', 1);
       Sentry.metrics.gauge('ubl.validation.missing_fields', result.missingCount);
     });
   }
 
-  formatPrometheusMetrics(): string {
-    const duploSuccessRatio = this.duplo.submission.total === 0
-      ? 1
-      : this.duplo.submission.success / this.duplo.submission.total;
-
-    const remitaPaymentSuccessRatio = this.remita.payment.total === 0
-      ? 1
-      : this.remita.payment.success / this.remita.payment.total;
-
-    const lines = [
-      '# HELP duplo_submission_total Total number of Duplo invoice submissions',
-      '# TYPE duplo_submission_total counter',
-      `duplo_submission_total ${this.duplo.submission.total}`,
-      '# HELP duplo_submission_success_total Successful Duplo submissions',
-      '# TYPE duplo_submission_success_total counter',
-      `duplo_submission_success_total ${this.duplo.submission.success}`,
-      '# HELP duplo_submission_success_ratio Duplo submission success ratio',
-      '# TYPE duplo_submission_success_ratio gauge',
-      `duplo_submission_success_ratio ${duploSuccessRatio.toFixed(4)}`,
-      '# HELP duplo_submission_failure_total Failed Duplo submissions',
-      '# TYPE duplo_submission_failure_total counter',
-      `duplo_submission_failure_total ${this.duplo.submission.failures}`,
-      '# HELP duplo_submission_duration_ms_average Average Duplo submission duration in ms',
-      '# TYPE duplo_submission_duration_ms_average gauge',
-      `duplo_submission_duration_ms_average ${getAverageMs(this.duplo.submission.latency).toFixed(2)}`,
-      '# HELP duplo_submission_missing_fields Gauge of last observed missing mandatory fields count',
-      '# TYPE duplo_submission_missing_fields gauge',
-      `duplo_submission_missing_fields ${this.duplo.submission.lastMissingFields}`,
-      '# HELP duplo_oauth_failure_total Failed Duplo OAuth token exchanges',
-      '# TYPE duplo_oauth_failure_total counter',
-      `duplo_oauth_failure_total ${this.duplo.oauth.failures}`,
-      '# HELP duplo_status_failure_total Failed Duplo status checks',
-      '# TYPE duplo_status_failure_total counter',
-      `duplo_status_failure_total ${this.duplo.status.failures}`,
-      '# HELP remita_payment_total Total Remita RRR generations',
-      '# TYPE remita_payment_total counter',
-      `remita_payment_total ${this.remita.payment.total}`,
-      '# HELP remita_payment_success_total Successful Remita RRR generations',
-      '# TYPE remita_payment_success_total counter',
-      `remita_payment_success_total ${this.remita.payment.success}`,
-      '# HELP remita_payment_success_ratio Remita payment success ratio',
-      '# TYPE remita_payment_success_ratio gauge',
-      `remita_payment_success_ratio ${remitaPaymentSuccessRatio.toFixed(4)}`,
-      '# HELP remita_payment_amount_naira_sum Total amount initialized via Remita (naira)',
-      '# TYPE remita_payment_amount_naira_sum counter',
-      `remita_payment_amount_naira_sum ${this.remita.payment.amountSum.toFixed(2)}`,
-      '# HELP remita_status_failure_total Failed Remita status checks',
-      '# TYPE remita_status_failure_total counter',
-      `remita_status_failure_total ${this.remita.status.failures}`,
-      '# HELP remita_webhook_processed_total Remita webhook events processed',
-      '# TYPE remita_webhook_processed_total counter',
-      `remita_webhook_processed_total ${this.remita.webhook.processed}`,
-      '# HELP remita_webhook_failed_total Remita webhook events failed validation',
-      '# TYPE remita_webhook_failed_total counter',
-      `remita_webhook_failed_total ${this.remita.webhook.failed}`,
-      '# HELP ubl_validation_total Number of automated UBL validation checks',
-      '# TYPE ubl_validation_total counter',
-      `ubl_validation_total ${this.ubl.validations}`,
-      '# HELP ubl_validation_failure_total Number of failed automated UBL validation checks',
-      '# TYPE ubl_validation_failure_total counter',
-      `ubl_validation_failure_total ${this.ubl.failures}`,
-      '# HELP ubl_validation_missing_fields Gauge of missing mandatory UBL fields from last check',
-      '# TYPE ubl_validation_missing_fields gauge',
-      `ubl_validation_missing_fields ${this.ubl.lastMissingFields}`,
-      '# HELP ubl_validation_last_run Timestamp of last automated UBL validation (unix seconds)',
-      '# TYPE ubl_validation_last_run gauge',
-      `ubl_validation_last_run ${this.ubl.lastRunAt ? Math.floor(this.ubl.lastRunAt / 1000) : 0}`,
-      '# HELP paystack_payment_total Total Paystack transactions',
-      '# TYPE paystack_payment_total counter',
-      `paystack_payment_total ${this.paystack.payment.total}`,
-      '# HELP paystack_payment_success_total Successful Paystack transactions',
-      '# TYPE paystack_payment_success_total counter',
-      `paystack_payment_success_total ${this.paystack.payment.success}`,
-      '# HELP paystack_webhook_processed_total Paystack webhook events processed',
-      '# TYPE paystack_webhook_processed_total counter',
-      `paystack_webhook_processed_total ${this.paystack.webhook.processed}`,
-      '# HELP flutterwave_payment_total Total Flutterwave transactions',
-      '# TYPE flutterwave_payment_total counter',
-      `flutterwave_payment_total ${this.flutterwave.payment.total}`,
-      '# HELP flutterwave_payment_success_total Successful Flutterwave transactions',
-      '# TYPE flutterwave_payment_success_total counter',
-      `flutterwave_payment_success_total ${this.flutterwave.payment.success}`,
-      '# HELP flutterwave_webhook_processed_total Flutterwave webhook events processed',
-      '# TYPE flutterwave_webhook_processed_total counter',
-      `flutterwave_webhook_processed_total ${this.flutterwave.webhook.processed}`
-    ];
-
-    return lines.join('\n');
+  /**
+   * Returns Prometheus exposition format from the prom-client Registry.
+   * Used by GET /metrics?format=prometheus in server.ts.
+   */
+  async formatPrometheusMetrics(): Promise<string> {
+    return registry.metrics();
   }
 }
 

@@ -23,10 +23,10 @@ import {
   TextInput,
   StyleSheet,
   Pressable,
-  FlatList,
   Keyboard,
   Dimensions,
 } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -461,7 +461,7 @@ function GlobalSearch({
               <Text style={styles.dropdownHeader}>
                 {t('search.resultsCount', { count: results.length })}
               </Text>
-              <FlatList
+              <FlashList
                 data={results}
                 keyExtractor={item => item.id}
                 renderItem={({ item }: { item: SearchResult }) => (
@@ -470,7 +470,6 @@ function GlobalSearch({
                     onPress={() => handleSelectResult(item)}
                   />
                 )}
-                style={styles.resultsList}
                 keyboardShouldPersistTaps="handled"
                 showsVerticalScrollIndicator={false}
               />

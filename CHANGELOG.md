@@ -7,6 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [4.0.0] - 2026-03-02 - V12.0 Final Elevation · CRA→RRA · FlashList · prom-client
+
+### Changed (Regulatory — NTA 2025)
+- **CRA→RRA migration** in `backend/src/services/tax-engine.ts` — abolished Consolidated Relief
+  Allowance (CRA) replaced by Rent Relief Allowance (RRA) per NTA 2025 §30(2). PIT now uses
+  `calculateRRA()` from `@taxbridge/contracts`. PAYE reliefs reduced to pension + NHF only.
+- **Removed `cra` field** from PIT Zod schema in `backend/src/routes/tax.ts` — no longer accepted.
+
+### Changed (Performance)
+- **FlatList→FlashList migration** across 9 mobile files — all list rendering now uses
+  `@shopify/flash-list@2.2.2` (new architecture) for improved scroll performance. Affected:
+  `GlobalSearch.tsx`, `InsightsCarousel.tsx`, `VirtualizedList.tsx`, `InvoicesScreen.tsx`,
+  `ComplianceRemindersScreen.tsx`, `CryptoTaxScreen.tsx`, `PayrollListScreen.tsx`,
+  `ReconciliationScreen.tsx`, `ExpensesScreen.tsx`.
+- **Removed `estimatedItemSize`** from all FlashList usages — prop removed in FlashList v2.2.2
+  new architecture; 13 occurrences across 11 files cleaned.
+
+### Changed (Observability)
+- **prom-client singleton** — `backend/src/services/metrics.ts` fully rewritten from custom
+  in-memory MetricsService to proper `prom-client` Registry singleton with Counter/Histogram/Gauge.
+  Enforcement gate: exactly 1 `new Registry()` in backend/src.
+- **Async metrics endpoint** — `backend/src/server.ts` now `await`s `formatPrometheusMetrics()`.
+
+### Added (Schema)
+- **Org model** in Prisma schema — multi-tenant organization support.
+- **OrgMember model** — pivot table with `@@unique([orgId, userId])` constraint.
+- **AuditEvent model** — immutable audit log (no `updatedAt`), indexed by `userId` and `orgId`.
+
+### Fixed
+- **Health snapshot cron** — `backend/src/jobs/health-snapshot.job.ts` changed from `'0 2 * * *'`
+  to `'0 3 * * *'` (03:00 WAT per V12 §10 specification).
+
+### Validation
+- TypeScript: 0 errors (backend + mobile + admin)
+- Sovereignty: FIRS=0, NRSt=0, FlatList(source)=0, CRA(code)=0
+- prom-client Registry: exactly 1 instantiation
+- Cron: confirmed 03:00 WAT
+
+---
+
 ## [3.3.1] - 2026-03-01 - Test Stability & Type Hardening
 
 ### Fixed

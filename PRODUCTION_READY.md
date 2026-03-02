@@ -1,8 +1,8 @@
 # ✅ TAXBRIDGE PRODUCTION READINESS - FINAL STATUS
 
-**Date**: March 1, 2026  
+**Date**: March 2, 2026  
 **Status**: 🚀 **READY FOR PRODUCTION DEPLOYMENT**  
-**Version**: 3.3.1
+**Version**: 4.0.0
 
 ---
 
@@ -10,7 +10,16 @@
 
 TaxBridge is **production-ready** and fully compliant with all Nigerian tax regulations (NTA 2025) and e-invoicing standards (NRS 2026). All critical systems have been implemented, tested, validated, and polished for deployment.
 
-**Latest Updates (v3.3.1 - Mar 1, 2026):**
+**Latest Updates (v4.0.0 - Mar 2, 2026 — V12.0 Final Elevation):**
+- ✅ **CRA→RRA migration complete** — Abolished Consolidated Relief Allowance replaced by Rent Relief Allowance per NTA 2025 §30(2) in tax-engine.ts; `calculateRRA()` from `@taxbridge/contracts`
+- ✅ **FlatList→FlashList migration** — 9 mobile files migrated to `@shopify/flash-list@2.2.2` for improved scroll performance; `estimatedItemSize` removed (FlashList v2 new arch)
+- ✅ **prom-client singleton** — metrics.ts rewritten with proper Prometheus Registry, Counter/Histogram/Gauge
+- ✅ **Prisma schema extended** — Org, OrgMember (@@unique([orgId, userId])), AuditEvent (immutable) models added
+- ✅ **Health snapshot cron fixed** — 02:00→03:00 WAT per V12 §10
+- ✅ **TypeScript: 0 errors** — backend, mobile, admin all clean
+- ✅ **Sovereignty gates pass** — FIRS=0, NRSt=0, FlatList(source)=0, CRA(code)=0, Registry=1
+
+**Previous Updates (v3.3.1 - Mar 1, 2026):**
 - ✅ **Jest open-handle warning removed** — `mobile/jest.config.js` now uses `forceExit: false`; cleanup/timer teardown added in `mobile/jest.setup.js`
 - ✅ **Mobile test stability hardened** — onboarding provider smoke test updated for async-safe unmount and reduced `act(...)` warnings
 - ✅ **InteractionManager fallback added** — create invoice flow now safely schedules draft-save work in test/runtime environments where InteractionManager is unavailable

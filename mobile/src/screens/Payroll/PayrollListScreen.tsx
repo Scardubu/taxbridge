@@ -3,11 +3,11 @@ import {
   View,
   Text,
   StyleSheet,
-  FlatList,
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
 } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { tokens } from '../../constants/tokens';
@@ -152,7 +152,7 @@ export default function PayrollListScreen() {
         </TouchableOpacity>
       </View>
 
-      <FlatList<PayrollSummary>
+      <FlashList<PayrollSummary>
         data={payrolls}
         renderItem={renderPayrollCard}
         keyExtractor={(item) => item.id}

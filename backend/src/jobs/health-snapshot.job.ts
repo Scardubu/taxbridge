@@ -117,14 +117,14 @@ export async function registerHealthSnapshotJob(
   redis:  Redis,
   log:    FastifyBaseLogger,
 ): Promise<void> {
-  // Use node-cron pattern: run at 02:00 AM Lagos time (UTC+1)
+  // Use node-cron pattern: run at 03:00 AM Lagos time (WAT, UTC+1)
   // If BullMQ scheduler is available, prefer that for reliability across restarts.
 
   try {
     const cron = await import('node-cron');
 
-    // 02:00 AM daily — low-traffic window for Nigerian users
-    cron.schedule('0 2 * * *', async () => {
+    // 03:00 AM daily — low-traffic window for Nigerian users (V12 §10)
+    cron.schedule('0 3 * * *', async () => {
       try {
         await runHealthSnapshotJob(prisma, redis, log);
       } catch (err) {
@@ -132,7 +132,7 @@ export async function registerHealthSnapshotJob(
       }
     }, { timezone: 'Africa/Lagos' });
 
-    log.info({ job: JOB_NAME }, 'Health snapshot cron registered (02:00 Africa/Lagos daily)');
+    log.info({ job: JOB_NAME }, 'Health snapshot cron registered (03:00 Africa/Lagos daily)');
   } catch {
     // node-cron not installed — job will need to be triggered externally (Render cron)
     log.warn({ job: JOB_NAME }, 'node-cron not available — register via Render Cron Jobs');
