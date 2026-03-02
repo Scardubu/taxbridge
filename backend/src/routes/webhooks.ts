@@ -45,7 +45,7 @@ export default async function webhookRoutes(app: FastifyInstance, opts: { prisma
           await prisma.idempotencyCache.delete({ where: { key: cacheKey } });
         } else {
           app.log.info({ key: cacheKey }, 'Duplicate Paystack webhook — skipping');
-          return reply.status(200).send({ received: true });
+          return reply.status(200).send({ status: 'already_processed' });
         }
       }
 
@@ -64,7 +64,7 @@ export default async function webhookRoutes(app: FastifyInstance, opts: { prisma
 
       if (event.event !== 'charge.success') {
         app.log.info({ event: event.event }, 'Ignoring non-success Paystack event');
-        return reply.status(200).send({ received: true });
+        return reply.status(200).send({ status: 'acknowledged' });
       }
 
       const reference = event.data?.reference;
@@ -111,7 +111,7 @@ export default async function webhookRoutes(app: FastifyInstance, opts: { prisma
       metrics.recordPaystackWebhook(true);
       app.log.info({ reference }, 'Paystack payment confirmed via webhook');
 
-      return reply.status(200).send({ received: true });
+      return reply.status(200).send({ status: 'accepted' });
     } catch (err) {
       app.log.error({ err }, 'Failed to process Paystack webhook');
       metrics.recordPaystackWebhook(false);
@@ -142,7 +142,7 @@ export default async function webhookRoutes(app: FastifyInstance, opts: { prisma
           await prisma.idempotencyCache.delete({ where: { key: cacheKey } });
         } else {
           app.log.info({ key: cacheKey }, 'Duplicate Flutterwave webhook — skipping');
-          return reply.status(200).send({ received: true });
+          return reply.status(200).send({ status: 'already_processed' });
         }
       }
 
@@ -161,7 +161,7 @@ export default async function webhookRoutes(app: FastifyInstance, opts: { prisma
 
       if (event.event !== 'charge.completed' || event.data?.status !== 'successful') {
         app.log.info({ event: event.event, status: event.data?.status }, 'Ignoring non-success Flutterwave event');
-        return reply.status(200).send({ received: true });
+        return reply.status(200).send({ status: 'acknowledged' });
       }
 
       const reference = event.data?.tx_ref;
@@ -216,7 +216,7 @@ export default async function webhookRoutes(app: FastifyInstance, opts: { prisma
       metrics.recordFlutterwaveWebhook(true);
       app.log.info({ reference }, 'Flutterwave payment confirmed via webhook');
 
-      return reply.status(200).send({ received: true });
+      return reply.status(200).send({ status: 'accepted' });
     } catch (err) {
       app.log.error({ err }, 'Failed to process Flutterwave webhook');
       metrics.recordFlutterwaveWebhook(false);

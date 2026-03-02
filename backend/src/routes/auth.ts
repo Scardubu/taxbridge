@@ -1,8 +1,67 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z, ZodError } from 'zod';
+import * as Sentry from '@sentry/node';
 import { authService } from '../services/auth';
 import { privacyService } from '../services/privacy';
 import { logSecurityEvent } from '../lib/security';
+import { getPrismaClient } from '../lib/prisma';
+import { writeAuditEvent } from '../services/audit';
+import { sendPushNotification } from '../services/notifications';
+import { getRedisConnection } from '../lib/redis';
+import { createLogger } from '../lib/logger';
+
+const log = createLogger('auth');
+const prisma = getPrismaClient();
+
+/**
+ * GAP-02: Refresh token reuse detection.
+ * If a token that has already been used is presented again, this indicates
+ * token theft. All sessions are immediately invalidated and a security alert
+ * push notification is sent to the user. (C-07: never throws — fire-and-forget safe)
+ */
+export async function handleSuspiciousReuse(userId: string, ip: string): Promise<void> {
+  try {
+    const redis = getRedisConnection();
+    // Invalidate all active sessions for this user
+    await (prisma as any).userSession.updateMany({
+      where: { userId },
+      data: { expiresAt: new Date(0) },
+    });
+    // Bust role version cache
+    if (redis) {
+      await redis.del(`role_version:${userId}`).catch(() => {});
+    }
+    // Immutable audit trail
+    await writeAuditEvent(
+      {
+        orgId: 'SYSTEM',
+        actorId: userId,
+        actorRole: 'SYSTEM',
+        targetType: 'UserSession',
+        targetId: userId,
+        action: 'SECURITY_ALERT',
+        after: { reason: 'refresh_token_reuse', ip },
+        ip,
+      },
+      prisma,
+    ).catch(() => {});
+    // Push alert — fire-and-forget (C-07)
+    sendPushNotification(userId, {
+      title: 'Security Alert',
+      body: 'Unusual activity detected. All sessions signed out.',
+      data: { route: '/profile/security', orgId: '', type: 'system' },
+    }).catch(() => {});
+    Sentry.captureMessage('Refresh token reuse detected', {
+      level: 'warning',
+      extra: { userId, ip },
+    });
+    log.warn({ userId, ip }, 'Refresh token reuse — all sessions invalidated');
+  } catch (err) {
+    // Never throw — security events must not crash the handler (C-07)
+    log.error({ err }, 'handleSuspiciousReuse failed');
+    Sentry.captureException(err);
+  }
+}
 
 /**
  * Maps auth errors to appropriate HTTP status codes and safe messages.

@@ -59,22 +59,23 @@ describe('NTA 2025 Contracts', () => {
       expect(r.taxableIncome).toBe(0);
     });
 
-    test('CRA floor of ₦200k applies correctly', () => {
-      const { cra } = calculatePIT(500_000);
-      // CRA = max(₦200k, 1% of ₦500k = ₦5k) + 20% of ₦500k = ₦200k + ₦100k = ₦300k
-      expect(cra).toBe(300_000);
+    test('RRA correctly deducted when rent is paid (NTA 2025 §30(2))', () => {
+      // ₦5M gross, ₦1.5M rent → RRA = min(20% × ₦1.5M = ₦300k, ₦500k cap) = ₦300k
+      const r = calculatePIT({ grossIncome: 5_000_000, reliefs: { annualRent: 1_500_000 } });
+      expect(r.reliefs.rra).toBe(300_000);
+      expect(r.taxableIncome).toBe(4_700_000);
     });
 
-    test('₦3.6M annual income — correct PIT', () => {
-      // NTA 2025 bands: 0% on first ₦800k, 15% on next ₦2.2M
-      // CRA = max(1%×3.6M=36k, ₦200k+20%×3.6M=920k) = 920k
-      // taxableIncome = 3,600,000 - 920,000 = 2,680,000
-      // tax = 0% on 800k + 15% on 1,880k = ₦282,000
+    test('₦3.6M gross income — correct PIT (no reliefs)', () => {
+      // NTA 2025 bands, number overload → no RRA deduction
+      // 0%  on first ₦800k        = ₦0
+      // 15% on ₦800k–₦3M (₦2.2M)  = ₦330,000
+      // 18% on ₦3M–₦3.6M (₦600k)  = ₦108,000
+      // Total = ₦438,000
       const { totalTax, effectiveRate } = calculatePIT(3_600_000);
-      expect(totalTax).toBeGreaterThan(200_000);
-      expect(totalTax).toBeLessThan(350_000);
-      expect(effectiveRate).toBeLessThan(0.15);
+      expect(totalTax).toBe(438_000);
       expect(effectiveRate).toBeGreaterThan(0.05);
+      expect(effectiveRate).toBeLessThan(0.20);
     });
 
     test('All 6 PIT bands defined (NTA 2025 §1-40)', () => {

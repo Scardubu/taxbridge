@@ -1,11 +1,18 @@
 'use client';
 
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useCallback, useState, useEffect } from 'react';
 import useSWR from 'swr';
 import { Navigation } from './Navigation';
 import { cn, safeDate } from '@/lib/utils';
 import { FetchError, fetchJson } from '@/lib/fetcher';
 import { useAdminI18n, type AdminLanguage } from '@/lib/i18n';
+import {
+  CheckCircle2,
+  AlertTriangle,
+  XCircle,
+  HelpCircle,
+  type LucideIcon,
+} from 'lucide-react';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -154,18 +161,22 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     };
   }, [integrationsError, integrationsHealth, isIntegrationsLoading, t]);
 
-  const getStatusConfig = (status: SystemStatus) => {
+  const getStatusConfig = useCallback((status: SystemStatus): {
+    color: string;
+    bgClass: string;
+    Icon: LucideIcon;
+  } => {
     switch (status) {
       case 'healthy':
-        return { color: 'bg-green-500', bgClass: '' };
+        return { color: 'bg-green-500', bgClass: '', Icon: CheckCircle2 };
       case 'degraded':
-        return { color: 'bg-yellow-500', bgClass: 'bg-yellow-50' };
+        return { color: 'bg-yellow-500', bgClass: 'bg-yellow-50', Icon: AlertTriangle };
       case 'error':
-        return { color: 'bg-red-500', bgClass: 'bg-red-50' };
+        return { color: 'bg-red-500', bgClass: 'bg-red-50', Icon: XCircle };
       case 'unknown':
-        return { color: 'bg-slate-400', bgClass: 'bg-slate-50' };
+        return { color: 'bg-slate-400', bgClass: 'bg-slate-50', Icon: HelpCircle };
     }
-  };
+  }, []);
 
   const systemStatus = derived.systemStatus;
   const statusConfig = getStatusConfig(systemStatus);
@@ -182,7 +193,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           )}
         >
           <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center sm:justify-center gap-1 sm:gap-2 text-sm">
-            <div className={`w-2 h-2 rounded-full ${statusConfig.color} animate-pulse`} />
+            <statusConfig.Icon className={`h-4 w-4 shrink-0 ${systemStatus === 'error' ? 'text-red-600' : 'text-yellow-600'}`} aria-hidden="true" />
             <span className={`font-medium ${systemStatus === 'error' ? 'text-red-700' : 'text-yellow-700'}`}>
               {t(derived.statusTextKey)}
             </span>
@@ -214,9 +225,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                   TB
                 </div>
               </div>
-              <div className="ml-4">
-                <h1 className="text-xl font-bold text-slate-900">{t('header.brandName')}</h1>
-                <p className="text-xs text-slate-500">{t('header.adminConsole')}</p>
+              <div className="ml-3 sm:ml-4">
+                <h1 className="text-lg sm:text-xl font-bold text-slate-900">{t('header.brandName')}</h1>
+                <p className="hidden sm:block text-xs text-slate-500">{t('header.adminConsole')}</p>
               </div>
             </div>
 
@@ -224,7 +235,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
             <Navigation />
 
             {/* Status & User Menu */}
-            <div className="flex items-center gap-6">
+            <div className="flex items-center gap-2 sm:gap-4 md:gap-6">
               {/* Time Display */}
               <div className="hidden md:flex items-center gap-2 text-sm text-slate-500">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -247,14 +258,22 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                 </select>
               </label>
 
-              {/* Status Indicator */}
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 rounded-full">
-                <div className={`h-2 w-2 ${statusConfig.color} rounded-full ${systemStatus === 'healthy' ? '' : 'animate-pulse'}`} />
-                <span className="text-sm font-medium text-slate-700">{t(derived.statusTextKey)}</span>
+              {/* Status Indicator — C-15: color + shape icon + text */}
+              <div className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 bg-slate-100 rounded-full">
+                <statusConfig.Icon
+                  className={cn('h-3.5 w-3.5 shrink-0', {
+                    'text-green-600': systemStatus === 'healthy',
+                    'text-yellow-600 animate-pulse': systemStatus === 'degraded',
+                    'text-red-600 animate-pulse': systemStatus === 'error',
+                    'text-slate-500': systemStatus === 'unknown',
+                  })}
+                  aria-hidden="true"
+                />
+                <span className="text-xs sm:text-sm font-medium text-slate-700">{t(derived.statusTextKey)}</span>
               </div>
 
               {/* User Avatar */}
-              <div className="h-9 w-9 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-white font-semibold text-sm cursor-pointer hover:shadow-lg transition-shadow">
+              <div className="h-8 w-8 sm:h-9 sm:w-9 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center text-white font-semibold text-xs sm:text-sm cursor-pointer hover:shadow-lg transition-shadow">
                 AD
               </div>
             </div>

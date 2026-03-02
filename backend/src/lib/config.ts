@@ -6,7 +6,7 @@
  * 
  * Usage:
  *   import { config } from './lib/config';
- *   console.log(config.server.port);
+ *   log.info('Server port', { port: config.server.port });
  */
 
 import { z } from 'zod';

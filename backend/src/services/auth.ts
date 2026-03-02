@@ -309,7 +309,21 @@ export class AuthService {
       throw new Error('Invalid token type');
     }
     if (await this.isTokenBlacklisted(refreshToken)) {
+      // C-35: Suspicious reuse — a blacklisted refresh token was used again
+      await this.handleSuspiciousReuse(decoded.userId, 'unknown');
       throw new Error('Token expired');
+    }
+
+    // Blacklist the old refresh token (single-use rotation)
+    const redis = getRedis();
+    if (redis) {
+      const oldDecoded = jwt.decode(refreshToken) as { exp?: number } | null;
+      if (oldDecoded?.exp) {
+        const ttl = oldDecoded.exp - Math.floor(Date.now() / 1000);
+        if (ttl > 0) {
+          await redis.setex(`token:blacklist:${refreshToken}`, ttl, '1');
+        }
+      }
     }
 
     const accessToken = jwt.sign(
@@ -319,6 +333,57 @@ export class AuthService {
     );
 
     return { accessToken };
+  }
+
+  /**
+   * Handle suspicious refresh token reuse.
+   * Invalidates ALL sessions for the user, creates an audit event,
+   * and sends a security notification via SMS.
+   *
+   * GAP-02: Credential stuffing / token theft detection.
+   */
+  async handleSuspiciousReuse(userId: string, ip: string): Promise<void> {
+    log.error('Suspicious refresh token reuse detected', { userId, ip });
+
+    // 1. Invalidate all sessions by blacklisting all active tokens
+    const redis = getRedis();
+    if (redis) {
+      // Set a global invalidation marker; authenticate middleware checks this
+      await redis.setex(`auth:invalidated:${userId}`, 86_400, Date.now().toString());
+    }
+
+    // 2. Write audit event
+    try {
+      await (prisma as any).auditLog.create({
+        data: {
+          action: 'SUSPICIOUS_TOKEN_REUSE',
+          userId,
+          metadata: {
+            ip,
+            reason: 'Refresh token reuse detected — all sessions invalidated',
+            timestamp: new Date().toISOString(),
+          },
+        },
+      });
+    } catch (err) {
+      log.error('Failed to write audit event for suspicious reuse', { error: err });
+    }
+
+    // 3. Notify user via SMS
+    try {
+      const user = await (prisma as any).user.findUnique({ where: { id: userId } });
+      if (user?.phone) {
+        const { sendSMS: send } = await import('../integrations/comms/client');
+        await send(
+          user.phone,
+          'TaxBridge Security Alert: Suspicious login detected. All your sessions have been signed out. If this was not you, change your password immediately.',
+        );
+      }
+    } catch (err) {
+      log.error('Failed to send suspicious reuse notification', { error: err });
+    }
+
+    await logSecurityEvent('SUSPICIOUS_TOKEN_REUSE', { userId, ip }, 'critical');
   }
 
   async logout(token?: string) {

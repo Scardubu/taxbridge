@@ -133,29 +133,7 @@ export default async function insightsRoutes(fastify: FastifyInstance) {
     return reply.send({ success: true, data: health });
   });
 
-  fastify.get('/api/v1/nrs/health', {
-    ...auth,
-    config: { rateLimit: { max: 60, timeWindow: '1 minute' } },
-  }, async (_req, reply) => {
-    const CIRCUIT_KEY = 'nrs:circuit:open';
-    const redis = redisOf();
-
-    const [circuitOpen, pending, failed] = await Promise.all([
-      redis ? redis.exists(CIRCUIT_KEY).then(Boolean) : Promise.resolve(false),
-      (prismaOf() as any).invoice.count({ where: { nrsStatus: 'PENDING' } }),
-      (prismaOf() as any).invoice.count({ where: { nrsStatus: 'FAILED', retryCount: { gte: 3 } } }),
-    ]);
-
-    return reply.send({
-      success: true,
-      data: {
-        circuitBreakerOpen: circuitOpen,
-        pendingSubmissions: pending,
-        deadLetterCount: failed,
-        status: circuitOpen ? 'degraded' : 'healthy',
-      },
-    });
-  });
+  // NOTE: GET /api/v1/nrs/health is registered by nrs-status.ts — do not duplicate here
 
   // ── Legacy endpoints (preserved for backward compatibility) ──────────────────
 

@@ -45,6 +45,7 @@ model User {
   businesses             Business[]
   streakRecord           StreakRecord?
   pillarScores           PillarScore[]
+  pushDevices            UserDevice[]
 
   @@unique([phone], map: "users_phone_unique")
   @@map("users")
@@ -829,6 +830,7 @@ model UserSession {
   @@index([tokenHash])
   @@index([expiresAt])
   @@index([userId, revokedAt])
+  @@index([userId, expiresAt])        // Session cleanup query pattern
   @@map("user_sessions")
 }
 
@@ -921,5 +923,47 @@ model AuditEvent {
   @@index([userId])
   @@index([action])
   @@index([createdAt])
+  @@index([orgId, action, createdAt])   // Compliance export query pattern
   @@map("audit_events")
+}
+
+// ============================================
+// UserDevice — V12.0 Push Notification Device Registry (GAP-01)
+// ============================================
+
+model UserDevice {
+  id              String    @id @default(uuid()) @db.Uuid
+  userId          String    @map("user_id") @db.Uuid
+  pushToken       String    @map("push_token")
+  platform        String    // 'ios' | 'android' | 'web'
+  appVersion      String?   @map("app_version")
+  osVersion       String?   @map("os_version")
+  active          Boolean   @default(true)
+  lastActiveAt    DateTime  @default(now()) @map("last_active_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  user            User      @relation(fields: [userId], references: [id])
+
+  @@unique([userId, pushToken])
+  @@index([userId, active])
+  @@map("user_devices")
+}
+
+// ============================================
+// UserTotp — V12.0 TOTP 2FA (GAP-03 / C-38)
+// ============================================
+
+model UserTotp {
+  id             String    @id @default(cuid())
+  userId         String    @unique @map("user_id")
+  secret         String?                          // Active TOTP secret (hex / base32)
+  pendingSecret  String?   @map("pending_secret") // Not-yet-verified pending setup
+  active         Boolean   @default(false)
+  activatedAt    DateTime? @map("activated_at")
+  disabledAt     DateTime? @map("disabled_at")
+  backupCodes    String[]  @map("backup_codes")   // bcrypt-hashed (C-38)
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  @@map("user_totp")
 }

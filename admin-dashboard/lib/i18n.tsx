@@ -24,6 +24,9 @@ const messages: Record<AdminLanguage, Messages> = {
     'nav.devices': 'Devices',
     'nav.compliance': 'Compliance',
     'nav.system': 'System',
+    'nav.ariaLabel': 'Main navigation',
+    'nav.openMenu': 'Open navigation menu',
+    'nav.closeMenu': 'Close navigation menu',
 
     // Header
     'header.adminConsole': 'Admin Console',
@@ -412,6 +415,7 @@ const messages: Record<AdminLanguage, Messages> = {
     'devices.table.syncJobs': 'Sync Jobs',
     'devices.table.conflicts': 'Conflicts',
     'devices.table.actions': 'Actions',
+    'devices.filter.platform': 'Platform',
     'devices.filter.all': 'All Platforms',
     'devices.filter.android': 'Android',
     'devices.filter.ios': 'iOS',
@@ -695,6 +699,9 @@ const messages: Record<AdminLanguage, Messages> = {
     'nav.devices': 'Devices',
     'nav.compliance': 'Compliance',
     'nav.system': 'System',
+    'nav.ariaLabel': 'Main menu',
+    'nav.openMenu': 'Open menu',
+    'nav.closeMenu': 'Shut menu',
 
     // Header
     'header.adminConsole': 'Admin Console',
@@ -1168,6 +1175,7 @@ const messages: Record<AdminLanguage, Messages> = {
     'devices.table.syncJobs': 'Sync Jobs',
     'devices.table.conflicts': 'Conflicts',
     'devices.table.actions': 'Actions',
+    'devices.filter.platform': 'Platform',
     'devices.filter.all': 'All',
     'devices.filter.android': 'Android',
     'devices.filter.ios': 'iOS',

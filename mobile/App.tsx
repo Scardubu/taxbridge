@@ -2,6 +2,11 @@ import React, { useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFonts } from 'expo-font';
+import {
+  Inter_400Regular,
+  Inter_600SemiBold,
+  Inter_700Bold,
+} from '@expo-google-fonts/inter';
 import { StatusBar } from 'expo-status-bar';
 import * as ExpoSplashScreen from 'expo-splash-screen';
 import { NavigationContainer, type NavigationContainerRef, DefaultTheme } from '@react-navigation/native';
@@ -238,9 +243,12 @@ function TabNavigator() {
 }
 
 export default function App() {
-  // BUG-S01: Load Ionicons font before rendering navigation to prevent □ squares
+  // BUG-S01: Load Inter + Ionicons fonts before rendering to prevent □ squares
   const [fontsLoaded] = useFonts({
     ...Ionicons.font,
+    Inter_400Regular,
+    Inter_600SemiBold,
+    Inter_700Bold,
   });
   const [booted, setBooted] = useState(false);
   const [bootError, setBootError] = useState<Error | null>(null);

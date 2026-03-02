@@ -2,6 +2,9 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
+// Validate required env vars before any service initialisation (crashes fast on misconfiguration)
+import './validateEnv';
+
 import Fastify from 'fastify';
 import path from 'path';
 import cors from '@fastify/cors';
@@ -58,6 +61,9 @@ import {
   getRedisConnection
 } from './queue/client';
 import { startDeadlineReminderCron } from './services/deadlineReminder';
+import { startCronOrchestrator, stopCronOrchestrator } from './cron/orchestrator';
+import notificationsRoutes from './routes/v1/notifications';
+import totpRoutes from './routes/v1/auth/totp';
 import { getQueueHealth } from './queues/index';
 import { paymentGateway } from './services/payment-gateway';
 import { healthCheckAllProviders, getProviderHealth } from './integrations/comms/client';
@@ -1109,6 +1115,10 @@ taxbridge_component_status{component="sms"} ${serverMetrics.componentStatus.sms 
   await app.register(v2IntelligenceRoute);
   await app.register(v2NdpcExportRoute);
 
+  // ── V12 new routes ─────────────────────────────────────────────────────
+  await app.register(notificationsRoutes, { prefix: '/api/v1/notifications' });
+  await app.register(totpRoutes, { prefix: '/api/v1/auth/totp' });
+
   setFastifyInstance(app);
 
   // Phase 3: Feature flags endpoint for mobile app
@@ -1130,9 +1140,14 @@ taxbridge_component_status{component="sms"} ${serverMetrics.componentStatus.sms 
   const port = Number((app as any).config.PORT || 3000);
 
   // Start background services
+  // V12: Centralised cron orchestrator (exactly 7 jobs — replaces scattered setIntervals)
+  startCronOrchestrator();
+  log.info('Cron orchestrator started (7 jobs)');
+
+  // Legacy deadline reminder — kept for backward compat but superseded by orchestrator
   if (String(process.env.ENABLE_DEADLINE_REMINDERS || '').toLowerCase() !== 'false') {
     startDeadlineReminderCron();
-    log.info('Deadline reminder cron job started');
+    log.info('Deadline reminder cron job started (legacy)');
   }
   
   // Start health monitoring
@@ -1325,6 +1340,9 @@ async function gracefulShutdown(signal: string) {
       nrsWorker.close().catch(err => log.error('Error closing NRS worker', { err }))
     ]);
     
+    // Stop cron orchestrator (V12)
+    stopCronOrchestrator();
+
     // Shutdown monitoring services
     log.info('Shutting down monitoring services');
     shutdownDLQMonitoring();
