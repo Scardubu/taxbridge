@@ -9,15 +9,19 @@
  * - Handles redirect reasons from middleware (unauthenticated, session_expired, invalid_token)
  * - Zero hardcoded UI text — all strings via useAdminI18n (with direct fallback literals
  *   for missing translation keys to avoid raw key display)
+ * - useSearchParams() wrapped in Suspense boundary (Next.js 16 requirement)
  */
 
-import { useState, useCallback, FormEvent } from 'react';
+import { useState, useCallback, FormEvent, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+
+// Next.js 16: force dynamic rendering — useSearchParams() cannot be statically prerendered
+export const dynamic = 'force-dynamic';
 
 // Reason → human-readable message (not color-only — C-15)
 const REASON_MESSAGES: Record<string, string> = {
@@ -26,7 +30,29 @@ const REASON_MESSAGES: Record<string, string> = {
   invalid_token:   'Your session is no longer valid. Please sign in again.',
 };
 
+/**
+ * Wrapper that provides Suspense boundary for useSearchParams().
+ * Next.js 16 requires CSR hooks to be wrapped in <Suspense>.
+ */
 export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-4">
+        <div className="w-full max-w-sm text-center">
+          <div className="animate-pulse">
+            <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-slate-200 mb-4" />
+            <div className="h-6 bg-slate-200 rounded w-48 mx-auto mb-2" />
+            <div className="h-4 bg-slate-100 rounded w-64 mx-auto" />
+          </div>
+        </div>
+      </div>
+    }>
+      <LoginPageContent />
+    </Suspense>
+  );
+}
+
+function LoginPageContent() {
   const router       = useRouter();
   const searchParams = useSearchParams();
   const reason       = searchParams.get('reason') ?? '';

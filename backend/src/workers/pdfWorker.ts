@@ -165,7 +165,7 @@ export function startPdfWorker(): Worker<PdfJobPayload> | null {
     'pdf-generation',
     generateFilingPdf,
     {
-      connection: redis,
+      connection: redis as any,
       concurrency: 2,
       limiter:     { max: 10, duration: 60_000 }, // 10 PDFs per minute
     },
