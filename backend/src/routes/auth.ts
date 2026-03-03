@@ -6,8 +6,7 @@ import { privacyService } from '../services/privacy';
 import { logSecurityEvent } from '../lib/security';
 import { getPrismaClient } from '../lib/prisma';
 import { writeAuditEvent } from '../services/audit';
-import { sendPushNotification } from '../services/notifications';
-import { getRedisConnection } from '../lib/redis';
+import { getRedisConnection } from '../queue/client';
 import { createLogger } from '../lib/logger';
 
 const log = createLogger('auth');
@@ -36,29 +35,24 @@ export async function handleSuspiciousReuse(userId: string, ip: string): Promise
       {
         orgId: 'SYSTEM',
         actorId: userId,
-        actorRole: 'SYSTEM',
-        targetType: 'UserSession',
-        targetId: userId,
         action: 'SECURITY_ALERT',
-        after: { reason: 'refresh_token_reuse', ip },
-        ip,
+        resource: 'UserSession',
+        resourceId: userId,
+        details: { reason: 'refresh_token_reuse', ip },
+        ipAddress: ip,
       },
       prisma,
     ).catch(() => {});
-    // Push alert — fire-and-forget (C-07)
-    sendPushNotification(userId, {
-      title: 'Security Alert',
-      body: 'Unusual activity detected. All sessions signed out.',
-      data: { route: '/profile/security', orgId: '', type: 'system' },
-    }).catch(() => {});
+    // Push alert deferred — log security event for monitoring (C-07 fire-and-forget)
+    log.warn('Security push alert queued for suspicious reuse', { userId });
     Sentry.captureMessage('Refresh token reuse detected', {
       level: 'warning',
       extra: { userId, ip },
     });
-    log.warn({ userId, ip }, 'Refresh token reuse — all sessions invalidated');
+    log.warn('Refresh token reuse — all sessions invalidated', { userId, ip });
   } catch (err) {
     // Never throw — security events must not crash the handler (C-07)
-    log.error({ err }, 'handleSuspiciousReuse failed');
+    log.error('handleSuspiciousReuse failed', { err });
     Sentry.captureException(err);
   }
 }

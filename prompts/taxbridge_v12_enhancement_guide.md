@@ -1,132 +1,87 @@
----
-title: "TaxBridge V12 — Strategic Enhancement Analysis & Implementation Guide"
-subtitle: "Gap Analysis, Architecture Upgrades, and Deployment-Ready Execution Plan"
-date: "March 2, 2026"
-author: "Senior Fintech Engineering & DevSecOps Review"
----
-
-# TaxBridge V12 — Strategic Enhancement Analysis & Implementation Guide
-
-**Classification:** Senior Engineering Artifact  
-**Version:** V12-ENHANCED | **Date:** 2026-03-02  
-**Scope:** Full-stack gap analysis, DevSecOps hardening, mobile-first UX enhancements, and actionable integration plan  
-**Branch:** `upgrade/v12-elevated-20260302`
+# TaxBridge V12 — Enhancement Guide
+**Version:** V12-REFINED-2 | **Date:** 2026-03-03 | **Branch:** `upgrade/v12-elevated-20260302`
+**Authority:** Companion to V12 APEX Execution Directive. Enforces GAP-01–GAP-15. Resolves all missing implementation components for full operational readiness.
 
 ---
 
-# PART I: EXECUTIVE GAP ANALYSIS
+# PART I: GAP SUMMARY
 
-## Overview
-
-After a thorough review of the V12 Master Prompt, Production Architecture Completion Module, and Implementation Prompt, seven critical gap categories were identified. These are not cosmetic issues — they represent production-blocking deficiencies that would prevent a world-class, fully operational Taxbridge platform from being achieved.
-
-## Gap Category Summary
-
-| Category | Gap Count | Risk Level | Phase Impact |
+| ID | Category | Risk | Phase |
 |---|---|---|---|
-| Authentication & Session Security | 4 | CRITICAL | P0 |
-| API Design & Client Experience | 5 | HIGH | P0–P1 |
-| Mobile UX & Accessibility | 6 | HIGH | P0–P1 |
-| Tax Workflow Completeness | 4 | CRITICAL | P2 |
-| Observability & Alerting | 3 | HIGH | P3 |
-| DevSecOps & Supply Chain | 4 | CRITICAL | P3 |
-| Data Integrity & Compliance | 3 | HIGH | P0–P2 |
+| GAP-01 | Push notification infrastructure — end-to-end absent | CRITICAL | P0 |
+| GAP-02 | Refresh token reuse — security response incomplete | CRITICAL | P0 |
+| GAP-03 | TOTP enrollment — completely absent | CRITICAL | P0 |
+| GAP-04 | Pagination — no universal cursor contract | HIGH | P0 |
+| GAP-05 | CIT module (MOD-28) — entirely missing | CRITICAL | P2 |
+| GAP-06 | Flutterwave webhook — no idempotency guard | CRITICAL | P2 |
+| GAP-07 | Deep linking — no Expo Router config or route allowlist | HIGH | P1 |
+| GAP-08 | WCAG 2.2 AA — filing wizards unspecified | HIGH | P1 |
+| GAP-09 | Rate limit headers — not exposed to clients | HIGH | P1 |
+| GAP-10 | PgBouncer connection pooling — not configured | HIGH | P0 |
+| GAP-11 | 2G network resilience — no exponential backoff or offline-first | HIGH | P1 |
+| GAP-12 | Admin panel — no CSRF protection or role_version sync | CRITICAL | P1 |
+| GAP-13 | VAT registration guard — unregistered orgs can file | CRITICAL | P2 |
+| GAP-14 | Lottie animations — no asset strategy, no error fallback | MEDIUM | P0 |
+| GAP-15 | PDF receipt generation — no implementation | HIGH | P2 |
 
 ---
 
-# PART II: CRITICAL GAPS & RESOLUTIONS
+# PART II: GAP RESOLUTIONS
 
-## GAP-01: Push Notification Infrastructure — Missing End-to-End
+## GAP-01: Push Notification Infrastructure
 
-**Problem:** The `notifications.ts` service is listed but its implementation contract is undefined. Compliance reminders fire via cron at `09:00 WAT` but there is no specification for the push token registration flow, the notification payload schema, delivery channel fallback (push → SMS → USSD), or Expo push credential management via EAS secrets. Without this, compliance reminder cron jobs silently no-op in production.
+**Problem:** `notifications.ts` is listed in the master prompt but its implementation contract is undefined. Compliance reminder cron fires at 09:00 WAT but silently no-ops: no token registration flow, payload schema, delivery fallback chain, or Expo credential management exists.
 
-**Resolution — New Files Required:**
-
-*`mobile/src/hooks/usePushNotification.ts`*
-
+**`mobile/src/hooks/usePushNotification.ts`** — call in App root on mount:
 ```typescript
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
+import { Platform } from 'react-native';
 
 export async function registerForPushNotifications(): Promise<string | null> {
   if (!Device.isDevice) return null;
   const { status: existing } = await Notifications.getPermissionsAsync();
-  const { status } = existing !== 'granted'
-    ? await Notifications.requestPermissionsAsync()
-    : { status: existing };
+  const { status } = existing !== 'granted' ? await Notifications.requestPermissionsAsync() : { status: existing };
   if (status !== 'granted') return null;
-  const token = (await Notifications.getExpoPushTokenAsync({
-    projectId: process.env.EXPO_PUBLIC_PROJECT_ID,
-  })).data;
+  const token = (await Notifications.getExpoPushTokenAsync({ projectId: process.env.EXPO_PUBLIC_PROJECT_ID })).data;
   await apiClient.post('/api/v1/notifications/register', { token, platform: Platform.OS });
   return token;
 }
-
 Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true, shouldPlaySound: true, shouldSetBadge: true,
-  }),
+  handleNotification: async () => ({ shouldShowAlert:true, shouldPlaySound:true, shouldSetBadge:true }),
 });
 ```
 
-*`backend/src/routes/v1/notifications.ts`*
-
+**`backend/src/routes/v1/notifications.ts`**:
 ```typescript
-// POST /api/v1/notifications/register
-// Body: { token: string, platform: 'ios' | 'android' }
-// Upsert UserDevice record for orgContext.userId
-// Deduplication: unique(userId, token)
-
-// POST /api/v1/notifications/unregister
-// Soft-delete: set active=false on UserDevice record
+// POST /api/v1/notifications/register  — { token, platform:'ios'|'android' } → upsert UserDevice(unique userId+token)
+// POST /api/v1/notifications/unregister — set active=false (soft delete)
 ```
 
-*`backend/src/services/notifications.ts` — Full specification:*
-
+**`backend/src/services/notifications.ts`**:
 ```typescript
-interface NotificationPayload {
-  title: string;         // bilingual: served from user lang preference
-  body: string;          // max 150 chars — Expo hard limit
-  data: {
-    route: string;       // deep link: '/filings/vat'
-    orgId: string;
-    type: 'compliance' | 'anomaly' | 'payment' | 'system';
-  };
-}
-
+// NotificationPayload: { title(≤80ch bilingual), body(≤150ch — Expo hard limit C-39),
+//   data: { route, orgId, type:'compliance'|'anomaly'|'payment'|'system' } }
 async function sendPushNotification(userId: string, payload: NotificationPayload): Promise<void> {
-  const devices = await (prisma as any).userDevice.findMany({
-    where: { userId, active: true },
-  });
-  if (!devices.length) {
-    // Fallback: SMS via Africa's Talking if phoneNumber on record
-    await sendSMSFallback(userId, payload.body);
-    return;
-  }
-  const messages = devices.map(d => ({
-    to: d.pushToken,
-    sound: 'default',
-    title: payload.title,
-    body: payload.body,
-    data: payload.data,
-    channelId: payload.data.type === 'compliance' ? 'compliance' : 'general',
-  }));
-  // Expo push API with chunked sending (max 100 per request)
-  const chunks = chunkArray(messages, 100);
-  for (const chunk of chunks) {
-    await expo.sendPushNotificationsAsync(chunk);
-  }
+  const devices = await (prisma as any).userDevice.findMany({ where: { userId, active: true } });
+  if (!devices.length) { await sendSMSFallback(userId, payload.body); return; }
+  for (const chunk of chunkArray(
+    devices.map(d => ({ to:d.pushToken, sound:'default', ...payload,
+      channelId: payload.data.type === 'compliance' ? 'compliance' : 'general' })), 100
+  )) await expo.sendPushNotificationsAsync(chunk);
+}
+async function sendSMSFallback(userId: string, body: string): Promise<void> {
+  // Africa's Talking SMS — fires when no active push devices on record
 }
 ```
 
-*`backend/prisma/schema.prisma` — Add UserDevice model:*
-
+**`backend/prisma/schema.prisma`** — add model:
 ```prisma
 model UserDevice {
   id         String   @id @default(cuid())
   userId     String
   pushToken  String
-  platform   String   // 'ios' | 'android'
+  platform   String
   active     Boolean  @default(true)
   lastSeenAt DateTime @default(now())
   createdAt  DateTime @default(now())
@@ -134,1138 +89,608 @@ model UserDevice {
   @@index([userId, active])
 }
 ```
+Add `SECURITY_ALERT` to `AuditAction` enum (required by GAP-02).
 
-**EAS Secrets — add via CLI:**
+EAS secrets (CLI only — never in `eas.json`):
 ```bash
 eas secret:create --scope project --name EXPO_PUSH_ACCESS_TOKEN --value <token>
-eas secret:create --scope project --name EXPO_PUBLIC_PROJECT_ID --value <project-id>
+eas secret:create --scope project --name EXPO_PUBLIC_PROJECT_ID  --value <id>
 ```
 
 ---
 
-## GAP-02: Refresh Token Rotation Attack Vector
+## GAP-02: Refresh Token Reuse — Incomplete Security Response
 
-**Problem:** The V12 spec defines single-use refresh tokens with session invalidation on reuse, but the implementation gap is in the "suspicious reuse" path. The current spec says "invalidate ALL sessions for userId" on reuse — but there is no push notification, audit event, or admin alert triggered. A credential stuffing attack would be invisible until the legitimate user next logs in.
+**Problem:** Session invalidation on token reuse is specified, but no push notification, audit event, or Sentry alert is triggered. A credential stuffing attack is invisible until the legitimate user next attempts login.
 
-**Resolution — Update `backend/src/routes/v1/auth.ts`:**
-
+**`backend/src/routes/v1/auth.ts`** — add `handleSuspiciousReuse()`:
 ```typescript
-// On refresh token reuse detection:
 async function handleSuspiciousReuse(userId: string, ip: string): Promise<void> {
-  // 1. Invalidate all sessions
-  await (prisma as any).userSession.updateMany({
-    where: { userId },
-    data: { expiresAt: new Date(0) },
-  });
-  // 2. Increment Redis role_version to force re-auth on all devices
+  await (prisma as any).userSession.updateMany({ where: { userId }, data: { expiresAt: new Date(0) } });
   await redis.del(`role_version:${userId}`);
-  // 3. Emit audit event — CRITICAL severity
   await writeAuditEvent({
-    orgId: 'SYSTEM',
-    actorId: userId,
-    actorRole: 'SYSTEM',
-    targetType: 'UserSession',
-    targetId: userId,
-    action: 'SECURITY_ALERT',
-    after: { reason: 'refresh_token_reuse', ip },
-    ip,
+    orgId:'SYSTEM', actorId:userId, actorRole:'SYSTEM', targetType:'UserSession', targetId:userId,
+    action:'SECURITY_ALERT', after:{ reason:'refresh_token_reuse', ip }, ip,
   }, prisma);
-  // 4. Send push notification to all registered devices
   await sendPushNotification(userId, {
     title: 'Security Alert',
     body: 'Unusual login activity detected. All sessions have been signed out.',
-    data: { route: '/profile/security', orgId: '', type: 'system' },
+    data: { route:'/profile/security', orgId:'', type:'system' },
   });
-  // 5. Alert ADMIN via Sentry + Slack webhook
-  Sentry.captureMessage('Refresh token reuse detected', {
-    level: 'warning',
-    extra: { userId, ip },
-  });
+  Sentry.captureMessage('Refresh token reuse detected', { level:'warning', extra:{ userId, ip } });
 }
 ```
 
 ---
 
-## GAP-03: TOTP Enrollment Flow — Completely Absent
+## GAP-03: TOTP Enrollment — Completely Absent
 
-**Problem:** `require2FA` middleware is specified for SUPER_ADMIN operations, but there is no TOTP enrollment screen, QR code generation endpoint, backup code system, or TOTP verification endpoint defined anywhere in the three documents. The middleware references `totpVerifiedAt` but there is no path for a SUPER_ADMIN to enroll TOTP in the first place.
+**Problem:** `require2FA` middleware verifies `redis.get('totp:${userId}')` but no enrollment screen, QR generation endpoint, backup code system, or verification endpoint exists. SUPER_ADMIN cannot enroll TOTP.
 
-**Resolution — New files and endpoints required:**
-
-*`backend/src/routes/v1/auth/totp.ts`*
-
+**`backend/src/routes/v1/auth/totp.ts`**:
 ```typescript
-// POST /api/v1/auth/totp/setup — generate TOTP secret + QR code
-// Requires: authenticate + requireRole('SUPER_ADMIN')
-// Returns: { qrCodeDataUrl, secret, backupCodes: string[] (10 codes) }
-// Stores: encrypted secret in UserProfile.totpSecret (AES-256-GCM, same KMS)
-// Backup codes: bcrypt-hashed, stored in UserProfile.totpBackupCodes (JSON array)
+// POST /api/v1/auth/totp/setup   — authenticate + requireRole('SUPER_ADMIN')
+//   Returns: { qrCodeDataUrl, secret, backupCodes: string[10] }
+//   Stores:  AES-256-GCM encrypted secret; backup codes bcrypt-hashed (C-38)
 
-// POST /api/v1/auth/totp/verify — verify TOTP token and mark session
-// Body: { token: string } — 6-digit TOTP
-// On success: redis.setex(`totp:${userId}`, 300, '1') — 5-minute window
-// On failure: increment failure counter; lock after 5 consecutive failures
+// POST /api/v1/auth/totp/verify  — authenticate
+//   Body: { token: string } — 6-digit TOTP
+//   Success: redis.setex(`totp:${userId}`, 300, '1')
+//   5 consecutive failures: lock account + emit SECURITY_ALERT AuditEvent
 
-// POST /api/v1/auth/totp/disable — disable TOTP (requires current TOTP + password)
-// Requires: authenticate + requireRole('SUPER_ADMIN') + require2FA
-// Audit: await writeAuditEvent action:'UPDATE'
+// POST /api/v1/auth/totp/disable — authenticate + requireRole('SUPER_ADMIN') + require2FA
+//   Requires current TOTP + password confirmation. Emits AuditEvent:'UPDATE'
 
-// POST /api/v1/auth/totp/backup — redeem backup code
-// Body: { backupCode: string }
-// Uses bcrypt.compare against stored hashes; marks code as used (cannot be reused)
+// POST /api/v1/auth/totp/backup  — authenticate
+//   bcrypt.compare against stored hashes; mark code used — one-time, immutable once redeemed
 ```
 
-*`mobile/src/screens/auth/TOTPSetupScreen.tsx`*
-
-```typescript
-// Step 1: Show QR code (expo-camera or react-native-qrcode-svg)
-// Step 2: User scans with authenticator app
-// Step 3: Verify 6-digit token to confirm enrollment
-// Step 4: Display 10 backup codes — REQUIRE user to confirm they've saved them
-// Step 5: Redirect to dashboard with success toast
-// Accessibility: QR code accompanied by manual entry string
+**`mobile/src/screens/auth/TOTPSetupScreen.tsx`**:
+```
+Step 1: Display QR code + manual secret entry string (always both)
+Step 2: User scans with authenticator app
+Step 3: Verify 6-digit token to confirm enrollment
+Step 4: Display 10 backup codes — require explicit "I've saved these" confirmation gate
+Step 5: Redirect to dashboard
 ```
 
 ---
 
-## GAP-04: API Pagination — Cursor vs Offset Mismatch
+## GAP-04: Pagination — No Universal Contract
 
-**Problem:** The spec defines cursor-based pagination for audit logs but does not specify cursor encoding, the `hasNextPage` / `hasPreviousPage` shape, or how the admin frontend implements infinite scroll vs. "next page" buttons. Without a standard, each endpoint will implement pagination differently, creating frontend inconsistencies.
+**Problem:** Cursor-based pagination is referenced for audit logs but encoding, shape, and admin frontend integration are undefined. Each endpoint implements pagination differently.
 
-**Resolution — Universal Pagination Contract:**
-
-*`packages/contracts/src/types.ts` — add:*
-
+**`packages/contracts/src/types.ts`** — add:
 ```typescript
-interface PaginatedResponse<T> {
+export interface PaginatedResponse<T> {
   data: T[];
   meta: {
-    nextCursor:     string | null;  // base64-encoded {createdAt, id}
-    prevCursor:     string | null;
-    hasNextPage:    boolean;
+    nextCursor:      string | null;  // base64({createdAt, id})
+    prevCursor:      string | null;
+    hasNextPage:     boolean;
     hasPreviousPage: boolean;
-    total:          number | null;  // null for large sets (expensive COUNT)
-    pageSize:       number;
+    total:           number | null;  // null for large sets
+    pageSize:        number;
   };
 }
-
-// Cursor encoding/decoding (shared utility):
-function encodeCursor(createdAt: Date, id: string): string {
-  return Buffer.from(JSON.stringify({ createdAt: createdAt.toISOString(), id })).toString('base64');
-}
-function decodeCursor(cursor: string): { createdAt: Date; id: string } {
-  const { createdAt, id } = JSON.parse(Buffer.from(cursor, 'base64').toString('utf8'));
+export const encodeCursor = (createdAt: Date, id: string): string =>
+  Buffer.from(JSON.stringify({ createdAt: createdAt.toISOString(), id })).toString('base64');
+export const decodeCursor = (c: string): { createdAt: Date; id: string } => {
+  const { createdAt, id } = JSON.parse(Buffer.from(c, 'base64').toString('utf8'));
   return { createdAt: new Date(createdAt), id };
-}
+};
 ```
-
-Applies to: `GET /api/v2/audit`, `GET /api/v2/dlq`, `GET /api/v1/team`, `GET /api/v1/documents`.
+Apply to: `GET /api/v2/audit`, `GET /api/v2/dlq`, `GET /api/v1/team`, `GET /api/v1/documents`.
 
 ---
 
 ## GAP-05: CIT Annual Assessment — Entirely Missing
 
-**Problem:** The compliance calendar lists CIT as a deadline event, but there is no CIT filing wizard, CIT calculation logic in `packages/contracts/src/cit.ts`, or CIT-specific preflight checks. An SME approaching ₦100M turnover has no tool to compute their liability. MOD-22 through MOD-27 cover VAT, WHT, PAYE, NIL, documents, and team — but CIT (Company Income Tax) is absent despite being the highest-value obligation.
+**Problem:** Compliance calendar surfaces CIT deadlines but no filing wizard, tax math, or preflight checks exist. CIT is the highest-value obligation for companies above ₦100M turnover.
 
-**Resolution — New Module MOD-28:**
-
-*`packages/contracts/src/cit.ts` — tax math:*
-
+**`packages/contracts/src/cit.ts`** — C-41: only CIT computation path:
 ```typescript
-// CIT computation per NTA 2025
+export const SMALL_CO_CIT_THRESHOLD = 100_000_000;
+export const CIT_LARGE_RATE          = 0.30;
+export const DEV_LEVY_RATE           = 0.04;
+export const EDUCATION_TAX_RATE      = 0.025;
+
 export function calculateCIT(input: {
-  turnover:        number;  // gross revenue
-  profit:          number;  // profit before tax
-  devLevyApplies: boolean; // technology company: Dev Levy at 4%
-  taxLossCarryforward?: number;
+  turnover: number; profit: number; devLevyApplies: boolean; taxLossCarryforward?: number;
 }): CITResult {
   const { turnover, profit, devLevyApplies, taxLossCarryforward = 0 } = input;
-
-  // Small company: turnover < ₦100M AND fixed assets ≤ ₦250M → 0%
-  if (turnover < SMALL_CO_CIT_THRESHOLD) {
-    return { rate: 0, taxableProfit: 0, citLiability: 0, devLevy: 0, total: 0, band: 'small' };
-  }
-
-  // Apply tax loss carryforward
-  const taxableProfit = Math.max(0, profit - taxLossCarryforward);
-  const citLiability = taxableProfit * CIT_LARGE_RATE;  // 30%
-  const devLevy = devLevyApplies ? taxableProfit * DEV_LEVY_RATE : 0;  // 4%
-  return {
-    rate: CIT_LARGE_RATE,
-    taxableProfit,
-    citLiability,
-    devLevy,
-    total: citLiability + devLevy,
-    band: 'large',
-    educationTax: taxableProfit * 0.025,  // Education Tax: 2.5% of assessable profit
-  };
+  if (turnover < SMALL_CO_CIT_THRESHOLD)
+    return { rate:0, taxableProfit:0, citLiability:0, devLevy:0, educationTax:0, total:0, band:'small' };
+  const tp = Math.max(0, profit - taxLossCarryforward);
+  const cl = tp * CIT_LARGE_RATE, dl = devLevyApplies ? tp * DEV_LEVY_RATE : 0, et = tp * EDUCATION_TAX_RATE;
+  return { rate:CIT_LARGE_RATE, taxableProfit:tp, citLiability:cl, devLevy:dl, educationTax:et, total:cl+dl+et, band:'large' };
 }
 ```
 
-*`mobile/src/screens/filings/CITFilingWizard.tsx`* — 6-step wizard:
-
+**`mobile/src/screens/filings/CITFilingWizard.tsx`** — MOD-28, 6-step wizard:
 ```
-Step 1: Tax year selection + turnover entry (auto-warn if approaching ₦100M threshold)
-Step 2: Profit/loss statement input (with file upload for audited accounts)
-Step 3: Tax loss carryforward from TaxLossCarryforward records
-Step 4: Dev Levy eligibility check (technology company classification)
-Step 5: Education Tax computation (2.5% of assessable profit)
-Step 6: CIT assessment summary → Flutterwave payment → filing receipt
+Step 1: Tax year + turnover — auto-warn if approaching ₦100M (APPROACHING_CIT_THRESHOLD)
+Step 2: P&L upload — audited accounts required
+Step 3: Tax loss carryforward — read from TaxLossCarryforward DB records
+Step 4: Dev Levy eligibility — technology company classification
+Step 5: Education Tax — 2.5% of assessable profit
+Step 6: CIT assessment summary → Flutterwave payment → receipt
+WCAG: step announcement + error focus on all 6 steps (GAP-08)
+```
+
+**`backend/src/routes/v1/filings/cit.ts`** — `authenticate + resolveOrgContext + requireRole('ACCOUNTANT') + validate(CITSchema) + idempotency`. Uses `calculateCIT()` exclusively (C-41).
+
+CI accuracy gates:
+```bash
+npx ts-node -e "const{calculateCIT}=require('./packages/contracts/src');if(calculateCIT({turnover:200_000_000,profit:50_000_000,devLevyApplies:false}).citLiability!==15_000_000)process.exit(1)"
+npx ts-node -e "const{calculateCIT}=require('./packages/contracts/src');if(calculateCIT({turnover:80_000_000,profit:20_000_000,devLevyApplies:false}).citLiability!==0)process.exit(1)"
 ```
 
 ---
 
-## GAP-06: Webhook Reliability — Flutterwave Idempotency
+## GAP-06: Flutterwave Webhook — No Idempotency Guard
 
-**Problem:** The Flutterwave webhook handler validates HMAC and processes payments, but there is no idempotency guard for webhook replays. Payment webhooks are replayed by Flutterwave on non-200 responses — without deduplication, a network hiccup between processing and responding could credit a payment twice, corrupt subscription state, or fire duplicate audit events.
+**Problem:** HMAC validation is specified but no idempotency guard exists. Flutterwave replays webhooks on non-200 responses, causing double-credit, duplicate audit events, and corrupted subscription state.
 
-**Resolution — Update `backend/src/routes/webhooks/flutterwave.ts`:**
-
+**`backend/src/routes/webhooks/flutterwave.ts`** — C-37: Redis `NX` guard before any DB write:
 ```typescript
-router.post('/flutterwave', express.raw({ type: 'application/json' }), async (req, res) => {
-  // 1. HMAC verification (already specified)
-  const received = req.headers['verif-hash'] as string;
-  if (!crypto.timingSafeEqual(
-    Buffer.from(crypto.createHmac('sha256', process.env.FLUTTERWAVE_SECRET!)
-      .update((req.body as Buffer).toString('utf8')).digest('hex')),
-    Buffer.from(received),
-  )) return res.status(401).end();
+router.post('/flutterwave', express.raw({ type:'application/json' }), async (req, res) => {
+  const sig      = req.headers['verif-hash'] as string;
+  const expected = crypto.createHmac('sha256', process.env.FLUTTERWAVE_SECRET!)
+    .update((req.body as Buffer).toString('utf8')).digest('hex');
+  if (!crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(sig))) return res.status(401).end();
 
   const event = JSON.parse((req.body as Buffer).toString('utf8'));
-  const txRef = event.data?.tx_ref;
+  const key   = `webhook:flw:${event.data?.tx_ref}`;
+  if (!await redis.set(key, '1', 'NX', 'EX', 86400))
+    return res.status(200).json({ status:'already_processed' });  // C-37
 
-  // 2. Idempotency guard — CRITICAL: must happen before any processing
-  const idempotencyKey = `webhook:flw:${txRef}`;
-  const alreadyProcessed = await redis.set(idempotencyKey, '1', 'NX', 'EX', 86400);
-  if (!alreadyProcessed) {
-    // Already processed — return 200 to stop Flutterwave retrying
-    return res.status(200).json({ status: 'already_processed' });
-  }
-
-  // 3. Process in background to guarantee fast 200 response to Flutterwave
   setImmediate(async () => {
-    try {
-      await processFlutterwaveEvent(event, prisma);
-    } catch (err) {
-      Sentry.captureException(err);
-      // Remove idempotency key so retry can be processed
-      await redis.del(idempotencyKey);
-    }
+    try { await processFlutterwaveEvent(event, prisma); }
+    catch (e) { Sentry.captureException(e); await redis.del(key); }
   });
-
-  res.status(200).json({ status: 'accepted' });
+  res.status(200).json({ status:'accepted' });
 });
 ```
 
 ---
 
-## GAP-07: Mobile Deep Linking — Not Specified
+## GAP-07: Deep Linking — No Configuration or Route Allowlist
 
-**Problem:** Push notifications include `data.route` for deep linking, and compliance calendar has "File Now" CTAs, but there is no Expo Router deep link configuration, universal link setup (iOS Associated Domains, Android App Links), or email link handling defined. Without this, push notification taps open the app home screen rather than the intended route.
+**Problem:** Push notifications embed `data.route` for deep linking, but no Expo Router scheme, universal link setup, or route allowlist is specified. Tapping a notification opens the app home screen rather than the intended route.
 
-**Resolution — New Files:**
-
-*`mobile/app.json` — add scheme and universal links:*
-
+**`mobile/app.json`** — update:
 ```json
 {
   "expo": {
     "scheme": "taxbridge",
-    "ios": {
-      "associatedDomains": ["applinks:app.taxbridge.ng"]
-    },
+    "ios": { "associatedDomains": ["applinks:app.taxbridge.ng"] },
     "android": {
-      "intentFilters": [
-        {
-          "action": "VIEW",
-          "autoVerify": true,
-          "data": [{ "scheme": "https", "host": "app.taxbridge.ng" }],
-          "category": ["BROWSABLE", "DEFAULT"]
-        }
-      ]
-    }
+      "intentFilters": [{"action":"VIEW","autoVerify":true,"data":[{"scheme":"https","host":"app.taxbridge.ng"}],"category":["BROWSABLE","DEFAULT"]}],
+      "notification": { "androidMode": "collapse" }
+    },
+    "plugins": [["expo-notifications", { "androidMode": "collapse" }]]
   }
 }
 ```
 
-*`mobile/src/hooks/useDeepLink.ts`*
-
+**`mobile/src/hooks/useDeepLink.ts`** — C-36: allowlist-only navigation:
 ```typescript
-import * as Linking from 'expo-linking';
-import { useRouter } from 'expo-router';
-
+const SAFE_ROUTES = ['/dashboard','/filings/vat','/filings/wht','/filings/paye',
+                     '/filings/nil','/filings/cit','/documents','/team','/profile/security'];
 export function useDeepLink() {
   const router = useRouter();
   useEffect(() => {
-    // Handle cold-start deep link
-    Linking.getInitialURL().then(url => { if (url) handleDeepLink(url, router); });
-    // Handle warm-start deep link (app already open)
-    const sub = Linking.addEventListener('url', ({ url }) => handleDeepLink(url, router));
+    Linking.getInitialURL().then(url => { if (url) navigate(url, router); });
+    const sub = Linking.addEventListener('url', ({ url }) => navigate(url, router));
     return () => sub.remove();
   }, [router]);
 }
-
-function handleDeepLink(url: string, router: ReturnType<typeof useRouter>) {
+function navigate(url: string, router: ReturnType<typeof useRouter>) {
   const { path } = Linking.parse(url);
-  // Route whitelist — only navigate to known safe routes
-  const SAFE_ROUTES = ['/dashboard', '/filings/vat', '/filings/wht', '/filings/paye',
-                       '/filings/nil', '/documents', '/team', '/profile/security'];
-  if (path && SAFE_ROUTES.some(r => path.startsWith(r))) {
-    router.push(path as never);
-  }
+  if (path && SAFE_ROUTES.some(r => path.startsWith(r))) router.push(path as never);
 }
 ```
+Call `useDeepLink()` in App root.
 
 ---
 
-## GAP-08: Accessibility — WCAG 2.2 AA Gaps in Filing Wizards
+## GAP-08: WCAG 2.2 AA — Filing Wizards Unspecified
 
-**Problem:** The master prompt specifies WCAG 2.2 AA for dashboard components but the specification is absent for filing wizards, which are the highest-stakes interactions. Users with visual impairments cannot use screen readers effectively on multi-step wizards without focus management, step announcement, and error linkage.
+**Problem:** WCAG 2.2 AA is required in the master prompt for dashboard components but is absent from all filing wizard specifications. Screen reader users cannot navigate multi-step wizards without focus management, step announcements, and accessible error linkage.
 
-**Resolution — Mandatory accessibility pattern for all filing wizards:**
-
+**Mandatory pattern for all filing wizards** (`VATFilingWizard`, `WHTWizard`, `PAYEWizard`, `NILReturnScreen`, `CITFilingWizard`):
 ```typescript
-// Step announcement on navigation
+// Step announcement
 useEffect(() => {
-  AccessibilityInfo.announceForAccessibility(
-    `Step ${currentStep} of ${totalSteps}: ${stepTitle}`
-  );
+  AccessibilityInfo.announceForAccessibility(`Step ${currentStep} of ${totalSteps}: ${stepTitle}`);
 }, [currentStep]);
 
-// Error focus management
+// Error focus
 const firstErrorRef = useRef<TextInput>(null);
 useEffect(() => {
   if (errors.length > 0) {
     firstErrorRef.current?.focus();
     AccessibilityInfo.announceForAccessibility(
-      `${errors.length} error${errors.length > 1 ? 's' : ''}: ${errors[0].message}`
-    );
+      `${errors.length} error${errors.length > 1 ? 's' : ''}: ${errors[0].message}`);
   }
 }, [errors]);
 
 // Progress indicator
-<View
-  accessibilityRole="progressbar"
+<View accessibilityRole="progressbar"
   accessibilityLabel={`Step ${currentStep} of ${totalSteps}`}
-  accessibilityValue={{ min: 1, max: totalSteps, now: currentStep }}
->
-  {/* Visual progress bar */}
-</View>
+  accessibilityValue={{ min:1, max:totalSteps, now:currentStep }} />
 
-// Form field error linkage
-<TextInput
-  accessibilityLabel="TIN number"
-  accessibilityHint="Enter your 8-digit Tax Identification Number"
-  accessibilityErrorMessage={errors.tin?.message}
-  aria-invalid={!!errors.tin}
-/>
+// All form fields: accessibilityLabel + accessibilityHint + accessibilityErrorMessage + aria-invalid
+// All interactive elements: minimum 44×44px touch target
 ```
 
 ---
 
-## GAP-09: Rate Limit Headers — Missing Exposure
+## GAP-09: Rate Limit Headers — Not Exposed
 
-**Problem:** Rate limiting is configured but clients have no visibility into their limit state. Mobile clients on slow connections may encounter 429 responses with no indication of when they can retry, causing poor UX and retry storms.
+**Problem:** Rate limiting is configured but clients receive 429 responses with no retry timing, causing poor UX and uncoordinated retry storms on 2G connections.
 
-**Resolution — Update `backend/src/middleware/rateLimit.ts`:**
-
+**`backend/src/middleware/rateLimit.ts`** — all limiters must include:
 ```typescript
-// Add to all rate limiters:
 standardHeaders: true,   // Exposes RateLimit-Limit, RateLimit-Remaining, RateLimit-Reset
-legacyHeaders: false,    // Disable X-RateLimit-* legacy headers
-
-// Mobile client consumption in apiClient.ts:
-function handleRateLimitResponse(response: Response): number | null {
-  const resetHeader = response.headers.get('RateLimit-Reset');
-  return resetHeader ? parseInt(resetHeader) * 1000 - Date.now() : null;
-}
-
-// UI feedback:
-// On 429: toast "Too many requests — try again in ${retryAfterSeconds}s"
-// Do NOT auto-retry on 429 — requires explicit user action
+legacyHeaders:   false,  // Disables deprecated X-RateLimit-* headers
 ```
+Mobile client on 429: toast `"Too many requests — try again in ${retryAfterSeconds}s"`. Never auto-retry on 429 — requires explicit user action.
 
 ---
 
-## GAP-10: Database Connection Pooling — Missing for Scale
+## GAP-10: PgBouncer Connection Pooling — Not Configured
 
-**Problem:** The V12 architecture targets 2,000 concurrent users in load testing, but there is no PgBouncer connection pooling specification. Render's PostgreSQL free tier limits connections to 25. With `prisma.$connect()` creating one connection per worker process, a load spike will immediately exhaust the pool and return 500 errors to all users.
+**Problem:** V12 targets 2,000 concurrent users. Render PostgreSQL free tier limits connections to 25. Without PgBouncer, a load spike exhausts the pool and returns universal 500 errors.
 
-**Resolution:**
-
-*`backend/src/lib/prisma.ts` — connection pooling configuration:*
-
+**`backend/src/lib/prisma.ts`** — C-43: singleton only:
 ```typescript
 import { PrismaClient } from '@prisma/client';
-
 declare global { var __prisma: PrismaClient | undefined; }
-
 export const prisma = global.__prisma ?? new PrismaClient({
-  datasources: {
-    db: {
-      url: process.env.DATABASE_URL,
-      // PgBouncer mode: use ?pgbouncer=true&connection_limit=1 in DATABASE_URL
-      // This disables prepared statements (incompatible with PgBouncer)
-    },
-  },
-  log: process.env.NODE_ENV === 'development' ? ['query', 'error'] : ['error'],
+  log: process.env.NODE_ENV === 'development' ? ['query','error'] : ['error'],
 });
-
 if (process.env.NODE_ENV !== 'production') global.__prisma = prisma;
-
-// Graceful shutdown
-process.on('SIGINT', () => prisma.$disconnect());
+process.on('SIGINT',  () => prisma.$disconnect());
 process.on('SIGTERM', () => prisma.$disconnect());
+// DATABASE_URL must include: ?pgbouncer=true&connection_limit=1&pool_timeout=20
 ```
-
-*`render.yaml` — add PgBouncer as sidecar (or use Render's built-in pooler):*
-
-```yaml
-# In DATABASE_URL, append connection pooling params:
-# postgresql://user:pass@host:5432/db?pgbouncer=true&connection_limit=1&pool_timeout=20
-```
-
-*`.env.example` — document the pattern:*
-
-```bash
-# For Render PostgreSQL with PgBouncer:
-DATABASE_URL="postgresql://user:pass@host:5432/taxbridge?pgbouncer=true&connection_limit=1"
-```
+Gate: `grep -rn "new PrismaClient" backend/src/routes` → 0.
 
 ---
 
-## GAP-11: Nigeria-Specific Network Resilience — 2G Retry Strategy
+## GAP-11: 2G Network Resilience — No Backoff or Offline-First Mode
 
-**Problem:** The design target is "a first-time filer on a Tecno Spark, on 2G in Lagos" but the API client has no exponential backoff, timeout configuration, or network-aware retry strategy. React Query's default `retry: 3` fires all three retries immediately, overwhelming the queue on a 400ms RTT connection.
+**Problem:** The design target is a Tecno Spark on 2G in Lagos, but `apiClient.ts` has no exponential backoff, timeout, or offline-first configuration. React Query's default `retry:3` fires immediately, overwhelming the queue on 400ms+ RTT.
 
-**Resolution — Update `mobile/src/services/apiClient.ts`:**
-
+**`mobile/src/services/apiClient.ts`** — replace:
 ```typescript
-import axios from 'axios';
-import NetInfo from '@react-native-community/netinfo';
+const api = axios.create({ baseURL: process.env.EXPO_PUBLIC_API_URL, timeout: 15_000 });
+// Response interceptor: 401 → refresh → retry once → router.replace('/auth/login')
 
-const api = axios.create({
-  baseURL: process.env.EXPO_PUBLIC_API_URL,
-  timeout: 15_000,  // 15s — accounts for 2G RTT + server processing
-  headers: { 'Content-Type': 'application/json' },
-});
-
-// Request interceptor: attach auth token
-api.interceptors.request.use(async config => {
-  const token = await SecureStore.getItemAsync('access_token');
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  return config;
-});
-
-// Response interceptor: handle 401 token refresh
-api.interceptors.response.use(
-  res => res,
-  async error => {
-    if (error.response?.status === 401 && !error.config._retry) {
-      error.config._retry = true;
-      const refreshed = await refreshAccessToken();
-      if (refreshed) {
-        error.config.headers.Authorization = `Bearer ${refreshed}`;
-        return api.request(error.config);
-      }
-      // Refresh failed: redirect to login
-      router.replace('/auth/login');
-    }
-    return Promise.reject(error);
-  }
-);
-
-// React Query global config — 2G-aware:
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      retry: (failureCount, error: any) => {
-        if (error?.response?.status === 401) return false;  // No retry on auth errors
-        if (error?.response?.status === 404) return false;  // No retry on not found
-        return failureCount < 2;
-      },
-      retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 10_000),  // Exponential backoff
-      staleTime: 30_000,
-      gcTime: 5 * 60_000,
-      networkMode: 'offlineFirst',  // Serve cache before network on 2G
+      retry:       (n, e: any) => e?.response?.status === 401 || e?.response?.status === 404 ? false : n < 2,
+      retryDelay:  n => Math.min(1000 * 2 ** n, 10_000),  // exponential backoff for 2G
+      staleTime:   30_000,
+      gcTime:      5 * 60_000,
+      networkMode: 'offlineFirst',  // serve cache before network on 2G
     },
-    mutations: {
-      retry: 0,  // Never auto-retry mutations — requires explicit user action
-      networkMode: 'online',
-    },
+    mutations: { retry:0, networkMode:'online' },
   },
 });
+// On 429: toast "Too many requests — try again in ${s}s" — never auto-retry
 ```
 
 ---
 
-## GAP-12: Admin Panel Authentication — Edge Runtime Gap
+## GAP-12: Admin Panel — No CSRF or Role Version Sync
 
-**Problem:** The admin panel uses `jose` for Edge Runtime JWT validation, but there is no specification for the admin login flow, CSRF protection, or session invalidation when a backend `role_version` changes. An admin whose role is downgraded by a SUPER_ADMIN would continue to have admin access until their Next.js session cookie expires.
+**Problem:** Admin uses `jose` for JWT validation but has no CSRF protection for mutating requests and no mechanism to invalidate sessions when a user's role changes. A downgraded admin retains access until the Next.js session cookie expires.
 
-**Resolution — Update `admin/src/middleware.ts`:**
-
+**`admin/src/middleware.ts`** — replace:
 ```typescript
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
 import { jwtVerify } from 'jose';
-
 export async function middleware(request: NextRequest) {
   const token = request.cookies.get('admin_session')?.value;
   if (!token) return NextResponse.redirect(new URL('/login', request.url));
-
   try {
-    const { payload } = await jwtVerify(
-      token,
-      new TextEncoder().encode(process.env.JWT_SECRET),
-    );
-
-    // Verify role_version against backend (cached in Vercel Edge Config for 30s)
-    const roleVersionKey = `role_version:${payload.sub}`;
-    const cachedVersion = await edgeConfig.get(roleVersionKey);
-
-    if (cachedVersion && cachedVersion !== payload.roleVersion) {
-      // Role changed — force re-authentication
-      const response = NextResponse.redirect(new URL('/login?reason=session_expired', request.url));
-      response.cookies.delete('admin_session');
-      return response;
+    const { payload } = await jwtVerify(token, new TextEncoder().encode(process.env.JWT_SECRET));
+    // role_version: check Vercel Edge Config (30s TTL); redirect /login?reason=session_expired if changed
+    const current = await edgeConfig.get(`role_version:${payload.sub}`);
+    if (current && current !== payload.roleVersion) {
+      const res = NextResponse.redirect(new URL('/login?reason=session_expired', request.url));
+      res.cookies.delete('admin_session');
+      return res;
     }
-
-    // Add CSRF header to all mutating requests
+    // CSRF — all mutating requests
     if (['POST','PATCH','DELETE'].includes(request.method)) {
-      const csrfToken = request.cookies.get('csrf_token')?.value;
+      const csrfCookie = request.cookies.get('csrf_token')?.value;
       const csrfHeader = request.headers.get('X-CSRF-Token');
-      if (!csrfToken || csrfToken !== csrfHeader) {
-        return NextResponse.json({ error: 'CSRF_INVALID' }, { status: 403 });
-      }
+      if (!csrfCookie || csrfCookie !== csrfHeader)
+        return NextResponse.json({ error:'CSRF_INVALID' }, { status:403 });
     }
-
     return NextResponse.next();
-  } catch {
-    return NextResponse.redirect(new URL('/login', request.url));
-  }
+  } catch { return NextResponse.redirect(new URL('/login', request.url)); }
 }
-
-export const config = {
-  matcher: ['/admin/:path*'],
-};
+export const config = { matcher: ['/admin/:path*'] };
 ```
 
 ---
 
-## GAP-13: VAT Relief for Small Companies — Logic Gap
+## GAP-13: VAT Registration Guard — Absent
 
-**Problem:** The NTA 2025 includes a VAT relief provision for companies with turnover below ₦25M (exemption from registration). The `constants.ts` defines `VAT_REGISTRATION_THRESHOLD = 25_000_000` but there is no enforcement point in the VAT filing wizard that checks registration status before allowing output VAT to be filed. An unregistered company could file VAT returns, which constitutes regulatory fraud.
+**Problem:** `constants.ts` defines `VAT_REGISTRATION_THRESHOLD = 25_000_000` but no enforcement exists in the VAT filing wizard. A company with turnover below ₦25M can file VAT returns — a regulatory violation.
 
-**Resolution — Update `backend/src/routes/v1/compliance/preflight.ts`:**
-
+**`backend/src/services/compliancePreFlight.ts`** — update:
 ```typescript
-// checkVATRegistrationStatus enhancement:
 async function checkVATRegistrationStatus(orgId: string): Promise<PreFlightCheck> {
-  const org = await (prisma as any).organisation.findUnique({ where: { id: orgId } });
-  const currentYearRevenue = await computeAnnualRevenue(orgId);
-
-  if (currentYearRevenue < VAT_REGISTRATION_THRESHOLD) {
-    return {
-      pass: false,
-      code: 'VAT_NOT_REQUIRED',
-      message: `Your turnover (${formatNGN(currentYearRevenue)}) is below the ₦25M VAT registration threshold. File a NIL return or confirm voluntary registration.`,
-      warning: false,
-    };
-  }
-  if (!org.vatRegistrationNumber) {
-    return {
-      pass: false,
-      code: 'VAT_NOT_REGISTERED',
-      message: 'You must complete VAT registration with NRS before filing VAT returns.',
-      warning: false,
-    };
-  }
-  return { pass: true, code: 'VAT_REGISTERED', message: 'VAT registration verified.' };
+  const org     = await (prisma as any).organisation.findUnique({ where: { id: orgId } });
+  const revenue = await computeAnnualRevenue(orgId);
+  if (revenue < VAT_REGISTRATION_THRESHOLD)
+    return { pass:false, code:'VAT_NOT_REQUIRED',
+      message:`Turnover (${formatNGN(revenue)}) is below the ₦25M VAT registration threshold.` };
+  if (!org.vatRegistrationNumber)
+    return { pass:false, code:'VAT_NOT_REGISTERED',
+      message:'Complete VAT registration with NRS before filing VAT returns.' };
+  return { pass:true, code:'VAT_REGISTERED', message:'VAT registration verified.' };
 }
 ```
+Failures block submission. Warnings are informational only.
+
+`dashboardService.ts` must define `FALLBACK_STATS`, `FALLBACK_ANOMALIES`, `FALLBACK_DEADLINES`, and `FALLBACK_NRS_HEALTH` — every `.catch()` returns the appropriate fallback and never propagates to the HTTP layer (C-07).
 
 ---
 
-## GAP-14: Lottie Animation Dependency — Missing Spec
+## GAP-14: Lottie Animations — No Asset Strategy or Fallback
 
-**Problem:** Both the OnboardingWizard and filing completion screens reference "Confetti Lottie" but there is no package specification, animation asset management strategy, or fallback for devices where Lottie rendering fails. Lottie files can be 200KB+, which impacts 2G performance if loaded from network.
+**Problem:** `OnboardingWizard` and filing completion screens reference Lottie animations with no package spec, asset management strategy, or fallback for devices where Lottie fails. Files above 200KB degrade 2G performance if network-loaded.
 
-**Resolution:**
+Package: `yarn workspace mobile add lottie-react-native`
 
-*Package:* `yarn workspace mobile add lottie-react-native`
-
-*Asset strategy:* Bundle Lottie JSON in `mobile/src/assets/animations/` (not loaded from network):
-
+Asset directory — bundle locally, never load from network:
 ```
 mobile/src/assets/animations/
-├── confetti.json         # < 50KB — filing completion, onboarding completion
-├── success-checkmark.json  # < 30KB — NRS stamp success
-├── loading-spinner.json  # < 20KB — NRS submission pending
-└── empty-state.json      # < 40KB — empty document vault
+├── confetti.json          < 50KB
+├── success-checkmark.json < 30KB
+├── loading-spinner.json   < 20KB
+└── empty-state.json       < 40KB
 ```
 
-*Compress assets before bundling:* `scripts/compress-assets.sh` must include:
+Minify before bundling:
 ```bash
-# Minify Lottie JSON (removes editor metadata, reduces size ~30%)
-for f in mobile/src/assets/animations/*.json; do
-  node -e "const fs=require('fs');const j=JSON.parse(fs.readFileSync('$f','utf8'));fs.writeFileSync('$f',JSON.stringify(j))"
-done
+node -e "const fs=require('fs'),p=require('path'),d='mobile/src/assets/animations';fs.readdirSync(d).filter(f=>f.endsWith('.json')).forEach(f=>{const fp=p.join(d,f);fs.writeFileSync(fp,JSON.stringify(JSON.parse(fs.readFileSync(fp,'utf8'))))})"
 ```
 
-*Fallback component:*
-
+**`mobile/src/components/shared/ConfettiAnimation.tsx`** — C-42: `onError` fallback mandatory:
 ```typescript
 function ConfettiAnimation({ onFinish }: { onFinish: () => void }) {
-  const [lottieAvailable, setLottieAvailable] = useState(true);
-  if (!lottieAvailable) {
-    // Fallback: simple CSS-like animation using Animated API
+  const [ok, setOk] = useState(true);
+  if (!ok) {
     useEffect(() => { setTimeout(onFinish, 1500); }, []);
     return <SuccessIcon size={80} color={COLORS.primary} />;
   }
   return (
-    <LottieView
-      source={require('../assets/animations/confetti.json')}
-      autoPlay
-      loop={false}
-      onAnimationFinish={onFinish}
-      onError={() => { setLottieAvailable(false); onFinish(); }}
-    />
+    <LottieView source={require('../../assets/animations/confetti.json')}
+      autoPlay loop={false} onAnimationFinish={onFinish}
+      onError={() => { setOk(false); onFinish(); }} />
   );
 }
 ```
 
 ---
 
-## GAP-15: Tax Receipt PDF Generation — No Specification
+## GAP-15: PDF Receipt Generation — No Implementation
 
-**Problem:** The filing submission flow mentions "Download receipt → signed R2 URL" but there is no specification for the PDF generation service, the receipt template, or the BullMQ `pdf-generation` queue consumer. Without this, the receipt URL is null for every filed return, and the Document Vault stores empty records.
+**Problem:** Filing submission references a signed R2 receipt URL but no PDF generation service, receipt template, or BullMQ queue consumer exists. `TaxReturn.receiptUrl` is null for every filed return.
 
-**Resolution — New files:**
+New packages: `yarn workspace backend add pdfkit @aws-sdk/client-s3 @aws-sdk/s3-request-presigner`
 
-*`backend/src/workers/pdfWorker.ts`*
-
+**`backend/src/workers/pdfWorker.ts`** — C-40: always async via BullMQ, never blocks HTTP:
 ```typescript
-import PDFDocument from 'pdfkit';
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
-
-interface TaxReceiptPayload {
-  filingId: string;
-  orgId:    string;
-  userId:   string;
-}
-
-export async function generateTaxReceipt(payload: TaxReceiptPayload): Promise<string> {
+export async function generateTaxReceipt(payload: { filingId: string; orgId: string }): Promise<string> {
   const filing = await (prisma as any).taxReturn.findUnique({
-    where: { id: payload.filingId },
-    include: { org: true },
+    where: { id: payload.filingId }, include: { org: true },
   });
-
-  const doc = new PDFDocument({ size: 'A4', margin: 50 });
+  const doc = new PDFDocument({ size:'A4', margin:50 });
   const chunks: Buffer[] = [];
-  doc.on('data', chunk => chunks.push(chunk));
-
-  // Header
-  doc.fontSize(24).font('Helvetica-Bold').text('TaxBridge', 50, 50);
-  doc.fontSize(14).font('Helvetica').text('Official Filing Receipt', 50, 80);
-  doc.moveTo(50, 100).lineTo(545, 100).strokeColor('#1DB954').lineWidth(2).stroke();
-
-  // Filing details
-  doc.fontSize(11).font('Helvetica-Bold').text('Filing Reference:', 50, 120);
-  doc.font('Helvetica').text(filing.filingReference, 200, 120);
-  doc.font('Helvetica-Bold').text('Tax Type:', 50, 140);
-  doc.font('Helvetica').text(filing.taxType, 200, 140);
-  doc.font('Helvetica-Bold').text('Period:', 50, 160);
-  doc.font('Helvetica').text(filing.period, 200, 160);
-  doc.font('Helvetica-Bold').text('NRS IRN:', 50, 180);
-  doc.font('Helvetica').text(filing.nrsIRN ?? 'Pending NRS stamp', 200, 180);
-  doc.font('Helvetica-Bold').text('Amount Paid:', 50, 200);
-  doc.font('Helvetica').text(
-    new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', minimumFractionDigits: 0 })
-      .format(filing.taxAmountDue), 200, 200
-  );
-  doc.font('Helvetica-Bold').text('Filed At:', 50, 220);
-  doc.font('Helvetica').text(filing.submittedAt?.toISOString() ?? '', 200, 220);
-
-  // Footer
-  doc.fontSize(9).font('Helvetica').fillColor('#666666')
-    .text('This receipt is a system-generated document. For disputes, contact NRS with the filing reference above.', 50, 720, { width: 495, align: 'center' });
-
+  doc.on('data', c => chunks.push(c));
+  // A4 receipt: filingReference | taxType | period | nrsIRN | amountPaid | submittedAt
+  // Header: TaxBridge logo + "Official Filing Receipt" + ₦1DB954 divider line at y=100
+  // Footer: "System-generated receipt. For disputes, contact NRS with the filing reference."
   doc.end();
-  await new Promise(resolve => doc.on('end', resolve));
+  await new Promise(r => doc.on('end', r));
 
-  const pdfBuffer = Buffer.concat(chunks);
   const key = `receipts/${payload.orgId}/${payload.filingId}.pdf`;
-
-  // Upload to Cloudflare R2 (encrypted at rest via KMS)
-  const r2 = new S3Client({ region: 'auto', endpoint: process.env.R2_ENDPOINT });
+  const r2  = new S3Client({ region:'auto', endpoint:process.env.R2_ENDPOINT });
   await r2.send(new PutObjectCommand({
-    Bucket: process.env.R2_BUCKET_NAME,
-    Key: key,
-    Body: pdfBuffer,
-    ContentType: 'application/pdf',
-    ServerSideEncryption: 'aws:kms',
+    Bucket: process.env.R2_BUCKET_NAME!, Key: key,
+    Body: Buffer.concat(chunks), ContentType:'application/pdf',
+    ServerSideEncryption:'aws:kms',
   }));
-
-  // Update TaxReturn.receiptUrl with signed URL path (not direct R2 URL)
   const signedUrl = await generateSignedUrl(key, 86400);  // 24h expiry
-  await (prisma as any).taxReturn.update({
-    where: { id: payload.filingId },
-    data: { receiptUrl: signedUrl },
-  });
-
+  await (prisma as any).taxReturn.update({ where:{ id:payload.filingId }, data:{ receiptUrl:signedUrl } });
   return signedUrl;
 }
 ```
 
-*Package additions:*
-```bash
-yarn workspace backend add pdfkit @aws-sdk/client-s3 @aws-sdk/s3-request-presigner
+**`backend/src/services/eventBus.ts`** — wire:
+```typescript
+eventBus.on('filing.submitted', payload => pdfQueue.add('generate-receipt', payload, { priority:2 }));
 ```
 
-*Environment variables — add to `validateEnv.ts` REQUIRED_PRODUCTION:*
-```bash
-R2_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com
-R2_BUCKET_NAME=taxbridge-vault
-R2_ACCESS_KEY_ID=<key>
-R2_SECRET_ACCESS_KEY=<secret>
-```
+Add to `validateEnv.ts` `REQUIRED_PRODUCTION`: `R2_ENDPOINT R2_BUCKET_NAME R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY`
 
 ---
 
-# PART III: ENHANCED IMPLEMENTATION PLAN
+# PART III: PHASE EXECUTION ORDER
 
 ## Phase Dependency Map
-
 ```
 P0 (Foundation) ──► P1 (Sprint) ──► P2 (Tax Workflows) ──► P3 (Infrastructure)
      │                   │                  │                        │
-     ├─ Design System     ├─ Push Notifs     ├─ CIT Module            ├─ Docker
-     ├─ Auth Security     ├─ Deep Links      ├─ PDF Receipts          ├─ PgBouncer
-     ├─ TOTP Enrollment   ├─ Accessibility   ├─ WHT + VAT fixes       ├─ Grafana
-     └─ DB Schema         └─ Rate Limit UX   └─ Webhook idem.         └─ Load Test
+     ├─ PgBouncer/Prisma  ├─ 2G API client   ├─ CIT module (MOD-28)   ├─ Docker multi-stage
+     ├─ TOTP enrollment   ├─ Deep links      ├─ PDF receipts (C-40)   ├─ Grafana + k6
+     ├─ Push infra        ├─ WCAG wizards    ├─ Webhook idempotency   ├─ CI/CD gate updates
+     └─ DB: UserDevice    └─ CSRF admin      └─ VAT guard (GAP-13)    └─ Zero-downtime migrate
+          + SECURITY_ALERT
 ```
 
----
-
-## STEP 1: Pre-Execution Security Baseline
-
-**Duration:** 2 hours | **Blocking:** All other steps depend on this
-
+## Pre-Execution (Day 0)
 ```bash
-# 1a. Verify no secrets in git history
-git log --all --full-history -- "*.env" | head -20
-git log --all -S "SENTRY_DSN" --source --all | head -10
-# If any found: BFG Repo Cleaner required before any further commits
-
-# 1b. Verify dependency audit baseline
+git checkout upgrade/v12-elevated-20260302 && git branch --show-current
+git log --all -S "SENTRY_DSN" --source --all | grep "REPLACE" | wc -l  # → 0
 yarn workspaces foreach -A exec npm audit --audit-level=moderate 2>&1 | tee /tmp/audit-baseline.txt
-# Document all known vulnerabilities before starting — new ones introduced by V12 deps will surface
 
-# 1c. Install all V12 dependencies
-yarn workspace mobile add @expo-google-fonts/inter expo-font @shopify/flash-list \
-  expo-haptics expo-local-authentication @tanstack/react-query@5 \
-  lottie-react-native expo-notifications expo-device axios
+yarn workspace mobile add @expo-google-fonts/inter expo-font @shopify/flash-list expo-haptics \
+  expo-local-authentication @tanstack/react-query@5 lottie-react-native \
+  expo-notifications expo-device axios @react-native-community/netinfo
 
-yarn workspace backend add compression @types/compression opossum @types/opossum \
-  pino pino-pretty bullmq ioredis @sentry/node express-rate-limit \
+yarn workspace backend add compression @types/compression opossum @types/opossum pino pino-pretty \
+  bullmq ioredis @sentry/node express-rate-limit \
   pdfkit @aws-sdk/client-s3 @aws-sdk/s3-request-presigner \
   speakeasy qrcode @types/speakeasy @types/qrcode
 
 yarn workspace admin add jose
-
-# 1d. Verify all 8 pre-execution gates pass
-yarn prompts:verify
-grep -rn "FIRS" backend/src mobile/src admin/src packages --include="*.ts" --include="*.tsx" --include="*.json" | grep -v node_modules
-# ... (all 8 gates from §3 of master prompt)
 ```
 
----
+## P0 — Foundation (Days 1–3) — Blocking
 
-## STEP 2: Enhanced P0 — Foundation with Security Fixes
-
-**Duration:** 3–4 days | **Gate:** All P0.9 checks + GAP-01 through GAP-03 resolved
-
-### 2a. Design System & Tokens (Day 1)
-
-Execute P0.2 as specified, then add:
-
-```bash
-# Create animation assets
-mkdir -p mobile/src/assets/animations
-# Copy/download Lottie JSON files to this directory
-# Run compression script:
-node -e "
-  const fs = require('fs'), path = require('path');
-  const dir = 'mobile/src/assets/animations';
-  fs.readdirSync(dir).filter(f => f.endsWith('.json')).forEach(f => {
-    const full = path.join(dir, f);
-    const json = JSON.parse(fs.readFileSync(full, 'utf8'));
-    fs.writeFileSync(full, JSON.stringify(json));
-    console.log('Minified:', f, '->', fs.statSync(full).size, 'bytes');
-  });
-"
-```
-
-### 2b. Auth & Security Foundation (Day 1–2)
-
-Order matters — create in this sequence:
-
-1. `backend/src/validateEnv.ts` — add `R2_ENDPOINT, R2_BUCKET_NAME, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY` to REQUIRED_PRODUCTION
-2. `backend/src/lib/prisma.ts` — connection pool singleton (PgBouncer-compatible)
-3. `backend/src/middleware/validate.ts`
-4. `backend/src/middleware/idempotency.ts`
-5. `backend/src/middleware/require2FA.ts` — check `redis.get(`totp:${userId}`)` exists
-6. `backend/src/routes/v1/auth/totp.ts` — enrollment, verify, disable, backup redemption
-7. Update `backend/src/routes/v1/auth.ts` — add `handleSuspiciousReuse()` to refresh token path
-8. `backend/prisma/schema.prisma` — add `UserDevice` model and all V12 models
+Create in this sequence:
+1. `backend/src/validateEnv.ts` — add `R2_ENDPOINT,R2_BUCKET_NAME,R2_ACCESS_KEY_ID,R2_SECRET_ACCESS_KEY` to `REQUIRED_PRODUCTION`
+2. `backend/src/lib/prisma.ts` — PgBouncer singleton (C-43)
+3. `backend/src/middleware/validate.ts` | `idempotency.ts` | `require2FA.ts`
+4. `backend/src/routes/v1/auth/totp.ts` — all 4 endpoints (GAP-03)
+5. `backend/src/routes/v1/auth.ts` — add `handleSuspiciousReuse()` (GAP-02)
+6. `backend/src/routes/v1/notifications.ts` — register + unregister (GAP-01)
+7. `backend/src/services/notifications.ts` — full send + SMS fallback (GAP-01)
+8. `backend/prisma/schema.prisma` — add `UserDevice` model + `SECURITY_ALERT` to `AuditAction` (GAP-01/02)
+9. `packages/contracts/src/types.ts` — add `PaginatedResponse<T>`, `encodeCursor`, `decodeCursor` (GAP-04)
+10. `mobile/src/hooks/usePushNotification.ts` (GAP-01)
+11. `mobile/src/assets/animations/` — all 4 JSON files, minified (GAP-14)
+12. `mobile/src/components/shared/ConfettiAnimation.tsx` — with `onError` fallback (GAP-14, C-42)
+13. `mobile/src/screens/auth/TOTPSetupScreen.tsx` (GAP-03)
 
 Gate:
 ```bash
-yarn workspace backend run type-check                         # 0 errors
-grep -q "totp_setup\|totp_verify" backend/src/routes/v1/auth/totp.ts  # TOTP routes present
-grep -q "handleSuspiciousReuse" backend/src/routes/v1/auth.ts         # Reuse detection present
+npx prisma migrate dev --name "v12_add_userdevice_security_alert"
+yarn workspaces foreach -A run type-check                              # → 0 errors
+grep -q "handleSuspiciousReuse" backend/src/routes/v1/auth.ts         # ✅
+grep -q "totp/setup" backend/src/routes/v1/auth/totp.ts               # ✅
+grep -q "UserDevice" backend/prisma/schema.prisma                      # ✅
+grep -q "SECURITY_ALERT" backend/prisma/schema.prisma                  # ✅
+grep -q "global.__prisma" backend/src/lib/prisma.ts                    # ✅
 ```
 
-### 2c. Push Notifications (Day 2)
+## P1 — Sprint (Days 4–7) — After P0 Gate
 
-```bash
-# Backend
-# Create backend/src/routes/v1/notifications.ts
-# Create backend/prisma schema UserDevice model
-# Run migration:
-npx prisma migrate dev --name "v12_add_user_device_push_tokens"
-
-# Mobile
-# Create mobile/src/hooks/usePushNotification.ts
-# Add to mobile/src/screens/HomeScreen or App root:
-#   await registerForPushNotifications()
-# Add to app.json: notification channel config for Android
-```
-
-### 2d. Database Schema — Full V12 (Day 2–3)
-
-```bash
-# Apply all schema changes (additive only — zero NOT NULL without defaults)
-npx prisma migrate dev --name "v12_foundation_schema"
-npx prisma generate
-yarn workspaces foreach -A run type-check  # must be 0 errors
-```
-
-Gate: All models present, all indexes defined, `AuditEvent` has NO `updatedAt`, `TaxHealthSnapshot` has NO `updatedAt`.
-
----
-
-## STEP 3: Enhanced P1 — Sprint Enhancements with Gap Fixes
-
-**Duration:** 3–4 days | **Gate:** All P1.G checks + new accessibility + deep link checks
-
-### 3a. API Client Hardening (Day 1)
-
-Replace `mobile/src/services/apiClient.ts` with the 2G-resilient version from GAP-11:
-
-```bash
-# Verify retry configuration:
-node -e "
-  const src = require('fs').readFileSync('mobile/src/services/apiClient.ts', 'utf8');
-  if (!src.includes('retryDelay')) throw new Error('Missing exponential backoff');
-  if (!src.includes('networkMode')) throw new Error('Missing offline-first mode');
-  console.log('✅ API client 2G-resilient');
-"
-```
-
-### 3b. Deep Link Infrastructure (Day 1)
-
-```bash
-# 1. Update mobile/app.json with scheme + universal links
-# 2. Create mobile/src/hooks/useDeepLink.ts
-# 3. Call useDeepLink() in mobile/src/App.tsx root component
-# 4. Test deep links:
-npx uri-scheme open "taxbridge://filings/vat" --android
-npx uri-scheme open "taxbridge://filings/vat" --ios
-```
-
-### 3c. Rate Limit Headers (Day 1)
-
-Update all rate limiter configs in `backend/src/middleware/rateLimit.ts`:
-```bash
-grep -q "standardHeaders: true" backend/src/middleware/rateLimit.ts && echo "✅" || echo "❌ Missing rate limit headers"
-```
-
-### 3d. Accessibility Audit (Day 2–3)
-
-For every filing wizard screen, enforce:
-- `useEffect` announces step changes via `AccessibilityInfo.announceForAccessibility`
-- All form fields have `accessibilityLabel`, `accessibilityHint`
-- Error fields have `accessibilityErrorMessage` and `aria-invalid`
-- Minimum touch target 44×44px on all interactive elements
-- Wizard progress indicator has `accessibilityRole="progressbar"` with value
-
-```bash
-# Automated accessibility check (add to CI Stage 1):
-yarn workspace mobile exec eslint --rule '{"jsx-a11y/interactive-supports-focus": "error"}' src/
-```
-
----
-
-## STEP 4: Enhanced P2 — Complete Tax Workflow Modules
-
-**Duration:** 5–7 days | **Gate:** All P2 checks + CIT + PDF receipts + webhook idempotency
-
-### 4a. CIT Module (MOD-28) — Day 1–2
-
-Execution sequence:
-
-1. Add `calculateCIT()` to `packages/contracts/src/cit.ts`
-2. Export from `packages/contracts/src/index.ts`
-3. Add `TaxLossCarryforward` model to schema (already specified — verify present)
-4. Create `mobile/src/screens/filings/CITFilingWizard.tsx` (6-step)
-5. Create `backend/src/routes/v1/filings/cit.ts`
-
-Accuracy gate (add to CI Stage 1):
-```bash
-npx ts-node -e "
-  const {calculateCIT} = require('./packages/contracts/src');
-  // Large company: ₦200M turnover, ₦50M profit, no dev levy
-  const r = calculateCIT({turnover:200_000_000, profit:50_000_000, devLevyApplies:false});
-  if(r.citLiability !== 15_000_000) throw new Error('CIT GATE FAILED: ' + r.citLiability);
-  // Small company: ₦80M turnover → 0% CIT
-  const s = calculateCIT({turnover:80_000_000, profit:20_000_000, devLevyApplies:false});
-  if(s.citLiability !== 0) throw new Error('Small company CIT should be 0');
-  console.log('✅ CIT gate passed');
-"
-```
-
-### 4b. PDF Receipt Generation (Day 2–3)
-
-1. Create `backend/src/workers/pdfWorker.ts` with `generateTaxReceipt()` from GAP-15
-2. Connect to `filing.submitted` event in `backend/src/services/eventBus.ts`:
-   ```typescript
-   eventBus.on('filing.submitted', async ({ filingId, orgId, userId }) => {
-     await pdfQueue.add('generate-receipt', { filingId, orgId, userId }, { priority: 2 });
-   });
-   ```
-3. Add `R2_*` environment variables to `validateEnv.ts` and `render.yaml`
+1. `mobile/src/services/apiClient.ts` — exponential backoff + `networkMode:'offlineFirst'` (GAP-11)
+2. `mobile/src/hooks/useDeepLink.ts` + `mobile/app.json` update (GAP-07)
+3. `backend/src/middleware/rateLimit.ts` — `standardHeaders:true` on all limiters (GAP-09)
+4. `admin/src/middleware.ts` — CSRF + role_version sync (GAP-12)
+5. All filing wizards — WCAG 2.2 AA pattern (GAP-08)
 
 Gate:
 ```bash
-curl -sf -H "Authorization: Bearer $TOKEN" \
-  "$BASE/api/v1/filings/$FILING_ID/receipt" | jq -e '.receiptUrl | startswith("https://")'
+grep -q "standardHeaders.*true" backend/src/middleware/rateLimit.ts
+grep -q "SAFE_ROUTES" mobile/src/hooks/useDeepLink.ts
+grep -q 'accessibilityRole="progressbar"' mobile/src/screens/filings/VATFilingWizard.tsx
+grep -rn "#[0-9A-Fa-f]\{3,6\}" mobile/src/components --include="*.tsx" | grep -v design-system  # → 0
+grep -rn "FlatList" mobile/src --include="*.tsx" | grep -v node_modules                          # → 0
 ```
 
-### 4c. Webhook Idempotency (Day 3)
+## P2 — Tax Workflows (Days 8–14) — After P1 Gate
 
-Update `backend/src/routes/webhooks/flutterwave.ts` with the idempotency guard from GAP-06.
+1. `packages/contracts/src/cit.ts` + `backend/src/routes/v1/filings/cit.ts` + `mobile/src/screens/filings/CITFilingWizard.tsx` (MOD-28, GAP-05)
+2. `backend/src/workers/pdfWorker.ts` + eventBus wire (GAP-15, C-40)
+3. `backend/src/routes/webhooks/flutterwave.ts` — Redis NX idempotency guard (GAP-06, C-37)
+4. `backend/src/services/compliancePreFlight.ts` — VAT registration check (GAP-13)
+
+Per-module additions:
+- MOD-22 (VAT): add VAT registration preflight gate before step 9
+- MOD-23 (WHT): amber inline alert for professional fee rate — not color alone
+- MOD-24 (PAYE): trigger `<ConfettiAnimation/>` on payroll run completion
+- MOD-26 (Vault): auto-add PDF receipt to vault on `filing.submitted`
+- MOD-27 (Team): `sendPushNotification` to invited user after OTP dispatch
 
 Gate:
 ```bash
-# Simulate duplicate webhook:
-BODY='{"data":{"tx_ref":"test-ref-001","status":"successful"}}'
-SIG=$(echo -n "$BODY" | openssl dgst -sha256 -hmac "$FLUTTERWAVE_SECRET" -hex | awk '{print $2}')
-curl -X POST $BASE/webhooks/flutterwave -H "verif-hash: $SIG" -H "Content-Type: application/json" -d "$BODY"
-# First call → 200 accepted
-# Second call → 200 already_processed (NOT a duplicate DB write)
+sleep 5 && curl -sf -H "Authorization:Bearer $TOKEN" "$BASE/api/v1/filings/$FID" | jq -e '.receiptUrl|startswith("https://")'
+curl -sf "$BASE/api/v1/filings/preflight?taxType=VAT" -H "Authorization:Bearer $SMALL_TOKEN" | jq -e '.checks[]|select(.code=="VAT_NOT_REQUIRED")'
+curl -X POST $BASE/webhooks/flutterwave -H "verif-hash:$SIG" -d "$BODY"  # → { status:"accepted" }
+curl -X POST $BASE/webhooks/flutterwave -H "verif-hash:$SIG" -d "$BODY"  # → { status:"already_processed" }
+npx ts-node -e "const{calculateCIT}=require('./packages/contracts/src');if(calculateCIT({turnover:200_000_000,profit:50_000_000,devLevyApplies:false}).citLiability!==15_000_000)process.exit(1)"
+npx ts-node -e "const{calculateCIT}=require('./packages/contracts/src');if(calculateCIT({turnover:80_000_000,profit:20_000_000,devLevyApplies:false}).citLiability!==0)process.exit(1)"
 ```
 
-### 4d. VAT Registration Guard (Day 4)
+## P3 — Infrastructure (Days 15–17)
 
-Update `backend/src/services/compliancePreFlight.ts` with the VAT registration status check from GAP-13.
-
-### 4e. Remaining V12 Modules (Day 4–7)
-
-Execute MOD-22 through MOD-27 as specified in the implementation prompt, with these additions:
-
-- MOD-22 (VAT): Add preflight gate before step 9
-- MOD-23 (WHT): Add professional fee 10% warning as inline alert (amber, not just color)
-- MOD-25 (PAYE): Add Lottie success animation on payroll run completion
-- MOD-26 (Vault): Wire PDF receipts into vault on filing.submitted event
-- MOD-27 (Team): Add push notification to invited user after `OTP` dispatch
-
----
-
-## STEP 5: Enhanced P3 — Infrastructure & Observability
-
-**Duration:** 2–3 days
-
-### 5a. Docker Multi-Stage (Day 1)
-
-Create `backend/Dockerfile` as specified, then verify:
+Execute per APEX directive. Additional CI Stage 1 gates:
 ```bash
-docker build --target production -t taxbridge-api:test .
-docker run --rm -p 10000:10000 \
-  -e DATABASE_URL="postgresql://test" \
-  -e REDIS_URL="redis://test" \
-  taxbridge-api:test &
-sleep 5
-curl -sf http://localhost:10000/api/v2/monitoring/health | jq '.status'
-docker stop $(docker ps -q --filter ancestor=taxbridge-api:test)
-```
-
-### 5b. CI/CD Pipeline — Enhanced Gates (Day 1–2)
-
-Add to `.github/workflows/pipeline.yml` Stage 1:
-```yaml
-# New gates from gap analysis:
-- name: CIT accuracy gate
-  run: npx ts-node -e "const {calculateCIT}=require('./packages/contracts/src');if(calculateCIT({turnover:200_000_000,profit:50_000_000,devLevyApplies:false}).citLiability!==15_000_000)process.exit(1)"
-
-- name: PDF worker present
-  run: test -f backend/src/workers/pdfWorker.ts && grep -q "generateTaxReceipt" backend/src/workers/pdfWorker.ts
-
-- name: Push notification service present
-  run: test -f backend/src/routes/v1/notifications.ts && grep -q "register" backend/src/routes/v1/notifications.ts
-
-- name: Deep link hook present
-  run: test -f mobile/src/hooks/useDeepLink.ts && grep -q "SAFE_ROUTES" mobile/src/hooks/useDeepLink.ts
-
-- name: Webhook idempotency guard present
-  run: grep -q "already_processed" backend/src/routes/webhooks/flutterwave.ts
-
-- name: Rate limit headers enabled
-  run: grep -q "standardHeaders.*true" backend/src/middleware/rateLimit.ts
-
-- name: TOTP enrollment endpoint present
-  run: test -f backend/src/routes/v1/auth/totp.ts && grep -q "totp/setup" backend/src/routes/v1/auth/totp.ts
-
-- name: PgBouncer-compatible prisma config
-  run: test -f backend/src/lib/prisma.ts && grep -q "global.__prisma" backend/src/lib/prisma.ts
-```
-
-### 5c. Load Testing Configuration (Day 2)
-
-Create `infra/k6/dashboard-load-test.js` as specified in architecture module §13.3, plus add:
-
-```javascript
-// New: filing submission load test
-export function filingTest() {
-  const idempKey = `load-test-nil-${__VU}-${__ITER}`;
-  const res = http.post(`${__ENV.BASE_URL}/api/v1/filings/nil`,
-    JSON.stringify({ taxType: 'VAT', period: '2026-02', nilReason: 'NO_REVENUE_THIS_PERIOD' }),
-    {
-      headers: {
-        Authorization: `Bearer ${__ENV.TOKEN}`,
-        'Content-Type': 'application/json',
-        'X-Idempotency-Key': idempKey,
-      },
-      tags: { url: 'nil_filing' },
-    }
-  );
-  check(res, {
-    'nil filing 200': r => r.status === 200 || r.status === 409,  // 409 = idempotent replay
-    'has filing reference': r => JSON.parse(r.body).filingReference !== undefined,
-  });
-}
-```
-
-### 5d. Grafana Dashboard Configuration (Day 2–3)
-
-In addition to the 5 alert rules, create `infra/grafana/dashboard.json` with panels:
-
-```json
-{
-  "title": "TaxBridge Production Overview",
-  "panels": [
-    { "title": "API Error Rate (5xx)", "type": "timeseries", "expr": "rate(taxbridge_api_request_duration_seconds_count{status=~\"5..\"}[5m])" },
-    { "title": "Dashboard P99 Latency", "type": "gauge", "expr": "histogram_quantile(0.99, taxbridge_api_request_duration_seconds_bucket{route=\"/api/v1/dashboard\"}[5m])", "thresholds": [{"color":"green","value":0},{"color":"yellow","value":0.5},{"color":"red","value":2}] },
-    { "title": "NRS Circuit State", "type": "stat", "expr": "taxbridge_nrs_circuit_state", "mappings": [{"value":0,"text":"Closed ✓"},{"value":1,"text":"Half-Open ⚠️"},{"value":2,"text":"OPEN ❌"}] },
-    { "title": "DLQ Depth by Queue", "type": "bargauge", "expr": "taxbridge_dlq_depth" },
-    { "title": "Filing Submissions (Last Hour)", "type": "stat", "expr": "increase(taxbridge_nrs_stamp_success_total[1h])" },
-    { "title": "Active Users (Last 15m)", "type": "stat", "expr": "count(increase(taxbridge_api_request_duration_seconds_count{route=~\"/api/v1/.*\"}[15m]) > 0)" }
-  ]
-}
+test -f backend/src/workers/pdfWorker.ts
+test -f backend/src/routes/v1/notifications.ts
+test -f backend/src/routes/v1/auth/totp.ts
+grep -q "bcrypt"           backend/src/routes/v1/auth/totp.ts           # C-38
+grep -q "already_processed" backend/src/routes/webhooks/flutterwave.ts  # C-37
+grep -q "global.__prisma"  backend/src/lib/prisma.ts                    # C-43
+grep -q "SAFE_ROUTES"      mobile/src/hooks/useDeepLink.ts              # C-36
 ```
 
 ---
 
-## STEP 6: Full Pre-Deployment Validation (Enhanced)
-
-```bash
-# ─── ORIGINAL GATES (unchanged) ───
-grep -rn "FIRS" . --include="*.ts" --include="*.tsx" --include="*.json" | grep -v node_modules
-grep -rn "withTiming.*[0-9]\{3,4\}" mobile/src | grep -v animation.ts
-grep -rn "CRA\b\|consolidatedRelief\|minTax" packages/contracts/src --include="*.ts"
-grep -rn "console\.log" backend/src --include="*.ts"
-grep -rn "0\.2725\b" packages/contracts/src backend/src
-grep '"SENTRY_DSN": "REPLACE' mobile/eas.json
-grep -rn "schema\.parse(" backend/src/routes --include="*.ts"
-grep 'zone="' mobile/src/screens/DashboardScreen.tsx | wc -l   # → 5
-grep '"compileSdkVersion": 36' mobile/eas.json | wc -l          # → 3
-grep -rn "FlatList" mobile/src --include="*.tsx" | grep -v node_modules
-yarn workspaces foreach -A run lint
-yarn workspaces foreach -A run type-check
-yarn i18n:check
-yarn prompts:verify
-npm test --workspaces -- --coverage --ci
-npx nyc check-coverage --lines 95 --functions 95 --branches 90
-npx snyk test --all-projects --severity-threshold=high
-
-# ─── ORIGINAL ACCURACY GATES ───
-npx ts-node -e "const {calculatePIT}=require('./packages/contracts/src');const r=calculatePIT({grossIncome:5000000,rentPaid:600000,pension:200000});if(Math.abs(r.taxLiability-632400)>1)process.exit(1);console.log('✅ PIT gate')"
-npx ts-node -e "const {calculatePenalty}=require('./packages/contracts/src');const r=calculatePenalty({entityType:'company',daysLate:32,taxAmountDue:0,disclosurePhase:'after_assessment'});if(r.netPenalty!==375000)process.exit(1);console.log('✅ Penalty gate')"
-
-# ─── NEW ACCURACY GATES FROM GAP ANALYSIS ───
-npx ts-node -e "const {calculateCIT}=require('./packages/contracts/src');const r=calculateCIT({turnover:200_000_000,profit:50_000_000,devLevyApplies:false});if(r.citLiability!==15_000_000)process.exit(1);console.log('✅ CIT large company gate')"
-npx ts-node -e "const {calculateCIT}=require('./packages/contracts/src');const r=calculateCIT({turnover:80_000_000,profit:20_000_000,devLevyApplies:false});if(r.citLiability!==0)process.exit(1);console.log('✅ CIT small company gate')"
-npx ts-node -e "const {formatNGN}=require('./mobile/src/design-system/ngn');if(formatNGN(632_400)!=='₦632,400')process.exit(1);if(formatNGN(5_000_000,{compact:true})!=='₦5.0M')process.exit(1);console.log('✅ NGN format gate')"
-
-# ─── NEW SECURITY GATES FROM GAP ANALYSIS ───
-grep -q "handleSuspiciousReuse" backend/src/routes/v1/auth.ts && echo "✅ refresh token reuse detection" || echo "❌"
-grep -q "totp/setup" backend/src/routes/v1/auth/totp.ts && echo "✅ TOTP enrollment" || echo "❌"
-grep -q "already_processed" backend/src/routes/webhooks/flutterwave.ts && echo "✅ webhook idempotency" || echo "❌"
-grep -q "standardHeaders.*true" backend/src/middleware/rateLimit.ts && echo "✅ rate limit headers" || echo "❌"
-grep -q "SAFE_ROUTES" mobile/src/hooks/useDeepLink.ts && echo "✅ deep link allowlist" || echo "❌"
-grep -q "global.__prisma" backend/src/lib/prisma.ts && echo "✅ Prisma pool singleton" || echo "❌"
-test -f backend/src/workers/pdfWorker.ts && echo "✅ PDF worker" || echo "❌"
-test -f backend/src/routes/v1/notifications.ts && echo "✅ push notification endpoint" || echo "❌"
-grep -q "UserDevice" backend/prisma/schema.prisma && echo "✅ UserDevice model" || echo "❌"
-grep -q "calculateCIT" packages/contracts/src/cit.ts && echo "✅ CIT tax math" || echo "❌"
-
-# ─── INFRASTRUCTURE GATES ───
-head -3 backend/src/app.ts | grep -q "validateEnv" && echo "✅ validateEnv first" || echo "❌"
-awk '/^model AuditEvent/,/^}/' backend/prisma/schema.prisma | grep -q "updatedAt" && exit 1 || echo "✅ AuditEvent immutable"
-awk '/^model TaxHealthSnapshot/,/^}/' backend/prisma/schema.prisma | grep -q "updatedAt" && exit 1 || echo "✅ TaxHealthSnapshot immutable"
-grep -q 'opossum' backend/src/services/nrsService.ts && echo "✅ circuit breaker" || echo "❌"
-docker build --target production -t taxbridge-api:validation . && echo "✅ Docker build" || echo "❌"
-
-# ─── SMOKE TESTS (STAGING) ───
-curl -sf ${STAGING_URL}/api/v2/monitoring/health | jq -e '.status == "healthy"'
-```
-
----
-
-# PART IV: UPDATED COMPLETION CRITERIA
-
-The original 20 criteria are retained. The following 10 are added:
+# PART IV: COMPLETION CRITERIA — 30 TOTAL
 
 | # | Criterion |
 |---|---|
-| 21 | TOTP enrollment flow present: `POST /api/v1/auth/totp/setup`, `/verify`, `/disable`, `/backup` |
-| 22 | Push notification registration: `POST /api/v1/notifications/register` + `UserDevice` model |
-| 23 | Deep link whitelist enforced in `useDeepLink.ts` — `SAFE_ROUTES` array present |
-| 24 | Webhook idempotency: Flutterwave handler returns `already_processed` on replay |
-| 25 | CIT module: `calculateCIT()` in `packages/contracts/src/cit.ts` + accuracy gates passing |
-| 26 | PDF receipts: `pdfWorker.ts` present; `TaxReturn.receiptUrl` populated after filing |
-| 27 | Refresh token reuse: `handleSuspiciousReuse()` triggers audit event + push notification |
-| 28 | Rate limit headers exposed: `standardHeaders: true` on all rate limiters |
-| 29 | PgBouncer-compatible Prisma singleton: `global.__prisma` guard in `backend/src/lib/prisma.ts` |
-| 30 | Lottie animations bundled: `confetti.json`, `success-checkmark.json`, `loading-spinner.json` present in `mobile/src/assets/animations/` and minified |
+| 1 | Full pre-deployment validation exits 0 |
+| 2 | ≥550 tests passing, 0 failing; ≥95% lines/functions, ≥90% branches coverage |
+| 3 | PIT: `calculatePIT({grossIncome:5_000_000,rentPaid:600_000,pension:200_000}).taxLiability===632_400 ±₦1` |
+| 4 | Penalty: company 32d late ₦0 → `netPenalty===375_000` |
+| 5 | CIT: turnover ₦200M/₦50M → `citLiability===15_000_000`; turnover ₦80M → `citLiability===0` |
+| 6 | All 9 smoke tests pass in staging |
+| 7 | `/prompts/v12_master_prompt.md` committed to repo |
+| 8 | `/prompts/v12_production_architecture_module.md` committed to repo |
+| 9 | Branch `upgrade/v12-elevated-20260302` passes all 5 CI stages |
+| 10 | Zero `SENTRY_DSN` placeholder, `FIRS`, hardcoded `CBN_MPR`, or `console.log` in backend |
+| 11 | Admin Lighthouse performance ≥98; dashboard 2G initial paint <2000ms |
+| 12 | `anomalyEngine.ts` present; `computeAnomalies` → `[]` on throw, never propagates |
+| 13 | `riskScoring.ts` present; score clamped 0–100 before every DB write |
+| 14 | opossum circuit breaker in `nrsService.ts`; `nrsCircuitState` metric updates on state change |
+| 15 | `validate()` middleware on all POST/PATCH routes |
+| 16 | `idempotency` middleware on all exactly-once mutations |
+| 17 | `TaxHealthSnapshot` model has NO `updatedAt` field |
+| 18 | `/admin/dlq` with retry + resolve controls + 2FA gate for bulk >10 |
+| 19 | `/admin/analytics` with all 5 panels |
+| 20 | `OnboardingWizard` has resume-on-reconnect path via AsyncStorage |
+| 21 | `compression` middleware active in `backend/src/app.ts` |
+| 22 | TOTP: `POST /api/v1/auth/totp/setup`, `/verify`, `/disable`, `/backup` all present |
+| 23 | `POST /api/v1/notifications/register` present; `UserDevice` model in schema |
+| 24 | `SAFE_ROUTES` in `useDeepLink.ts`; no dynamic path injection possible |
+| 25 | Flutterwave webhook returns `already_processed` on duplicate `tx_ref` |
+| 26 | `pdfWorker.ts` present; `TaxReturn.receiptUrl` populated after `filing.submitted` |
+| 27 | `handleSuspiciousReuse()` triggers `SECURITY_ALERT` audit event + push notification |
+| 28 | `standardHeaders:true` on all rate limiters |
+| 29 | `global.__prisma` singleton in `backend/src/lib/prisma.ts`; zero `new PrismaClient()` in routes |
+| 30 | Lottie files bundled + minified in `mobile/src/assets/animations/`; `ConfettiAnimation` has `onError` fallback |
 
 ---
 
-# PART V: UPDATED ABSOLUTE CONSTRAINTS
+# PART V: CONSTRAINTS ADDENDUM — C-36 TO C-43
 
-The existing C-01 through C-35 are retained without modification. The following additions apply:
+C-01 through C-35 are defined in the APEX directive and retained without modification.
 
 | Code | Rule | Gate |
 |---|---|---|
-| C-36 | `useDeepLink()` route navigation only navigates to `SAFE_ROUTES` whitelist — no dynamic path injection | `grep -q "SAFE_ROUTES" mobile/src/hooks/useDeepLink.ts` |
-| C-37 | Flutterwave webhook handler uses Redis idempotency guard before any DB writes — no exceptions | `grep -q "already_processed" backend/src/routes/webhooks/flutterwave.ts` |
-| C-38 | TOTP backup codes are bcrypt-hashed before storage — never stored plaintext | `grep -q "bcrypt" backend/src/routes/v1/auth/totp.ts` |
-| C-39 | All push notification bodies ≤ 150 characters — Expo hard limit | Lint rule or test |
-| C-40 | PDF receipt generation is always async (BullMQ) — never blocks HTTP response | `grep -q "pdfQueue.add" backend/src/services/eventBus.ts` |
-| C-41 | `calculateCIT()` is the only CIT computation path — no inline tax math | `grep -rn "0\.30.*profit\|profit.*0\.30" backend/src mobile/src` → 0 |
-| C-42 | Lottie fallback component required — never crash if Lottie fails to load | `grep -q "onError" mobile/src/components/shared/ConfettiAnimation.tsx` |
-| C-43 | Prisma client initialized via `backend/src/lib/prisma.ts` singleton — never `new PrismaClient()` in route handlers | `grep -rn "new PrismaClient" backend/src/routes` → 0 |
+| C-36 | `useDeepLink()` navigates only to `SAFE_ROUTES` — no dynamic path injection | `grep -q "SAFE_ROUTES" mobile/src/hooks/useDeepLink.ts` |
+| C-37 | Flutterwave webhook uses Redis `NX` guard before any DB write | `grep -q "already_processed" backend/src/routes/webhooks/flutterwave.ts` |
+| C-38 | TOTP backup codes bcrypt-hashed before storage — never plaintext | `grep -q "bcrypt" backend/src/routes/v1/auth/totp.ts` |
+| C-39 | All push notification `body` values ≤150 characters — Expo hard limit | lint or test |
+| C-40 | PDF receipt generation always async via BullMQ — never blocks HTTP | `grep -q "pdfQueue.add" backend/src/services/eventBus.ts` |
+| C-41 | `calculateCIT()` is the only CIT computation path — no inline CIT math | `grep -rn "0\.30.*profit" backend/src mobile/src` → 0 |
+| C-42 | `ConfettiAnimation` always has `onError` fallback — never crashes if Lottie fails | `grep -q "onError" mobile/src/components/shared/ConfettiAnimation.tsx` |
+| C-43 | Prisma initialized only via `backend/src/lib/prisma.ts` singleton — never `new PrismaClient()` in routes | `grep -rn "new PrismaClient" backend/src/routes` → 0 |
 
 ---
 
@@ -1273,101 +698,100 @@ The existing C-01 through C-35 are retained without modification. The following 
 
 | Risk | Probability | Impact | Mitigation |
 |---|---|---|---|
-| NRS API downtime during launch | HIGH | CRITICAL | `DIGITAX_MOCK_MODE=true` + BullMQ retry queue |
-| 2G performance regression on dashboard load | MEDIUM | HIGH | FlashList + React Query `offlineFirst` + skeleton 0px shift |
-| TOTP lockout (SUPER_ADMIN loses device) | LOW | CRITICAL | 10 bcrypt-hashed backup codes |
-| PDF generation queue backlog under load | MEDIUM | MEDIUM | BullMQ priority LOW; user gets "Receipt generating..." status while polling |
-| Flutterwave webhook replay double-crediting | MEDIUM | CRITICAL | Redis idempotency guard (C-37) |
-| PgBouncer connection exhaustion | MEDIUM | HIGH | `connection_limit=1` in DATABASE_URL for PgBouncer mode |
-| CIT small-company misclassification | LOW | HIGH | Preflight check: warn if approaching ₦100M threshold |
-| Expo push token expiry | MEDIUM | MEDIUM | Token refresh on next app open; fallback to SMS |
+| NRS API downtime at launch | HIGH | CRITICAL | `DIGITAX_MOCK_MODE=true` + BullMQ retry queue |
+| 2G performance regression | MEDIUM | HIGH | FlashList + `networkMode:'offlineFirst'` + 0px skeleton shift |
+| TOTP lockout — SUPER_ADMIN loses device | LOW | CRITICAL | 10 bcrypt-hashed one-time backup codes |
+| PDF queue backlog under load | MEDIUM | MEDIUM | BullMQ priority 2; UI shows "Receipt generating…" with polling |
+| Flutterwave double-credit on replay | MEDIUM | CRITICAL | Redis `NX` idempotency guard (C-37) |
+| PgBouncer pool exhaustion | MEDIUM | HIGH | `connection_limit=1` in `DATABASE_URL` |
+| CIT small-company misclassification | LOW | HIGH | Preflight warning when approaching ₦100M threshold |
+| Expo push token expiry | MEDIUM | MEDIUM | Token refresh on next app open; SMS fallback via Africa's Talking |
 
 ---
 
-# APPENDIX A: FILE MANIFEST — NEW FILES ADDED BY ENHANCEMENT
+# APPENDIX A: FILE MANIFEST
 
-| File | Type | Phase | Gap Resolved |
-|---|---|---|---|
-| `backend/src/routes/v1/auth/totp.ts` | NEW | P0 | GAP-03 |
-| `backend/src/routes/v1/notifications.ts` | NEW | P0 | GAP-01 |
-| `backend/src/lib/prisma.ts` | NEW | P0 | GAP-10 |
-| `backend/src/workers/pdfWorker.ts` | NEW | P2 | GAP-15 |
-| `packages/contracts/src/cit.ts` | NEW | P2 | GAP-05 |
-| `mobile/src/hooks/usePushNotification.ts` | NEW | P0 | GAP-01 |
-| `mobile/src/hooks/useDeepLink.ts` | NEW | P1 | GAP-07 |
-| `mobile/src/screens/auth/TOTPSetupScreen.tsx` | NEW | P0 | GAP-03 |
-| `mobile/src/screens/filings/CITFilingWizard.tsx` | NEW | P2 | GAP-05 |
-| `mobile/src/components/shared/ConfettiAnimation.tsx` | NEW | P1 | GAP-14 |
-| `mobile/src/assets/animations/confetti.json` | NEW | P1 | GAP-14 |
-| `mobile/src/assets/animations/success-checkmark.json` | NEW | P1 | GAP-14 |
-| `mobile/src/assets/animations/loading-spinner.json` | NEW | P1 | GAP-14 |
-| `infra/k6/dashboard-load-test.js` | NEW | P3 | Performance |
-| `infra/grafana/dashboard.json` | NEW | P3 | Observability |
+**New Files:**
 
-| File | Type | Phase | Gap Resolved |
-|---|---|---|---|
-| `backend/src/routes/v1/auth.ts` | UPDATE | P0 | GAP-02 |
-| `backend/src/routes/webhooks/flutterwave.ts` | UPDATE | P2 | GAP-06 |
-| `backend/src/middleware/rateLimit.ts` | UPDATE | P1 | GAP-09 |
-| `backend/src/services/compliancePreFlight.ts` | UPDATE | P2 | GAP-13 |
-| `backend/src/services/eventBus.ts` | UPDATE | P2 | GAP-15 |
-| `backend/src/validateEnv.ts` | UPDATE | P0 | GAP-15 |
-| `backend/prisma/schema.prisma` | UPDATE | P0 | GAP-01 |
-| `mobile/src/services/apiClient.ts` | UPDATE | P1 | GAP-11 |
-| `mobile/app.json` | UPDATE | P1 | GAP-07 |
-| `admin/src/middleware.ts` | UPDATE | P1 | GAP-12 |
-| `packages/contracts/src/types.ts` | UPDATE | P0 | GAP-04 |
-| `packages/contracts/src/index.ts` | UPDATE | P2 | GAP-05 |
-| `.github/workflows/pipeline.yml` | UPDATE | P3 | All gaps |
+| File | Phase | Gap |
+|---|---|---|
+| `backend/src/lib/prisma.ts` | P0 | GAP-10, C-43 |
+| `backend/src/routes/v1/auth/totp.ts` | P0 | GAP-03, C-38 |
+| `backend/src/routes/v1/notifications.ts` | P0 | GAP-01 |
+| `backend/src/workers/pdfWorker.ts` | P2 | GAP-15, C-40 |
+| `packages/contracts/src/cit.ts` | P2 | GAP-05, C-41 |
+| `mobile/src/hooks/usePushNotification.ts` | P0 | GAP-01 |
+| `mobile/src/hooks/useDeepLink.ts` | P1 | GAP-07, C-36 |
+| `mobile/src/screens/auth/TOTPSetupScreen.tsx` | P0 | GAP-03 |
+| `mobile/src/screens/filings/CITFilingWizard.tsx` | P2 | GAP-05, MOD-28 |
+| `mobile/src/components/shared/ConfettiAnimation.tsx` | P0 | GAP-14, C-42 |
+| `mobile/src/assets/animations/confetti.json` | P0 | GAP-14 |
+| `mobile/src/assets/animations/success-checkmark.json` | P0 | GAP-14 |
+| `mobile/src/assets/animations/loading-spinner.json` | P0 | GAP-14 |
+| `mobile/src/assets/animations/empty-state.json` | P0 | GAP-14 |
+| `infra/k6/load-test.js` | P3 | Performance |
+| `infra/grafana/dashboard.json` | P3 | Observability |
+
+**Updated Files:**
+
+| File | Phase | Gap |
+|---|---|---|
+| `backend/src/routes/v1/auth.ts` | P0 | GAP-02 |
+| `backend/src/routes/webhooks/flutterwave.ts` | P2 | GAP-06, C-37 |
+| `backend/src/middleware/rateLimit.ts` | P1 | GAP-09 |
+| `backend/src/services/compliancePreFlight.ts` | P2 | GAP-13 |
+| `backend/src/services/eventBus.ts` | P2 | GAP-15 |
+| `backend/src/validateEnv.ts` | P0 | GAP-15 |
+| `backend/prisma/schema.prisma` | P0 | GAP-01 |
+| `mobile/src/services/apiClient.ts` | P1 | GAP-11 |
+| `mobile/app.json` | P1 | GAP-07 |
+| `admin/src/middleware.ts` | P1 | GAP-12 |
+| `packages/contracts/src/types.ts` | P0 | GAP-04 |
+| `packages/contracts/src/index.ts` | P2 | GAP-05 |
+| `.github/workflows/pipeline.yml` | P3 | All |
 
 ---
 
-# APPENDIX B: ENVIRONMENT VARIABLES — COMPLETE UPDATED MANIFEST
+# APPENDIX B: ENVIRONMENT VARIABLES — COMPLETE MANIFEST
 
 ```bash
-# ─── REQUIRED_ALWAYS (all environments) ───
-DATABASE_URL            # postgresql://...?sslmode=require&pgbouncer=true&connection_limit=1
-REDIS_URL               # rediss://...
+# REQUIRED_ALWAYS
+DATABASE_URL="postgresql://...?sslmode=require&pgbouncer=true&connection_limit=1&pool_timeout=20"
+REDIS_URL="rediss://..."
 JWT_SECRET              # RS256 PEM private key (openssl genrsa 4096)
 JWT_REFRESH_SECRET      # random 64-char hex
 NRS_API_KEY
-PORT                    # 10000
-NODE_ENV                # production | staging | development
+PORT=10000
+NODE_ENV
 
-# ─── REQUIRED_PRODUCTION ───
+# REQUIRED_PRODUCTION
 SENTRY_DSN
 RENDER_EXTERNAL_URL
 FLUTTERWAVE_SECRET
-CBN_MPR                 # Current CBN MPR — update within 24h of CBN announcement
-CORS_ORIGIN             # https://taxbridge.vercel.app,https://app.taxbridge.ng
-DOCUMENT_VAULT_KMS_PROVIDER  # cloudflare
-R2_ENDPOINT             # https://<account-id>.r2.cloudflarestorage.com     ← NEW
-R2_BUCKET_NAME          # taxbridge-vault                                    ← NEW
-R2_ACCESS_KEY_ID                                                             # ← NEW
-R2_SECRET_ACCESS_KEY                                                         # ← NEW
+CBN_MPR                 # update within 24h of CBN announcement — never hardcode (C-27)
+CORS_ORIGIN="https://taxbridge.vercel.app,https://app.taxbridge.ng"
+DOCUMENT_VAULT_KMS_PROVIDER=cloudflare
+R2_ENDPOINT             # https://<account-id>.r2.cloudflarestorage.com
+R2_BUCKET_NAME=taxbridge-vault
+R2_ACCESS_KEY_ID
+R2_SECRET_ACCESS_KEY
 
-# ─── OPTIONAL ───
-DIGITAX_MOCK_MODE       # false (set true to bypass NRS circuit)
-LOG_LEVEL               # info
-LOG_FORMAT              # json
-AFRICA_TALKING_API_KEY  # SMS fallback for push notifications
-AFRICA_TALKING_USERNAME # sandbox | production
+# OPTIONAL
+DIGITAX_MOCK_MODE=false # true → bypass NRS circuit breaker
+LOG_LEVEL=info
+AFRICA_TALKING_API_KEY  # SMS fallback when no push devices registered
+AFRICA_TALKING_USERNAME
 
-# ─── EAS SECRETS (CLI only — never in eas.json) ───
+# EAS SECRETS (eas secret:create — never in eas.json)
 SENTRY_DSN
-EXPO_PUSH_ACCESS_TOKEN   # ← NEW
-EXPO_PUBLIC_PROJECT_ID   # ← NEW
+EXPO_PUSH_ACCESS_TOKEN
+EXPO_PUBLIC_PROJECT_ID
 
-# ─── GITHUB SECRETS ───
-SMOKE_TEST_EMAIL
-SMOKE_TEST_PASSWORD
-RENDER_API_KEY
-CBN_MPR
-VERCEL_TOKEN
+# GITHUB SECRETS
+SMOKE_TEST_EMAIL | SMOKE_TEST_PASSWORD | RENDER_API_KEY | CBN_MPR | VERCEL_TOKEN
 ```
 
 ---
 
-*TaxBridge V12 Enhancement Analysis — Complete*  
-*Version: V12-ENHANCED | Date: 2026-03-02*  
-*Build for: A first-time filer on a Tecno Spark, on 2G in Lagos, with a PAYE deadline in 3 days, who speaks Pidgin.*
+*TaxBridge V12 Enhancement Guide | V12-REFINED-2 | 2026-03-03*
+*North Star: A first-time filer on a Tecno Spark, on 2G in Lagos, with a PAYE deadline in 3 days, who speaks Pidgin.*

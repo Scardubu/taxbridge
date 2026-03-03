@@ -1,0 +1,239 @@
+# ── TaxBridge V12 APEX — Grafana Alerting Rules ──────────────────────────────
+# File: infra/grafana/alerts.yml
+# Applied via: Grafana provisioning (alerting/rules)
+# Requires: TaxBridge backend exposing /api/v2/monitoring/metrics (Prometheus)
+# ─────────────────────────────────────────────────────────────────────────────
+
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: taxbridge-v12-production
+    folder: TaxBridge
+    interval: 1m
+    rules:
+
+      # ── API Error Rate > 5% over 5 min ────────────────────────────────────
+      - uid: taxbridge-api-error-rate
+        title: "API Error Rate > 5%"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: |
+                sum(rate(http_requests_total{status=~"5.."}[5m]))
+                /
+                sum(rate(http_requests_total[5m]))
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params: [0.05]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              refId: C
+              type: classic_conditions
+        noDataState: NoData
+        execErrState: Error
+        for: 5m
+        annotations:
+          summary: "API error rate elevated (> 5%) on TaxBridge production"
+          description: "More than 5% of HTTP requests are returning 5xx responses. Check backend logs and DB health."
+          runbook_url: "https://github.com/Scardubu/taxbridge/blob/main/docs/runbooks/high-error-rate.md"
+        labels:
+          severity: critical
+          service: taxbridge-api
+          team: backend
+
+      # ── Dashboard P99 Latency > 2s ─────────────────────────────────────────
+      - uid: taxbridge-dashboard-p99
+        title: "Dashboard P99 Latency > 2s"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: |
+                histogram_quantile(0.99,
+                  sum(rate(http_request_duration_ms_bucket{route="/api/v1/dashboard"}[5m]))
+                  by (le)
+                ) / 1000
+              instant: true
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params: [2.0]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              refId: C
+              type: classic_conditions
+        noDataState: NoData
+        execErrState: Error
+        for: 2m
+        annotations:
+          summary: "Dashboard composite endpoint P99 latency > 2s"
+          description: "The /api/v1/dashboard composite route exceeds 2s at p99. May impact SMEs on 2G/3G networks."
+          runbook_url: "https://github.com/Scardubu/taxbridge/blob/main/docs/runbooks/dashboard-latency.md"
+        labels:
+          severity: warning
+          service: taxbridge-api
+          team: backend
+
+      # ── DLQ Depth > 50 ────────────────────────────────────────────────────
+      - uid: taxbridge-dlq-depth
+        title: "DLQ Depth High (> 50 jobs)"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: "taxbridge_dlq_depth_total"
+              instant: true
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params: [50]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              refId: C
+              type: classic_conditions
+        noDataState: NoData
+        execErrState: Error
+        for: 5m
+        annotations:
+          summary: "DLQ depth exceeds 50 failed jobs"
+          description: "Too many BullMQ jobs in failed state. Review job logs and retry or resolve via /api/v2/admin/dlq."
+          runbook_url: "https://github.com/Scardubu/taxbridge/blob/main/docs/runbooks/dlq-depth.md"
+        labels:
+          severity: warning
+          service: taxbridge-queue
+          team: backend
+
+      # ── Auth Flood — > 100 failed logins / min ────────────────────────────
+      - uid: taxbridge-auth-flood
+        title: "Auth Flood — > 100 failed logins/min"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 120
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: |
+                sum(rate(taxbridge_auth_failures_total[1m])) * 60
+              instant: true
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params: [100]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              refId: C
+              type: classic_conditions
+        noDataState: NoData
+        execErrState: Error
+        for: 1m
+        annotations:
+          summary: "Authentication flood detected (> 100 failures/min)"
+          description: "Potential brute-force or credential-stuffing attack. Check IP rate limits and alert security team."
+          runbook_url: "https://github.com/Scardubu/taxbridge/blob/main/docs/runbooks/auth-flood.md"
+        labels:
+          severity: critical
+          service: taxbridge-auth
+          team: security
+
+      # ── NRS Circuit Breaker Open ───────────────────────────────────────────
+      - uid: taxbridge-nrs-circuit-open
+        title: "NRS Circuit Breaker Open"
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: "taxbridge_nrs_circuit_state == 1"
+              instant: true
+              refId: A
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params: [0]
+                    type: gt
+                  operator:
+                    type: and
+                  query:
+                    params: [A]
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              refId: C
+              type: classic_conditions
+        noDataState: OK
+        execErrState: Error
+        for: 0s
+        annotations:
+          summary: "NRS (DigiTax) circuit breaker is OPEN"
+          description: "NRS/DigiTax integration circuit breaker has tripped. Invoice submissions are queued locally. Check DigiTax API health."
+          runbook_url: "https://github.com/Scardubu/taxbridge/blob/main/docs/runbooks/nrs-circuit-open.md"
+        labels:
+          severity: critical
+          service: taxbridge-nrs
+          team: integrations

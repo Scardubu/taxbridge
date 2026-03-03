@@ -903,13 +903,16 @@ model OrgMember {
 
 // ============================================
 // AuditEvent — V12.0 Immutable audit trail (no updatedAt)
+// Valid action values: LOGIN, LOGOUT, INVOICE_CREATE, INVOICE_SUBMIT,
+//   PAYMENT_INIT, PAYMENT_CONFIRM, SECURITY_ALERT, TOTP_ENABLE,
+//   TOTP_DISABLE, DATA_EXPORT, ACCOUNT_UPDATE, ROLE_CHANGE
 // ============================================
 
 model AuditEvent {
   id              String      @id @default(uuid()) @db.Uuid
   orgId           String?     @map("org_id") @db.Uuid
   userId          String?     @map("user_id") @db.Uuid
-  action          String
+  action          String      // See valid action values above; includes SECURITY_ALERT
   resource        String?
   resourceId      String?     @map("resource_id")
   metadata        Json        @default("{}")

@@ -51,6 +51,10 @@ import v2MonitoringRoute from './routes/v2/monitoring';
 import v2OnboardingRoute from './routes/v2/onboarding';
 import v2IntelligenceRoute from './routes/v2/intelligence';
 import v2NdpcExportRoute from './routes/v2/ndpc-export';
+import v2DlqRoute from './routes/v2/dlq';
+import v2AuditRoute from './routes/v2/audit';
+// V12: flutterwave.ts re-exports webhooks.ts, already registered at line ~1101
+import './services/eventBus'; // V12: registers filing.submitted → pdfQueue listener
 import { setFastifyInstance, nrsWorker } from './queues/nrs-queue';
 import { validateSecrets, logSecretsSummary } from './config/secrets';
 import { Queue } from 'bullmq';
@@ -1114,6 +1118,8 @@ taxbridge_component_status{component="sms"} ${serverMetrics.componentStatus.sms 
   await app.register(v2OnboardingRoute);
   await app.register(v2IntelligenceRoute);
   await app.register(v2NdpcExportRoute);
+  await app.register(v2DlqRoute);
+  await app.register(v2AuditRoute);
 
   // ── V12 new routes ─────────────────────────────────────────────────────
   await app.register(notificationsRoutes, { prefix: '/api/v1/notifications' });

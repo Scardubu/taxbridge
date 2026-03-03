@@ -81,7 +81,7 @@ export async function runCompliancePreFlight(
     }
 
   } catch (err) {
-    log.error({ err, orgId, taxType }, 'compliancePreFlight encountered unexpected error');
+    log.error('compliancePreFlight encountered unexpected error', { err, orgId, taxType });
     checks.push({
       code:     'PREFLIGHT_ERROR',
       severity: 'warning',
@@ -112,7 +112,7 @@ async function checkTINValidity(orgId: string): Promise<PreFlightCheck[]> {
     }
     return [{ code: 'TIN_VALID', severity: 'ok', message: 'TIN verified and active.' }];
   } catch (err) {
-    log.warn({ err, orgId }, 'TIN validity check failed');
+    log.warn('TIN validity check failed', { err, orgId });
     return [{ code: 'TIN_CHECK_UNAVAILABLE', severity: 'warning', message: 'TIN check temporarily unavailable.' }];
   }
 }
@@ -139,7 +139,7 @@ async function checkPriorPeriodGap(orgId: string, taxType: string): Promise<PreF
     }
     return [{ code: 'PRIOR_PERIOD_OK', severity: 'ok', message: `Last ${taxType} filed ${daysSince} days ago.` }];
   } catch (err) {
-    log.warn({ err, orgId, taxType }, 'Prior period gap check failed');
+    log.warn('Prior period gap check failed', { err, orgId, taxType });
     return [{ code: 'PERIOD_CHECK_UNAVAILABLE', severity: 'warning', message: 'Period gap check temporarily unavailable.' }];
   }
 }
@@ -177,7 +177,7 @@ async function checkVATRegistration(
     }
     return [{ code: 'VAT_REGISTRATION_OK', severity: 'ok', message: 'VAT registration verified.' }];
   } catch (err) {
-    log.warn({ err, orgId }, 'VAT registration check failed');
+    log.warn('VAT registration check failed', { err, orgId });
     return [{ code: 'VAT_CHECK_UNAVAILABLE', severity: 'warning', message: 'VAT registration check temporarily unavailable.' }];
   }
 }
@@ -185,7 +185,7 @@ async function checkVATRegistration(
 async function checkNRSHealth(): Promise<PreFlightCheck[]> {
   try {
     const health = await getNrsHealth();
-    if (health.circuitState === 'open') {
+    if (health.status === 'down') {
       return [{
         code:     'NRS_CIRCUIT_OPEN',
         severity: 'warning',

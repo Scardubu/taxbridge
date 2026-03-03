@@ -7,6 +7,60 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [4.3.0] - 2026-03-03 - V12 APEX Production Completion · DLQ · Audit · Observability · Shared Components
+
+### Added (Backend Routes — V2 Admin)
+- **`backend/src/routes/v2/dlq.ts`** — DLQ management: list failed jobs (cursor-paginated), retry (with depth guard + require2FA), resolve/discard. All mutations write OVERRIDE audit event. Registered in `server.ts`.
+- **`backend/src/routes/v2/audit.ts`** — Audit log explorer with cursor pagination + NDJSON streaming export. PII-scrubbed in list view. Export writes AUDIT_EXPORT event. Registered in `server.ts`.
+
+### Added (Backend Services)
+- **`backend/src/services/eventBus.ts`** — V12 event bus re-export (camelCase alias to `event-bus.ts`). Imported in `server.ts` for filing.submitted → pdfQueue listener registration.
+- **`backend/src/metrics.ts`** — V12 Prometheus metrics singleton (prom-client). 7 metrics: API requests, errors, latency, NRS circuit state, DLQ depth, filing submissions, active users.
+
+### Added (Webhooks)
+- **`backend/src/routes/webhooks/flutterwave.ts`** — Flutterwave webhook re-export. HMAC verification + Redis NX idempotency guard (C-37). Structured `already_processed` duplicate response.
+
+### Added (Mobile — Shared Components)
+- **`mobile/src/components/shared/SectionState.tsx`** — Generic async-data state machine for dashboard zones. `empty={null}` renders nothing (no wrapper). Handles loading/error/empty/data states.
+- **`mobile/src/components/shared/InlineError.tsx`** — Human-readable, actionable error messages. Color + shape + text (C-15 WCAG). Red accent background with retry CTA.
+- **`mobile/src/components/shared/EmptyState.tsx`** — Zero-data state with icon, heading, body, CTA. Designed for low-literacy users.
+- **`mobile/src/components/shared/ConfettiAnimation.tsx`** — Lottie confetti with mandatory `onError` fallback (C-42). Falls back to emoji burst on animation failure.
+- **`mobile/src/components/shared/index.ts`** — Barrel export for all shared components.
+
+### Added (Mobile — Hooks & Screens)
+- **`mobile/src/hooks/useDashboard.ts`** — Dashboard composite data hook. queryKey `['dashboard', orgId, userId]`, gcTime 5min, staleTime 30s. AppState active → auto-invalidate.
+- **`mobile/src/screens/auth/TOTPSetupScreen.tsx`** — 5-step TOTP enrollment: QR display → scan → verify → backup codes → dashboard. "I've saved these" confirmation gate.
+
+### Added (Lottie Animations)
+- **`mobile/src/assets/animations/confetti.json`** — Confetti burst (Naira green + amber).
+- **`mobile/src/assets/animations/success-checkmark.json`** — Animated circle + checkmark.
+- **`mobile/src/assets/animations/loading-spinner.json`** — Rotating arc spinner.
+- **`mobile/src/assets/animations/empty-state.json`** — Fade-in inbox illustration.
+
+### Added (Infrastructure — Observability)
+- **`infra/grafana/alerts.yml`** — 5 alert rules: API_Error_Rate, Dashboard_P99, DLQ_Depth_High, Auth_Flood, NRS_Circuit_Open. Slack + email notification channels.
+- **`infra/grafana/dashboard.json`** — 6-panel Grafana dashboard: API Error Rate, Dashboard P99, NRS Circuit State, DLQ Depth, Filing Submissions, Active Users.
+- **`infra/k6/load-test.js`** — k6 load test: 200 VUs, 10min, p95<2000ms, error<1%. Tests dashboard composite + filing submission with idempotency keys.
+- **`.github/workflows/pipeline.yml`** — V12 CI/CD pipeline: lint, TypeScript check, unit tests, contamination scans (FIRS/NRSt/CRA/ProgressBar), Docker build, staging deploy.
+
+### Added (Scripts)
+- **`scripts/compress-assets.sh`** — PNG compression (pngquant) + Lottie JSON minification.
+- **`scripts/backfill-v12.ts`** — One-shot migration backfill for TaxHealthSnapshot baselines. Idempotent + dry-run mode.
+
+### Fixed
+- **`backend/src/server.ts`** — Registered v2DlqRoute + v2AuditRoute. Removed duplicate flutterwave webhook registration (already via `webhookRoutes`). Added eventBus side-effect import.
+- **`backend/src/services/eventBus.ts`** — Fixed re-export (removed non-exported `EventBus` class reference, export only `eventBus` instance).
+
+### Quality Gates
+- Backend TypeScript: **0 errors** (tsc --noEmit)
+- FIRS scan: **0 matches** (C-02)
+- ProgressBar in DashboardScreen: **0 components** (C-13 — comment only)
+- onError in ConfettiAnimation: **5 references** (C-42)
+- SECURITY_ALERT in schema: **2 references**
+- SAFE_ROUTES in useDeepLink: **5 references** (C-36)
+
+---
+
 ## [4.2.0] - 2026-03-02 - V12 Quality Gates · Compliance Pre-Flight · Auth Security · CI Hardening
 
 ### Added (V12 Quality Gates — CI Pipeline)
