@@ -1,5 +1,6 @@
 /**
- * TaxBridge Admin Dashboard — Edge Middleware
+ * TaxBridge Admin Dashboard — Edge Proxy (Next.js 16)
+ * Renamed from middleware.ts → proxy.ts per Next.js 16 convention.
  * GAP-12 / G-SYN-03 / V12 directive §P1.A
  *
  * Exact check order (deviation = production incident):
@@ -18,13 +19,10 @@ import { jwtVerify, type JWTPayload } from 'jose';
 const PUBLIC_PATHS = new Set([
   '/login',
   '/api/health',
+  '/api/auth',   // login + logout endpoints — must be reachable without a token
   '/_next',
   '/favicon.ico',
 ]);
-
-// Admin routes that require auth — all others redirect to /login
-const ADMIN_PREFIX = '/admin';
-const API_PREFIX   = '/api';
 
 // Role-version cache (30s in-memory — avoids Vercel Edge Config on every request)
 const roleVersionCache = new Map<string, { version: number; cachedAt: number }>();
@@ -66,7 +64,6 @@ async function getRoleVersion(userId: string, token: string): Promise<number | n
     const apiUrl  = process.env.BACKEND_API_URL ?? process.env.NEXT_PUBLIC_API_URL;
     const res     = await fetch(`${apiUrl}/api/v2/rbac/role-version/${userId}`, {
       headers: { Authorization: `Bearer ${token}` },
-      // Edge fetch timeout
       signal: AbortSignal.timeout(3000),
     });
     if (!res.ok) return null;
@@ -79,7 +76,7 @@ async function getRoleVersion(userId: string, token: string): Promise<number | n
   }
 }
 
-export async function middleware(request: NextRequest): Promise<NextResponse> {
+export async function proxy(request: NextRequest): Promise<NextResponse> {
   const { pathname } = request.nextUrl;
 
   // ── Allow public paths through immediately ───────────────────────────────
@@ -91,9 +88,9 @@ export async function middleware(request: NextRequest): Promise<NextResponse> {
   }
 
   // ── Step 1: Extract and verify JWT ──────────────────────────────────────
-  const authHeader = request.headers.get('authorization');
+  const authHeader  = request.headers.get('authorization');
   const cookieToken = request.cookies.get('admin_token')?.value;
-  const rawToken = authHeader?.replace('Bearer ', '') ?? cookieToken;
+  const rawToken    = authHeader?.replace('Bearer ', '') ?? cookieToken;
 
   if (!rawToken) {
     const loginUrl = new URL('/login', request.url);
