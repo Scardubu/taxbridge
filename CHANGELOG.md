@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [4.3.1] - 2026-03-04 - Deployment Hardening · Graceful Env Validation · Admin Auth Bypass
+
+### Fixed
+- **`backend/src/validateEnv.ts`** — Split env vars into ALWAYS_REQUIRED (hard crash: DATABASE_URL, REDIS_URL, JWT_SECRET, JWT_REFRESH_SECRET, PORT, NODE_ENV) and PROD_RECOMMENDED (warn-only: SENTRY_DSN, NRS_API_KEY, FLUTTERWAVE_SECRET, EXPO_ACCESS_TOKEN, ALLOWED_ORIGINS). Prevents Render runtime crash when third-party service keys are not yet configured. DIGITAX_MOCK_MODE=true now produces a warning instead of fatal error.
+- **`admin-dashboard/proxy.ts`** — Added `ADMIN_AUTH_ENFORCE` env var gate. When not set to `'true'`, all routes pass through without JWT verification. Allows early-access admin dashboard usage before full auth is configured.
+- **`admin-dashboard/app/login/page.tsx`** — Added `export const dynamic = 'force-dynamic'` + `<Suspense>` boundary to prevent Next.js 16 static prerender CSR bailout from `useSearchParams()`.
+- **`backend/src/workers/pdfWorker.ts`** — Added `as any` cast on ioredis connection passed to BullMQ Worker (type mismatch between ioredis v5 and BullMQ's bundled types).
+- **`backend/package.json`** — Added `pdfkit@^0.16.0` to runtime dependencies (was only in @types/pdfkit devDeps, causing TS2307 module-not-found on Render build).
+- **`admin-dashboard/middleware.ts` → `proxy.ts`** — Renamed to avoid Next.js 16 deprecation warning for root middleware.ts convention.
+
+### Changed
+- **`package-lock.json` / `yarn.lock`** — Regenerated to include jose@6.1.3 and pdfkit@0.16.0.
+
+### Quality Gates
+- Backend TypeScript: **0 errors** (tsc --noEmit)
+- Admin TypeScript: **0 errors** (tsc --noEmit)
+- FIRS scan: **0 matches** (C-02)
+
+---
+
 ## [4.3.0] - 2026-03-03 - V12 APEX Production Completion · DLQ · Audit · Observability · Shared Components
 
 ### Added (Backend Routes — V2 Admin)

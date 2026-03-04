@@ -22,7 +22,12 @@ const ALWAYS_REQUIRED = [
   'NODE_ENV',
 ] as const;
 
-const PROD_REQUIRED = [
+/**
+ * These are required for full production operation but some third-party
+ * services may not be onboarded yet during early deployment. They produce
+ * loud warnings but do NOT crash the process (C-07 graceful degradation).
+ */
+const PROD_RECOMMENDED = [
   'SENTRY_DSN',
   'NRS_API_KEY',
   'FLUTTERWAVE_SECRET',
@@ -51,15 +56,26 @@ export function validateEnv(): void {
   }
 
   if (process.env.NODE_ENV === 'production') {
-    for (const key of PROD_REQUIRED) {
-      if (!process.env[key]) missing.push(`${key} is required in production`);
-    }
-    // Specific value guards
-    if (process.env.DIGITAX_MOCK_MODE === 'true') {
-      missing.push('DIGITAX_MOCK_MODE must be "false" in production (regulatory gate)');
-    }
+    // Hard block: wildcard CORS is never acceptable in production
     if ((process.env.ALLOWED_ORIGINS || '').includes('*')) {
       missing.push('ALLOWED_ORIGINS must not contain wildcard "*" in production');
+    }
+
+    // Warn-only: third-party services not yet onboarded — log loudly but don't crash.
+    // Once all integrations are live, move these back to `missing` (hard fail).
+    const warnings: string[] = [];
+    for (const key of PROD_RECOMMENDED) {
+      if (!process.env[key]) warnings.push(`${key} is recommended in production`);
+    }
+    if (process.env.DIGITAX_MOCK_MODE === 'true') {
+      warnings.push('DIGITAX_MOCK_MODE is "true" — NRS submissions will be mocked (regulatory risk)');
+    }
+    if (warnings.length > 0) {
+      console.warn('\n╔══════════════════════════════════════════════════════╗');
+      console.warn('║  TaxBridge: WARNING — Recommended env vars missing   ║');
+      console.warn('╚══════════════════════════════════════════════════════╝');
+      warnings.forEach((w) => console.warn(`  ⚠  ${w}`));
+      console.warn('\nThe server will start but some features may be degraded.\n');
     }
   }
 

@@ -23,6 +23,11 @@ test-results.json
 tsc-exit.txt
 tsc-output.txt
 eas-build-log.txt
+backend-build.txt
+backend-tsc-errors.txt
+mobile-tsc-out.txt
+mobile-tsc-v12.txt
+admin-tsc-v12.txt
 
 # Logs
 *.log

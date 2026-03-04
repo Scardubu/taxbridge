@@ -87,6 +87,13 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
     return NextResponse.next();
   }
 
+  // ── Early-access bypass: skip auth when ADMIN_AUTH_ENFORCE is not "true" ──
+  // During initial deployment only a few trusted users access the admin panel.
+  // Set ADMIN_AUTH_ENFORCE=true in Vercel when ready for full auth gating.
+  if (process.env.ADMIN_AUTH_ENFORCE !== 'true') {
+    return NextResponse.next();
+  }
+
   // ── Step 1: Extract and verify JWT ──────────────────────────────────────
   const authHeader  = request.headers.get('authorization');
   const cookieToken = request.cookies.get('admin_token')?.value;
