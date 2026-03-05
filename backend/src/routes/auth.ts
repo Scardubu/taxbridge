@@ -8,8 +8,12 @@ import { getPrismaClient } from '../lib/prisma';
 import { writeAuditEvent } from '../services/audit';
 import { getRedisConnection } from '../queue/client';
 import { createLogger } from '../lib/logger';
+import { rateLimit } from '../middleware/rateLimit';
 
 const log = createLogger('auth');
+
+// C-30: Brute-force protection on auth endpoints — 10 attempts per 15-minute window
+const authRateLimit = rateLimit({ max: 10, windowMs: 15 * 60_000, keyPrefix: 'auth:login' });
 const prisma = getPrismaClient();
 
 /**
@@ -152,7 +156,7 @@ export default async function authRoutes(app: FastifyInstance) {
   });
 
   // Login
-  app.post('/api/v1/auth/login', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/api/v1/auth/login', { preHandler: [authRateLimit] }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const body = loginSchema.parse(request.body);
       const tokens = await authService.login(body.phone, body.password, body.deviceId);
