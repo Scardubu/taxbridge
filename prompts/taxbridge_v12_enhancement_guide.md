@@ -1,5 +1,5 @@
 # TaxBridge V12 — Enhancement Guide
-**Version:** V12-REFINED-2 | **Date:** 2026-03-03 | **Branch:** `upgrade/v12-elevated-20260302`
+**Version:** V12-GUIDE-3 | **Date:** 2026-03-03 | **Branch:** `upgrade/v12-elevated-20260302`
 **Authority:** Companion to V12 APEX Execution Directive. Enforces GAP-01–GAP-15. Resolves all missing implementation components for full operational readiness.
 
 ---
@@ -464,18 +464,19 @@ Minify before bundling:
 node -e "const fs=require('fs'),p=require('path'),d='mobile/src/assets/animations';fs.readdirSync(d).filter(f=>f.endsWith('.json')).forEach(f=>{const fp=p.join(d,f);fs.writeFileSync(fp,JSON.stringify(JSON.parse(fs.readFileSync(fp,'utf8'))))})"
 ```
 
-**`mobile/src/components/shared/ConfettiAnimation.tsx`** — C-42: `onError` fallback mandatory:
+**`mobile/src/components/shared/ConfettiAnimation.tsx`** — C-42: `onError` fallback mandatory. **Hooks must never be called after a conditional return** (Rules of Hooks violation):
 ```typescript
 function ConfettiAnimation({ onFinish }: { onFinish: () => void }) {
   const [ok, setOk] = useState(true);
-  if (!ok) {
-    useEffect(() => { setTimeout(onFinish, 1500); }, []);
-    return <SuccessIcon size={80} color={COLORS.primary} />;
-  }
+  // useEffect BEFORE any conditional return — Rules of Hooks
+  useEffect(() => {
+    if (!ok) { const t = setTimeout(onFinish, 1500); return () => clearTimeout(t); }
+  }, [ok, onFinish]);
+  if (!ok) return <SuccessIcon size={80} color={COLORS.primary} />;
   return (
     <LottieView source={require('../../assets/animations/confetti.json')}
       autoPlay loop={false} onAnimationFinish={onFinish}
-      onError={() => { setOk(false); onFinish(); }} />
+      onError={() => setOk(false)} />
   );
 }
 ```
@@ -508,7 +509,7 @@ export async function generateTaxReceipt(payload: { filingId: string; orgId: str
   await r2.send(new PutObjectCommand({
     Bucket: process.env.R2_BUCKET_NAME!, Key: key,
     Body: Buffer.concat(chunks), ContentType:'application/pdf',
-    ServerSideEncryption:'aws:kms',
+    // DO NOT set ServerSideEncryption — R2 encrypts at rest by default; aws:kms is S3-only
   }));
   const signedUrl = await generateSignedUrl(key, 86400);  // 24h expiry
   await (prisma as any).taxReturn.update({ where:{ id:payload.filingId }, data:{ receiptUrl:signedUrl } });
@@ -541,6 +542,7 @@ P0 (Foundation) ──► P1 (Sprint) ──► P2 (Tax Workflows) ──► P3 
 ## Pre-Execution (Day 0)
 ```bash
 git checkout upgrade/v12-elevated-20260302 && git branch --show-current
+git diff --stat yarn.lock | wc -l  # → 0 (yarn.lock must be committed and clean)
 git log --all -S "SENTRY_DSN" --source --all | grep "REPLACE" | wc -l  # → 0
 yarn workspaces foreach -A exec npm audit --audit-level=moderate 2>&1 | tee /tmp/audit-baseline.txt
 
@@ -552,6 +554,7 @@ yarn workspace backend add compression @types/compression opossum @types/opossum
   bullmq ioredis @sentry/node express-rate-limit \
   pdfkit @aws-sdk/client-s3 @aws-sdk/s3-request-presigner \
   speakeasy qrcode @types/speakeasy @types/qrcode
+yarn workspace backend add --dev prisma
 
 yarn workspace admin add jose
 ```
@@ -610,7 +613,7 @@ grep -rn "FlatList" mobile/src --include="*.tsx" | grep -v node_modules         
 
 Per-module additions:
 - MOD-22 (VAT): add VAT registration preflight gate before step 9
-- MOD-23 (WHT): amber inline alert for professional fee rate — not color alone
+- MOD-23 (WHT): amber inline alert for professional fee rate — not color alone; non-resident WHT = 10% (same as resident for dividends/interest/royalties — the erroneous 4% rate is hereby removed; flag `nonResident:true` for separate remittance channel)
 - MOD-24 (PAYE): trigger `<ConfettiAnimation/>` on payroll run completion
 - MOD-26 (Vault): auto-add PDF receipt to vault on `filing.submitted`
 - MOD-27 (Team): `sendPushNotification` to invited user after OTP dispatch
@@ -700,7 +703,7 @@ C-01 through C-35 are defined in the APEX directive and retained without modific
 |---|---|---|---|
 | NRS API downtime at launch | HIGH | CRITICAL | `DIGITAX_MOCK_MODE=true` + BullMQ retry queue |
 | 2G performance regression | MEDIUM | HIGH | FlashList + `networkMode:'offlineFirst'` + 0px skeleton shift |
-| TOTP lockout — SUPER_ADMIN loses device | LOW | CRITICAL | 10 bcrypt-hashed one-time backup codes |
+| TOTP lockout — SUPER_ADMIN loses device AND backup codes | LOW | CRITICAL | (1) Peer SUPER_ADMIN can disable TOTP via `/auth/totp/disable` + their own 2FA; (2) If no peer exists: manual DB update `User SET totpEnabled=false WHERE id=?` by authorized DBA with audit trail — document in runbook |
 | PDF queue backlog under load | MEDIUM | MEDIUM | BullMQ priority 2; UI shows "Receipt generating…" with polling |
 | Flutterwave double-credit on replay | MEDIUM | CRITICAL | Redis `NX` idempotency guard (C-37) |
 | PgBouncer pool exhaustion | MEDIUM | HIGH | `connection_limit=1` in `DATABASE_URL` |

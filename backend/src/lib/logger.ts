@@ -18,6 +18,40 @@ function safeError(err: unknown): LogFields {
   return { error: err };
 }
 
+// C-45, COMP-10: PII fields that must never appear in structured log output.
+// receiptUrl and documentUrl may contain signed S3 URLs with embedded credentials.
+const PII_REDACTED_FIELDS = new Set<string>([
+  'password',
+  'passwordHash',
+  'tin',
+  'bvn',
+  'nin',
+  'bankAccount',
+  'accountNumber',
+  'cardNumber',
+  'mfaSecret',
+  'mfaTempSecret',
+  'ecdsaPrivateKey',
+  'duploClientSecret',
+  'remitaApiKey',
+  'flutterwaveSecretKey',
+  'receiptUrl',
+  'documentUrl',
+]);
+
+/**
+ * Shallow-clone `fields` replacing any PII_REDACTED_FIELDS values with '[REDACTED]'.
+ * Does not mutate input.
+ */
+function scrubFields(fields?: LogFields): LogFields | undefined {
+  if (!fields) return undefined;
+  const out: LogFields = {};
+  for (const [k, v] of Object.entries(fields)) {
+    out[k] = PII_REDACTED_FIELDS.has(k) ? '[REDACTED]' : v;
+  }
+  return out;
+}
+
 function write(level: LogLevel, component: string, msg: string, fields?: LogFields) {
   const line = {
     level,
@@ -25,7 +59,7 @@ function write(level: LogLevel, component: string, msg: string, fields?: LogFiel
     pid: process.pid,
     component,
     msg,
-    ...(fields ?? {})
+    ...(scrubFields(fields) ?? {}),
   };
 
   const payload = JSON.stringify(line);

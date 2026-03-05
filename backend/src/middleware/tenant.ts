@@ -80,6 +80,23 @@ export async function resolveTenant(
         });
       }
 
+      // COMP-08, C-12: reject requests targeting a suspended organisation
+      const org = await (prisma as any).organisation.findUnique({
+        where: { id: requestedOrgId },
+        select: { status: true },
+      });
+      if (org?.status === 'suspended') {
+        log.warn('Request blocked — organization is suspended', {
+          userId: user.id,
+          orgId: requestedOrgId,
+        });
+        return reply.code(403).send({
+          success: false,
+          error: 'Organization is suspended',
+          code: 'ORG_SUSPENDED',
+        });
+      }
+
       (request as any).orgContext = {
         orgId: requestedOrgId,
         userId: user.id,

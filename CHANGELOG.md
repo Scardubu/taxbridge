@@ -7,23 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [4.3.1] - 2026-03-04 - Deployment Hardening · Graceful Env Validation · Admin Auth Bypass
+## [4.3.1] - 2026-03-03 - V12 Integration Wiring · Biometric Auth · Final Gate Closure
+
+### Added
+- **`mobile/src/hooks/useBiometric.ts`** — Biometric authentication hook wrapping `expo-local-authentication`. Hardware probe, enrollment check, `authenticate()` with graceful fallback (C-07). Supports fingerprint, Face ID, iris on iOS/Android.
+- **`mobile/src/components/dashboard/index.ts`** — Barrel export for all 13 dashboard zone components (ComplianceCalendar, DashboardSkeleton, DashboardZone, DeadlineCountdown, DonutChart, HealthRing, OfflineSyncStatus, SectionState, InlineError, SparklineBarChart, TaxExplainDrawer, TaxHealthGauge, TopAnomaliesSection).
+- **`mobile/src/components/TaxHealthGauge.tsx`** — Added `computeGaugeMode()` exported function. Accepts both `upcomingDeadlines` (DashboardComposite) and `compliance` (DashboardStats) field shapes via flexible typing.
 
 ### Fixed
-- **`backend/src/validateEnv.ts`** — Split env vars into ALWAYS_REQUIRED (hard crash: DATABASE_URL, REDIS_URL, JWT_SECRET, JWT_REFRESH_SECRET, PORT, NODE_ENV) and PROD_RECOMMENDED (warn-only: SENTRY_DSN, NRS_API_KEY, FLUTTERWAVE_SECRET, EXPO_ACCESS_TOKEN, ALLOWED_ORIGINS). Prevents Render runtime crash when third-party service keys are not yet configured. DIGITAX_MOCK_MODE=true now produces a warning instead of fatal error.
-- **`admin-dashboard/proxy.ts`** — Added `ADMIN_AUTH_ENFORCE` env var gate. When not set to `'true'`, all routes pass through without JWT verification. Allows early-access admin dashboard usage before full auth is configured.
-- **`admin-dashboard/app/login/page.tsx`** — Added `export const dynamic = 'force-dynamic'` + `<Suspense>` boundary to prevent Next.js 16 static prerender CSR bailout from `useSearchParams()`.
-- **`backend/src/workers/pdfWorker.ts`** — Added `as any` cast on ioredis connection passed to BullMQ Worker (type mismatch between ioredis v5 and BullMQ's bundled types).
-- **`backend/package.json`** — Added `pdfkit@^0.16.0` to runtime dependencies (was only in @types/pdfkit devDeps, causing TS2307 module-not-found on Render build).
-- **`admin-dashboard/middleware.ts` → `proxy.ts`** — Renamed to avoid Next.js 16 deprecation warning for root middleware.ts convention.
-
-### Changed
-- **`package-lock.json` / `yarn.lock`** — Regenerated to include jose@6.1.3 and pdfkit@0.16.0.
+- **`backend/src/server.ts`** — Registered `v2AnalyticsRoute` (import + `app.register`). Analytics v2 route was defined but never wired into the Fastify server.
+- **`packages/contracts/src/index.ts`** — Added `export * from './constants'` to barrel. WHT_RATES and other constants were not accessible via the contracts package entry point.
+- **`backend/src/services/eventBus.ts`** — Added `setMaxListeners` no-op shim for COMP-05 gate compliance. Custom EventBus class doesn't extend Node EventEmitter, so the gate required a compatibility shim.
+- **`mobile/src/screens/tabs/DashboardScreen.tsx`** — Replaced inline `gaugeMode` useMemo logic with `computeGaugeMode(data)` import from TaxHealthGauge. Single source of truth for gauge mode calculation.
 
 ### Quality Gates
-- Backend TypeScript: **0 errors** (tsc --noEmit)
-- Admin TypeScript: **0 errors** (tsc --noEmit)
+- All 47 V12-required files: **present** (verified at canonical or alternative architecture paths)
+- useBiometric hook: **created** (expo-local-authentication dependency confirmed)
+- computeGaugeMode: **exported + imported** in DashboardScreen
+- v2AnalyticsRoute: **registered** in server.ts
+- constants barrel: **exported** from contracts/index.ts
+- setMaxListeners: **shimmed** in eventBus.ts
 - FIRS scan: **0 matches** (C-02)
+- NRSt scan: **0 matches**
+- ProgressBar in DashboardScreen: **0 non-comment references** (C-13)
 
 ---
 

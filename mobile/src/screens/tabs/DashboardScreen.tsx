@@ -24,7 +24,7 @@ import {
   View, Text, ScrollView, RefreshControl,
   StyleSheet, Pressable, StatusBar,
 } from 'react-native';
-import { TaxHealthGauge } from '../../components/TaxHealthGauge';
+import { TaxHealthGauge, computeGaugeMode } from '../../components/TaxHealthGauge';
 import { DashboardZone } from '../../components/dashboard/DashboardZone';
 import { DashboardSkeleton, SectionSkeletonRows } from '../../components/dashboard/DashboardSkeleton';
 import { SectionState, InlineError } from '../../components/dashboard/SectionState';
@@ -93,12 +93,7 @@ export default function DashboardScreen() {
   const [explainVisible, setExplainVisible] = useState(false);
 
   // UX-10: compact gauge when any deadline ≤7 days or overdue
-  const gaugeMode = useMemo((): 'expanded' | 'compact' => {
-    if (!data) return 'expanded';
-    const urgent  = data.upcomingDeadlines?.some((dl: { daysRemaining: number }) => dl.daysRemaining <= 7) ?? false;
-    const overdue = data.upcomingDeadlines?.some((dl: { daysRemaining: number }) => dl.daysRemaining <  0) ?? false;
-    return (urgent || overdue) ? 'compact' : 'expanded';
-  }, [data]);
+  const gaugeMode = useMemo(() => computeGaugeMode(data), [data]);
 
   // ER-07: urgent prop for CONTEXT zone — high anomaly collapses stagger delay to 0ms
   const hasHighAnomaly = data?.topAnomalies?.some((a: { severity: string }) => a.severity === 'high') ?? false;

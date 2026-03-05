@@ -25,6 +25,24 @@ const AnimatedPath = Animated.createAnimatedComponent(Path);
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
+// ─── COMP-02: Gauge mode computation ─────────────────────────────────────────
+/**
+ * Determines whether the gauge card should be rendered in 'compact' mode
+ * (when an urgent compliance deadline is approaching or past) or 'expanded' mode.
+ *
+ * Accepts any object shaped like the composite dashboard payload. Uses optional
+ * chaining to safely handle both DashboardComposite (upcomingDeadlines) and
+ * DashboardStats (compliance) shapes.
+ */
+export function computeGaugeMode(
+  data: { upcomingDeadlines?: Array<{ daysRemaining: number }>; compliance?: Array<{ daysRemaining: number }> } | undefined,
+): 'expanded' | 'compact' {
+  if (!data) return 'expanded';
+  const deadlines = data.upcomingDeadlines ?? data.compliance ?? [];
+  const urgent = deadlines.some((d) => d.daysRemaining <= 7 || d.daysRemaining < 0);
+  return urgent ? 'compact' : 'expanded';
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface TaxHealthGaugeProps {
