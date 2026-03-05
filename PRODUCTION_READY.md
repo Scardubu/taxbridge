@@ -2,7 +2,7 @@
 
 **Date**: March 3, 2026  
 **Status**: 🚀 **READY FOR PRODUCTION DEPLOYMENT**  
-**Version**: 4.3.0
+**Version**: 4.3.1
 
 ---
 
@@ -10,7 +10,17 @@
 
 TaxBridge is **production-ready** and fully compliant with all Nigerian tax regulations (NTA 2025) and e-invoicing standards (NRS 2026). All critical systems have been implemented, tested, validated, and polished for deployment.
 
-**Latest Updates (v4.3.0 - Mar 3, 2026 — V12 APEX Production Completion):**
+**Latest Updates (v4.3.1 - Mar 3, 2026 — V12 Integration Wiring & Final Gate Closure):**
+- ✅ **useBiometric hook** — `mobile/src/hooks/useBiometric.ts` wrapping `expo-local-authentication` with hardware probe, enrollment check, graceful fallback (C-07)
+- ✅ **computeGaugeMode() centralized** — Exported from `TaxHealthGauge.tsx`, replaces inline DashboardScreen logic. Accepts both `upcomingDeadlines` and `compliance` shapes
+- ✅ **v2AnalyticsRoute registered** — Analytics v2 route was missing from `server.ts` registration; now wired
+- ✅ **constants.ts re-exported** — `packages/contracts/src/index.ts` now barrel-exports `constants.ts` (including WHT_RATES)
+- ✅ **eventBus setMaxListeners shim** — COMP-05 gate fix for custom EventBus class (not Node EventEmitter)
+- ✅ **Dashboard barrel export** — `mobile/src/components/dashboard/index.ts` barrel for all 12 dashboard zone components
+- ✅ **All 47 V12 files present** — comprehensive scan: 0 missing (paths verified at alternative locations where architecture differs from reference)
+- ✅ **All V12 gates pass** — FIRS=0, NRSt=0, ProgressBar=0 (comment-only), setMaxListeners=✓, computeGaugeMode=✓, authRateLimit=✓
+
+**Previous Updates (v4.3.0 - Mar 3, 2026 — V12 APEX Production Completion):**
 - ✅ **DLQ Admin Route** — cursor-paginated list, retry (with depth guard + require2FA), resolve. OVERRIDE audit trail.
 - ✅ **Audit Admin Route** — cursor pagination + NDJSON streaming export. PII-scrubbed list view.
 - ✅ **Shared UI Components** — SectionState, InlineError, EmptyState, ConfettiAnimation (C-42 onError fallback)

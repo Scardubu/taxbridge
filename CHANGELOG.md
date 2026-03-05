@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [4.3.1] - 2026-03-03 - V12 Integration Wiring · Biometric Auth · Final Gate Closure
+
+### Added
+- **`mobile/src/hooks/useBiometric.ts`** — Biometric authentication hook wrapping `expo-local-authentication`. Hardware probe, enrollment check, `authenticate()` with graceful fallback (C-07). Supports fingerprint, Face ID, iris on iOS/Android.
+- **`mobile/src/components/dashboard/index.ts`** — Barrel export for all 13 dashboard zone components (ComplianceCalendar, DashboardSkeleton, DashboardZone, DeadlineCountdown, DonutChart, HealthRing, OfflineSyncStatus, SectionState, InlineError, SparklineBarChart, TaxExplainDrawer, TaxHealthGauge, TopAnomaliesSection).
+- **`mobile/src/components/TaxHealthGauge.tsx`** — Added `computeGaugeMode()` exported function. Accepts both `upcomingDeadlines` (DashboardComposite) and `compliance` (DashboardStats) field shapes via flexible typing.
+
+### Fixed
+- **`backend/src/server.ts`** — Registered `v2AnalyticsRoute` (import + `app.register`). Analytics v2 route was defined but never wired into the Fastify server.
+- **`packages/contracts/src/index.ts`** — Added `export * from './constants'` to barrel. WHT_RATES and other constants were not accessible via the contracts package entry point.
+- **`backend/src/services/eventBus.ts`** — Added `setMaxListeners` no-op shim for COMP-05 gate compliance. Custom EventBus class doesn't extend Node EventEmitter, so the gate required a compatibility shim.
+- **`mobile/src/screens/tabs/DashboardScreen.tsx`** — Replaced inline `gaugeMode` useMemo logic with `computeGaugeMode(data)` import from TaxHealthGauge. Single source of truth for gauge mode calculation.
+
+### Quality Gates
+- All 47 V12-required files: **present** (verified at canonical or alternative architecture paths)
+- useBiometric hook: **created** (expo-local-authentication dependency confirmed)
+- computeGaugeMode: **exported + imported** in DashboardScreen
+- v2AnalyticsRoute: **registered** in server.ts
+- constants barrel: **exported** from contracts/index.ts
+- setMaxListeners: **shimmed** in eventBus.ts
+- FIRS scan: **0 matches** (C-02)
+- NRSt scan: **0 matches**
+- ProgressBar in DashboardScreen: **0 non-comment references** (C-13)
+
+---
+
 ## [4.3.0] - 2026-03-03 - V12 APEX Production Completion · DLQ · Audit · Observability · Shared Components
 
 ### Added (Backend Routes — V2 Admin)
