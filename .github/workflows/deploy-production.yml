@@ -7,6 +7,8 @@ on:
       - 'backend/**'
       - 'mobile/**'
       - 'admin-dashboard/**'
+      - 'admin/**'
+      - 'packages/**'
       - 'ml/**'
       - 'infra/**'
   workflow_dispatch:
@@ -26,7 +28,7 @@ on:
         type: boolean
 
 env:
-  NODE_VERSION: '18.x'
+  NODE_VERSION: '20.x'
   DOCKER_REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
 
@@ -144,10 +146,20 @@ jobs:
       - name: Run tests
         working-directory: ./backend
         env:
-          DATABASE_URL: postgresql://test:test@localhost:5432/taxbridge_test
-          REDIS_URL: redis://localhost:6379
-          DIGITAX_MOCK_MODE: 'true'
-          REMITA_MOCK_MODE: 'true'
+          DATABASE_URL:            postgresql://test:test@localhost:5432/taxbridge_test
+          REDIS_URL:               redis://localhost:6379
+          JWT_SECRET:              test-jwt-secret-must-be-at-least-64-characters-long-ok
+          NRS_API_KEY:             test-nrs-key-placeholder
+          CORS_ORIGIN:             http://localhost:3000
+          YOUVERIFY_API_KEY:       test-youverify-placeholder
+          FLUTTERWAVE_SECRET:      FLWSECK-test-placeholder
+          PAYSTACK_SECRET:         sk_test_placeholder
+          AFRICA_TALKING_API_KEY:  test-at-placeholder
+          CLOUDFLARE_R2_BUCKET:    taxbridge-test
+          CLOUDFLARE_R2_ENDPOINT:  https://test.r2.cloudflarestorage.com
+          PORT:                    3000
+          DIGITAX_MOCK_MODE:       'true'
+          REMITA_MOCK_MODE:        'true'
         run: npm run test -- --coverage --coverageReporters=lcov
 
       - name: Check coverage threshold

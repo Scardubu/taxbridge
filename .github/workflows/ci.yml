@@ -47,20 +47,37 @@ jobs:
           --health-retries 10
 
     env:
-      DATABASE_URL:            postgresql://taxbridge:testpassword@localhost:5432/taxbridge_test
-      REDIS_URL:               redis://localhost:6379
-      JWT_SECRET:              test-jwt-secret-must-be-at-least-64-characters-long-for-production-use
-      JWT_REFRESH_SECRET:      test-refresh-secret-must-be-at-least-64-characters-long-as-well
-      NRS_API_KEY:             test-nrs-api-key-placeholder
-      ENCRYPTION_KEY:          0000000000000000000000000000000000000000000000000000000000000000
-      TAX_ID_ENCRYPTION_KEY:   1111111111111111111111111111111111111111111111111111111111111111
-      NODE_ENV:                test
-      DIGITAX_MOCK_MODE:       true
-      YOUVERIFY_SANDBOX:       true
-      PAYSTACK_SECRET_KEY:     sk_test_placeholder
-      FLW_SECRET_KEY:          FLWSECK-test-placeholder
-      ALLOWED_ORIGINS:         http://localhost:3000
-      ADMIN_API_KEY:           test-admin-key
+      DATABASE_URL:               postgresql://taxbridge:testpassword@localhost:5432/taxbridge_test
+      REDIS_URL:                  redis://localhost:6379
+      JWT_SECRET:                 test-jwt-secret-must-be-at-least-64-characters-long-for-production-use
+      JWT_REFRESH_SECRET:         test-refresh-secret-must-be-at-least-64-characters-long-as-well
+      NRS_API_KEY:                test-nrs-api-key-placeholder
+      ENCRYPTION_KEY:             0000000000000000000000000000000000000000000000000000000000000000
+      TAX_ID_ENCRYPTION_KEY:      1111111111111111111111111111111111111111111111111111111111111111
+      NODE_ENV:                   test
+      PORT:                       3000
+      # CORS — required by validateEnv.ts
+      CORS_ORIGIN:                http://localhost:3000
+      ALLOWED_ORIGINS:            http://localhost:3000
+      # NRS / DigiTax
+      DIGITAX_MOCK_MODE:          true
+      DIGITAX_API_URL:            https://sandbox.digitax.ng
+      # Youverify
+      YOUVERIFY_API_KEY:          test-youverify-api-key-placeholder
+      YOUVERIFY_SANDBOX:          true
+      # Payment gateways — validateEnv.ts expects FLUTTERWAVE_SECRET and PAYSTACK_SECRET
+      FLUTTERWAVE_SECRET:         FLWSECK-test-placeholder
+      PAYSTACK_SECRET:            sk_test_placeholder
+      # Legacy aliases (some middleware may still read these)
+      FLW_SECRET_KEY:             FLWSECK-test-placeholder
+      PAYSTACK_SECRET_KEY:        sk_test_placeholder
+      # SMS — Africa's Talking required by validateEnv.ts
+      AFRICA_TALKING_API_KEY:     test-at-api-key-placeholder
+      # Cloudflare R2 — required by validateEnv.ts
+      CLOUDFLARE_R2_BUCKET:       taxbridge-test
+      CLOUDFLARE_R2_ENDPOINT:     https://test-account.r2.cloudflarestorage.com
+      # Admin
+      ADMIN_API_KEY:              test-admin-key
 
     steps:
       - uses: actions/checkout@v4
@@ -343,10 +360,10 @@ jobs:
           echo "✅ No raw numeric withTiming durations — all use DURATION.* tokens"
 
   # ───────────────────────────────────────────────────────────────────────────
-  # JOB 3: Admin Dashboard — TypeScript, Build
+  # JOB 3a: Admin Dashboard V12 (admin-dashboard/) — TypeScript, Build
   # ───────────────────────────────────────────────────────────────────────────
   admin:
-    name: Admin Dashboard (Next.js 15)
+    name: Admin Dashboard V12 (Next.js)
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -376,30 +393,94 @@ jobs:
           ADMIN_API_KEY:        ${{ secrets.ADMIN_API_KEY || 'ci-placeholder' }}
           BACKEND_API_URL:      https://taxbridge-api-ker8.onrender.com
 
-      # ── P11: Bundle size gate ────────────────────────────────────────────────
-      - name: P11 — Admin bundle size gate (<8MB)
+      - name: P11 — Admin V12 bundle size gate (<8MB)
         working-directory: admin-dashboard
         run: |
-          # Check that the compiled JS output stays below 8MB (P10 performance budget)
           TOTAL=$(find .next/static/chunks -name '*.js' 2>/dev/null | xargs du -cb 2>/dev/null | tail -1 | awk '{print $1}' || echo '0')
-          LIMIT=8388608  # 8MB in bytes
-          echo "Total JS bundle size: $(numfmt --to=iec-i --suffix=B $TOTAL 2>/dev/null || echo ${TOTAL}B)"
+          LIMIT=8388608
+          echo "Total JS bundle size: ${TOTAL}B"
           if [ "$TOTAL" -gt "$LIMIT" ]; then
-            echo "❌ Admin bundle exceeds 8MB limit (${TOTAL} bytes) — run bundle analysis"
+            echo "❌ Admin V12 bundle exceeds 8MB limit"
             exit 1
           fi
-          echo "✅ Bundle within 8MB limit"
+          echo "✅ Admin V12 bundle within 8MB limit"
 
       - name: Verify no fabricated metrics
         working-directory: admin-dashboard
         run: |
           COUNT=$(grep -r "Math\.random" src/ app/ components/ --include="*.tsx" --include="*.ts" 2>/dev/null | grep -v "test" | grep -v "\.spec\." | wc -l)
           if [ "$COUNT" -gt 0 ]; then
-            echo "❌ Math.random() found — fabricated metrics forbidden (v1.0.2 fix must hold)"
-            grep -r "Math\.random" src/ app/ components/ --include="*.tsx" --include="*.ts"
+            echo "❌ Math.random() found — fabricated metrics forbidden"
             exit 1
           fi
           echo "✅ No fabricated metrics (Math.random) found"
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # JOB 3b: Admin V13 (admin/) — Next.js 15 App Router TypeScript + Build
+  # ───────────────────────────────────────────────────────────────────────────
+  admin-v13:
+    name: Admin V13 (Next.js 15 App Router)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: admin/package-lock.json
+
+      - name: Install contracts dependencies
+        working-directory: packages/contracts
+        run: npm ci
+
+      - name: Build contracts (admin depends on it)
+        working-directory: packages/contracts
+        run: npm run build --if-present
+
+      - name: Install admin V13 dependencies
+        working-directory: admin
+        run: npm ci
+
+      - name: TypeScript type check
+        working-directory: admin
+        run: npx tsc --noEmit
+
+      - name: Build production bundle (standalone output)
+        working-directory: admin
+        run: npm run build
+        env:
+          NEXT_PUBLIC_API_URL:  https://taxbridge-api-ker8.onrender.com
+          BACKEND_API_URL:      https://taxbridge-api-ker8.onrender.com
+          JWT_SECRET:           ci-placeholder-jwt-secret-must-be-64-chars-minimum-length-ok
+
+      - name: P3 — Admin V13 bundle size gate (<8MB)
+        working-directory: admin
+        run: |
+          TOTAL=$(find .next/static/chunks -name '*.js' 2>/dev/null | xargs du -cb 2>/dev/null | tail -1 | awk '{print $1}' || echo '0')
+          LIMIT=8388608
+          echo "Total JS bundle size: ${TOTAL}B"
+          if [ "$TOTAL" -gt "$LIMIT" ]; then
+            echo "❌ Admin V13 bundle exceeds 8MB limit"
+            exit 1
+          fi
+          echo "✅ Admin V13 bundle within 8MB limit"
+
+      - name: Verify CSRF_INVALID in admin V13 middleware
+        run: |
+          grep -q "CSRF_INVALID" admin/src/middleware.ts \
+            && echo "✅ CSRF_INVALID in admin V13 middleware" \
+            || { echo "❌ CSRF_INVALID missing from admin/src/middleware.ts"; exit 1; }
+
+      - name: Verify no Math.random in admin V13 (C-08)
+        working-directory: admin
+        run: |
+          COUNT=$(grep -r "Math\.random" src/ --include="*.tsx" --include="*.ts" 2>/dev/null | grep -v "test" | wc -l)
+          [ "$COUNT" -eq 0 ] && echo "✅ No fabricated metrics" \
+            || { echo "❌ Math.random() found in admin V13 ($COUNT) — C-08"; exit 1; }
 
   # ───────────────────────────────────────────────────────────────────────────
   # JOB: V12 Gates — Security, Intelligence Pipeline, Tax Accuracy
@@ -433,8 +514,13 @@ jobs:
 
       - name: C-37 — Webhook already_processed idempotency guard
         run: |
-          grep -q "already_processed" backend/src/routes/webhooks.ts \
-            && echo "✅ webhook idempotency" || { echo "❌ already_processed missing from webhooks.ts"; exit 1; }
+          # Webhooks are split into individual files (paystack.ts, flutterwave.ts, remita.ts)
+          COUNT=$(grep -rn "already_processed" backend/src/routes/webhooks/ backend/src/routes/webhooks.ts 2>/dev/null | wc -l)
+          if [ "$COUNT" -lt 1 ]; then
+            echo "❌ already_processed missing from webhook handlers — C-37"
+            exit 1
+          fi
+          echo "✅ webhook idempotency (already_processed found in $COUNT location(s))"
 
       - name: C-36 — SAFE_ROUTES deep link allowlist
         run: |
@@ -453,8 +539,15 @@ jobs:
 
       - name: GAP-12 — Admin CSRF_INVALID middleware
         run: |
-          grep -q "CSRF_INVALID" admin-dashboard/middleware.ts \
-            && echo "✅ CSRF_INVALID" || { echo "❌ CSRF_INVALID missing from admin middleware"; exit 1; }
+          # Check both V12 admin-dashboard and V13 admin workspace
+          if grep -q "CSRF_INVALID" admin-dashboard/middleware.ts 2>/dev/null; then
+            echo "✅ CSRF_INVALID in admin-dashboard/middleware.ts"
+          elif grep -q "CSRF_INVALID" admin/src/middleware.ts 2>/dev/null; then
+            echo "✅ CSRF_INVALID in admin/src/middleware.ts"
+          else
+            echo "❌ CSRF_INVALID missing from admin middleware (checked admin-dashboard/middleware.ts and admin/src/middleware.ts)"
+            exit 1
+          fi
 
       # ── Intelligence pipeline gates ────────────────────────────────────────
       - name: G-SYN-01 — buildIntelligenceInput exists in dashboardService
@@ -496,14 +589,21 @@ jobs:
             backend/src/routes/v1/auth/totp.ts \
             packages/contracts/src/cit.ts \
             backend/src/services/compliancePreFlight.ts \
+            backend/src/services/penaltyService.ts \
             mobile/src/hooks/useDeepLink.ts \
             mobile/src/hooks/usePushNotification.ts \
-            admin-dashboard/middleware.ts; do
+            mobile/src/screens/documents/DocumentVaultScreen.tsx \
+            mobile/src/screens/team/TeamManagementScreen.tsx; do
             if [ ! -f "$f" ]; then
               echo "❌ Missing required file: $f"
               FAILED=1
             fi
           done
+          # Admin middleware: accept either V12 or V13 location
+          if [ ! -f "admin-dashboard/middleware.ts" ] && [ ! -f "admin/src/middleware.ts" ]; then
+            echo "❌ Missing admin middleware (checked admin-dashboard/middleware.ts and admin/src/middleware.ts)"
+            FAILED=1
+          fi
           [ "$FAILED" -eq 0 ] && echo "✅ All required files present" || exit 1
 
       # ── Regulatory code gates ──────────────────────────────────────────────
@@ -686,7 +786,7 @@ jobs:
   blue-green-readiness:
     name: Blue-Green Readiness
     runs-on: ubuntu-latest
-    needs: [backend, mobile, admin, security]
+    needs: [backend, mobile, admin, admin-v13, security]
     if: github.ref == 'refs/heads/master' && github.event_name == 'push'
 
     steps:
@@ -733,7 +833,7 @@ jobs:
     name: EAS Build (Android + iOS)
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    needs: [backend, mobile, admin, security]
+    needs: [backend, mobile, admin, admin-v13, security]
     if: github.ref == 'refs/heads/master' && github.event_name == 'push'
 
     steps:
@@ -779,7 +879,7 @@ jobs:
   health-check:
     name: Production Health Check
     runs-on: ubuntu-latest
-    needs: [backend, admin]
+    needs: [backend, admin, admin-v13]
     if: github.ref == 'refs/heads/master' && github.event_name == 'push'
 
     steps:

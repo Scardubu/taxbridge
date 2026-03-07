@@ -5,6 +5,10 @@ dotenv.config();
 // Validate required env vars before any service initialisation (crashes fast on misconfiguration)
 import './validateEnv';
 
+// V13: Initialise Sentry + Prometheus default metrics (idempotent — safe to call once)
+import { initialiseObservability } from './lib/observability';
+initialiseObservability();
+
 import Fastify from 'fastify';
 import path from 'path';
 import cors from '@fastify/cors';
@@ -340,7 +344,8 @@ async function bootstrap() {
   // Determine environment early for configuration decisions
   const isProduction = process.env.NODE_ENV === 'production';
 
-  const corsOriginsRaw = (process.env.ALLOWED_ORIGINS ?? process.env.CORS_ORIGINS ?? '*').trim();
+  // CORS_ORIGIN is the canonical name (validateEnv.ts); ALLOWED_ORIGINS is the legacy alias
+  const corsOriginsRaw = (process.env.CORS_ORIGIN ?? process.env.ALLOWED_ORIGINS ?? process.env.CORS_ORIGINS ?? '*').trim();
   const corsOriginsList = corsOriginsRaw === '*'
     ? ['*']
     : corsOriginsRaw
