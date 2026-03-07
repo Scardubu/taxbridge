@@ -18,8 +18,9 @@ export async function POST(
     logError('admin/api/invoices/[id]/resubmit-duplo: Error resubmitting invoice', error, { invoiceId });
     const status = error instanceof BackendAPIError ? error.status : 500;
     const message = error instanceof BackendAPIError ? error.details || error.message : 'Unknown error';
+    const code = error instanceof BackendAPIError ? error.code : undefined;
     return NextResponse.json(
-      { error: 'Failed to resubmit invoice', message },
+      { error: 'Failed to resubmit invoice', message, ...(code && { code }) },
       { status }
     );
   }

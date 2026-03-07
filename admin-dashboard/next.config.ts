@@ -45,14 +45,27 @@ const nextConfig: NextConfig = {
   },
 
   async headers() {
+    const isProd = process.env.NODE_ENV === 'production' && !process.env.VERCEL_ENV?.includes('preview');
+
+    // vercel.live feedback toolbar is injected in preview/development deployments
+    const vercelLiveSrc = isProd ? '' : ' https://vercel.live https://*.vercel.live';
+
+    const csp = [
+      "default-src 'self'",
+      `script-src 'self' 'unsafe-inline' 'unsafe-eval'${vercelLiveSrc}`,
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: https:",
+      "font-src 'self' data:",
+      `connect-src 'self' https://taxbridge-api-ker8.onrender.com https://*.onrender.com https://*.vercel.app${vercelLiveSrc}`,
+      "frame-ancestors 'none'",
+      `frame-src 'none'${isProd ? '' : ' https://vercel.live'}`,
+    ].join('; ');
+
     return [
       {
         source: '/(.*)',
         headers: [
-          {
-            key: 'Content-Security-Policy',
-            value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://taxbridge-api-ker8.onrender.com https://*.vercel.app; frame-ancestors 'none';",
-          },
+          { key: 'Content-Security-Policy', value: csp },
           { key: 'X-Content-Type-Options', value: 'nosniff' },
           { key: 'X-Frame-Options', value: 'DENY' },
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },

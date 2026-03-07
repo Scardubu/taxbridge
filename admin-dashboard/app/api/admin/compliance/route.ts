@@ -85,7 +85,7 @@ export async function GET(request: NextRequest) {
     const { upstreamError, upstreamCode } =
       error instanceof BackendAPIError ? extractUpstreamError(error.details) : { upstreamError: undefined, upstreamCode: undefined };
 
-    const code = upstreamCode || (upstreamError === 'Admin API disabled' ? 'ADMIN_API_DISABLED' : undefined);
+    const code = upstreamCode || (upstreamError === 'Admin API disabled' ? 'ADMIN_API_DISABLED' : undefined) || (error instanceof BackendAPIError ? error.code : undefined);
 
     // Return mock data for Stage 1 if backend endpoint not available
     if (status === 404 || code === 'ADMIN_API_DISABLED') {

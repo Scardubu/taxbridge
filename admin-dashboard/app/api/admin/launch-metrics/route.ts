@@ -32,7 +32,7 @@ export async function GET() {
     const { upstreamError, upstreamCode } =
       error instanceof BackendAPIError ? extractUpstreamError(error.details) : { upstreamError: undefined, upstreamCode: undefined };
 
-    const code = upstreamCode || (upstreamError === 'Admin API disabled' ? 'ADMIN_API_DISABLED' : undefined);
+    const code = upstreamCode || (upstreamError === 'Admin API disabled' ? 'ADMIN_API_DISABLED' : undefined) || (error instanceof BackendAPIError ? error.code : undefined);
     const message =
       code === 'ADMIN_API_DISABLED'
         ? 'Admin analytics is not enabled for this environment.'

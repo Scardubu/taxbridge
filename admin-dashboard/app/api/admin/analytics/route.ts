@@ -12,8 +12,9 @@ export async function GET(request: NextRequest) {
     logError('admin/api/analytics: Error fetching analytics', error);
     const status = error instanceof BackendAPIError ? error.status : 500;
     const message = error instanceof BackendAPIError ? error.details || error.message : 'Unknown error';
+    const code = error instanceof BackendAPIError ? error.code : undefined;
     return NextResponse.json(
-      { error: 'Failed to fetch analytics data', message },
+      { error: 'Failed to fetch analytics data', message, ...(code && { code }) },
       { status }
     );
   }

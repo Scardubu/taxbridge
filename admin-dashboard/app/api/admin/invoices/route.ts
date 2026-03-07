@@ -25,8 +25,9 @@ export async function GET(request: NextRequest) {
     logError('admin/api/invoices: Error fetching invoices', error);
     const statusCode = error instanceof BackendAPIError ? error.status : 500;
     const message = error instanceof BackendAPIError ? error.details || error.message : 'Unknown error';
+    const code = error instanceof BackendAPIError ? error.code : undefined;
     return NextResponse.json(
-      { error: 'Failed to fetch invoices', message },
+      { error: 'Failed to fetch invoices', message, ...(code && { code }) },
       { status: statusCode }
     );
   }
