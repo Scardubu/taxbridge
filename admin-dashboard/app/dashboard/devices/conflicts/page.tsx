@@ -173,8 +173,13 @@ export default function ConflictsPage() {
         <Card>
           <CardContent className="pt-6">
             <div className="flex flex-wrap gap-4">
+              <label htmlFor="conflict-resolution-filter" className="sr-only">
+                {t('conflicts.filter.title')}
+              </label>
               <select
-                title={t('conflicts.filter.title')}
+                id="conflict-resolution-filter"
+                name="resolutionFilter"
+                aria-label={t('conflicts.filter.title')}
                 value={resolutionFilter}
                 onChange={(e) => {
                   setResolutionFilter(e.target.value);

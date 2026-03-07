@@ -179,10 +179,11 @@ export default function AnalyticsPage() {
         </div>
         <div className="flex gap-2">
           <label htmlFor="date-range-select" className="sr-only">{t('analytics.dateRange.label')}</label>
-          <select 
+          <select
             id="date-range-select"
+            name="dateRange"
             aria-label={t('analytics.dateRange.label')}
-            value={dateRange} 
+            value={dateRange}
             onChange={(e) => setDateRange(e.target.value)}
             className="px-3 py-2 border rounded-md"
           >

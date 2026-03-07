@@ -183,6 +183,7 @@ export default function DevicesPage() {
                 <label htmlFor="platform-select" className="text-sm font-medium">{t('devices.filter.platform')}</label>
                 <select
                   id="platform-select"
+                  name="platform"
                   value={platform}
                   onChange={(e) => setPlatform(e.target.value)}
                   className="px-3 py-2 border rounded-md text-sm"

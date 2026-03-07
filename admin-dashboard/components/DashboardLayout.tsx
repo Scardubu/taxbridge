@@ -248,6 +248,8 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
               <label className="hidden md:flex items-center gap-2 text-sm text-slate-600">
                 <span className="sr-only">{t('header.language')}</span>
                 <select
+                  id="lang-select-desktop"
+                  name="lang"
                   aria-label={t('header.language')}
                   value={lang}
                   onChange={(e) => setLang(e.target.value as AdminLanguage)}

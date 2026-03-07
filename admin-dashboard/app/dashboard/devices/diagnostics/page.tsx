@@ -140,7 +140,9 @@ export default function SyncDiagnosticsPage() {
           </CardHeader>
           <CardContent>
             <select
-              title={t('devices.diagnostics.selectDevice')}
+              id="device-diagnostic-select"
+              name="selectedDeviceId"
+              aria-label={t('devices.diagnostics.selectDevice')}
               value={selectedDeviceId}
               onChange={(event) => setSelectedDeviceId(event.target.value)}
               className="w-full md:w-[360px] px-3 py-2 border rounded-md text-sm"

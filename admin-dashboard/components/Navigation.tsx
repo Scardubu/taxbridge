@@ -153,6 +153,8 @@ export function Navigation() {
                 <label className="flex items-center gap-2 px-4 py-2 text-sm text-slate-600">
                   <span>{t('header.language')}</span>
                   <select
+                    id="lang-select-mobile"
+                    name="lang"
                     aria-label={t('header.language')}
                     value={lang}
                     onChange={(e) => setLang(e.target.value as AdminLanguage)}
