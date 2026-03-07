@@ -1,185 +1,88 @@
 /**
- * pdfWorker — TaxBridge V12
+ * PDF Worker — TaxBridge V13 Sovereign
  *
- * BullMQ worker that generates a PDF audit report for a tax filing
- * and uploads it to Cloudflare R2 (or AWS S3).
- *
- * GAP-15 / C-40 / criterion #26.
- *
- * Queue name: "pdf-generation"
- * Job payload: { filingId: string; orgId: string; taxType: string; period: string }
- *
- * C-07: Failures are logged to Sentry and the job is retried via BullMQ
- *       backoff — no data loss and no process crash.
+ * BullMQ 5 Worker: consumes pdf-generation queue → pdfkit → R2 upload.
+ * C-40: No ServerSideEncryption param on R2 upload (causes R2 error).
+ * C-46: Uses createWorkerConnection() for dedicated BullMQ connection.
  */
-
-import { Worker, type Job } from 'bullmq';
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
-import PDFDocument from 'pdfkit';
-import * as Sentry from '@sentry/node';
-import { createLogger } from '../lib/logger';
-import { prisma } from '../lib/prisma';
-import { getRedisConnection } from '../queue/client';
-
-const log = createLogger('pdf-worker');
-
-// ─── Job payload type ─────────────────────────────────────────────────────────
-
-export interface PdfJobPayload {
-  filingId: string;
-  orgId:    string;
-  taxType:  string;
-  period:   string;
-}
-
-// ─── S3 / R2 client (Cloudflare R2 via S3-compatible API) ────────────────────
+import { Worker, Job }                  from 'bullmq';
+import PDFDocument                       from 'pdfkit';
+import { S3Client, PutObjectCommand }    from '@aws-sdk/client-s3';
+import { createWorkerConnection }        from '../services/eventBus';
+import { logger }                        from '../lib/logger';
 
 const s3 = new S3Client({
-  endpoint:         process.env.AWS_ENDPOINT,          // Cloudflare R2 endpoint
-  region:           process.env.AWS_REGION || 'auto',
+  region:      'auto',
+  endpoint:    process.env.CLOUDFLARE_R2_ENDPOINT!,
   credentials: {
-    accessKeyId:      process.env.AWS_ACCESS_KEY!,
-    secretAccessKey:  process.env.AWS_SECRET_KEY!,
+    accessKeyId:     process.env.R2_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
   },
-  forcePathStyle: true,                                 // Required for R2
 });
 
-const BUCKET = process.env.AWS_BUCKET || 'taxbridge-documents';
-
-// ─── PDF generation ───────────────────────────────────────────────────────────
-
-async function generateFilingPdf(job: Job<PdfJobPayload>): Promise<void> {
-  const { filingId, orgId, taxType, period } = job.data;
-
-  log.info('PDF generation started', { filingId, orgId, taxType, period });
-
-  // ── Fetch filing data ─────────────────────────────────────────────────────
-  const filing = await (prisma as any).taxFiling.findUnique({
-    where:  { id: filingId },
-    select: {
-      id: true, taxType: true, period: true, status: true,
-      filedAt: true, amount: true, vatAmount: true,
-      org: { select: { name: true, tin: true } },
-    },
-  });
-
-  if (!filing) {
-    throw new Error(`Filing ${filingId} not found`);
-  }
-
-  // ── Build PDF in memory ───────────────────────────────────────────────────
-  const pdfBuffer = await _buildPdf(filing);
-
-  // ── Upload to R2 ─────────────────────────────────────────────────────────
-  const key = `filings/${orgId}/${taxType}/${period}/${filingId}.pdf`;
-
-  await s3.send(new PutObjectCommand({
-    Bucket:      BUCKET,
-    Key:         key,
-    Body:        pdfBuffer,
-    ContentType: 'application/pdf',
-    Metadata: {
-      filingId,
-      orgId,
-      taxType,
-      period,
-      generatedAt: new Date().toISOString(),
-    },
-  }));
-
-  // ── Store reference in DB ─────────────────────────────────────────────────
-  await (prisma as any).taxFiling.update({
-    where: { id: filingId },
-    data:  { pdfKey: key, pdfGeneratedAt: new Date() },
-  });
-
-  log.info('PDF uploaded to R2 successfully', { filingId, key });
+interface PDFJobData {
+  orgId:     string;
+  filingId:  string;
+  taxType:   string;
+  period:    string;
+  reference: string;
 }
 
-// ─── PDF builder ──────────────────────────────────────────────────────────────
+async function processPDFJob(job: Job<PDFJobData>): Promise<{ key: string }> {
+  const { orgId, filingId, taxType, period, reference } = job.data;
 
-function _buildPdf(filing: any): Promise<Buffer> {
-  return new Promise((resolve, reject) => {
-    const doc    = new PDFDocument({ margin: 50, size: 'A4' });
+  logger.info({ jobId: job.id, orgId, filingId }, 'Processing PDF generation');
+
+  // Generate PDF in memory
+  const pdfBuffer = await new Promise<Buffer>((resolve, reject) => {
+    const doc    = new PDFDocument({ margin: 50 });
     const chunks: Buffer[] = [];
 
-    doc.on('data',  (chunk: Buffer) => chunks.push(chunk));
+    doc.on('data',  chunk => chunks.push(chunk));
     doc.on('end',   () => resolve(Buffer.concat(chunks)));
     doc.on('error', reject);
 
-    // ── Header ───────────────────────────────────────────────────────────────
-    doc
-      .font('Helvetica-Bold').fontSize(20)
-      .text('TaxBridge', { align: 'center' })
-      .fontSize(12).font('Helvetica')
-      .text('Official Tax Filing Receipt', { align: 'center' })
-      .moveDown(0.5);
-
-    doc
-      .strokeColor('#0566B1').lineWidth(2)
-      .moveTo(50, doc.y).lineTo(545, doc.y).stroke()
-      .moveDown();
-
-    // ── Filing details ────────────────────────────────────────────────────────
-    const rows: [string, string][] = [
-      ['Filing ID',   filing.id],
-      ['Organisation', filing.org?.name ?? 'N/A'],
-      ['TIN',          filing.org?.tin  ?? 'N/A'],
-      ['Tax Type',     filing.taxType],
-      ['Period',       filing.period],
-      ['Status',       filing.status],
-      ['Filed At',     filing.filedAt ? new Date(filing.filedAt).toLocaleDateString('en-NG') : 'Pending'],
-      ['Amount',       `₦${Number(filing.amount ?? 0).toLocaleString('en-NG', { minimumFractionDigits: 2 })}`],
-    ];
-
-    for (const [label, value] of rows) {
-      doc
-        .font('Helvetica-Bold').text(`${label}:  `, { continued: true })
-        .font('Helvetica').text(value)
-        .moveDown(0.25);
-    }
-
-    // ── Footer ────────────────────────────────────────────────────────────────
-    doc.moveDown(2)
-      .fontSize(9).fillColor('#666666')
-      .text(
-        `Generated by TaxBridge on ${new Date().toLocaleString('en-NG', { timeZone: 'Africa/Lagos' })} WAT. ` +
-        'This document is a system-generated receipt and constitutes official evidence of filing.',
-        { align: 'center' },
-      );
+    doc.fontSize(24).text('TaxBridge Filing Receipt', { align: 'center' });
+    doc.moveDown();
+    doc.fontSize(12)
+      .text(`Reference:  ${reference}`)
+      .text(`Tax Type:   ${taxType}`)
+      .text(`Period:     ${period}`)
+      .text(`Filed At:   ${new Date().toISOString()}`)
+      .text(`Org ID:     ${orgId}`);
 
     doc.end();
   });
+
+  const key = `filings/${orgId}/${taxType}/${period}/${filingId}.pdf`;
+
+  // C-40: No ServerSideEncryption param
+  await s3.send(new PutObjectCommand({
+    Bucket:      process.env.CLOUDFLARE_R2_BUCKET!,
+    Key:         key,
+    Body:        pdfBuffer,
+    ContentType: 'application/pdf',
+  }));
+
+  logger.info({ jobId: job.id, key }, 'PDF uploaded to R2');
+  return { key };
 }
 
-// ─── Worker registration ─────────────────────────────────────────────────────
+export function startPDFWorker(): Worker<PDFJobData> {
+  const workerConnection = createWorkerConnection();
 
-export function startPdfWorker(): Worker<PdfJobPayload> | null {
-  const redis = getRedisConnection();
-  if (!redis) {
-    log.warn('Redis unavailable — PDF worker not started');
-    return null;
-  }
-
-  const worker = new Worker<PdfJobPayload>(
-    'pdf-generation',
-    generateFilingPdf,
-    {
-      connection: redis as any,
-      concurrency: 2,
-      limiter:     { max: 10, duration: 60_000 }, // 10 PDFs per minute
-    },
-  );
+  const worker = new Worker<PDFJobData>('pdf-generation', processPDFJob, {
+    connection: workerConnection,
+    concurrency: 3,
+  });
 
   worker.on('completed', (job) => {
-    log.info('PDF job completed', { jobId: job.id, filingId: job.data.filingId });
+    logger.info({ jobId: job.id }, 'PDF job completed');
   });
 
   worker.on('failed', (job, err) => {
-    Sentry.captureException(err, { extra: { jobId: job?.id, filingId: job?.data?.filingId } });
-    log.error('PDF job failed', { err, jobId: job?.id });
+    logger.error({ jobId: job?.id, err }, 'PDF job failed');
   });
 
-  log.info('PDF generation worker started');
   return worker;
 }

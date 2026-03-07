@@ -213,7 +213,7 @@ export default async function documentRoutes(app: FastifyInstance) {
   // ── Delete document (SUPER_ADMIN only, after 7 years) ───────────────────
   app.delete<{ Params: { id: string } }>(
     '/api/v1/documents/:id',
-    { preHandler: [authenticate, resolveOrgContext, requireRole('admin')] },
+    { preHandler: [authenticate, resolveOrgContext, requireRole('ADMIN')] },
     async (req, reply) => {
       const orgId   = (req as any).orgContext.orgId;
       const actorId = (req as any).user.id;

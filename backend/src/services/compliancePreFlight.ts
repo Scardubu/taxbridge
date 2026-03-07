@@ -48,6 +48,11 @@ export interface PreFlightResult {
  * @param taxType       Filing type: 'VAT' | 'WHT' | 'PAYE' | 'CIT' | 'NIL'
  * @param turnoverHint  Optional declared turnover figure (used for CIT/VAT threshold checks)
  */
+// V13 canonical export name (C-07: never throws — always returns PreFlightResult)
+export async function runPreFlight(orgId: string, taxType: string): Promise<PreFlightResult> {
+  return runCompliancePreFlight(orgId, taxType);
+}
+
 export async function runCompliancePreFlight(
   orgId: string,
   taxType: string,

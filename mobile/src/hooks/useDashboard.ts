@@ -1,15 +1,9 @@
 /**
- * V12 §8.1 — useDashboard composite hook
+ * useDashboard — TaxBridge V13 Sovereign
  *
- * Gate check: grep -q "queryKey.*dashboard" mobile/src/hooks/useDashboard.ts
- *
- * Query key includes orgId + userId so the cache is scoped per
- * tenant/user (C-14). gcTime 5 min, staleTime 30 s per V12 spec.
- *
- * This is the canonical import point. DashboardScreen should use:
- *   import { useDashboard } from '@hooks/useDashboard';
- *
- * Falls back to the composite endpoint defined in @store/queries.
+ * C-14: Single composite GET /api/v1/dashboard — never 3+ separate requests.
+ * gcTime 5 min, staleTime 30s.
+ * AppState 'active' → invalidate queries (resume-from-background refresh).
  */
 
 import { useEffect, useRef } from 'react';

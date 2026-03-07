@@ -1,132 +1,76 @@
 /**
- * TaxBridge — V12 CIT Calculator
+ * Company Income Tax — TaxBridge V13 Sovereign
+ * NTA 2025 §55
  *
- * Enhanced Company Income Tax calculation with:
- * - Development Levy (NTA 2025 §60A)
- * - Education Tax (2% on assessable profits for large companies)
- * - Tax Loss Carry-Forward deduction
+ * C-09: Tax calculations only in packages/contracts/
+ * C-41: calculateCIT() is the ONLY approved CIT computation path — no inline math.
  *
- * C-41: Education tax included in CIT computation.
- * C-09: Tax calculations only in packages/contracts.
+ * Two tiers only (V13 canonical):
+ *   turnover < ₦100M  → 0% CIT  (small)
+ *   turnover ≥ ₦100M  → 30% CIT (large)
  */
 
-import { NTA_2025, type CompanyTier } from './nta2025';
-import type { CITInput, CITResult } from './types';
+import {
+  SMALL_CO_CIT_THRESHOLD,
+  CIT_LARGE_RATE,
+  CIT_SMALL_RATE,
+} from './constants';
 
-/**
- * Education Tax rate — 2% on assessable profits.
- * Applies to companies with turnover ≥ ₦100M (large tier).
- * NTA 2025 §55(3).
- */
-const EDUCATION_TAX_RATE = 0.02;
-const EDUCATION_TAX_THRESHOLD = 100_000_000;
+export interface CITInput {
+  turnover:              number;
+  taxableProfit:         number;
+  /** Prior-year tax losses to offset (₦). Optional. */
+  taxLossCarryforward?:  number;
+  /** Whether Development Levy applies (4% additional). Default: false. */
+  devLevyApplies?:       boolean;
+}
 
-/**
- * V12 canonical CIT function. C-41: Only approved CIT computation path.
- *
- * Thresholds per V12 directive:
- *   - turnover < ₦100M → exempt (citLiability = 0, band = 'small')
- *   - turnover ≥ ₦100M → 30% CIT, optional dev levy (4%), edu-tax (2.5%)
- *
- * ✅ Gate: {turnover:200M, profit:50M, devLevyApplies:false}.citLiability === 15_000_000
- * ✅ Gate: {turnover:80M,  profit:20M, devLevyApplies:false}.citLiability === 0
- */
-export function calculateCIT(input: {
-  turnover: number;
-  profit: number;
-  devLevyApplies: boolean;
-  taxLossCarryforward?: number;
-}): {
-  rate: number;
-  taxableProfit: number;
-  citLiability: number;
-  devLevy: number;
-  educationTax: number;
-  total: number;
-  band: 'small' | 'large';
-} {
-  const { turnover, profit, devLevyApplies, taxLossCarryforward = 0 } = input;
-
-  // Threshold: < ₦100M → entirely exempt (V12 directive §P0.5 C-41)
-  if (turnover < 100_000_000) {
-    return { rate: 0, taxableProfit: 0, citLiability: 0, devLevy: 0, educationTax: 0, total: 0, band: 'small' };
-  }
-
-  const taxableProfit = Math.max(0, profit - Math.max(0, taxLossCarryforward));
-  const citLiability  = taxableProfit * 0.30;
-  const devLevy       = devLevyApplies ? taxableProfit * 0.04 : 0;
-  const educationTax  = taxableProfit * 0.025;
-  const total         = citLiability + devLevy + educationTax;
-
-  return { rate: 0.30, taxableProfit, citLiability, devLevy, educationTax, total, band: 'large' };
+export interface CITResult {
+  citLiability:   number;
+  band:           'small' | 'large';
+  rate:           number;
+  taxableProfit:  number;
+  devLevy:        number;
+  total:          number;
+  exempt:         boolean;
 }
 
 /**
- * Calculate Company Income Tax with full V12 compliance (detailed breakdown).
+ * calculateCIT — V13 canonical CIT computation (C-41)
  *
- * @param input.turnover           Annual turnover (₦)
- * @param input.profit             Taxable profit before deductions (₦)
- * @param input.devLevyApplies     Whether development levy applies
- * @param input.taxLossCarryforward Prior-year tax losses to offset (₦)
- * @returns Complete CIT breakdown
+ * Accuracy gates:
+ *   calculateCIT({ turnover: 150_000_000, taxableProfit: 15_000_000 })
+ *   → { citLiability: 4_500_000, band: 'large' }
+ *
+ *   calculateCIT({ turnover: 80_000_000, taxableProfit: 5_000_000 })
+ *   → { citLiability: 0, band: 'small' }
  */
-export function calculateCITv2(input: CITInput): CITResult {
+export function calculateCIT(input: CITInput): CITResult {
+  const {
+    turnover,
+    taxableProfit,
+    taxLossCarryforward = 0,
+    devLevyApplies      = false,
+  } = input;
 
-  const { turnover, profit, devLevyApplies, taxLossCarryforward } = input;
-
-  // Determine company tier
-  const tier: CompanyTier = turnover < NTA_2025.CIT.small.threshold
-    ? 'small'
-    : turnover < NTA_2025.CIT.medium.threshold
-      ? 'medium'
-      : 'large';
-
-  const citRate = NTA_2025.CIT[tier].rate;
-  const exempt = tier === 'small';
+  // V13 canonical: only 2 bands — no medium band
+  const band:   'small' | 'large' = turnover < SMALL_CO_CIT_THRESHOLD ? 'small' : 'large';
+  const exempt: boolean            = band === 'small';
+  const rate:   number             = exempt ? CIT_SMALL_RATE : CIT_LARGE_RATE;
 
   if (exempt) {
-    return {
-      tier,
-      citRate: 0,
-      citAmount: 0,
-      devLevy: 0,
-      educationTax: 0,
-      taxLossApplied: 0,
-      total: 0,
-      exempt: true,
-    };
+    return { citLiability: 0, band: 'small', rate: 0, taxableProfit: 0, devLevy: 0, total: 0, exempt: true };
   }
 
-  // Apply tax loss carry-forward
-  const lossDeduction = Math.min(
-    Math.max(taxLossCarryforward, 0),
-    Math.max(profit, 0),
-  );
-  const adjustedProfit = Math.max(profit - lossDeduction, 0);
+  const adjustedProfit  = Math.max(0, taxableProfit - Math.max(0, taxLossCarryforward));
+  const citLiability    = Math.round(adjustedProfit * rate);
+  const devLevy         = devLevyApplies ? Math.round(adjustedProfit * 0.04) : 0;
+  const total           = citLiability + devLevy;
 
-  // CIT on adjusted profit
-  const citAmount = Math.round(adjustedProfit * citRate);
-
-  // Development Levy — 4% on qualifying profits
-  const devLevy = devLevyApplies
-    ? Math.round(adjustedProfit * NTA_2025.DEV_LEVY.rate)
-    : 0;
-
-  // Education Tax — 2% for large companies only
-  const educationTax = turnover >= EDUCATION_TAX_THRESHOLD
-    ? Math.round(adjustedProfit * EDUCATION_TAX_RATE)
-    : 0;
-
-  const total = citAmount + devLevy + educationTax;
-
-  return {
-    tier,
-    citRate,
-    citAmount,
-    devLevy,
-    educationTax,
-    taxLossApplied: lossDeduction,
-    total,
-    exempt: false,
-  };
+  return { citLiability, band: 'large', rate, taxableProfit: adjustedProfit, devLevy, total, exempt: false };
 }
+
+/**
+ * Legacy compat — callers that previously used calculateCITv2
+ */
+export { calculateCIT as calculateCITv2 };

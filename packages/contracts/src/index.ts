@@ -1,7 +1,38 @@
-export * from './sync';
+/**
+ * @taxbridge/contracts — V13 Sovereign barrel
+ *
+ * All tax math, RBAC types, and shared interfaces.
+ * Import from here — never from individual files.
+ *
+ * C-04: This is the sole tax-math package.
+ * C-09: All calculations live here; never duplicated in backend/mobile/admin.
+ */
 
-// tax-rules: explicit named export to avoid TS2308 ambiguity with constants.ts.
-// CGT_RATE, VAT_REGISTRATION_THRESHOLD, WHT_RATES are canonical in constants.ts — excluded here.
+// ─── V13 Canonical files ──────────────────────────────────────────────────────
+export * from './constants';
+export * from './pit';
+export * from './vat';
+export * from './wht';
+export * from './cit';
+export * from './penalties';
+export * from './rbac';
+export * from './types';
+
+// ─── NTA 2025 constants object + helpers ─────────────────────────────────────
+export {
+  NTA_2025,
+  calculateRRA,
+  calculatePIT as calculatePITSimple,
+  calculateCIT as calculateCITSimple,
+  calculateVAT as calculateVATSimple,
+  type PitBand,
+  type VatCategory,
+  type WhtPaymentType,
+  type CompanyTier,
+} from './nta2025';
+
+// ─── tax-rules.ts re-exports (backward compat) ───────────────────────────────
+// Only re-export names NOT already defined in constants.ts to avoid conflicts.
 export {
   type PITBracket,
   PIT_BRACKETS,
@@ -16,7 +47,6 @@ export {
   NHF_RATE,
   LIFE_INSURANCE_RELIEF_RATE,
   LIFE_INSURANCE_MAX_RATE,
-  VAT_RATE,
   VAT_EXEMPT_CATEGORIES,
   type VATExemptCategory,
   VAT_ZERO_RATED,
@@ -39,20 +69,5 @@ export {
   NTA_2025_RULES,
 } from './tax-rules';
 
-// Re-export nta2025 explicitly to avoid collision with cit.ts calculateCIT (V12 C-41 canonical)
-export {
-  NTA_2025,
-  calculateRRA,
-  calculatePIT,
-  calculateVAT,
-  type PitBand,
-  type VatCategory,
-  type WhtPaymentType,
-  type CompanyTier,
-} from './nta2025';
-
-export * from './rbac';
-export * from './cit';
-export * from './types';
-// constants.ts is canonical for: WHT_RATES, VAT_REGISTRATION_THRESHOLD, CGT_RATE (C-04/C-10)
-export * from './constants';
+// ─── sync exports ─────────────────────────────────────────────────────────────
+export * from './sync';
