@@ -22,9 +22,10 @@
 ### Admin Dashboard (Vercel)
 - **URL:** https://taxbridge.vercel.app
 - **Status:** ✅ Deployed (Feb 11, 2026)
-- **Build:** Successful (1m build time)
+- **Build:** Successful (webpack-based, 1m build time)
 - **Environment:** Production
 - **Framework:** Next.js 16.1.1
+- **Degraded-state:** Fallback payloads when backend warming up (no 503s; warning banners in UI)
 - **Commit:** daf5a97809f378c9b5e6da53ea8087d7aee29c2e
 
 ### Mobile App (EAS)

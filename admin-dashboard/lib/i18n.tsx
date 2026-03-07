@@ -679,6 +679,7 @@ const messages: Record<AdminLanguage, Messages> = {
     'invoices.loading': 'Loading invoices…',
     'invoices.empty.title': 'No invoices yet',
     'invoices.empty.message': 'Invoices will appear here once users start submitting them.',
+    'invoices.empty.warmup': 'Invoice data is temporarily unavailable while the backend is warming up.',
 
     // Conflict resolution
     'conflicts.error.adminRequired': 'Admin User ID is required',
@@ -1129,6 +1130,7 @@ const messages: Record<AdminLanguage, Messages> = {
     'invoices.loading': 'Dey load invoices…',
     'invoices.empty.title': 'No invoices yet',
     'invoices.empty.message': 'Invoices go show here when users start to submit dem.',
+    'invoices.empty.warmup': 'Invoice data no dey available yet while backend still dey warm up.',
 
     // Conflict resolution
     'conflicts.error.adminRequired': 'Admin User ID dey required',

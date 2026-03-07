@@ -16,6 +16,8 @@ import { useAdminI18n } from '@/lib/i18n';
 import { chartColors } from '@/lib/colors';
 
 interface AnalyticsData {
+  fallback?: boolean;
+  warnings?: string[];
   overview: {
     totalUsers: number;
     totalInvoices: number;
@@ -149,10 +151,25 @@ export default function AnalyticsPage() {
   }
 
   const COLORS = chartColors.palette;
+  const isFallback = Boolean(analytics.fallback);
 
   return (
     <DashboardLayout>
       <div className="space-y-6">
+        {isFallback && analytics.warnings && analytics.warnings.length > 0 && (
+          <Alert className="border-amber-300 bg-amber-50">
+            <AlertTitle className="text-amber-900">{t('dashboard.warnings.dataTitle')}</AlertTitle>
+            <AlertDescription className="text-amber-800">
+              <div className="space-y-1">
+                {analytics.warnings.map((warning, index) => (
+                  <p key={`${warning}-${index}`}>
+                    {t(`dashboard.warnings.code.${warning}` as Parameters<typeof t>[0], { defaultValue: warning })}
+                  </p>
+                ))}
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-3xl font-bold">{t('analytics.title')}</h1>
@@ -176,6 +193,7 @@ export default function AnalyticsPage() {
           <Button 
             variant="outline"
             onClick={() => exportToCSV(analytics.duploMetrics.successTrend, 'duplo-metrics.csv')}
+            disabled={isFallback}
           >
             <Download className="mr-2 h-4 w-4" />
             {t('analytics.exportCsv')}

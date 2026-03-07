@@ -44,6 +44,12 @@ interface Invoice {
   };
 }
 
+interface InvoiceListResponse {
+  invoices: Invoice[];
+  fallback?: boolean;
+  warnings?: string[];
+}
+
 const fetcher = <T,>(url: string): Promise<T> => fetchJson<T>(url);
 
 export default function InvoicesPage() {
@@ -56,9 +62,12 @@ export default function InvoicesPage() {
   const [resubmittingInvoiceId, setResubmittingInvoiceId] = useState<string | null>(null);
   const { t } = useAdminI18n();
 
-  const { data: invoices, error, mutate } = useSWR<Invoice[]>('/api/admin/invoices', fetcher, {
+  const { data, error, mutate } = useSWR<InvoiceListResponse>('/api/admin/invoices', fetcher, {
     refreshInterval: 30000,
   });
+  const invoices = data?.invoices ?? [];
+  const isFallback = Boolean(data?.fallback);
+  const warnings = data?.warnings ?? [];
 
   const handleDuploResubmit = async (invoiceId: string) => {
     try {
@@ -174,6 +183,20 @@ export default function InvoicesPage() {
     return (
       <DashboardLayout>
         <div className="space-y-6">
+          {isFallback && warnings.length > 0 && (
+            <Alert className="border-amber-300 bg-amber-50">
+              <AlertTitle className="text-amber-900">{t('dashboard.warnings.dataTitle')}</AlertTitle>
+              <AlertDescription className="text-amber-800">
+                <div className="space-y-1">
+                  {warnings.map((warning, idx) => (
+                    <p key={`${warning}-${idx}`}>
+                      {t(`dashboard.warnings.code.${warning}` as Parameters<typeof t>[0], { defaultValue: warning })}
+                    </p>
+                  ))}
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
           <div className="flex justify-between items-center">
             <div>
               <h1 className="text-3xl font-bold">{t('invoices.title')}</h1>
@@ -188,7 +211,9 @@ export default function InvoicesPage() {
             <CardContent className="flex flex-col items-center justify-center py-16">
               <FileText className="h-12 w-12 text-muted-foreground mb-4" />
               <h2 className="text-xl font-semibold mb-2">{t('invoices.empty.title')}</h2>
-              <p className="text-muted-foreground text-center max-w-md">{t('invoices.empty.message')}</p>
+              <p className="text-muted-foreground text-center max-w-md">
+                {isFallback ? t('invoices.empty.warmup') : t('invoices.empty.message')}
+              </p>
             </CardContent>
           </Card>
         </div>
@@ -199,6 +224,20 @@ export default function InvoicesPage() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
+        {isFallback && warnings.length > 0 && (
+          <Alert className="border-amber-300 bg-amber-50">
+            <AlertTitle className="text-amber-900">{t('dashboard.warnings.dataTitle')}</AlertTitle>
+            <AlertDescription className="text-amber-800">
+              <div className="space-y-1">
+                {warnings.map((warning, idx) => (
+                  <p key={`${warning}-${idx}`}>
+                    {t(`dashboard.warnings.code.${warning}` as Parameters<typeof t>[0], { defaultValue: warning })}
+                  </p>
+                ))}
+              </div>
+            </AlertDescription>
+          </Alert>
+        )}
         {notice && (
           <Alert variant={notice.variant}>
             <AlertTitle>{notice.title}</AlertTitle>

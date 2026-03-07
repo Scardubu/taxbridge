@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { BackendAPIError, requestBackend } from '@/lib/backend';
+import { requestBackend } from '@/lib/backend';
+import { fallbackJson, getBackendFailureContext } from '@/lib/adminApiFallback';
 import { logError } from '@/lib/logger';
 
 export async function GET(request: NextRequest) {
@@ -23,12 +24,20 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(data.invoices || data);
   } catch (error) {
     logError('admin/api/invoices: Error fetching invoices', error);
-    const statusCode = error instanceof BackendAPIError ? error.status : 500;
-    const message = error instanceof BackendAPIError ? error.details || error.message : 'Unknown error';
-    const code = error instanceof BackendAPIError ? error.code : undefined;
+    const { status, code, message, backendUnavailable } = getBackendFailureContext(
+      error,
+      'Admin invoices are not enabled for this environment.'
+    );
+
+    if (backendUnavailable) {
+      return fallbackJson({
+        invoices: [],
+      });
+    }
+
     return NextResponse.json(
       { error: 'Failed to fetch invoices', message, ...(code && { code }) },
-      { status: statusCode }
+      { status }
     );
   }
 }

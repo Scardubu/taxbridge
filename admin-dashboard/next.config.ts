@@ -1,4 +1,7 @@
+import { createRequire } from 'module';
 import type { NextConfig } from "next";
+
+const require = createRequire(import.meta.url);
 
 const nextConfig: NextConfig = {
   // Use default output for Vercel compatibility
@@ -42,6 +45,21 @@ const nextConfig: NextConfig = {
     removeConsole: process.env.NODE_ENV === 'production' ? {
       exclude: ['error', 'warn'],
     } : false,
+  },
+
+  webpack: (config) => {
+    config.resolve = config.resolve || {};
+    config.resolve.alias = {
+      ...(config.resolve.alias || {}),
+      '@radix-ui/react-dialog': require.resolve('@radix-ui/react-dialog'),
+      '@radix-ui/react-dropdown-menu': require.resolve('@radix-ui/react-dropdown-menu'),
+      '@radix-ui/react-popper': require.resolve('@radix-ui/react-popper'),
+      '@radix-ui/react-select': require.resolve('@radix-ui/react-select'),
+      '@radix-ui/react-roving-focus': require.resolve('@radix-ui/react-roving-focus'),
+      '@radix-ui/react-dismissable-layer': require.resolve('@radix-ui/react-dismissable-layer'),
+      '@radix-ui/react-tabs': require.resolve('@radix-ui/react-tabs'),
+    };
+    return config;
   },
 
   async headers() {

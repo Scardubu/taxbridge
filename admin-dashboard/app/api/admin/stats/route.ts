@@ -1,25 +1,7 @@
 import { NextResponse } from 'next/server';
-import { BackendAPIError, requestBackend } from '@/lib/backend';
+import { requestBackend } from '@/lib/backend';
+import { fallbackJson, getBackendFailureContext } from '@/lib/adminApiFallback';
 import { logError } from '@/lib/logger';
-
-function tryParseJson(value?: string): unknown {
-  if (!value) return undefined;
-  try {
-    return JSON.parse(value);
-  } catch {
-    return undefined;
-  }
-}
-
-function extractUpstreamError(details?: string): { upstreamError?: string; upstreamCode?: string } {
-  const parsed = tryParseJson(details);
-  if (!parsed || typeof parsed !== 'object') return { upstreamError: details };
-
-  const record = parsed as Record<string, unknown>;
-  const upstreamError = typeof record.error === 'string' ? record.error : undefined;
-  const upstreamCode = typeof record.code === 'string' ? record.code : undefined;
-  return { upstreamError, upstreamCode };
-}
 
 export async function GET() {
   try {
@@ -27,18 +9,10 @@ export async function GET() {
     return NextResponse.json(data);
   } catch (error) {
     logError('admin/api/stats: Error fetching stats', error);
-
-    const status = error instanceof BackendAPIError ? error.status : 500;
-    const { upstreamError, upstreamCode } =
-      error instanceof BackendAPIError ? extractUpstreamError(error.details) : { upstreamError: undefined, upstreamCode: undefined };
-
-    const code = upstreamCode || (upstreamError === 'Admin API disabled' ? 'ADMIN_API_DISABLED' : undefined) || (error instanceof BackendAPIError ? error.code : undefined);
-    const message =
-      code === 'ADMIN_API_DISABLED'
-        ? 'Admin analytics is not enabled for this environment.'
-        : upstreamError || (error instanceof BackendAPIError ? error.message : 'Unknown error');
-
-    const backendUnavailable = status >= 500 || code === 'BACKEND_NOT_CONFIGURED' || code === 'ADMIN_API_DISABLED';
+    const { status, code, message, backendUnavailable } = getBackendFailureContext(
+      error,
+      'Admin analytics is not enabled for this environment.'
+    );
 
     if (!backendUnavailable) {
       return NextResponse.json(
@@ -51,9 +25,8 @@ export async function GET() {
       );
     }
 
-    return NextResponse.json(
+    return fallbackJson(
       {
-        fallback: true,
         totalUsers: 0,
         totalInvoices: 0,
         totalPayments: 0,
@@ -63,14 +36,6 @@ export async function GET() {
         remitaLatency: null,
         duploSuccessTrend: [],
         remitaTransactions: [],
-        warnings: ['backend_warming_up'],
-      },
-      {
-        status: 200,
-        headers: {
-          'Cache-Control': 'no-store',
-          'X-Fallback': 'true',
-        },
       }
     );
   }

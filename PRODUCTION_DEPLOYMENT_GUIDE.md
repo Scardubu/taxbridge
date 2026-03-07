@@ -227,11 +227,16 @@ ADMIN_API_KEY=[admin_key]
 ### 5.3 Deploy
 
 ```bash
+# Admin build uses webpack + clean script (see admin-dashboard/README.md)
+cd admin-dashboard && npm run build
+
 # Vercel automatically deploys from main branch
 git push origin main
 
 # Access at: https://admin.taxbridge.ng
 ```
+
+**Note:** The admin dashboard uses degraded-state fallbacks when the backend is warming up (e.g., Render cold start). No 503s; warning banners are shown instead.
 
 ---
 

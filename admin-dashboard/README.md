@@ -90,9 +90,12 @@ admin-dashboard/
 │       ├── dialog.tsx
 │       └── ...
 ├── lib/
+│   ├── adminApiFallback.ts  # Backend-unavailable fallback helpers
 │   ├── duplo.ts             # Duplo API client
 │   ├── remita.ts            # Remita API client
 │   └── utils.ts             # Utility functions
+├── scripts/
+│   └── clean-next.cjs       # Cross-platform .next cleanup
 ├── public/                  # Static assets
 └── __tests__/               # Test files
 ```
@@ -296,7 +299,7 @@ vercel
 ### Build Commands
 
 ```bash
-# Production build
+# Production build (runs clean + webpack; Radix-compatible)
 npm run build
 
 # Start production server
@@ -305,6 +308,10 @@ npm start
 # Lint check
 npm run lint
 ```
+
+**Build Notes:**
+- Production builds use **webpack** (not Turbopack) for compatibility with Radix UI packages.
+- The build script automatically runs `scripts/clean-next.cjs` before `next build` to avoid stale cache issues (especially on Windows).
 
 ---
 
@@ -386,13 +393,23 @@ Applied via Next.js middleware:
 
 ## 🔧 Troubleshooting
 
+### Degraded State (Backend Warming Up)
+
+When the backend API is unavailable (e.g., cold start on Render), the admin dashboard shows a **degraded-state** experience instead of failing:
+
+- **Stats, Analytics, Invoices, Launch Metrics** API routes return fallback payloads with `fallback: true` and `warnings: ['backend_warming_up']`.
+- Dashboard pages display a warning banner and avoid misleading empty states.
+- CSV export is disabled when in fallback mode.
+- Use `lib/adminApiFallback.ts` helpers (`getBackendFailureContext`, `fallbackJson`) for consistent handling.
+
 ### Common Issues
 
 | Issue | Solution |
 |-------|----------|
 | API health errors | Check `BACKEND_URL` in `.env.local` |
 | Duplo auth fails | Verify client credentials |
-| Build fails | Clear `.next` folder |
+| Build fails | Run `npm run clean` then `npm run build` |
+| Radix/Turbopack errors | Build uses webpack; ensure `next build --webpack` |
 | SWR not updating | Check refresh intervals |
 
 ### Debug Mode

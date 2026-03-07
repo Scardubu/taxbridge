@@ -53,6 +53,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Zero schema.parse() in handlers, zero hardcoded rates outside constants.ts
 - All tax rates from @taxbridge/contracts only
 
+### Phase 3.5 — Admin Dashboard Production Hardening
+- **Degraded-state handling** — Admin API routes (stats, analytics, invoices, launch-metrics) return fallback payloads with `fallback: true` and `warnings: ['backend_warming_up']` when backend is unavailable (e.g., Render cold start). `lib/adminApiFallback.ts` provides `getBackendFailureContext`, `fallbackJson`, `BACKEND_WARMUP_WARNING`.
+- **UI fallback display** — Dashboard pages show warning banners and avoid misleading empty states; CSV export disabled when in fallback mode. i18n key `invoices.empty.warmup` added (EN + Pidgin).
+- **Production build fixes** — Switched to webpack (`next build --webpack`) for Radix UI compatibility; webpack aliases for Radix packages to CommonJS entrypoints. Added `detect-node-es`, `@floating-ui/dom` dependencies.
+- **Clean script** — `scripts/clean-next.cjs` for cross-platform `.next` cleanup (PowerShell on Windows, `rm -rf` on Unix) before build.
+
 ---
 
 ## [4.3.1] - 2026-03-03 - V12 Integration Wiring · Biometric Auth · Final Gate Closure
