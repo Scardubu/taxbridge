@@ -42,6 +42,22 @@ enum OrgStatus {
   pending_verification
 }
 
+enum NilReason {
+  NO_REVENUE_THIS_PERIOD
+  BUSINESS_INACTIVE
+  EXEMPT_SUPPLY_ONLY
+  BELOW_REGISTRATION_THRESHOLD
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  OWNER
+  ACCOUNTANT
+  EMPLOYEE
+  VIEWER
+}
+
 model User {
   id                     String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   phone                  String
@@ -985,6 +1001,76 @@ model UserDevice {
   @@unique([userId, pushToken])
   @@index([userId, active])
   @@map("user_devices")
+}
+
+// ============================================
+// SME Risk Record — V12.0 Risk Scoring (§2.5)
+// ============================================
+
+model SMERiskRecord {
+  id              String    @id @default(uuid()) @db.Uuid
+  orgId           String    @map("org_id") @db.Uuid
+  score           Int
+  band            RiskBand
+  filingScore     Int       @default(0) @map("filing_score")
+  anomalyScore    Int       @default(0) @map("anomaly_score")
+  healthScore     Int       @default(0) @map("health_score")
+  vatScore        Int       @default(0) @map("vat_score")
+  dataScore       Int       @default(0) @map("data_score")
+  computedAt      DateTime  @default(now()) @map("computed_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@index([band, computedAt])
+  @@index([score])
+  @@index([orgId])
+  @@map("sme_risk_records")
+}
+
+// ============================================
+// VATCreditBalance — V12.0 VAT Credit Tracking (C-22)
+// ============================================
+
+model VATCreditBalance {
+  id                String    @id @default(uuid()) @db.Uuid
+  orgId             String    @map("org_id") @db.Uuid
+  period            String
+  creditAmount      Decimal   @db.Decimal(15, 2) @map("credit_amount")
+  usedAmount        Decimal   @default(0) @db.Decimal(15, 2) @map("used_amount")
+  usedInPeriod      String?   @map("used_in_period")
+  carriedFromPeriod String?   @map("carried_from_period")
+  refundClaimed     Boolean   @default(false) @map("refund_claimed")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  @@index([orgId, usedInPeriod, refundClaimed])
+  @@index([orgId, period])
+  @@map("vat_credit_balances")
+}
+
+// ============================================
+// TaxReturn — V12.0 Filing Records
+// ============================================
+
+model TaxReturn {
+  id                String    @id @default(uuid()) @db.Uuid
+  orgId             String    @map("org_id") @db.Uuid
+  taxType           String    @map("tax_type")
+  period            String
+  status            String    @default("draft")
+  filingReference   String?   @unique @map("filing_reference")
+  submittedAt       DateTime? @map("submitted_at")
+  receiptUrl        String?   @map("receipt_url")
+  nilReason         String?   @map("nil_reason")
+  amount            Decimal?  @db.Decimal(15, 2)
+  metadata          Json      @default("{}")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  @@unique([orgId, taxType, period])
+  @@index([orgId, taxType, submittedAt])
+  @@index([status])
+  @@map("tax_returns")
 }
 
 // ============================================

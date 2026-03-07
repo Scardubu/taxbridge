@@ -8,7 +8,7 @@
  *
  * C-19 (Silent anomaly empty state):
  *   When anomalies section passes empty={null}, nothing renders when list is empty.
- *   Never show "No anomalies found" — it misleads users.
+ *   When empty, render nothing — zero UI output prevents misleading users.
  */
 
 import React from 'react';

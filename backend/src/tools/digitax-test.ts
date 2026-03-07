@@ -1,8 +1,11 @@
 import dotenv from 'dotenv';
 import { submitToDigiTax } from '../integrations/digitax/adapter';
 import { generateUBL } from '../lib/ubl/generator';
+import { createLogger } from '../lib/logger';
 
 dotenv.config();
+
+const log = createLogger('digitax-test');
 
 async function run() {
   const mockMode = String(process.env.DIGITAX_MOCK_MODE || 'true').toLowerCase() !== 'false';
@@ -28,10 +31,10 @@ async function run() {
     }
   );
 
-  console.log('Digitax submit result:', res);
+  log.info('Digitax submit result', { result: res });
 }
 
 run().catch((err) => {
-  console.error('Digitax test failed:', err);
+  log.error('Digitax test failed', { err });
   process.exit(1);
 });

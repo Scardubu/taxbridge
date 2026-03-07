@@ -14,7 +14,7 @@ import fs from 'fs';
 import path from 'path';
 
 // ─── Module Registry ─────────────────────────────────────────────────────────
-// The 11 required prompt modules for TaxBridge V12 Apex execution.
+// The 13 required prompt modules for TaxBridge V12 Apex execution.
 // Each entry is relative to the workspace root.
 
 const REQUIRED_PROMPT_MODULES: Array<{ file: string; description: string }> = [
@@ -66,6 +66,10 @@ const REQUIRED_PROMPT_MODULES: Array<{ file: string; description: string }> = [
     file: 'prompts/taxbridge_production_architecture_module.md',
     description: 'V12 — Production Architecture Module',
   },
+  {
+    file: 'prompts/v12_complementary_architecture.md',
+    description: 'V12 — Complementary Architecture',
+  },
 ];
 
 // ─── Run ─────────────────────────────────────────────────────────────────────
@@ -80,7 +84,7 @@ interface Result {
 }
 
 function verifyPrompts(): void {
-  console.log('\nTaxBridge V12 — Prompt Module Verification (COMP-09 — 12 modules)');
+  console.log('\nTaxBridge V12 — Prompt Module Verification (COMP-09)');
   console.log('='.repeat(60));
 
   const results: Result[] = REQUIRED_PROMPT_MODULES.map(({ file, description }) => {

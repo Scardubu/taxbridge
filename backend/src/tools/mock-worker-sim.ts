@@ -1,8 +1,11 @@
 import dotenv from 'dotenv';
 import { generateUBL } from '../lib/ubl/generator';
 import { submitToDigiTax } from '../integrations/digitax/adapter';
+import { createLogger } from '../lib/logger';
 
 dotenv.config();
+
+const log = createLogger('mock-worker-sim');
 
 async function run() {
   const invoice = {
@@ -23,7 +26,7 @@ async function run() {
 
   const ublXml = generateUBL(invoice as any);
 
-  console.log('Generated UBL (truncated):', ublXml.slice(0, 200));
+  log.info('Generated UBL (truncated)', { ubl: ublXml.slice(0, 200) });
 
   const res = await submitToDigiTax(
     { invoiceId: invoice.id, ublXml },
@@ -35,10 +38,10 @@ async function run() {
     }
   );
 
-  console.log('Submit result:', res);
+  log.info('Submit result', { result: res });
 }
 
 run().catch((err) => {
-  console.error('mock-worker-sim failed:', err);
+  log.error('mock-worker-sim failed', { err });
   process.exit(1);
 });

@@ -125,7 +125,7 @@ async function checkPriorPeriodGap(orgId: string, taxType: string): Promise<PreF
       select:  { submittedAt: true, period: true },
     });
     if (!lastFiling) {
-      return [{ code: 'FIRST_FILING', severity: 'ok', message: 'First filing for this tax type.' }];
+      return [{ code: 'INITIAL_FILING', severity: 'ok', message: 'Initial filing for this tax type.' }];
     }
     const daysSince = Math.floor(
       (Date.now() - new Date(lastFiling.submittedAt).getTime()) / 86_400_000,
