@@ -1,22 +1,25 @@
 import dotenv from 'dotenv';
+import { createLogger } from '../lib/logger';
 
 dotenv.config();
 
+const log = createLogger('ping-digitax');
+
 async function run() {
   const url = process.env.DIGITAX_API_URL || 'https://sandbox.digitax.com/api';
-  console.log('Pinging', url);
+  log.info('Pinging', { url });
   try {
     const res = await fetch(url, { method: 'GET' });
-    console.log('status', res.status);
+    log.info('Response status', { status: res.status });
     const text = await res.text().catch(() => '');
-    console.log(text.slice(0, 500));
+    log.info('Response body', { body: text.slice(0, 500) });
   } catch (err: any) {
-    console.error('ping failed:', err?.message || err);
+    log.error('Ping failed', { err: err?.message || err });
     process.exit(1);
   }
 }
 
 run().catch((e) => {
-  console.error('error', e);
+  log.error('Error', { err: e });
   process.exit(1);
 });

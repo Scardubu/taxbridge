@@ -2,9 +2,11 @@ import dotenv from 'dotenv';
 import { prisma } from '../lib/prisma';
 import { getInvoiceSyncQueue } from '../queue/client';
 import { calculateInvoiceTotals } from '../utils/taxCalculator';
+import { createLogger } from '../lib/logger';
 
 dotenv.config();
 
+const log = createLogger('enqueue-invoice');
 
 async function run() {
   // create a test user
@@ -36,22 +38,22 @@ async function run() {
     }
   });
 
-  console.log('Created invoice', invoice.id);
+  log.info('Created invoice', { invoiceId: invoice.id });
 
   const queue = getInvoiceSyncQueue();
   if (!queue) {
-    console.warn('Queue unavailable - invoice will be processed synchronously');
+    log.warn('Queue unavailable - invoice will be processed synchronously');
     return;
   }
   
   await queue.add('sync', { invoiceId: invoice.id });
 
-  console.log('Enqueued invoice job for', invoice.id);
+  log.info('Enqueued invoice job for', { invoiceId: invoice.id });
 }
 
 run()
   .then(() => process.exit(0))
   .catch((err) => {
-    console.error('enqueue failed', err);
+    log.error('enqueue failed', { err });
     process.exit(1);
   });

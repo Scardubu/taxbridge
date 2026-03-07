@@ -146,7 +146,8 @@ export const TaxHealthGauge = memo(function TaxHealthGauge({
     // Always animate from 0 → score on mount — gives "loading your result" feel
     // C-16: uses DURATION.slow + EASE.gauge (never raw numeric durations)
     progress.value = 0;
-    progress.value = withTiming(score / 100, {
+    const MAX_SCORE = 100;
+    progress.value = withTiming(score / MAX_SCORE, {
       duration: DURATION.slow,
       easing:   EASE.gauge,
     });

@@ -111,7 +111,8 @@ export const Toast: React.FC<ToastProps> = ({
   }, []);
 
   const handleDismiss = () => {
-    translateY.value = withTiming(-100, { duration: DURATION.fast });
+    const DISMISS_Y = -100; // px offset — not a timing value
+    translateY.value = withTiming(DISMISS_Y, { duration: DURATION.fast });
     opacity.value = withTiming(0, { duration: DURATION.fast }, (finished) => {
       if (finished) {
         runOnJS(onDismiss)();

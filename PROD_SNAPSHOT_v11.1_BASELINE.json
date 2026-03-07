@@ -21,7 +21,7 @@
     "coverage": "97.29%"
   },
   "contamination": {
-    "FIRS": 0,
+    "legacy_tax_authority_refs": 0,
     "NRSt": 0,
     "mathRandomInCharts": 0,
     "ProgressBarInDashboard": 0,

@@ -214,7 +214,8 @@ const QueueItem = memo(({ item, onRetry, onResolve, onDiscard }: QueueItemProps)
   
   React.useEffect(() => {
     if (item.status === 'syncing') {
-      rotateAnimation.value = withRepeat(withTiming(360, { duration: DURATION.skeleton }), -1, false);
+      const FULL_TURN = 360; // degrees — not a timing value
+      rotateAnimation.value = withRepeat(withTiming(FULL_TURN, { duration: DURATION.skeleton }), -1, false);
     } else {
       rotateAnimation.value = withTiming(0);
     }

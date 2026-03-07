@@ -175,7 +175,8 @@ export const HealthRing = memo(function HealthRing({
   const totalProgress = useSharedValue(0);
 
   useEffect(() => {
-    totalProgress.value = withTiming(totalScore / 100, {
+    const MAX_SCORE = 100;
+    totalProgress.value = withTiming(totalScore / MAX_SCORE, {
       duration: DURATION.slow,
       easing:   EASE.gauge,
     });

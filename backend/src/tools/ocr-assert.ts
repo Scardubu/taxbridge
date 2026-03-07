@@ -1,12 +1,15 @@
 import performOCR from '../lib/performOCR';
 import fs from 'fs';
 import path from 'path';
+import { createLogger } from '../lib/logger';
+
+const log = createLogger('ocr-assert');
 
 async function main() {
   const imgArg = process.argv[2] || path.resolve(__dirname, '../../docs/receipt.jpeg');
   const imgPath = path.isAbsolute(imgArg) ? imgArg : path.resolve(process.cwd(), imgArg);
   if (!fs.existsSync(imgPath)) {
-    console.error('Image not found:', imgPath);
+    log.error('Image not found', { imgPath });
     process.exit(2);
   }
 
@@ -14,19 +17,19 @@ async function main() {
   const base64 = b.toString('base64');
   try {
     const res = await performOCR(base64, 'image/jpeg');
-    console.log('OCR assert result:', res);
+    log.info('OCR assert result', { result: res });
     if ((res.confidence || 0) < 0.6) {
-      console.error('Confidence too low:', res.confidence);
+      log.error('Confidence too low', { confidence: res.confidence });
       process.exit(3);
     }
     if (!res.amount || res.amount < 1 || res.amount > 10_000_000) {
-      console.error('Amount out of range:', res.amount);
+      log.error('Amount out of range', { amount: res.amount });
       process.exit(4);
     }
-    console.log('OCR assertions passed');
+    log.info('OCR assertions passed');
     process.exit(0);
   } catch (err) {
-    console.error('OCR assert failed:', err);
+    log.error('OCR assert failed', { err });
     process.exit(5);
   }
 }

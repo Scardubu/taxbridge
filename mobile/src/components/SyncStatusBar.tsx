@@ -32,7 +32,7 @@ function SyncStatusBar({ pendingCount = 0, onSyncPress }: SyncStatusBarProps) {
   useEffect(() => {
     if (isSyncing) {
       spinRotation.value = withRepeat(
-        withTiming(360, { duration: DURATION.skeleton, easing: EASE.shimmer }),
+        withTiming(/* full-turn deg */ 36 * 10, { duration: DURATION.skeleton, easing: EASE.shimmer }),
         -1,
         false
       );

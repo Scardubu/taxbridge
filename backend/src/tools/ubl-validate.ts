@@ -123,34 +123,33 @@ async function main() {
     const validation = validateUBLStructure(ublXml);
 
     // Log results
-    console.log('\n' + '='.repeat(80));
-    console.log('UBL 3.0 VALIDATION RESULTS');
-    console.log('='.repeat(80));
-    console.log(`Status: ${validation.valid ? '✅ VALID' : '❌ INVALID'}`);
-    console.log(`Present fields: ${validation.presentFields.length}/${PEPPOL_MANDATORY_FIELDS.length}`);
+    log.info('\n' + '='.repeat(80));
+    log.info('UBL 3.0 VALIDATION RESULTS');
+    log.info('='.repeat(80));
+    log.info(`Status: ${validation.valid ? '✅ VALID' : '❌ INVALID'}`);
+    log.info(`Present fields: ${validation.presentFields.length}/${PEPPOL_MANDATORY_FIELDS.length}`);
     
     if (validation.missingFields.length > 0) {
-      console.log(`\n❌ Missing mandatory fields (${validation.missingFields.length}):`);
-      validation.missingFields.forEach(field => console.log(`  - ${field}`));
+      log.info(`\n❌ Missing mandatory fields (${validation.missingFields.length}):`);
+      validation.missingFields.forEach(field => log.info(`  - ${field}`));
     }
 
     if (validation.errors.length > 0) {
-      console.log(`\n❌ Errors (${validation.errors.length}):`);
-      validation.errors.forEach(err => console.log(`  - ${err}`));
+      log.info(`\n❌ Errors (${validation.errors.length}):`);
+      validation.errors.forEach(err => log.info(`  - ${err}`));
     }
 
     if (validation.warnings.length > 0) {
-      console.log(`\n⚠️  Warnings (${validation.warnings.length}):`);
-      validation.warnings.forEach(warn => console.log(`  - ${warn}`));
+      log.info(`\n⚠️  Warnings (${validation.warnings.length}):`);
+      validation.warnings.forEach(warn => log.info(`  - ${warn}`));
     }
 
-    console.log('='.repeat(80) + '\n');
+    log.info('='.repeat(80) + '\n');
 
     // Exit with appropriate code
     process.exit(validation.valid ? 0 : 1);
   } catch (error) {
-    log.error('Validation failed:', { err: error });
-    console.error('\n❌ Validation script failed:', error);
+    log.error('Validation script failed', { err: error });
     process.exit(1);
   }
 }

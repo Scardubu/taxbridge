@@ -31,9 +31,9 @@ interface RateLimitOptions {
   /** Custom key generator (defaults to IP-based) */
   keyGenerator?: (request: FastifyRequest) => string;
   /** GAP-09: always true — X-RateLimit-* headers on every response */
-  standardHeaders?: true;
+  standardHeaders: true;
   /** Legacy X-RateLimit headers disabled */
-  legacyHeaders?: false;
+  legacyHeaders: false;
 }
 
 /**
@@ -123,3 +123,15 @@ setInterval(() => {
     }
   }
 }, 60_000).unref();
+
+/**
+ * C-30: Dedicated auth rate limiter — 10 requests per 15-minute window per IP.
+ * Applied to POST /login and other sensitive auth endpoints.
+ */
+export const authRateLimit = rateLimit({
+  max: 10,
+  windowMs: 15 * 60_000,
+  keyPrefix: 'auth:login',
+  standardHeaders: true,
+  legacyHeaders: false,
+});

@@ -400,7 +400,7 @@
       "id": "c764d1ba16c3f600",
       "moduleId": "M00",
       "heading": "ABSOLUTE RULES (Violation = Revert)",
-      "content": "## ABSOLUTE RULES (Violation = Revert)\n\n```\nR01  Prisma types → use `any`, never Prisma.XxxWhereInput (commit 218972e constraint)\nR02  NRS only → zero FIRS references in code, comments, copy, or i18n values\nR03  Tests → 423+ backend tests must pass before any commit\nR04  Offline first → every mobile feature works with airplane mode active\nR05  Bilingual → every user-facing string needs en + pidgin variants in i18n files\nR06  Graceful fallback → network failures degrade gracefully, never crash\nR07  compileSdkVersion → must stay at 36 (camera lib requirement)\nR08  EAS cache key → v7-* current; bump to v8-* only if native deps change\nR09  Tax calculations → only in packages/contracts, never inline in components\nR10  Secrets → only in environment variables, validated at startup\n```\n\n---",
+      "content": "## ABSOLUTE RULES (Violation = Revert)\n\n```\nR01  Prisma types → use `any`, never Prisma.XxxWhereInput (commit 218972e constraint)\nR02  NRS only → zero legacy tax authority references in code, comments, copy, or i18n values\nR03  Tests → 423+ backend tests must pass before any commit\nR04  Offline first → every mobile feature works with airplane mode active\nR05  Bilingual → every user-facing string needs en + pidgin variants in i18n files\nR06  Graceful fallback → network failures degrade gracefully, never crash\nR07  compileSdkVersion → must stay at 36 (camera lib requirement)\nR08  EAS cache key → v7-* current; bump to v8-* only if native deps change\nR09  Tax calculations → only in packages/contracts, never inline in components\nR10  Secrets → only in environment variables, validated at startup\n```\n\n---",
       "embedding": [
         0.5607843137254902,
         -0.21568627450980393,
@@ -1582,7 +1582,7 @@
       "id": "44b56974bb136f77",
       "moduleId": "M00",
       "heading": "PRE-COMMIT CHECKLIST",
-      "content": "## PRE-COMMIT CHECKLIST\n\n```bash\ncd backend && npx tsc --noEmit                         # Zero TS errors\ncd backend && npm test                                 # 423+ passing\ngrep -r \"FIRS\" backend/src mobile/src --include=\"*.ts\" # Must return 0 results\npwsh scripts/validate-production-readiness.ps1         # All checks green\n```",
+      "content": "## PRE-COMMIT CHECKLIST\n\n```bash\ncd backend && npx tsc --noEmit                         # Zero TS errors\ncd backend && npm test                                 # 423+ passing\ngrep -r \"legacy_tax_ref\" backend/src mobile/src --include=\"*.ts\" # Must return 0 results\npwsh scripts/validate-production-readiness.ps1         # All checks green\n```",
       "embedding": [
         -0.4666666666666667,
         0.41960784313725497,
@@ -8280,7 +8280,7 @@
       "id": "2c2d829ffe677520",
       "moduleId": "M02",
       "heading": "OFFLINE PATTERN",
-      "content": "## OFFLINE PATTERN\n\n```typescript\n// Every screen that needs data must:\n// 1. Read from SQLite FIRST (instant, offline-safe)\n// 2. Trigger background sync if online\n// 3. Update UI when sync completes (optimistic UI)\n\n// SQLite tables: invoices, expenses, employees, payroll_runs,\n//               app_settings, sentry_queue, sync_events, vault_index\n\n// Sentry offline queue: failed events stored in sentry_queue table,\n// flushed when NetInfo reports isConnected: true\n```\n\n---",
+      "content": "## OFFLINE PATTERN\n\n```typescript\n// Every screen that needs data must:\n// 1. Read from SQLite initially (instant, offline-safe)\n// 2. Trigger background sync if online\n// 3. Update UI when sync completes (optimistic UI)\n\n// SQLite tables: invoices, expenses, employees, payroll_runs,\n//               app_settings, sentry_queue, sync_events, vault_index\n\n// Sentry offline queue: failed events stored in sentry_queue table,\n// flushed when NetInfo reports isConnected: true\n```\n\n---",
       "embedding": [
         -0.6549019607843137,
         -0.6470588235294117,
@@ -21676,7 +21676,7 @@
       "id": "35db8fc63f3c568c",
       "moduleId": "M06",
       "heading": "CI PIPELINE (GitHub Actions)",
-      "content": "## CI PIPELINE (GitHub Actions)\n\n```yaml\n# .github/workflows/ci.yml — 4 jobs, all must pass for merge\n\njobs:\n  backend-quality:\n    - npm ci\n    - npx tsc --noEmit                              # Zero TS errors\n    - npm test -- --coverage                        # 423+ passing\n    - grep -rn \"FIRS\" backend/src --include=\"*.ts\"  # Must return 0\n    - grep -rn \"NRSt\" mobile/src --include=\"*.json\" # Must return 0\n    - coverage check: tax engine ≥ 97%\n\n  admin-quality:\n    - npm ci\n    - npm run build                                 # Next.js build must succeed\n\n  mobile-quality:\n    - npm ci\n    - npx expo-doctor                               # Zero critical warnings\n    - npx jest --coverage                           # All suites green\n    - grep -rn \"COMMON\\.\" mobile/src/i18n --include=\"*.tsx\" # Raw key check\n\n  tax-compliance:\n    - pwsh scripts/verify-tax-compliance.ps1        # NTA 2025 boundary tests\n```\n\n---",
+      "content": "## CI PIPELINE (GitHub Actions)\n\n```yaml\n# .github/workflows/ci.yml — 4 jobs, all must pass for merge\n\njobs:\n  backend-quality:\n    - npm ci\n    - npx tsc --noEmit                              # Zero TS errors\n    - npm test -- --coverage                        # 423+ passing\n    - grep -rn \"legacy_ref\" backend/src --include=\"*.ts\"  # Must return 0\n    - grep -rn \"NRSt\" mobile/src --include=\"*.json\" # Must return 0\n    - coverage check: tax engine ≥ 97%\n\n  admin-quality:\n    - npm ci\n    - npm run build                                 # Next.js build must succeed\n\n  mobile-quality:\n    - npm ci\n    - npx expo-doctor                               # Zero critical warnings\n    - npx jest --coverage                           # All suites green\n    - grep -rn \"COMMON\\.\" mobile/src/i18n --include=\"*.tsx\" # Raw key check\n\n  tax-compliance:\n    - pwsh scripts/verify-tax-compliance.ps1        # NTA 2025 boundary tests\n```\n\n---",
       "embedding": [
         -0.584313725490196,
         0.7176470588235293,
