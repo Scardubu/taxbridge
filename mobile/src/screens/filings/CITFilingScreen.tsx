@@ -39,6 +39,7 @@ import { apiClient } from '../../services/apiClient';
 import { useTheme } from '../../hooks/useTheme';
 import { COLORS, TYPOGRAPHY, SPACING, RADIUS } from '../../design-system/tokens';
 import { formatNGN } from '../../design-system/ngn';
+import { ConfettiAnimation } from '../../components/shared/ConfettiAnimation';
 
 type WizardStep = 'turnover' | 'pnl' | 'loss' | 'devlevy' | 'edutax' | 'summary' | 'payment' | 'receipt';
 
@@ -81,6 +82,7 @@ export default function CITFilingScreen() {
   const [error,         setError]     = useState<string | null>(null);
   const [assessment,    setAssessment]= useState<any>(null);
   const [receiptUrl,    setReceiptUrl]= useState<string | null>(null);
+  const [showConfetti,  setShowConfetti] = useState(false);
 
   const turnoverNum = parseFloat(turnover) || 0;
   const profitNum   = parseFloat(profit) || 0;
@@ -136,6 +138,7 @@ export default function CITFilingScreen() {
         { headers: { 'X-Idempotency-Key': idempotencyKey } },
       );
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setShowConfetti(true);
       setReceiptUrl(res.data.receiptUrl ?? null);
       setStep('receipt');
     } catch (err: any) {
@@ -155,6 +158,7 @@ export default function CITFilingScreen() {
       style={[s.root, { backgroundColor: colors.surface }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
+      {showConfetti && <ConfettiAnimation onFinish={() => setShowConfetti(false)} />}
       <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
         <Animated.View entering={FadeInDown.duration(300)} style={s.header}>
           <Text style={[s.title, { color: colors.textPrimary }]}>

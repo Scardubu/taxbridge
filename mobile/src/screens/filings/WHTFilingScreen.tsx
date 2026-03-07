@@ -35,6 +35,7 @@ import { apiClient } from '../../services/apiClient';
 import { useTheme } from '../../hooks/useTheme';
 import { COLORS, TYPOGRAPHY, SPACING, RADIUS } from '../../design-system/tokens';
 import { formatNGN } from '../../design-system/ngn';
+import { ConfettiAnimation } from '../../components/shared/ConfettiAnimation';
 
 type WizardStep = 'category' | 'amount' | 'review' | 'confirm';
 
@@ -84,6 +85,7 @@ export default function WHTFilingScreen() {
   const [recipientTIN,     setTIN]      = useState('');
   const [loading,          setLoading]  = useState(false);
   const [error,            setError]    = useState<string | null>(null);
+  const [showConfetti,     setShowConfetti] = useState(false);
 
   const selectedRate = useMemo(
     () => CATEGORIES.find(c => c.key === selectedCategory)?.rate ?? 0,
@@ -123,6 +125,7 @@ export default function WHTFilingScreen() {
         { headers: { 'X-Idempotency-Key': idempotencyKey } },
       );
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setShowConfetti(true);
       Alert.alert(
         t('filing.wht.successTitle', 'WHT Remittance Filed'),
         t('filing.wht.successBody', `WHT of ${formatNGN(whtAmount)} has been filed for ${period}.`),
@@ -145,6 +148,7 @@ export default function WHTFilingScreen() {
       style={[s.root, { backgroundColor: colors.surface }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
+      {showConfetti && <ConfettiAnimation onFinish={() => setShowConfetti(false)} />}
       <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
         <Animated.View entering={FadeInDown.duration(300)} style={s.header}>
           <Text style={[s.title, { color: colors.textPrimary }]}>

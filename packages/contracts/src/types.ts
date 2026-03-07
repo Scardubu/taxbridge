@@ -188,3 +188,16 @@ export interface DeviceInfo {
 }
 
 // CITInput and CITResult are defined in cit.ts — not duplicated here
+
+// ─── Compliance Preflight ────────────────────────────────────────────────────
+
+export interface PreFlightCheck {
+  name:     string;
+  status:   'pass' | 'warn' | 'fail';
+  message?: string;
+}
+
+export interface PreFlightResult {
+  pass:   boolean;
+  checks: PreFlightCheck[];
+}

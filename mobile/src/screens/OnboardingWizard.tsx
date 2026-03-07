@@ -1,12 +1,11 @@
 /**
- * TaxBridge V12 — OnboardingWizard (§6.7)
+ * TaxBridge V13 Sovereign — OnboardingWizard
  *
- * TIN + CAC/RC validation wizard with:
+ * 5-step wizard: TIN → CAC → Obligations → Security (TOTP) → Review
  *   - AsyncStorage offline queue: saves progress locally if API is unreachable
- *   - Resume on relaunch: if OnboardingProgress.completed===false AND currentStep>1
- *   - router.replace('/dashboard') on completion — never router.push (prevents back)
- *
- * Gate: □ OnboardingWizard: router.replace on completion, AsyncStorage resume path
+ *   - Resume on relaunch: if completed===false AND currentStep>1, show resume modal
+ *   - router.replace('Dashboard') on completion — never push (prevents back nav)
+ *   - TOTP step for 2FA recommendation
  */
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -34,8 +33,8 @@ import { COLORS, TYPOGRAPHY, SPACING, RADIUS } from '../design-system/tokens';
 
 // ─── Constants ────────────────────────────────────────────────────────────
 
-const STORAGE_KEY   = 'onboarding_v12_progress';
-const OFFLINE_QUEUE = 'onboarding_v12_offline_queue';
+const STORAGE_KEY   = 'onboarding_v13_progress';
+const OFFLINE_QUEUE = 'onboarding_v13_offline_queue';
 
 const OBLIGATIONS = [
   { id: 'vat',  label: 'Value Added Tax (VAT)',      icon: '🟢' },
@@ -46,12 +45,13 @@ const OBLIGATIONS = [
 ] as const;
 
 type ObligationId = typeof OBLIGATIONS[number]['id'];
-type WizardStep   = 'tin' | 'cac' | 'obligations' | 'review';
+type WizardStep   = 'tin' | 'cac' | 'obligations' | 'security' | 'review';
 
 interface ProgressState {
   step:                WizardStep;
   tinVerified:         boolean;
   cacVerified:         boolean;
+  securityConfirmed:   boolean;
   tin:                 string;
   entityName:          string;
   rcNumber:            string;
@@ -63,6 +63,7 @@ const DEFAULT_PROGRESS: ProgressState = {
   step:                'tin',
   tinVerified:         false,
   cacVerified:         false,
+  securityConfirmed:   false,
   tin:                 '',
   entityName:          '',
   rcNumber:            '',
@@ -140,7 +141,7 @@ function StepHeader({ title, subtitle, step, total }: StepHeaderProps) {
 
 // ─── Main Wizard ──────────────────────────────────────────────────────────
 
-const STEP_ORDER: WizardStep[] = ['tin', 'cac', 'obligations', 'review'];
+const STEP_ORDER: WizardStep[] = ['tin', 'cac', 'obligations', 'security', 'review'];
 
 export default function OnboardingWizard() {
   const { t }              = useTranslation();
@@ -305,11 +306,19 @@ export default function OnboardingWizard() {
       return;
     }
     setError(null);
-    const next: ProgressState = { ...progress, step: 'review' };
+    const next: ProgressState = { ...progress, step: 'security' };
     setProgress(next);
     await saveProgress(next);
-    await syncProgress({ step: 'review', selectedObligations: progress.selectedObligations });
+    await syncProgress({ step: 'security', selectedObligations: progress.selectedObligations });
   }, [progress, t, saveProgress, syncProgress]);
+
+  const handleSecurityContinue = useCallback(async () => {
+    setError(null);
+    const next: ProgressState = { ...progress, securityConfirmed: true, step: 'review' };
+    setProgress(next);
+    await saveProgress(next);
+    await syncProgress({ step: 'review' });
+  }, [progress, saveProgress, syncProgress]);
 
   // ── Complete wizard — router.replace (never push) to prevent back navigation
   const handleComplete = useCallback(async () => {
@@ -462,6 +471,39 @@ export default function OnboardingWizard() {
               accessibilityLabel={t('common.continue', 'Continue')}
             >
               <Text style={s.btnText}>{t('common.continue', 'Continue')}</Text>
+            </Pressable>
+          </Animated.View>
+        )}
+
+        {/* ── Security Step (TOTP) ──────────────────────────────────── */}
+        {progress.step === 'security' && (
+          <Animated.View entering={FadeInRight.duration(300)} key="security">
+            <StepHeader
+              title={t('onboarding.securityTitle', 'Secure Your Account')}
+              subtitle={t('onboarding.securitySubtitle', 'Set up two-factor authentication to protect filings and payments.')}
+              step={stepIndex + 1}
+              total={totalSteps}
+            />
+            <View style={[s.reviewCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <Text style={[s.stepSubtitle, { color: colors.textPrimary, marginBottom: SPACING[8] }]}>
+                {t('onboarding.totpExplainer', 'We strongly recommend enabling TOTP (Authenticator App) for 2FA. You can also configure this later in Settings.')}
+              </Text>
+              <Pressable
+                style={({ pressed }) => [s.btn, pressed && s.btnPressed]}
+                onPress={() => navigation.navigate('TOTPSetup')}
+                accessibilityRole="button"
+                accessibilityLabel={t('onboarding.setupTOTP', 'Set Up TOTP')}
+              >
+                <Text style={s.btnText}>{t('onboarding.setupTOTP', 'Set Up TOTP')}</Text>
+              </Pressable>
+            </View>
+            <Pressable
+              style={({ pressed }) => [s.btn, { backgroundColor: colors.textMuted }, pressed && s.btnPressed]}
+              onPress={handleSecurityContinue}
+              accessibilityRole="button"
+              accessibilityLabel={t('onboarding.skipSecurity', 'Skip for now')}
+            >
+              <Text style={s.btnText}>{t('onboarding.skipSecurity', 'Skip for now')}</Text>
             </Pressable>
           </Animated.View>
         )}

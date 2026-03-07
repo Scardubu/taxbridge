@@ -42,6 +42,7 @@ import { apiClient } from '../../services/apiClient';
 import { useTheme } from '../../hooks/useTheme';
 import { COLORS, TYPOGRAPHY, SPACING, RADIUS } from '../../design-system/tokens';
 import { calculatePenalty } from '@taxbridge/contracts';
+import { ConfettiAnimation } from '../../components/shared/ConfettiAnimation';
 
 // ─── Constants ────────────────────────────────────────────────────────────
 
@@ -111,6 +112,7 @@ export default function NILReturnScreen() {
   const [reason,   setReason]   = useState<NilReasonId>('NO_REVENUE_THIS_PERIOD');
   const [loading,  setLoading]  = useState(false);
   const [error,    setError]    = useState<string | null>(null);
+  const [showConfetti, setShowConfetti] = useState(false);
 
   const isPidgin = i18n.language === 'pidgin';
   const penaltyInfo = useMemo(() => getPenaltyInfo(taxType, period), [taxType, period]);
@@ -128,6 +130,7 @@ export default function NILReturnScreen() {
         { headers: { 'X-Idempotency-Key': idempotencyKey } },
       );
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setShowConfetti(true);
       Alert.alert(
         t('filing.nil.successTitle', 'NIL Return Filed'),
         t('filing.nil.successMessage', `NIL ${taxType} return for ${period} has been submitted.`),
@@ -150,6 +153,7 @@ export default function NILReturnScreen() {
       style={[s.root, { backgroundColor: colors.surface }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
+      {showConfetti && <ConfettiAnimation onFinish={() => setShowConfetti(false)} />}
       <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
         <Animated.View entering={FadeInDown.duration(300)}>
           <Text style={[s.title, { color: colors.textPrimary }]}>

@@ -35,6 +35,7 @@ import { apiClient } from '../../services/apiClient';
 import { useTheme } from '../../hooks/useTheme';
 import { COLORS, TYPOGRAPHY, SPACING, RADIUS } from '../../design-system/tokens';
 import { formatNGN } from '../../design-system/ngn';
+import { ConfettiAnimation } from '../../components/shared/ConfettiAnimation';
 
 // ─── Types ────────────────────────────────────────────────────────────────
 
@@ -85,6 +86,7 @@ export default function VATFilingScreen() {
   const [loading,     setLoading]     = useState(false);
   const [error,       setError]       = useState<string | null>(null);
   const [preflight,   setPreflight]   = useState<{ pass: boolean; warnings: string[]; failures: string[] } | null>(null);
+  const [showConfetti, setShowConfetti] = useState(false);
 
   const net        = outputVAT - inputVAT - creditCarry;
   const daysLeft   = useMemo(() => getDaysToVATDeadline(period), [period]);
@@ -154,6 +156,7 @@ export default function VATFilingScreen() {
         { headers: { 'X-Idempotency-Key': idempotencyKey } },
       );
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setShowConfetti(true);
       Alert.alert(
         t('filing.vat.successTitle', 'VAT Return Filed'),
         res.data.paymentRequired
@@ -178,6 +181,7 @@ export default function VATFilingScreen() {
       style={[s.root, { backgroundColor: colors.surface }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
+      {showConfetti && <ConfettiAnimation onFinish={() => setShowConfetti(false)} />}
       <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
         {/* Header */}
         <Animated.View entering={FadeInDown.duration(300)} style={s.header}>

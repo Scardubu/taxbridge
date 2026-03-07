@@ -17,28 +17,30 @@
  * C-09: Tax math (thresholds) sourced from @taxbridge/contracts.
  */
 
+import type { PreFlightCheck, PreFlightResult } from '@taxbridge/contracts';
 import { createLogger } from '../lib/logger';
-import { getPrismaClient } from '../lib/prisma';
+import { prisma }       from '../lib/prisma';
 import { getNrsHealth } from './nrsService';
 
-const log = createLogger('compliancePreFlight');
-const prisma = getPrismaClient();
+export type { PreFlightCheck, PreFlightResult };
 
-// NTA 2025 thresholds — sourced from contracts (C-09)
-const VAT_REGISTRATION_THRESHOLD  = 25_000_000;   // ₦25M (NTA 2025 §12)
-const CIT_SMALL_THRESHOLD         = 100_000_000;  // ₦100M — below = exempt
-const CIT_APPROACH_WARNING_LOWER  = 80_000_000;   // ₦80M — APPROACHING warning starts
+const log = createLogger('compliancePreFlight');
+
+const VAT_REGISTRATION_THRESHOLD  = 25_000_000;
+const CIT_SMALL_THRESHOLD         = 100_000_000;
+const CIT_APPROACH_WARNING_LOWER  = 80_000_000;
 const PRIOR_PERIOD_GAP_LIMIT_DAYS = 30;
 
-export interface PreFlightCheck {
-  code:     string;
-  severity: 'ok' | 'warning' | 'error';
-  message:  string;
-}
-
-export interface PreFlightResult {
-  pass:   boolean;           // false if any check has severity === 'error'
-  checks: PreFlightCheck[];
+/**
+ * normaliseSettled — converts PromiseSettledResult<T> → PreFlightCheck
+ * Used to ensure parallel checks never throw.
+ */
+function normaliseSettled<T>(
+  result: PromiseSettledResult<T>,
+  name: string,
+): PreFlightCheck {
+  if (result.status === 'fulfilled') return { name, status: 'pass' };
+  return { name, status: 'fail', message: String((result.reason as any)?.message ?? result.reason) };
 }
 
 /**
@@ -48,162 +50,119 @@ export interface PreFlightResult {
  * @param taxType       Filing type: 'VAT' | 'WHT' | 'PAYE' | 'CIT' | 'NIL'
  * @param turnoverHint  Optional declared turnover figure (used for CIT/VAT threshold checks)
  */
-// V13 canonical export name (C-07: never throws — always returns PreFlightResult)
+/**
+ * runPreFlight — V13 canonical export (C-07: never throws)
+ *
+ * Uses Promise.allSettled + normaliseSettled for structured fallback on every check.
+ * Returns { pass, checks } where pass is true only if no check has status === 'fail'.
+ */
 export async function runPreFlight(orgId: string, taxType: string): Promise<PreFlightResult> {
-  return runCompliancePreFlight(orgId, taxType);
+  try {
+    const [tin, cac, vatReg, priorFiling] = await Promise.allSettled([
+      checkTINValid(orgId),
+      checkCACValid(orgId),
+      checkVATRegistration(orgId, taxType),
+      checkNoPriorPeriodGap(orgId, taxType),
+    ]);
+    const checks: PreFlightCheck[] = [
+      normaliseSettled(tin,         'tin_valid'),
+      normaliseSettled(cac,         'cac_valid'),
+      normaliseSettled(vatReg,      'vat_registered'),
+      normaliseSettled(priorFiling, 'no_prior_gap'),
+    ];
+    return { pass: checks.every(c => c.status !== 'fail'), checks };
+  } catch (err) {
+    log.error('runPreFlight unexpected error', { err, orgId, taxType });
+    return { pass: true, checks: [{ name: 'preflight_error', status: 'warn', message: 'Pre-flight checks could not complete' }] };
+  }
 }
 
+/**
+ * runCompliancePreFlight — extended version with turnover hints and NRS health.
+ * Kept for backward compat with existing callers.
+ */
 export async function runCompliancePreFlight(
   orgId: string,
   taxType: string,
   turnoverHint?: number,
 ): Promise<PreFlightResult> {
-  const checks: PreFlightCheck[] = [];
+  const v13Result = await runPreFlight(orgId, taxType);
 
-  try {
-    // ── 1–4: Parallel DB + external checks ──────────────────────────────────
-    const [tinCheck, periodGapCheck, vatRegCheck, nrsHealthCheck] = await Promise.allSettled([
-      checkTINValidity(orgId),
-      checkPriorPeriodGap(orgId, taxType),
-      checkVATRegistration(orgId, taxType, turnoverHint),
-      checkNRSHealth(),
-    ]);
-
-    if (tinCheck.status === 'fulfilled')          checks.push(...tinCheck.value);
-    if (periodGapCheck.status === 'fulfilled')    checks.push(...periodGapCheck.value);
-    if (vatRegCheck.status === 'fulfilled')       checks.push(...vatRegCheck.value);
-    if (nrsHealthCheck.status === 'fulfilled')    checks.push(...nrsHealthCheck.value);
-
-    // ── CIT threshold warning ────────────────────────────────────────────────
-    if (taxType === 'CIT' && turnoverHint !== undefined) {
-      if (turnoverHint >= CIT_APPROACH_WARNING_LOWER && turnoverHint < CIT_SMALL_THRESHOLD) {
-        checks.push({
-          code:     'APPROACHING_CIT_THRESHOLD',
-          severity: 'warning',
-          message:  `Turnover ₦${(turnoverHint / 1_000_000).toFixed(1)}M is approaching the ₦100M CIT threshold. Prepare for 30% CIT liability next period.`,
-        });
-      }
+  // Additional CIT threshold warning
+  if (taxType === 'CIT' && turnoverHint !== undefined) {
+    if (turnoverHint >= CIT_APPROACH_WARNING_LOWER && turnoverHint < CIT_SMALL_THRESHOLD) {
+      v13Result.checks.push({
+        name:    'cit_threshold',
+        status:  'warn',
+        message: `Turnover approaching CIT threshold`,
+      });
     }
-
-  } catch (err) {
-    log.error('compliancePreFlight encountered unexpected error', { err, orgId, taxType });
-    checks.push({
-      code:     'PREFLIGHT_ERROR',
-      severity: 'warning',
-      message:  'Pre-flight checks could not complete. You may proceed, but verify manually.',
-    });
   }
 
-  const pass = !checks.some(c => c.severity === 'error');
-  return { pass, checks };
+  // NRS health warning
+  try {
+    const nrs = await getNrsHealth();
+    if (nrs.status === 'down') {
+      v13Result.checks.push({ name: 'nrs_health', status: 'warn', message: 'NRS temporarily unavailable' });
+    }
+  } catch { /* warn-only */ }
+
+  v13Result.pass = v13Result.checks.every(c => c.status !== 'fail');
+  return v13Result;
 }
 
-// ── Internal checkers ──────────────────────────────────────────────────────
+// ─── Internal checkers (throw on failure → normaliseSettled catches) ─────────
 
-async function checkTINValidity(orgId: string): Promise<PreFlightCheck[]> {
-  try {
-    const org = await (prisma as any).organization.findUnique({
-      where:  { id: orgId },
-      select: { tinVerified: true, tinSuspended: true, tin: true },
-    });
-    if (!org) {
-      return [{ code: 'TIN_NOT_FOUND', severity: 'error', message: 'Organisation not found.' }];
-    }
-    if (org.tinSuspended) {
-      return [{ code: 'TIN_SUSPENDED', severity: 'error', message: 'Your TIN is currently suspended. Contact NRS before filing.' }];
-    }
-    if (!org.tinVerified) {
-      return [{ code: 'TIN_NOT_VERIFIED', severity: 'warning', message: 'TIN has not been verified. Verify before submitting.' }];
-    }
-    return [{ code: 'TIN_VALID', severity: 'ok', message: 'TIN verified and active.' }];
-  } catch (err) {
-    log.warn('TIN validity check failed', { err, orgId });
-    return [{ code: 'TIN_CHECK_UNAVAILABLE', severity: 'warning', message: 'TIN check temporarily unavailable.' }];
-  }
+async function checkTINValid(orgId: string): Promise<void> {
+  const org = await (prisma as any).organisation?.findUnique({
+    where:  { id: orgId },
+    select: { tinVerified: true, tinSuspended: true, tin: true },
+  }) ?? await (prisma as any).organization?.findUnique({
+    where:  { id: orgId },
+    select: { tinVerified: true, tinSuspended: true, tin: true },
+  });
+  if (!org)             throw new Error('Organisation not found');
+  if (org.tinSuspended) throw new Error('TIN is suspended');
+  if (!org.tinVerified) throw new Error('TIN not verified');
 }
 
-async function checkPriorPeriodGap(orgId: string, taxType: string): Promise<PreFlightCheck[]> {
-  try {
-    const lastFiling = await (prisma as any).taxReturn.findFirst({
-      where:   { orgId, taxType },
-      orderBy: { submittedAt: 'desc' },
-      select:  { submittedAt: true, period: true },
-    });
-    if (!lastFiling) {
-      return [{ code: 'INITIAL_FILING', severity: 'ok', message: 'Initial filing for this tax type.' }];
-    }
-    const daysSince = Math.floor(
-      (Date.now() - new Date(lastFiling.submittedAt).getTime()) / 86_400_000,
-    );
-    if (daysSince > PRIOR_PERIOD_GAP_LIMIT_DAYS) {
-      return [{
-        code:     'PRIOR_PERIOD_GAP',
-        severity: 'warning',
-        message:  `No ${taxType} filing in ${daysSince} days (last: ${lastFiling.period}). Consider filing a NIL return for missing periods.`,
-      }];
-    }
-    return [{ code: 'PRIOR_PERIOD_OK', severity: 'ok', message: `Last ${taxType} filed ${daysSince} days ago.` }];
-  } catch (err) {
-    log.warn('Prior period gap check failed', { err, orgId, taxType });
-    return [{ code: 'PERIOD_CHECK_UNAVAILABLE', severity: 'warning', message: 'Period gap check temporarily unavailable.' }];
-  }
+async function checkCACValid(orgId: string): Promise<void> {
+  const org = await (prisma as any).organisation?.findUnique({
+    where:  { id: orgId },
+    select: { cacRcNumber: true },
+  }) ?? await (prisma as any).organization?.findUnique({
+    where:  { id: orgId },
+    select: { cacRcNumber: true },
+  });
+  if (!org?.cacRcNumber) throw new Error('CAC/RC number not verified');
 }
 
-async function checkVATRegistration(
-  orgId: string,
-  taxType: string,
-  turnoverHint?: number,
-): Promise<PreFlightCheck[]> {
-  if (taxType !== 'VAT') return [];
-  try {
-    const org = await (prisma as any).organization.findUnique({
-      where:  { id: orgId },
-      select: { annualTurnover: true, vatRegistrationNumber: true },
-    });
-    if (!org) return [];
-
-    const effectiveTurnover = turnoverHint ?? org.annualTurnover ?? 0;
-
-    // VAT guard 1: below registration threshold
-    if (effectiveTurnover < VAT_REGISTRATION_THRESHOLD) {
-      return [{
-        code:     'VAT_NOT_REQUIRED',
-        severity: 'error',
-        message:  `Annual turnover ₦${(effectiveTurnover / 1_000_000).toFixed(1)}M is below the ₦25M VAT registration threshold (NTA 2025 §12). VAT filing not required.`,
-      }];
-    }
-    // VAT guard 2: not registered
-    if (!org.vatRegistrationNumber) {
-      return [{
-        code:     'VAT_NOT_REGISTERED',
-        severity: 'error',
-        message:  'No VAT Registration Number on file. Register with NRS before filing VAT.',
-      }];
-    }
-    return [{ code: 'VAT_REGISTRATION_OK', severity: 'ok', message: 'VAT registration verified.' }];
-  } catch (err) {
-    log.warn('VAT registration check failed', { err, orgId });
-    return [{ code: 'VAT_CHECK_UNAVAILABLE', severity: 'warning', message: 'VAT registration check temporarily unavailable.' }];
-  }
+async function checkVATRegistration(orgId: string, taxType: string): Promise<void> {
+  if (taxType !== 'VAT') return;
+  const org = await (prisma as any).organisation?.findUnique({
+    where:  { id: orgId },
+    select: { annualTurnover: true, vatRegistrationNumber: true },
+  }) ?? await (prisma as any).organization?.findUnique({
+    where:  { id: orgId },
+    select: { annualTurnover: true, vatRegistrationNumber: true },
+  });
+  if (!org) return;
+  const turnover = Number(org.annualTurnover ?? 0);
+  if (turnover < VAT_REGISTRATION_THRESHOLD) throw new Error('Below VAT registration threshold');
+  if (!org.vatRegistrationNumber) throw new Error('VAT registration number missing');
 }
 
-async function checkNRSHealth(): Promise<PreFlightCheck[]> {
-  try {
-    const health = await getNrsHealth();
-    if (health.status === 'down') {
-      return [{
-        code:     'NRS_CIRCUIT_OPEN',
-        severity: 'warning',
-        message:  'NRS e-invoicing service is temporarily unavailable. Your filing will be queued for automatic re-submission.',
-      }];
-    }
-    return [{ code: 'NRS_HEALTHY', severity: 'ok', message: 'NRS e-invoicing service is reachable.' }];
-  } catch (err) {
-    // NRS health is warn-only — never block filing
-    return [{
-      code:     'NRS_CHECK_WARN',
-      severity: 'warning',
-      message:  'NRS availability check skipped. Filing will proceed normally.',
-    }];
+async function checkNoPriorPeriodGap(orgId: string, taxType: string): Promise<void> {
+  const lastFiling = await (prisma as any).taxReturn?.findFirst({
+    where:   { orgId, taxType },
+    orderBy: { submittedAt: 'desc' },
+    select:  { submittedAt: true },
+  });
+  if (!lastFiling) return; // first-ever filing — OK
+  const daysSince = Math.floor(
+    (Date.now() - new Date(lastFiling.submittedAt).getTime()) / 86_400_000,
+  );
+  if (daysSince > PRIOR_PERIOD_GAP_LIMIT_DAYS) {
+    throw new Error(`Filing gap: ${daysSince} days since last ${taxType} filing`);
   }
 }
