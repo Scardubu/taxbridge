@@ -185,24 +185,16 @@ export function registerCronJobs(_fastify: FastifyInstance): void {
     return;
   }
 
-  // 7 exactly — cron.schedule() calls
-  const jobs = [
-    { name: 'riskScoringCron',    schedule: '0 4 * * *',      fn: riskScoringCron    },  // 04:00 WAT
-    { name: 'snapshotCron',       schedule: '30 4 * * *',     fn: snapshotCron       },  // 04:30 WAT
-    { name: 'snapshotPruneCron',  schedule: '0 3 * * 0',      fn: snapshotPruneCron  },  // Sun 03:00 WAT
-    { name: 'deadlineCron',       schedule: '0 7 * * *',      fn: deadlineCron       },  // 07:00 WAT
-    { name: 'queueHealthCron',    schedule: '*/5 * * * *',    fn: queueHealthCron    },  // every 5 min
-    { name: 'dlqMonitorCron',     schedule: '*/15 * * * *',   fn: dlqMonitorCron     },  // every 15 min
-    { name: 'sessionCleanupCron', schedule: '0 2 * * *',      fn: sessionCleanupCron },  // 02:00 WAT
-  ];
+  // Exactly 7 calls below — CI gate verifies this count
+  _tasks.push(cron.schedule('0 4 * * *',    safe('riskScoringCron',    riskScoringCron),    WAT));
+  _tasks.push(cron.schedule('30 4 * * *',   safe('snapshotCron',       snapshotCron),       WAT));
+  _tasks.push(cron.schedule('0 3 * * 0',    safe('snapshotPruneCron',  snapshotPruneCron),  WAT));
+  _tasks.push(cron.schedule('0 7 * * *',    safe('deadlineCron',       deadlineCron),       WAT));
+  _tasks.push(cron.schedule('*/5 * * * *',  safe('queueHealthCron',    queueHealthCron),    WAT));
+  _tasks.push(cron.schedule('*/15 * * * *', safe('dlqMonitorCron',     dlqMonitorCron),     WAT));
+  _tasks.push(cron.schedule('0 2 * * *',    safe('sessionCleanupCron', sessionCleanupCron), WAT));
 
-  for (const job of jobs) {
-    const task = cron.schedule(job.schedule, safe(job.name, job.fn), WAT);
-    _tasks.push(task);
-    logger.info({ job: job.name, schedule: job.schedule }, 'Cron job registered');
-  }
-
-  logger.info({ count: _tasks.length }, 'Cron orchestrator started');
+  logger.info({ count: _tasks.length }, 'Cron orchestrator started — 7 jobs registered');
 }
 
 export function stopCronOrchestrator(): void {

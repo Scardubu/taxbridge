@@ -1,956 +1,413 @@
-import React, { useState, useCallback, useEffect, useMemo, memo } from 'react';
+/**
+ * DashboardScreen — TaxBridge V13 Sovereign
+ *
+ * C-13: SVG arc gauge only — no native progress bars
+ * C-14: Single composite useDashboard() hook — never multiple requests
+ * C-16: Animation tokens only — DURATION.* + EASE.* from animation.ts
+ * C-17: Exactly 5 DashboardZone elements (apex | signal | action | context | ambient)
+ * C-18: Every dashboard section wrapped in DashboardZone zone="…"
+ * C-19: Anomaly empty state = null — never "No anomalies" text
+ * C-20: computeGaugeMode imported from TaxHealthGauge — never inlined
+ * C-47: All lists via FlashList — never FlatList
+ */
+
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   ScrollView,
-  SafeAreaView,
-  Pressable,
   RefreshControl,
-  Dimensions,
+  StyleSheet,
+  Pressable,
+  AccessibilityInfo,
 } from 'react-native';
-import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
-import * as Haptics from '../utils/safeHaptics';
+import { FlashList } from '@shopify/flash-list';
+import Animated, { FadeIn } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
-import { useNetwork } from '../contexts/NetworkContext';
-import { useSyncContext } from '../contexts/SyncContext';
-import { useFeatureFlag } from '../contexts/FeatureFlagContext';
-import { SkeletonLoader } from '../components/ui/SkeletonLoader';
-import { getInvoices } from '../services/database';
-import { calculatePIT, getTaxOptimization, formatNaira, formatPercentage } from '../services/tax/engine';
-import { VAT_RATE } from '@taxbridge/contracts';
-import { calculatePIT as calculateLegacyPIT } from '../services/taxCalculator';
-import { colors, spacing, radii, typography, shadows } from '../theme/tokens';
-import { DURATION } from '../design-system/animation';
-import { getSyncQueueCount } from '../services/syncQueue';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const { width } = Dimensions.get('window');
+import { TaxHealthGauge, computeGaugeMode } from '../components/dashboard/TaxHealthGauge';
+import { DashboardZone }    from '../components/dashboard/DashboardZone';
+import { DashboardSkeleton } from '../components/dashboard/DashboardSkeleton';
+import { useDashboard }     from '../hooks/useDashboard';
 
-// ============================================================================
-// Types
-// ============================================================================
+// ─── Types ────────────────────────────────────────────────────────────────────
 
-interface Invoice {
-  id: string;
-  synced: 0 | 1;
-  items: string;
-  createdAt: number;
-  total?: number;
-  vat?: number;
+interface Anomaly {
+  id:          string;
+  severity:    'low' | 'medium' | 'high' | 'critical';
+  description: { en: string; pidgin?: string };
+  ctaRoute?:   string;
 }
 
-interface InvoiceItem {
-  description: string;
-  quantity: number;
-  unitPrice: number;
+interface Deadline {
+  taxType:       string;
+  period:        string;
+  deadline:      string;
+  daysRemaining: number;
 }
 
-interface DashboardStats {
-  totalInvoices: number;
-  pendingSync: number;
-  syncedInvoices: number;
-  totalRevenue: number;
-  thisMonthRevenue: number;
-  totalVAT: number;
-  averageInvoice: number;
+interface QuickAction {
+  id:    string;
+  label: string;
+  emoji: string;
+  route: string;
 }
 
-// ============================================================================
-// Utilities
-// ============================================================================
-
-const parseItems = (itemsJson: string): InvoiceItem[] => {
-  try {
-    const items = JSON.parse(itemsJson);
-    return Array.isArray(items) ? items : [];
-  } catch {
-    return [];
-  }
+// ─── Severity config (shape + colour — WCAG three-channel C-15) ──────────────
+const SEVERITY: Record<string, { glyph: string; color: string }> = {
+  critical: { glyph: '▲', color: '#DC2626' },
+  high:     { glyph: '▲', color: '#EA580C' },
+  medium:   { glyph: '■', color: '#D97706' },
+  low:      { glyph: '●', color: '#16A34A' },
 };
 
-const calculateStats = (invoices: Invoice[]): DashboardStats => {
-  const now = new Date();
-  const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+// ─── Quick actions config ─────────────────────────────────────────────────────
+const QUICK_ACTIONS: QuickAction[] = [
+  { id: 'vat',   label: 'filing.vat',   emoji: '🧾', route: '/filings/vat'   },
+  { id: 'paye',  label: 'filing.paye',  emoji: '👥', route: '/filings/paye'  },
+  { id: 'wht',   label: 'filing.wht',   emoji: '📋', route: '/filings/wht'   },
+  { id: 'nil',   label: 'filing.nil',   emoji: '0️⃣', route: '/filings/nil'   },
+  { id: 'docs',  label: 'nav.documents',emoji: '📂', route: '/documents'     },
+  { id: 'team',  label: 'nav.team',     emoji: '🏢', route: '/team'          },
+];
 
-  let totalRevenue = 0;
-  let thisMonthRevenue = 0;
-  let totalVAT = 0;
+// ─── Main component ───────────────────────────────────────────────────────────
 
-  invoices.forEach((inv) => {
-    const items = parseItems(inv.items);
-    const invoiceTotal = items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
-    const vat = inv.vat || invoiceTotal * VAT_RATE;
+export default function DashboardScreen() {
+  const insets         = useSafeAreaInsets();
+  const { t }          = useTranslation();
+  const { data, isLoading, isRefetching, refetch, isError } = useDashboard();
 
-    totalRevenue += invoiceTotal;
-    totalVAT += vat;
+  const [isManualRefresh, setIsManualRefresh] = useState(false);
 
-    if (inv.createdAt >= thisMonthStart) {
-      thisMonthRevenue += invoiceTotal;
-    }
-  });
-
-  return {
-    totalInvoices: invoices.length,
-    pendingSync: invoices.filter((i) => i.synced === 0).length,
-    syncedInvoices: invoices.filter((i) => i.synced === 1).length,
-    totalRevenue,
-    thisMonthRevenue,
-    totalVAT,
-    averageInvoice: invoices.length > 0 ? totalRevenue / invoices.length : 0,
-  };
-};
-
-// ============================================================================
-// Metric Card Component
-// ============================================================================
-
-interface MetricCardProps {
-  icon: string;
-  label: string;
-  value: string;
-  sublabel?: string;
-  variant?: 'default' | 'primary' | 'success' | 'warning';
-  delay?: number;
-}
-
-const MetricCard = memo(({ icon, label, value, sublabel, variant = 'default', delay = 0 }: MetricCardProps) => (
-  <Animated.View
-    entering={FadeInDown.duration(DURATION.transition).delay(delay)}
-    style={[
-      styles.metricCard,
-      variant === 'primary' && styles.metricCardPrimary,
-      variant === 'success' && styles.metricCardSuccess,
-      variant === 'warning' && styles.metricCardWarning,
-    ]}
-  >
-    <Text style={styles.metricIcon}>{icon}</Text>
-    <Text style={[styles.metricLabel, variant === 'primary' && styles.metricLabelPrimary]}>
-      {label}
-    </Text>
-    <Text style={[styles.metricValue, variant === 'primary' && styles.metricValuePrimary]}>
-      {value}
-    </Text>
-    {sublabel && (
-      <Text style={[styles.metricSublabel, variant === 'primary' && styles.metricSublabelPrimary]}>
-        {sublabel}
-      </Text>
-    )}
-  </Animated.View>
-));
-
-MetricCard.displayName = 'MetricCard';
-
-// ============================================================================
-// Quick Action Button
-// ============================================================================
-
-interface QuickActionProps {
-  icon: string;
-  label: string;
-  sublabel: string;
-  onPress: () => void;
-  delay?: number;
-}
-
-const QuickAction = memo(({ icon, label, sublabel, onPress, delay = 0 }: QuickActionProps) => (
-  <Animated.View entering={FadeIn.duration(DURATION.transition).delay(delay)}>
-    <Pressable
-      style={styles.quickAction}
-      onPress={onPress}
-      accessible={true}
-      accessibilityRole="button"
-      accessibilityLabel={`${label}: ${sublabel}`}
-    >
-      <View style={styles.quickActionIcon}>
-        <Text style={styles.quickActionEmoji}>{icon}</Text>
-      </View>
-      <Text style={styles.quickActionLabel}>{label}</Text>
-      <Text style={styles.quickActionSublabel}>{sublabel}</Text>
-    </Pressable>
-  </Animated.View>
-));
-
-QuickAction.displayName = 'QuickAction';
-
-// ============================================================================
-// Tax Insights Card
-// ============================================================================
-
-interface TaxInsightsCardProps {
-  annualRevenue: number;
-  onViewDetails: () => void;
-}
-
-const TaxInsightsCard = memo(({ annualRevenue, onViewDetails }: TaxInsightsCardProps) => {
-  const { t } = useTranslation();
-  const taxEngineV2Enabled = useFeatureFlag('taxEngineV2');
-
-  const pitCalc = useMemo(() => {
-    if (taxEngineV2Enabled) {
-      return calculatePIT(annualRevenue);
-    }
-
-    const legacy = calculateLegacyPIT({
-      annualGrossIncome: annualRevenue,
-      annualRent: 0,
-      pensionContributions: 0,
-      nhfContributions: 0,
-      nhisContributions: 0,
-      lifeInsurance: 0,
-      housingLoanInterest: 0,
-    });
-
-    return {
-      totalTax: legacy.estimatedTax,
-      effectiveRate: legacy.effectiveRate / 100,
-      takeHome: legacy.grossIncome - legacy.estimatedTax,
-    };
-  }, [annualRevenue, taxEngineV2Enabled]);
-
-  const optimization = useMemo(() => {
-    if (!taxEngineV2Enabled) {
-      return { currentTax: pitCalc.totalTax, potentialSavings: 0, recommendations: [] };
-    }
-    return getTaxOptimization(annualRevenue, 'sole-prop');
-  }, [annualRevenue, pitCalc.totalTax, taxEngineV2Enabled]);
-
-  return (
-    <Animated.View entering={FadeInDown.duration(DURATION.transition).delay(400)} style={styles.taxInsightsCard}>
-      <View style={styles.taxInsightsHeader}>
-        <View style={styles.taxInsightsTitleRow}>
-          <Text style={styles.taxInsightsIcon}>📊</Text>
-          <Text style={styles.taxInsightsTitle}>{t('dashboard.taxInsights')}</Text>
-        </View>
-        <View style={styles.taxInsightsBadge}>
-          <Text style={styles.taxInsightsBadgeText}>{t('dashboard.estimatedPIT')}</Text>
-        </View>
-      </View>
-
-      <View style={styles.taxInsightsContent}>
-        <View style={styles.taxInsightsRow}>
-          <Text style={styles.taxInsightsLabel}>{t('dashboard.estimatedTax')}</Text>
-          <Text style={styles.taxInsightsValue}>{formatNaira(pitCalc.totalTax)}</Text>
-        </View>
-        <View style={styles.taxInsightsRow}>
-          <Text style={styles.taxInsightsLabel}>{t('dashboard.effectiveRate')}</Text>
-          <Text style={styles.taxInsightsValue}>{formatPercentage(pitCalc.effectiveRate)}</Text>
-        </View>
-        <View style={styles.taxInsightsRow}>
-          <Text style={styles.taxInsightsLabel}>{t('dashboard.takeHome')}</Text>
-          <Text style={[styles.taxInsightsValue, styles.taxInsightsValueSuccess]}>
-            {formatNaira(pitCalc.takeHome)}
-          </Text>
-        </View>
-      </View>
-
-      {optimization.potentialSavings > 0 && (
-        <View style={styles.taxOptimizationHint}>
-          <Text style={styles.taxOptimizationIcon}>💡</Text>
-          <View style={styles.taxOptimizationContent}>
-            <Text style={styles.taxOptimizationText}>
-              {t('dashboard.potentialSavings', { amount: formatNaira(optimization.potentialSavings, false) })}
-            </Text>
-            <Pressable onPress={onViewDetails}>
-              <Text style={styles.taxOptimizationLink}>{t('dashboard.viewRecommendations')} →</Text>
-            </Pressable>
-          </View>
-        </View>
-      )}
-    </Animated.View>
+  // C-20: computeGaugeMode imported from TaxHealthGauge — never inlined
+  const gaugeMode = useMemo(
+    () => computeGaugeMode({ score: (data as any)?.stats?.riskScore, isLoading }),
+    [data, isLoading],
   );
-});
 
-TaxInsightsCard.displayName = 'TaxInsightsCard';
-
-// ============================================================================
-// Compliance Status Card
-// ============================================================================
-
-const ComplianceCard = memo(() => {
-  const { t } = useTranslation();
-  const { isOnline } = useNetwork();
-
-  return (
-    <Animated.View entering={FadeInDown.duration(DURATION.transition).delay(500)} style={styles.complianceCard}>
-      <View style={styles.complianceHeader}>
-        <Text style={styles.complianceIcon}>🏛️</Text>
-        <Text style={styles.complianceTitle}>{t('dashboard.complianceStatus')}</Text>
-      </View>
-
-      <View style={styles.complianceItems}>
-        <View style={styles.complianceItem}>
-          <Text style={styles.complianceCheckIcon}>✓</Text>
-          <Text style={styles.complianceItemText}>{t('dashboard.nrsReady')}</Text>
-        </View>
-        <View style={styles.complianceItem}>
-          <Text style={styles.complianceCheckIcon}>✓</Text>
-          <Text style={styles.complianceItemText}>{t('dashboard.ndprCompliant')}</Text>
-        </View>
-        <View style={styles.complianceItem}>
-          <Text style={styles.complianceCheckIcon}>✓</Text>
-          <Text style={styles.complianceItemText}>{t('dashboard.vatRegistered')}</Text>
-        </View>
-        <View style={styles.complianceItem}>
-          <Text style={[styles.complianceCheckIcon, isOnline ? styles.complianceOnline : styles.complianceOffline]}>
-            {isOnline ? '●' : '○'}
-          </Text>
-          <Text style={styles.complianceItemText}>
-            {isOnline ? t('dashboard.syncActive') : t('dashboard.offlineMode')}
-          </Text>
-        </View>
-      </View>
-    </Animated.View>
+  // urgent = true when any high/critical anomaly exists (collapses context zone delay)
+  const hasHighAnomaly = useMemo(
+    () => (data as any)?.topAnomalies?.some((a: Anomaly) =>
+      a.severity === 'high' || a.severity === 'critical') ?? false,
+    [data],
   );
-});
-
-ComplianceCard.displayName = 'ComplianceCard';
-
-// ============================================================================
-// Main Dashboard Component
-// ============================================================================
-
-function DashboardScreen(props: any) {
-  const { t } = useTranslation();
-  const { isOnline } = useNetwork();
-  const { manualSync, lastSyncAt } = useSyncContext();
-  const receiptsScannerEnabled = useFeatureFlag('receiptsScanner');
-
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [syncQueueCount, setSyncQueueCount] = useState(0);
-  const deviceSyncEnabled = String(process.env.EXPO_PUBLIC_FEATURE_DEVICE_SYNC || 'false').toLowerCase() === 'true';
-
-  const stats = useMemo(() => calculateStats(invoices), [invoices]);
-
-  // Estimate annual revenue (extrapolate from 30-day average)
-  const annualRevenue = useMemo(() => {
-    const daysSinceFirst = invoices.length > 0
-      ? Math.max(1, (Date.now() - Math.min(...invoices.map(i => i.createdAt))) / (1000 * 60 * 60 * 24))
-      : 1;
-    const dailyAverage = stats.totalRevenue / daysSinceFirst;
-    return dailyAverage * 365;
-  }, [invoices, stats.totalRevenue]);
-
-  const loadData = useCallback(async () => {
-    try {
-      const rows = await getInvoices();
-      setInvoices(rows.map(row => ({
-        ...row,
-        createdAt: new Date(row.createdAt).getTime(),
-      })) as Invoice[]);
-      if (deviceSyncEnabled) {
-        getSyncQueueCount().then(setSyncQueueCount).catch(() => {});
-      }
-    } catch (err) {
-      if (__DEV__) console.error('Failed to load dashboard data:', err);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [deviceSyncEnabled]);
-
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
 
   const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    await loadData();
-    setRefreshing(false);
-  }, [loadData]);
+    setIsManualRefresh(true);
+    await refetch();
+    setIsManualRefresh(false);
+  }, [refetch]);
 
-  const handleCreateInvoice = useCallback(() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    props.navigation.navigate('Create');
-  }, [props.navigation]);
+  const anomalies: Anomaly[]  = (data as any)?.topAnomalies ?? [];
+  const deadlines: Deadline[] = (data as any)?.deadlines    ?? [];
+  const stats                 = (data as any)?.stats;
+  const nrsHealth             = (data as any)?.nrsHealth;
 
-  const handleScanReceipt = useCallback(() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    props.navigation.navigate('Create', { openScan: true });
-  }, [props.navigation]);
-
-  const handleViewInvoices = useCallback(() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    props.navigation.navigate('Invoices');
-  }, [props.navigation]);
-
-  const handleViewTaxDetails = useCallback(() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    props.navigation.navigate('Settings');
-  }, [props.navigation]);
-
-  const handleSync = useCallback(async () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    try {
-      await manualSync();
-      await loadData();
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    } catch {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-    }
-  }, [manualSync, loadData]);
-
-  // Format last sync time
-  const formatLastSync = useCallback((timestamp: number | null) => {
-    if (!timestamp) return t('sync.neverSynced');
-    const diff = Date.now() - timestamp;
-    const minutes = Math.floor(diff / 60000);
-    if (minutes < 1) return t('sync.justNow');
-    if (minutes < 60) return t('sync.minutesAgo', { count: minutes });
-    const hours = Math.floor(minutes / 60);
-    return t('sync.hoursAgo', { count: hours });
-  }, [t]);
-
-  if (isLoading) {
-    return (
-      <SafeAreaView style={styles.safe}>
-        <View style={styles.loadingContainer}>
-          <SkeletonLoader type="dashboard" count={3} />
-        </View>
-      </SafeAreaView>
-    );
+  if (isLoading && !data) {
+    return <DashboardSkeleton />;
   }
 
   return (
-    <SafeAreaView style={styles.safe}>
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.container}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={[colors.primary]}
-            tintColor={colors.primary}
+    <ScrollView
+      style={[styles.scroll, { paddingTop: insets.top }]}
+      contentContainerStyle={styles.content}
+      refreshControl={
+        <RefreshControl
+          refreshing={isRefetching || isManualRefresh}
+          onRefresh={onRefresh}
+          tintColor="#2563EB"
+        />
+      }
+    >
+      {/* ── ZONE 1 of 5: apex — Tax Health Gauge ─────────────────────── */}
+      <DashboardZone zone="apex" visible={!isLoading}>
+        <View style={styles.apexContainer}>
+          <Text style={styles.screenTitle}>{t('dashboard.title', 'Tax Dashboard')}</Text>
+          {nrsHealth?.circuitBreakerOpen && (
+            <Animated.View entering={FadeIn} style={styles.nrsWarning}>
+              <Text style={styles.nrsWarningText}>
+                {'▲ '}
+                {t('dashboard.nrsCircuitOpen', 'NRS service degraded — invoices queued')}
+              </Text>
+            </Animated.View>
+          )}
+          <TaxHealthGauge
+            score={stats?.riskScore ?? 0}
+            isLoading={isLoading}
           />
-        }
-        showsVerticalScrollIndicator={false}
-        accessible={true}
-        accessibilityLabel={t('dashboard.mainContent')}
-      >
-        {/* Header */}
-        <Animated.View entering={FadeInDown.duration(DURATION.transition)} style={styles.header}>
-          <View>
-            <Text style={styles.headerTitle}>{t('dashboard.title')}</Text>
-            <Text style={styles.headerSubtitle}>{t('dashboard.subtitle')}</Text>
-          </View>
-          <Pressable
-            style={[styles.syncButton, !isOnline && styles.syncButtonDisabled]}
-            onPress={handleSync}
-            disabled={!isOnline}
-            accessibilityRole="button"
-            accessibilityLabel={t('dashboard.syncNow')}
-          >
-            <Text style={styles.syncButtonIcon}>🔄</Text>
-            <Text style={styles.syncButtonText}>{t('dashboard.sync')}</Text>
-          </Pressable>
-        </Animated.View>
-
-        {/* Network Status */}
-        <Animated.View
-          entering={FadeInDown.duration(DURATION.transition).delay(100)}
-          style={[styles.networkBadge, isOnline ? styles.networkOnline : styles.networkOffline]}
-        >
-          <Text style={styles.networkIcon}>{isOnline ? '🟢' : '🔴'}</Text>
-          <Text style={styles.networkText}>
-            {isOnline ? t('dashboard.online') : t('dashboard.offline')}
-          </Text>
-          <Text style={styles.networkSync}>{t('sync.lastSync')}: {formatLastSync(lastSyncAt)}</Text>
-        </Animated.View>
-
-        {/* Device Sync Queue Badge */}
-        {deviceSyncEnabled && syncQueueCount > 0 && (
-          <Animated.View
-            entering={FadeInDown.duration(DURATION.transition).delay(150)}
-            style={styles.syncQueueBadge}
-          >
-            <Text style={styles.syncQueueIcon}>📤</Text>
-            <Text style={styles.syncQueueText}>
-              {t('dashboard.queuedForSync', { count: syncQueueCount })}
+          {isError && (
+            <Text style={styles.errorHint}>
+              {t('dashboard.staleData', 'Showing cached data')}
             </Text>
-          </Animated.View>
-        )}
+          )}
+        </View>
+      </DashboardZone>
 
-        {/* Quick Actions */}
-        <Animated.View entering={FadeInDown.duration(DURATION.transition).delay(200)} style={styles.quickActionsSection}>
-          <Text style={styles.sectionTitle}>{t('dashboard.quickActions')}</Text>
-          <View style={styles.quickActionsGrid}>
-            <QuickAction
-              icon="➕"
-              label={t('quickActions.create')}
-              sublabel={t('quickActions.createSublabel')}
-              onPress={handleCreateInvoice}
-              delay={250}
-            />
-            {receiptsScannerEnabled && (
-              <QuickAction
-                icon="📷"
-                label={t('quickActions.scan')}
-                sublabel={t('quickActions.scanSublabel')}
-                onPress={handleScanReceipt}
-                delay={300}
-              />
-            )}
-            <QuickAction
-              icon="📋"
-              label={t('quickActions.invoices')}
-              sublabel={t('quickActions.invoicesSublabel')}
-              onPress={handleViewInvoices}
-              delay={350}
-            />
-            <QuickAction
-              icon="🧮"
-              label={t('quickActions.tax')}
-              sublabel={t('quickActions.taxSublabel')}
-              onPress={handleViewTaxDetails}
-              delay={400}
+      {/* ── ZONE 2 of 5: signal — Anomaly alerts ─────────────────────── */}
+      <DashboardZone zone="signal" visible={!isLoading}>
+        {/* C-19: null when empty — never "No anomalies" text */}
+        {anomalies.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>
+              {t('dashboard.alerts', 'Alerts')}
+            </Text>
+            <FlashList
+              data={anomalies}
+              estimatedItemSize={72}
+              keyExtractor={(a) => a.id}
+              renderItem={({ item: a }) => {
+                const cfg = SEVERITY[a.severity] ?? SEVERITY.low;
+                return (
+                  <View style={styles.anomalyRow}>
+                    <Text style={[styles.anomalyGlyph, { color: cfg.color }]}>
+                      {cfg.glyph}
+                    </Text>
+                    <Text style={styles.anomalyText} numberOfLines={2}>
+                      {a.description.en}
+                    </Text>
+                  </View>
+                );
+              }}
             />
           </View>
-        </Animated.View>
+        )}
+      </DashboardZone>
 
-        {/* Metrics Grid */}
-        <View style={styles.metricsSection}>
-          <Text style={styles.sectionTitle}>{t('dashboard.businessOverview')}</Text>
-          <View style={styles.metricsGrid}>
-            <MetricCard
-              icon="💰"
-              label={t('dashboard.thisMonth')}
-              value={formatNaira(stats.thisMonthRevenue)}
-              sublabel={t('dashboard.revenue')}
-              variant="primary"
-              delay={300}
-            />
-            <MetricCard
-              icon="📄"
-              label={t('dashboard.invoices')}
-              value={stats.totalInvoices.toString()}
-              sublabel={`${stats.syncedInvoices} ${t('dashboard.synced')}`}
-              delay={350}
-            />
-            <MetricCard
-              icon="🏛️"
-              label={t('dashboard.vatCollected')}
-              value={formatNaira(stats.totalVAT)}
-              sublabel="7.5%"
-              variant="success"
-              delay={400}
-            />
-            <MetricCard
-              icon="⏳"
-              label={t('dashboard.pending')}
-              value={stats.pendingSync.toString()}
-              sublabel={t('dashboard.awaitingSync')}
-              variant={stats.pendingSync > 0 ? 'warning' : 'default'}
-              delay={450}
-            />
+      {/* ── ZONE 3 of 5: action — Quick Actions ──────────────────────── */}
+      <DashboardZone zone="action" visible={!isLoading}>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>{t('dashboard.quickActions', 'Quick Actions')}</Text>
+          <View style={styles.actionsGrid}>
+            {QUICK_ACTIONS.map((qa) => (
+              <Pressable
+                key={qa.id}
+                style={({ pressed }) => [
+                  styles.actionButton,
+                  pressed && styles.actionButtonPressed,
+                ]}
+                accessibilityRole="button"
+                accessibilityLabel={t(qa.label)}
+                onPress={() =>
+                  AccessibilityInfo.announceForAccessibility(t(qa.label))
+                }
+              >
+                <Text style={styles.actionEmoji}>{qa.emoji}</Text>
+                <Text style={styles.actionLabel} numberOfLines={1}>
+                  {t(qa.label)}
+                </Text>
+              </Pressable>
+            ))}
           </View>
         </View>
+      </DashboardZone>
 
-        {/* Tax Insights */}
-        {stats.totalRevenue > 0 && (
-          <TaxInsightsCard annualRevenue={annualRevenue} onViewDetails={handleViewTaxDetails} />
+      {/* ── ZONE 4 of 5: context — Compliance deadlines ──────────────── */}
+      <DashboardZone zone="context" visible={!isLoading} urgent={hasHighAnomaly}>
+        {deadlines.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>
+              {t('dashboard.upcomingDeadlines', 'Upcoming Deadlines')}
+            </Text>
+            <FlashList
+              data={deadlines}
+              estimatedItemSize={56}
+              keyExtractor={(d) => `${d.taxType}-${d.period}`}
+              renderItem={({ item: d }) => (
+                <View style={styles.deadlineRow}>
+                  <View style={styles.deadlineLeft}>
+                    <Text style={styles.deadlineType}>{d.taxType}</Text>
+                    <Text style={styles.deadlinePeriod}>{d.period}</Text>
+                  </View>
+                  <View style={[
+                    styles.deadlineBadge,
+                    d.daysRemaining <= 7 ? styles.deadlineBadgeUrgent : styles.deadlineBadgeNormal,
+                  ]}>
+                    <Text style={styles.deadlineDays}>
+                      {d.daysRemaining <= 0
+                        ? t('deadline.overdue', 'Overdue')
+                        : t('deadline.daysLeft', '{{n}} days', { n: d.daysRemaining })}
+                    </Text>
+                  </View>
+                </View>
+              )}
+            />
+          </View>
         )}
+      </DashboardZone>
 
-        {/* Compliance Status */}
-        <ComplianceCard />
-
-        {/* App Version Footer */}
-        <Animated.View entering={FadeIn.duration(DURATION.transition).delay(600)} style={styles.footer}>
-          <Text style={styles.footerText}>{t('settings.appName', { version: '5.0.4' })}</Text>
-          <Text style={styles.footerSubtext}>{t('dashboard.footerTagline')}</Text>
-        </Animated.View>
-      </ScrollView>
-    </SafeAreaView>
+      {/* ── ZONE 5 of 5: ambient — NRS health + sync status ──────────── */}
+      <DashboardZone zone="ambient" visible={!isLoading}>
+        <View style={styles.ambientRow}>
+          <View style={styles.nrsStatusDot(
+            nrsHealth?.status === 'healthy' ? '#22C55E' :
+            nrsHealth?.status === 'degraded' ? '#F59E0B' : '#6B7280',
+          )} />
+          <Text style={styles.ambientText}>
+            {t('dashboard.nrsStatus', 'NRS')}{' '}
+            {nrsHealth?.status ?? t('common.unknown', 'unknown')}
+            {nrsHealth?.latencyMs != null && ` (${nrsHealth.latencyMs}ms)`}
+          </Text>
+        </View>
+      </DashboardZone>
+    </ScrollView>
   );
 }
 
-export default memo(DashboardScreen);
-
-// ============================================================================
-// Styles
-// ============================================================================
+// ─── Styles ──────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: colors.surfaceSlate,
-  },
   scroll: {
     flex: 1,
+    backgroundColor: '#F9FAFB',
   },
-  container: {
-    padding: spacing.lg,
-    paddingBottom: spacing.xxl * 2,
+  content: {
+    paddingBottom: 32,
+    gap: 12,
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
+  apexContainer: {
     alignItems: 'center',
-    gap: spacing.md,
+    paddingTop: 16,
+    paddingHorizontal: 16,
   },
-  loadingText: {
-    fontSize: typography.size.md,
-    color: colors.textMuted,
+  screenTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 8,
   },
-
-  // Header
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: spacing.lg,
+  errorHint: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    marginTop: 4,
   },
-  headerTitle: {
-    fontSize: typography.size.xxl,
-    fontWeight: typography.weight.black,
-    color: colors.textPrimary,
+  nrsWarning: {
+    backgroundColor: '#FEF3C7',
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 8,
+    width: '100%',
   },
-  headerSubtitle: {
-    fontSize: typography.size.sm,
-    color: colors.textMuted,
-    marginTop: spacing.xxs,
+  nrsWarningText: {
+    fontSize: 13,
+    color: '#92400E',
+    fontWeight: '600',
   },
-  syncButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.primary,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    borderRadius: radii.md,
-    gap: spacing.xs,
+  section: {
+    marginHorizontal: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
   },
-  syncButtonDisabled: {
-    backgroundColor: colors.disabled,
-  },
-  syncButtonIcon: {
-    fontSize: typography.size.md,
-  },
-  syncButtonText: {
-    fontSize: typography.size.sm,
-    fontWeight: typography.weight.bold,
-    color: colors.textOnPrimary,
-  },
-
-  // Network Badge
-  networkBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: spacing.md,
-    borderRadius: radii.md,
-    marginBottom: spacing.lg,
-    gap: spacing.sm,
-  },
-  networkOnline: {
-    backgroundColor: colors.successBg,
-    borderWidth: 1,
-    borderColor: colors.successBorder,
-  },
-  networkOffline: {
-    backgroundColor: colors.warningBg,
-    borderWidth: 1,
-    borderColor: colors.warningBorder,
-  },
-  networkIcon: {
-    fontSize: typography.size.sm,
-  },
-  networkText: {
-    fontSize: typography.size.sm,
-    fontWeight: typography.weight.bold,
-    color: colors.textPrimary,
-  },
-  networkSync: {
-    flex: 1,
-    fontSize: typography.size.xs,
-    color: colors.textMuted,
-    textAlign: 'right',
-  },
-
-  // Sync Queue Badge
-  syncQueueBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: spacing.sm,
-    borderRadius: radii.md,
-    marginBottom: spacing.lg,
-    backgroundColor: '#EFF6FF',
-    borderWidth: 1,
-    borderColor: '#BFDBFE',
-    gap: spacing.sm,
-  },
-  syncQueueIcon: {
-    fontSize: typography.size.sm,
-  },
-  syncQueueText: {
-    fontSize: typography.size.xs,
-    fontWeight: typography.weight.medium,
-    color: '#1E40AF',
-  },
-
-  // Section
   sectionTitle: {
-    fontSize: typography.size.md,
-    fontWeight: typography.weight.bold,
-    color: colors.textPrimary,
-    marginBottom: spacing.md,
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 12,
   },
-
-  // Quick Actions
-  quickActionsSection: {
-    marginBottom: spacing.xl,
-  },
-  quickActionsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.md,
-  },
-  quickAction: {
-    width: (width - spacing.lg * 2 - spacing.md * 3) / 4,
-    alignItems: 'center',
-    padding: spacing.md,
-    backgroundColor: colors.surface,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
-  },
-  quickActionIcon: {
-    width: spacing.xxl,
-    height: spacing.xxl,
-    borderRadius: radii.md,
-    backgroundColor: colors.primaryLight,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: spacing.sm,
-  },
-  quickActionEmoji: {
-    fontSize: typography.size.lg,
-  },
-  quickActionLabel: {
-    fontSize: typography.size.xs,
-    fontWeight: typography.weight.bold,
-    color: colors.textPrimary,
-    textAlign: 'center',
-  },
-  quickActionSublabel: {
-    fontSize: typography.size.xxs || 10,
-    color: colors.textMuted,
-    textAlign: 'center',
-    marginTop: spacing.xxs,
-  },
-
-  // Metrics
-  metricsSection: {
-    marginBottom: spacing.xl,
-  },
-  metricsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.md,
-  },
-  metricCard: {
-    width: (width - spacing.lg * 2 - spacing.md) / 2,
-    backgroundColor: colors.surface,
-    borderRadius: radii.lg,
-    padding: spacing.lg,
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    ...shadows.sm,
-  },
-  metricCardPrimary: {
-    backgroundColor: colors.primaryDeep,
-    borderColor: colors.primary,
-  },
-  metricCardSuccess: {
-    backgroundColor: colors.successBg,
-    borderColor: colors.successBorder,
-  },
-  metricCardWarning: {
-    backgroundColor: colors.warningBg,
-    borderColor: colors.warningBorder,
-  },
-  metricIcon: {
-    fontSize: typography.size.xl,
-    marginBottom: spacing.sm,
-  },
-  metricLabel: {
-    fontSize: typography.size.xs,
-    color: colors.textMuted,
-    fontWeight: typography.weight.semibold,
-    textTransform: 'uppercase',
-    letterSpacing: typography.letterSpacing.wide,
-    marginBottom: spacing.xs,
-  },
-  metricLabelPrimary: {
-    color: colors.textOnPrimarySubtle,
-  },
-  metricValue: {
-    fontSize: typography.size.xl,
-    fontWeight: typography.weight.black,
-    color: colors.textPrimary,
-  },
-  metricValuePrimary: {
-    color: colors.textOnPrimary,
-  },
-  metricSublabel: {
-    fontSize: typography.size.xs,
-    color: colors.textMuted,
-    marginTop: spacing.xs,
-  },
-  metricSublabelPrimary: {
-    color: colors.textOnPrimarySubtle,
-  },
-
-  // Tax Insights
-  taxInsightsCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radii.lg,
-    padding: spacing.lg,
-    marginBottom: spacing.xl,
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
-    ...shadows.sm,
-  },
-  taxInsightsHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.lg,
-    paddingBottom: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.surfaceSlate,
-  },
-  taxInsightsTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  taxInsightsIcon: {
-    fontSize: typography.size.xl,
-  },
-  taxInsightsTitle: {
-    fontSize: typography.size.md,
-    fontWeight: typography.weight.bold,
-    color: colors.textPrimary,
-  },
-  taxInsightsBadge: {
-    backgroundColor: colors.primaryLight,
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.sm,
-    borderRadius: radii.sm,
-  },
-  taxInsightsBadgeText: {
-    fontSize: typography.size.xs,
-    color: colors.primary,
-    fontWeight: typography.weight.semibold,
-  },
-  taxInsightsContent: {
-    gap: spacing.md,
-  },
-  taxInsightsRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  taxInsightsLabel: {
-    fontSize: typography.size.sm,
-    color: colors.textSecondary,
-  },
-  taxInsightsValue: {
-    fontSize: typography.size.md,
-    fontWeight: typography.weight.bold,
-    color: colors.textPrimary,
-  },
-  taxInsightsValueSuccess: {
-    color: colors.success,
-  },
-  taxOptimizationHint: {
+  anomalyRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: colors.warningBg,
-    padding: spacing.md,
-    borderRadius: radii.md,
-    marginTop: spacing.lg,
-    gap: spacing.sm,
+    gap: 8,
+    paddingVertical: 6,
   },
-  taxOptimizationIcon: {
-    fontSize: typography.size.lg,
+  anomalyGlyph: {
+    fontSize: 14,
+    fontWeight: '700',
+    width: 16,
+    textAlign: 'center',
   },
-  taxOptimizationContent: {
+  anomalyText: {
+    flex: 1,
+    fontSize: 13,
+    color: '#374151',
+    lineHeight: 18,
+  },
+  actionsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  actionButton: {
+    width: '30%',
+    aspectRatio: 1,
+    borderRadius: 12,
+    backgroundColor: '#EFF6FF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  actionButtonPressed: {
+    transform: [{ scale: 0.97 }],
+    backgroundColor: '#DBEAFE',
+  },
+  actionEmoji: {
+    fontSize: 24,
+  },
+  actionLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#1D4ED8',
+    textAlign: 'center',
+  },
+  deadlineRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#E5E7EB',
+  },
+  deadlineLeft: {
     flex: 1,
   },
-  taxOptimizationText: {
-    fontSize: typography.size.sm,
-    color: colors.warningDark,
-    marginBottom: spacing.xs,
+  deadlineType: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#111827',
   },
-  taxOptimizationLink: {
-    fontSize: typography.size.sm,
-    color: colors.primary,
-    fontWeight: typography.weight.bold,
+  deadlinePeriod: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 2,
   },
-
-  // Compliance
-  complianceCard: {
-    backgroundColor: colors.successBg,
-    borderRadius: radii.lg,
-    padding: spacing.lg,
-    marginBottom: spacing.xl,
-    borderWidth: 1,
-    borderColor: colors.successBorder,
+  deadlineBadge: {
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
   },
-  complianceHeader: {
+  deadlineBadgeUrgent: {
+    backgroundColor: '#FEE2E2',
+  },
+  deadlineBadgeNormal: {
+    backgroundColor: '#F3F4F6',
+  },
+  deadlineDays: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#374151',
+  },
+  ambientRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    marginBottom: spacing.md,
+    gap: 8,
+    marginHorizontal: 16,
+    paddingVertical: 12,
   },
-  complianceIcon: {
-    fontSize: typography.size.xl,
+  ambientText: {
+    fontSize: 12,
+    color: '#6B7280',
   },
-  complianceTitle: {
-    fontSize: typography.size.md,
-    fontWeight: typography.weight.bold,
-    color: colors.successDark,
-  },
-  complianceItems: {
-    gap: spacing.sm,
-  },
-  complianceItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  complianceCheckIcon: {
-    fontSize: typography.size.sm,
-    color: colors.success,
-    fontWeight: typography.weight.bold,
-  },
-  complianceOnline: {
-    color: colors.success,
-  },
-  complianceOffline: {
-    color: colors.warning,
-  },
-  complianceItemText: {
-    fontSize: typography.size.sm,
-    color: colors.successDark,
-  },
-
-  // Footer
-  footer: {
-    alignItems: 'center',
-    paddingTop: spacing.xl,
-    borderTopWidth: 1,
-    borderTopColor: colors.borderSubtle,
-  },
-  footerText: {
-    fontSize: typography.size.sm,
-    fontWeight: typography.weight.bold,
-    color: colors.textPrimary,
-  },
-  footerSubtext: {
-    fontSize: typography.size.xs,
-    color: colors.textMuted,
-    marginTop: spacing.xs,
-  },
-});
+  nrsStatusDot: (color: string) => ({
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: color,
+  }),
+} as any);
