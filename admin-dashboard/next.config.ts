@@ -58,7 +58,7 @@ const nextConfig: NextConfig = {
       "font-src 'self' data:",
       `connect-src 'self' https://taxbridge-api-ker8.onrender.com https://*.onrender.com https://*.vercel.app${vercelLiveSrc}`,
       "frame-ancestors 'none'",
-      `frame-src 'none'${isProd ? '' : ' https://vercel.live'}`,
+      isProd ? "frame-src 'none'" : "frame-src https://vercel.live https://*.vercel.live",
     ].join('; ');
 
     return [
