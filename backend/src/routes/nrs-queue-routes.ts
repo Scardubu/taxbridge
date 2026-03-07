@@ -11,16 +11,7 @@ import { getQueueHealth, enqueueNRSSubmission, QUEUE_NAMES } from '../queues/ind
 
 export default async function nrsQueueRoutes(fastify: FastifyInstance) {
 
-  /**
-   * GET /health/queues
-   * Returns health stats for all 6 BullMQ queues.
-   * Used by admin NRS monitor and deployment verification scripts.
-   * Always resolves — returns 'unavailable' gracefully on Redis cold-start.
-   */
-  fastify.get('/health/queues', async (_req, reply) => {
-    const health = await getQueueHealth();
-    return reply.code(200).send(health);
-  });
+  // GET /health/queues is registered in server.ts (canonical — updates component metrics).
 
   /**
    * POST /api/v1/nrs/requeue/:invoiceId
