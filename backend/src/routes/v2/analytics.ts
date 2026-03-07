@@ -6,7 +6,7 @@
  * GET /api/v2/analytics/nrs-health         — circuit state last 24h
  * GET /api/v2/analytics/dlq-trend          — DLQ depth last 7 days
  *
- * All routes: authenticate + requireRole('ADMIN')
+ * All routes: authenticate + requireRole('admin')
  * C-07: Always 200 — returns empty arrays on data errors.
  */
 
@@ -27,7 +27,7 @@ export default async function v2AnalyticsRoute(fastify: FastifyInstance) {
   // unpaid-but-filed returns. Architecture §13.
   fastify.get(
     '/api/v2/analytics/revenue-at-risk',
-    { preHandler: [requireRole('ADMIN')] },
+    { preHandler: [requireRole('admin')] },
     async (_req: FastifyRequest, reply: FastifyReply) => {
       try {
         const rows = await (prisma as any).taxReturn.groupBy({
@@ -58,7 +58,7 @@ export default async function v2AnalyticsRoute(fastify: FastifyInstance) {
   // 6-month rolling window: filed_on_time / total_due per month
   fastify.get(
     '/api/v2/analytics/compliance-rate',
-    { preHandler: [requireRole('ADMIN')] },
+    { preHandler: [requireRole('admin')] },
     async (_req: FastifyRequest, reply: FastifyReply) => {
       try {
         const sixMonthsAgo = new Date();
@@ -109,7 +109,7 @@ export default async function v2AnalyticsRoute(fastify: FastifyInstance) {
   // ── Risk Distribution ──────────────────────────────────────────────────────
   fastify.get(
     '/api/v2/analytics/risk-distribution',
-    { preHandler: [requireRole('ADMIN')] },
+    { preHandler: [requireRole('admin')] },
     async (_req: FastifyRequest, reply: FastifyReply) => {
       try {
         const rows = await (prisma as any).sMERiskRecord.groupBy({
@@ -135,7 +135,7 @@ export default async function v2AnalyticsRoute(fastify: FastifyInstance) {
   // Circuit state timeline from audit events, last 24h
   fastify.get(
     '/api/v2/analytics/nrs-health',
-    { preHandler: [requireRole('ADMIN')] },
+    { preHandler: [requireRole('admin')] },
     async (_req: FastifyRequest, reply: FastifyReply) => {
       try {
         const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
@@ -167,7 +167,7 @@ export default async function v2AnalyticsRoute(fastify: FastifyInstance) {
   // Last 7 days depth samples from Redis metrics key
   fastify.get(
     '/api/v2/analytics/dlq-trend',
-    { preHandler: [requireRole('ADMIN')] },
+    { preHandler: [requireRole('admin')] },
     async (_req: FastifyRequest, reply: FastifyReply) => {
       try {
         const redis = getRedisConnection();

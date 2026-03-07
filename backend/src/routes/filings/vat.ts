@@ -23,7 +23,6 @@ import { authenticate } from '../../middleware/authenticate';
 import { resolveOrgContext } from '../../middleware/tenant';
 import { idempotency } from '../../middleware/idempotency';
 import { writeAuditEvent } from '../../services/audit';
-import { calculateVAT } from '@taxbridge/contracts';
 import { createLogger } from '../../lib/logger';
 import { getPrismaClient } from '../../lib/prisma';
 
@@ -87,8 +86,6 @@ export default async function vatFilingRoutes(app: FastifyInstance) {
       });
       const creditCarryforward = creditRecord?.balance ?? 0;
 
-      // Calculate VAT via contract function (C-09: never inline)
-      const vatCalc = calculateVAT({ amount: Math.abs(outputVAT - inputVAT) });
       const net = outputVAT - inputVAT - creditCarryforward;
 
       let irn: string | null = null;

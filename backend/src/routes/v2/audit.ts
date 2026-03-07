@@ -53,8 +53,8 @@ export default async function v2AuditRoute(fastify: FastifyInstance) {
         if (userId)  where.userId = userId;
         if (cursor) {
           where.OR = [
-            { createdAt: { lt: new Date(cursor.t) } },
-            { createdAt: new Date(cursor.t), id: { lt: cursor.id } },
+            { createdAt: { lt: cursor.createdAt } },
+            { createdAt: cursor.createdAt, id: { lt: cursor.id } },
           ];
         }
 
@@ -93,8 +93,14 @@ export default async function v2AuditRoute(fastify: FastifyInstance) {
 
         const response: PaginatedResponse<AuditEventRow> = {
           data: items,
-          nextCursor,
-          hasMore,
+          meta: {
+            nextCursor,
+            prevCursor:      null,
+            hasNextPage:     hasMore,
+            hasPreviousPage: !!after,
+            total:           null,
+            pageSize,
+          },
         };
 
         return reply.send(successResponse(response));

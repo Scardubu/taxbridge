@@ -31,9 +31,9 @@ interface RateLimitOptions {
   /** Custom key generator (defaults to IP-based) */
   keyGenerator?: (request: FastifyRequest) => string;
   /** GAP-09: always true — X-RateLimit-* headers on every response */
-  standardHeaders: true;
+  standardHeaders?: true;
   /** Legacy X-RateLimit headers disabled */
-  legacyHeaders: false;
+  legacyHeaders?: false;
 }
 
 /**

@@ -7,7 +7,7 @@
  * 8 steps on mobile: tax year → P&L → loss carry-forward → dev levy →
  * education tax → assessment summary → payment → receipt.
  *
- * Backend: authenticate + resolveOrgContext + requireRole('ACCOUNTANT') +
+ * Backend: authenticate + resolveOrgContext + requireRole('accountant') +
  * validate(CITSchema) + idempotency
  */
 
@@ -39,7 +39,7 @@ export default async function citFilingRoutes(app: FastifyInstance) {
 
   app.post(
     '/api/v1/filings/cit',
-    { preHandler: [authenticate, resolveTenant, requireRole('ACCOUNTANT'), idempotency()] },
+    { preHandler: [authenticate, resolveTenant, requireRole('accountant'), idempotency()] },
     async (req, reply) => {
       const parsed = CITSchema.safeParse(req.body);
       if (!parsed.success) {

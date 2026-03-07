@@ -17,7 +17,7 @@ import { authenticate } from '../../middleware/authenticate';
 import { resolveOrgContext } from '../../middleware/tenant';
 import { idempotency } from '../../middleware/idempotency';
 import { writeAuditEvent } from '../../services/audit';
-import { calculatePenalty } from '@taxbridge/contracts';
+import { PENALTY_RATES } from '@taxbridge/contracts';
 import { createLogger } from '../../lib/logger';
 import { getPrismaClient } from '../../lib/prisma';
 
@@ -103,12 +103,16 @@ export default async function nilFilingRoutes(app: FastifyInstance) {
       // Penalty check (C-05: always compute penalty, show to client)
       const deadline   = getDeadlineForPeriod(taxType, period);
       const daysLate   = Math.max(0, Math.floor((Date.now() - deadline.getTime()) / 86_400_000));
-      const penaltyInfo = calculatePenalty({
-        entityType:      role === 'OWNER' ? 'company' : 'individual',
+
+      // Inline penalty for NIL returns (taxAmountDue = 0; only fixed late-filing fee applies)
+      const lateFee    = daysLate > 0 ? PENALTY_RATES.lateReturn : 0;   // ₦25,000 flat
+      const interest   = 0;   // no tax amount outstanding
+      const penaltyInfo = {
+        lateFilingFee:  lateFee,
+        interest,
+        netPenalty:     lateFee + interest,
         daysLate,
-        taxAmountDue:    0,
-        disclosurePhase: 'after_assessment',
-      });
+      };
 
       if (daysLate > 0) {
         log.warn({ orgId, taxType, period, daysLate, penalty: penaltyInfo.netPenalty }, 'Late NIL filing');

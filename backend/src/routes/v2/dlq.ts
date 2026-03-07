@@ -55,7 +55,7 @@ export default async function v2DlqRoute(fastify: FastifyInstance) {
           for (const job of failedJobs) {
             const createdAt = new Date(job.timestamp ?? Date.now());
             // Apply cursor filter
-            if (cursor && createdAt <= new Date(cursor.t)) continue;
+            if (cursor && createdAt <= cursor.createdAt) continue;
 
             jobs.push({
               id: String(job.id),
@@ -76,8 +76,14 @@ export default async function v2DlqRoute(fastify: FastifyInstance) {
 
         const response: PaginatedResponse<DlqJobSummary> = {
           data: page,
-          nextCursor,
-          hasMore: nextCursor !== null,
+          meta: {
+            nextCursor,
+            prevCursor:      null,
+            hasNextPage:     nextCursor !== null,
+            hasPreviousPage: !!after,
+            total:           null,
+            pageSize,
+          },
         };
 
         return reply.send(successResponse(response));

@@ -15,7 +15,7 @@ import { authenticate } from '../../middleware/authenticate';
 import { resolveOrgContext } from '../../middleware/tenant';
 import { idempotency } from '../../middleware/idempotency';
 import { writeAuditEvent } from '../../services/audit';
-import { calculatePIT } from '@taxbridge/contracts';
+import { calculatePIT, calculateRRA } from '@taxbridge/contracts';
 import { createLogger } from '../../lib/logger';
 import { getPrismaClient } from '../../lib/prisma';
 
@@ -82,15 +82,15 @@ export default async function payeFilingRoutes(app: FastifyInstance) {
       }
 
       // Compute PAYE per employee using contracts PIT calculation
+      // calculatePIT expects a pre-computed taxableIncome number (NTA 2025 §58).
+      // Deductions: RRA (rent relief), pension, NHF.
       const computedEmployees = employees.map((emp: EmployeeInput) => {
-        const pitResult = calculatePIT({
-          grossIncome:      emp.grossIncome,
-          rentPaid:         emp.rentPaid,
-          pension:          emp.pension,
-        });
+        const rra           = calculateRRA(emp.rentPaid);
+        const taxableIncome = Math.max(0, emp.grossIncome - rra - emp.pension - emp.nhf);
+        const pitResult     = calculatePIT(taxableIncome);
 
         // Monthly PAYE = annual tax / 12
-        const annualTax     = pitResult.taxLiability;
+        const annualTax     = pitResult.totalTax;
         const monthlyPAYE   = Math.round(annualTax / 12);
         const takeHome      = Math.round(emp.grossIncome / 12) - monthlyPAYE;
 
