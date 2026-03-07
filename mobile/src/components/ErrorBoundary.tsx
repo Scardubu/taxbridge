@@ -284,11 +284,11 @@ const styles = StyleSheet.create({
   reassuranceBox: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: '#ECFDF5',
+    backgroundColor: colors.successBgSubtle,
     padding: spacing.md,
     borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: '#10B981',
+    borderColor: colors.success,
     marginBottom: spacing.lg,
     width: '100%',
     maxWidth: 300,
@@ -303,12 +303,12 @@ const styles = StyleSheet.create({
   reassuranceTitle: {
     fontSize: typography.size.md,
     fontWeight: typography.weight.semibold as any,
-    color: '#047857',
+    color: colors.successDark,
     marginBottom: 4,
   },
   reassuranceText: {
     fontSize: typography.size.sm,
-    color: '#065F46',
+    color: colors.successDark,
   },
   errorIdBox: {
     backgroundColor: colors.neutralBg,

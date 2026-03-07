@@ -968,6 +968,7 @@
     "scan": "📷 Scan",
     "syncReady": "Sync Ready",
     "offlineMode": "Offline Mode",
+    "offline": "You no get internet. Data go sync when connection come back.",
     "syncPending": "Sync pending invoices",
     "complete": "complete",
     "comingSoon": "Coming Soon",
@@ -1660,7 +1661,7 @@
   "anomaly": {
     "title": "Anomaly Alerts",
     "subtitle": "Something unusual dey your transactions",
-    "noAnomalies": "No anomaly — your records dey clean!",
+    "noAnomalies": "",
     "dismiss": "Dismiss Am",
     "dismissed": "Don dismiss",
     "reviewNow": "Review Now Now",

@@ -12,6 +12,7 @@
  */
 
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios';
+import { Alert } from 'react-native';
 import { QueryClient } from '@tanstack/react-query';
 import { getAccessToken, getRefreshToken, setAuthTokens, clearAuthTokens } from './authTokens';
 import { getApiBaseUrl } from './config';
@@ -61,6 +62,13 @@ apiClient.interceptors.response.use(
   async (error: AxiosError) => {
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retried?: boolean };
 
+    if (error.response?.status === 429) {
+      const retryAfter = error.response.headers?.['retry-after'];
+      const seconds = retryAfter ? Math.ceil(Number(retryAfter)) : 30;
+      Alert.alert('Too many requests', `Try again in ${seconds}s`);
+      return Promise.reject(toApiClientError(error));
+    }
+
     if (
       error.response?.status === 401 &&
       !originalRequest._retried &&
@@ -109,6 +117,11 @@ async function doRefreshToken(): Promise<string | null> {
   }
   return null;
 }
+
+// ─── Offline detection (GAP-11) ──────────────────────────────────────────────
+
+export const isOfflineError = (e: any): boolean =>
+  e?.code === 'ECONNABORTED' || e?.message === 'Network Error' || e?.response === undefined;
 
 // ─── Error normalisation ──────────────────────────────────────────────────────
 

@@ -8,11 +8,12 @@
  * Gate check: grep "taxbridge_api_request_duration_seconds" backend/src/metrics.ts → pass
  */
 
-import { Counter, Histogram, Gauge, Summary } from 'prom-client';
-import { registry, metrics as metricsService } from './services/metrics';
+import { Counter, Histogram, Gauge } from 'prom-client';
+import { registry } from './services/metrics';
 
 // ── Re-export existing registry & service ──────────────────────────────
-export { registry, metricsService };
+export { registry };
+export { metrics as metricsService } from './services/metrics';
 
 // ── V12 §17.1: 7 mandatory TaxBridge metrics ──────────────────────────
 
@@ -25,48 +26,49 @@ export const taxbridge_api_request_duration_seconds = new Histogram({
   registers: [registry],
 });
 
-/** 2. NRS submission total — Counter */
-export const taxbridge_nrs_submission_total = new Counter({
-  name: 'taxbridge_nrs_submission_total',
-  help: 'Total NRS invoice submissions',
-  labelNames: ['status'] as const,
+/** 2. NRS stamp success — Counter */
+export const taxbridge_nrs_stamp_success_total = new Counter({
+  name: 'taxbridge_nrs_stamp_success_total',
+  help: 'Successful NRS stamp submissions',
+  labelNames: ['orgId'] as const,
   registers: [registry],
 });
 
-/** 3. Payment amount (naira) — Summary */
-export const taxbridge_payment_amount_naira = new Summary({
-  name: 'taxbridge_payment_amount_naira',
-  help: 'Payment amounts in naira',
-  labelNames: ['gateway'] as const,
-  percentiles: [0.5, 0.9, 0.95, 0.99],
+/** 3. NRS stamp failure — Counter */
+export const taxbridge_nrs_stamp_failure_total = new Counter({
+  name: 'taxbridge_nrs_stamp_failure_total',
+  help: 'Failed NRS stamp submissions',
+  labelNames: ['reason'] as const,
   registers: [registry],
 });
 
-/** 4. Active users — Gauge */
-export const taxbridge_active_users = new Gauge({
-  name: 'taxbridge_active_users',
-  help: 'Currently active / connected users',
+/** 4. Anomaly detected — Counter */
+export const taxbridge_anomaly_detected_total = new Counter({
+  name: 'taxbridge_anomaly_detected_total',
+  help: 'Anomalies detected by signal type and severity',
+  labelNames: ['signal', 'severity'] as const,
   registers: [registry],
 });
 
-/** 5. OCR confidence — Histogram */
-export const taxbridge_ocr_confidence = new Histogram({
-  name: 'taxbridge_ocr_confidence',
-  help: 'OCR receipt scan confidence scores',
-  buckets: [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0],
+/** 5. DLQ depth — Gauge */
+export const taxbridge_dlq_depth = new Gauge({
+  name: 'taxbridge_dlq_depth',
+  help: 'Dead-letter queue depth by queue name',
+  labelNames: ['queue_name'] as const,
   registers: [registry],
 });
 
-/** 6. Sync queue depth — Gauge */
-export const taxbridge_sync_queue_depth = new Gauge({
-  name: 'taxbridge_sync_queue_depth',
-  help: 'Pending items in sync queue',
+/** 6. Penalty estimate — Counter */
+export const taxbridge_penalty_estimate_total = new Counter({
+  name: 'taxbridge_penalty_estimate_total',
+  help: 'Penalty estimates computed',
+  labelNames: ['taxType'] as const,
   registers: [registry],
 });
 
-/** 7. DLQ size — Gauge */
-export const taxbridge_dlq_size = new Gauge({
-  name: 'taxbridge_dlq_size',
-  help: 'Dead-letter queue size',
+/** 7. NRS circuit state — Gauge (0=closed, 1=half-open, 2=open) */
+export const taxbridge_nrs_circuit_state = new Gauge({
+  name: 'taxbridge_nrs_circuit_state',
+  help: 'NRS circuit breaker state: 0=closed, 1=half-open, 2=open',
   registers: [registry],
 });

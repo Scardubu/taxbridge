@@ -13,7 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '@hooks/useTheme';
-import { typography, spacing, shadows, radii } from '@ds/tokens';
+import { typography, spacing, shadows, radii, colors as dsColors } from '@ds/tokens';
 
 // ─── Tab definitions ──────────────────────────────────────────────────────────
 
@@ -205,7 +205,7 @@ const s = StyleSheet.create({
     paddingHorizontal: 3,
   },
   badgeText: {
-    color:      '#FFFFFF',
+    color:      dsColors.gray[0],
     fontSize:   9,
     fontWeight: '700',
     lineHeight: 14,

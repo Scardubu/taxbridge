@@ -8,6 +8,40 @@ datasource db {
   directUrl = env("DIRECT_URL") // Optional: For connection pooling with Prisma Accelerate
 }
 
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  FILE
+  AMEND
+  APPROVE
+  OVERRIDE
+  REVOKE
+  INVITE
+  EXPORT
+  ACCESS_DENIED
+  ROLE_CHANGE
+  LOGIN
+  LOGOUT
+  NRS_STAMP
+  PAYMENT_RECEIVED
+  SECURITY_ALERT
+}
+
+enum RiskBand {
+  critical
+  high
+  medium
+  low
+  healthy
+}
+
+enum OrgStatus {
+  active
+  suspended
+  pending_verification
+}
+
 model User {
   id                     String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   phone                  String

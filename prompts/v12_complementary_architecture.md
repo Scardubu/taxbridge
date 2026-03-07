@@ -1,525 +1,900 @@
-# TaxBridge V12 — Condensed Apex Execution Directive
-**Branch:** `upgrade/v12-elevated-20260302` | **Version:** V12-APEX-FINAL | **Date:** 2026-03-03
-**Supersedes:** V12-APEX-3 · V12-GUIDE-3 · V12-ARCH-3 · V12-MASTER-INTEGRATED
-**Authority:** This document is the single indivisible source of truth. All prior artifacts are retired.
+# TaxBridge V12 — Sovereign Complementary Architecture & Quick-Win Playbook
+**Rev:** V12-COMP-FINAL-HARDENED | **Date:** 2026-03-07 | **Branch:** `upgrade/v12-elevated-20260302`
+**Authority:** Companion to `TAXBRIDGE_V12_MASTER_PROMPT.md`. Commit both to `prompts/`. Together they form the complete, self-sufficient implementation specification. No retired document requires cross-referencing.
 
 ---
 
+## PART I — PRODUCTION ARCHITECTURE REFERENCE
+
+### §1 System Overview
+
+| Attribute | Value |
+|---|---|
+| Product | TaxBridge — Nigerian SME intelligent tax compliance platform |
+| Mobile | React Native (Expo SDK 51) |
+| Admin | Next.js 14 |
+| Backend | Express 5, Node 20 LTS |
+| Data | PostgreSQL 15 + Redis 7 |
+| Storage | Cloudflare R2 (`taxbridge-vault`) |
+| Deployment | Render `fra` (backend) · Vercel (admin) · Expo EAS (mobile) |
+| Scale target | 2,000 concurrent users · 99.5% uptime SLA |
+| Regulatory | NRS · VAT · WHT · PAYE · NIL · CIT · Document Vault |
+
 ---
 
-# SECTION 1 — V12 COMPLEMENTARY ARCHITECTURE & IMPLEMENTATION COMPLETENESS DOCUMENT
+### §2 Repository Structure
 
-*Gaps identified via exhaustive cross-artifact analysis of APEX-V3, Enhancement Guide V3, Production Architecture V3, and Master Prompt. Ordered by severity.*
-
----
-
-## COMP-01 · WHT Non-Resident Rate Residual Error — CRITICAL · P2
-
-**Location:** Master Prompt MOD-23 (line 763) still contains `"Non-resident → 4% GREEN"`. This is the only artifact among the four that was not corrected during the V3 revision cycle.
-**Impact:** Regulatory violation. The erroneous 4% rate surfaces in the production filing wizard and could result in under-remittance and NRS penalties for users.
-**Fix:** Non-resident WHT on dividends/interest/royalties = **10%** — identical rate to resident, different remittance channel (`nonResident:true` flag). The 4% rate has no basis in Nigerian tax law (CITA, PITA, or WHT schedules). Eradicate from all paths.
-**Canonical constant** in `packages/contracts/src/constants.ts`:
-```typescript
-export const WHT_RATES = {
-  professional:     0.10,  // consultancy/management/technical/dividends/interest/royalties/rent
-  construction:     0.05,  // survey/contracts
-  nonResident:      0.10,  // same rate — nonResident:true routes to separate NRS remittance channel
-} as const;
-// NOTE: There is no 0.04 (4%) WHT rate in Nigerian law. Any prior reference is a regulatory error.
 ```
-**Gates (all must exit 0):**
+/
+├── mobile/
+│   ├── src/
+│   │   ├── design-system/        animation.ts | ngn.ts | tokens.ts
+│   │   ├── contexts/             ThemeContext.tsx
+│   │   ├── components/
+│   │   │   ├── shared/           SectionState | InlineError | EmptyState | ConfettiAnimation
+│   │   │   └── dashboard/        DashboardZone | DashboardSkeleton | TaxHealthGauge
+│   │   │                         QuickActionsGrid | ComplianceCalendar | MetricsRow | OfflineSyncStatus
+│   │   ├── hooks/                useDashboard | usePushNotification | useDeepLink | useBiometric
+│   │   ├── screens/
+│   │   │   ├── DashboardScreen.tsx
+│   │   │   ├── OnboardingWizard.tsx
+│   │   │   ├── auth/             TOTPSetupScreen.tsx
+│   │   │   ├── filings/          VATFilingWizard | WHTWizard | PAYEWizard | NILReturnScreen | CITFilingWizard
+│   │   │   ├── documents/        DocumentVaultScreen.tsx
+│   │   │   └── team/             TeamManagementScreen.tsx
+│   │   ├── services/             apiClient.ts
+│   │   ├── i18n/                 en.json | pidgin.json | i18n.config.ts
+│   │   └── assets/animations/   confetti | success-checkmark | loading-spinner | empty-state
+│   ├── app.json                  scheme · universal links · notification config
+│   └── eas.json                  development | preview | production profiles
+│
+├── backend/
+│   ├── src/
+│   │   ├── validateEnv.ts        LINE 1 import in app.ts
+│   │   ├── app.ts                exact middleware order (immutable)
+│   │   ├── lib/
+│   │   │   ├── prisma.ts         global.__prisma singleton (C-43)
+│   │   │   ├── redis.ts          global.__taxbridge_redis singleton (C-46, COMP-19)
+│   │   │   └── logger.ts         Pino + full redaction (C-21, C-45, COMP-10)
+│   │   ├── metrics.ts            7 Prometheus metrics, singleton guard
+│   │   ├── middleware/
+│   │   │   ├── authenticate.ts   JWT RS256 + role_version check
+│   │   │   ├── validate.ts       Zod safeParse wrapper (C-34)
+│   │   │   ├── idempotency.ts    X-Idempotency-Key + Redis NX (C-35)
+│   │   │   ├── requireRole.ts    ROLE_HIERARCHY enforcement (C-24)
+│   │   │   ├── require2FA.ts     TOTP 5-min TTL Redis check
+│   │   │   ├── rateLimit.ts      standardHeaders:true (C-30, GAP-09)
+│   │   │   └── tenant.ts         resolveOrgContext: OrgMember + OrgStatus (C-12, COMP-08)
+│   │   ├── routes/
+│   │   │   ├── v1/
+│   │   │   │   ├── auth.ts       login | refresh | handleSuspiciousReuse (GAP-02)
+│   │   │   │   ├── auth/totp.ts  setup | verify | disable | backup (GAP-03)
+│   │   │   │   ├── dashboard.ts  composite Promise.all, TTL 120s
+│   │   │   │   ├── notifications.ts  register | unregister (GAP-01)
+│   │   │   │   ├── compliance/preflight.ts
+│   │   │   │   ├── filings/      nil | vat | wht | cit
+│   │   │   │   ├── payroll/run.ts
+│   │   │   │   ├── documents.ts
+│   │   │   │   └── team.ts
+│   │   │   ├── v2/
+│   │   │   │   ├── monitoring.ts  health (public) | metrics (ADMIN)
+│   │   │   │   ├── analytics.ts   5 endpoints (COMP-03)
+│   │   │   │   ├── audit.ts       paginated + NDJSON export
+│   │   │   │   └── dlq.ts         list | retry | resolve
+│   │   │   └── webhooks/
+│   │   │       └── flutterwave.ts  HMAC + Redis NX idempotency (GAP-06, C-37)
+│   │   ├── services/
+│   │   │   ├── audit.ts           writeAuditEvent (always awaited, C-25)
+│   │   │   ├── anomalyEngine.ts   7 signals, cap 5, throw → [] (never propagates)
+│   │   │   ├── riskScoring.ts     5 sub-scores, clamp 0–100
+│   │   │   ├── nrsService.ts      opossum circuit breaker (C-29)
+│   │   │   ├── notifications.ts   push + Africa's Talking SMS fallback (GAP-01, C-39)
+│   │   │   ├── dashboardService.ts  FALLBACK_* constants (C-07)
+│   │   │   ├── vatCredit.service.ts
+│   │   │   ├── compliancePreFlight.ts
+│   │   │   └── eventBus.ts        EventEmitter + BullMQ pdfQueue (COMP-05)
+│   │   ├── workers/
+│   │   │   └── pdfWorker.ts       BullMQ consumer → R2 (GAP-15, C-40)
+│   │   └── cron/
+│   │       └── orchestrator.ts    exactly 7 jobs
+│   └── prisma/schema.prisma
+│
+├── admin/
+│   └── src/
+│       ├── middleware.ts          jose JWT + role_version + CSRF (GAP-12)
+│       └── pages/admin/
+│           ├── analytics/index.tsx  5 panels (COMP-03)
+│           ├── dlq/index.tsx
+│           ├── audit/index.tsx
+│           └── team/index.tsx
+│
+├── packages/
+│   └── contracts/src/
+│       ├── constants.ts           ALL rate constants (C-04, COMP-01)
+│       ├── types.ts               PaginatedResponse | DashboardStats | etc.
+│       ├── cit.ts                 calculateCIT (C-41, GAP-05)
+│       └── index.ts               re-exports all
+│
+├── infra/
+│   ├── grafana/alerts.yml         5 alert rules (COMP-15)
+│   ├── grafana/dashboard.json     6 panels
+│   └── k6/load-test.js
+│
+├── scripts/
+│   ├── backfill-v12.ts            PDF + band + ref audit (COMP-06)
+│   ├── create-emergency-rollback-proc.sql  (COMP-07)
+│   ├── seed-dev.ts                Acme Ltd dev seed (COMP-18)
+│   ├── verify-prompts.ts          yarn prompts:verify → 12/12 (COMP-09)
+│   └── compress-assets.sh         QW-10
+│
+├── prompts/                       COMMITTED TO REPO
+│   ├── TAXBRIDGE_V12_MASTER_PROMPT.md
+│   └── v12_complementary_architecture.md
+│
+├── Dockerfile                     multi-stage: builder + production
+├── docker-compose.yml             postgres:15 + redis:7 (COMP-04)
+├── .env.example                   template (COMP-04)
+├── render.yaml
+├── .github/workflows/pipeline.yml  5 CI stages
+└── package.json                   yarn workspaces root
+```
+
+---
+
+### §3 Data Architecture
+
+#### §3.1 Schema Enums & Immutability Contracts
+
+```prisma
+enum UserRole    { SUPER_ADMIN ADMIN OWNER ACCOUNTANT EMPLOYEE VIEWER }
+enum NilReason   { NO_REVENUE_THIS_PERIOD BUSINESS_INACTIVE EXEMPT_SUPPLY_ONLY BELOW_REGISTRATION_THRESHOLD }
+enum AuditAction { CREATE UPDATE DELETE FILE AMEND APPROVE OVERRIDE REVOKE INVITE EXPORT ACCESS_DENIED ROLE_CHANGE LOGIN LOGOUT NRS_STAMP PAYMENT_RECEIVED SECURITY_ALERT }
+enum RiskBand    { critical high medium low healthy }
+enum OrgStatus   { active suspended pending_verification }
+```
+
+**Immutability contracts (CI Stage 3 enforced):**
+- `TaxHealthSnapshot` — INSERT-ONLY. **NO `updatedAt` field.** Backfill via raw SQL only.
+- `AuditEvent` — **NO `updatedAt` field.**
+
+**Application-layer invariants:**
+- `VATCreditBalance.carriedFromPeriod ≥ currentPeriod` → throw `ValidationError` in `vatCredit.service.ts`
+- `SMERiskRecord.score` → `Math.max(0,Math.min(100,score))` before every upsert
+- `OrgMember` last OWNER guard → `409 LAST_OWNER` when `ownerCount≤1 && target.role==='OWNER'`
+
+#### §3.2 Redis Cache Keys
+
+| Key Pattern | TTL | Purpose |
+|---|---|---|
+| `dashboard:composite:v1:${orgId}:${userId}` | 120s | Dashboard composite response |
+| `idem:${idempotencyKey}` | 86400s | Idempotency response cache |
+| `totp:${userId}` | 300s | TOTP verification session |
+| `role_version:${userId}` | — | Role invalidation token (deleted on change) |
+| `webhook:flw:${tx_ref}` | 86400s | Flutterwave deduplication key |
+
+#### §3.3 Migration Strategy (Zero-Downtime)
+
 ```bash
-grep -rn "0\.04\b\|\"4%\"\|'4%'\| 4%" backend/src/routes/v1/filings/wht.ts packages/contracts/src --include="*.ts"  # → 0
-grep -rn "nonResident.*0\.10\|WHT_RATES\.nonResident" backend/src/routes/v1/filings/wht.ts  # confirms 10%
-npx ts-node -e "const{WHT_RATES}=require('./packages/contracts/src/constants');if(WHT_RATES.nonResident!==0.10)process.exit(1);console.log('✅ WHT non-resident=10%')"
+# NEVER between 08:00–20:00 WAT
+# NEVER use prisma migrate rollback — it destroys migration history metadata
+# Use create-emergency-rollback-proc.sql instead
+npx prisma migrate dev --name "v12_step1_nullable_additions"
+yarn workspace backend ts-node scripts/backfill-v12.ts       # between steps
+npx prisma migrate dev --name "v12_step2_constraints_indexes_userdevice"
+npx prisma migrate deploy                                      # CI/CD production only
 ```
-**Priority:** M (must fix before Phase 2 gate)
 
 ---
 
-## COMP-02 · `computeGaugeMode()` — Undefined Function — CRITICAL · P0
+### §4 Intelligence Pipeline
 
-**Location:** Called in `DashboardScreen.tsx` and master prompt but spec'd nowhere in any artifact. Every consumer of `gaugeMode` depends on this function existing at compile time.
-**Spec:** Export from `mobile/src/components/dashboard/TaxHealthGauge.tsx` alongside the gauge component:
+```
+computeAnomalies(IntelligenceInput) → AnomalySignal[]
+  Cap: 5 signals maximum returned
+  Error handling: throw → return [] — never propagates to caller
+
+7 signals:
+  auth_failure_flood   >10/1h/IP → critical   [long-window; Grafana Auth_Flood >10/1min is SEPARATE — COMP-15]
+  nil_overuse          ≥3 consecutive → medium
+  payroll_spike        >50% MoM → medium
+  unfiled_period       >30d → high
+  vat_credit_aging     unused >90d → low
+  vat_gap              output/input ratio anomaly → high
+  nrs_stamp_delay      stamp latency exceeds threshold → high
+
+computeRiskScore() → { score:number(0–100), band:RiskBand }
+  5 sub-scores: filing(0–30) + anomaly(0–25) + health(0–25) + vat(0–10) + data(0–10)
+  Bands: ≥80=healthy | ≥60=low | ≥40=medium | ≥20=high | <20=critical
+  ENFORCE: score = Math.max(0, Math.min(100, total)) before every DB write
+```
+
+---
+
+### §5 Security Architecture
+
+| Mechanism | Implementation |
+|---|---|
+| Auth tokens | JWT RS256 (4096-bit PEM key), access TTL 15min, refresh TTL 7d |
+| Refresh reuse | `handleSuspiciousReuse()` → `UserSession.deleteMany({userId})` + `redis.del('role_version:${userId}')` + `SECURITY_ALERT` audit + push notification + Sentry |
+| TOTP | speakeasy + AES-256-GCM encrypted secret + 10 bcrypt-hashed backup codes (C-38) |
+| RBAC | `requireRole()` middleware — actor cannot assign role ≥ own level (C-24) |
+| Webhook integrity | `crypto.timingSafeEqual()` HMAC-SHA256 on `verif-hash` header |
+| Idempotency | Redis NX + 24h TTL on all exactly-once mutations (C-35, C-37) |
+| Audit log | INSERT-ONLY `AuditEvent` — NO `updatedAt` — always `await writeAuditEvent()` (C-25) |
+| Admin CSRF | `X-CSRF-Token === csrf_token cookie` for all POST/PATCH/DELETE |
+| Role invalidation | `role_version` incremented in **3 paths**: (1) role change via MOD-27, (2) TOTP disable, (3) account suspension — all 3 call `redis.del('role_version:${userId}')` (C-44) |
+| Deep link | `useDeepLink()` validates against `SAFE_ROUTES` allowlist — no dynamic path construction (C-36) |
+| Rate limiting | `authRateLimit` (10/15min/IP) on login, `standardHeaders:true` on all limiters (C-30, GAP-09) |
+
+#### TOTP Lockout Recovery Runbook (COMP-17)
+
+```
+Path 1 — Peer SUPER_ADMIN:
+  POST /api/v1/auth/totp/disable with peer SUPER_ADMIN credentials + their own 2FA confirmation
+
+Path 2 — Backup codes:
+  POST /api/v1/auth/totp/backup
+  Each code: bcrypt.compare, one-time redemption, immutable once used
+
+Path 3 — DBA fallback (MAINTENANCE WINDOW ONLY — drain active connections first; race condition risk):
+  UPDATE "User" SET "totpEnabled"=false, "totpSecret"=NULL WHERE id='<userId>';
+  INSERT INTO "AuditEvent" (id,"orgId","actorId","actorRole","targetType","targetId",action,after,"createdAt")
+    VALUES (gen_random_uuid(),'SYSTEM','DBA','SYSTEM','User','<userId>','OVERRIDE',
+            '{"reason":"emergency_totp_disable"}',now());
+```
+
+---
+
+### §6 Performance Targets
+
+| Metric | Target | Measurement |
+|---|---|---|
+| Dashboard 2G initial paint | < 2000ms | Lighthouse mobile |
+| Admin Lighthouse performance | ≥ 98 | Lighthouse desktop |
+| Dashboard API P99 | < 2000ms | Grafana `Dashboard_P99` alert |
+| API error rate | < 1% | Grafana `API_Error_Rate` alert |
+| DLQ depth | < 10 | Grafana `DLQ_Depth_High` alert |
+| k6 filing p95 | < 2000ms | CI Stage 5 |
+| Skeleton layout shift | 0px | RN Profiler |
+
+---
+
+### §7 NRS Integration
+
 ```typescript
-export function computeGaugeMode(data: DashboardStats | undefined): 'expanded' | 'compact' {
-  if (!data) return 'expanded';                         // loading/error state → default to expanded
-  const deadlines = data.upcomingDeadlines ?? [];       // defensive: field may be absent on partial response
-  const hasUrgent = deadlines.some(d => d.daysRemaining <= 7 || d.daysRemaining < 0);
-  return hasUrgent ? 'compact' : 'expanded';
-  // compact:  120px right-aligned — urgent deadline ≤7d OR overdue (daysRemaining < 0)
+const breaker=new CircuitBreaker(callNRSAPI,{
+  timeout:10_000,errorThresholdPercentage:50,resetTimeout:30_000,volumeThreshold:5
+});
+// States: 0=closed | 1=half-open | 2=open
+// DIGITAX_MOCK_MODE=true → return {irn:`MOCK-IRN-${Date.now()}`} — bypasses breaker
+// Override: SUPER_ADMIN + require2FA only (C-29)
+// Update taxbridge_nrs_circuit_state Gauge on every state-change event
+```
+
+---
+
+### §8 Document Vault
+
+- Storage: Cloudflare R2, bucket `taxbridge-vault`
+- **NEVER set `ServerSideEncryption`** — R2 encrypts all objects at rest automatically. `aws:kms` is S3-only and causes upload failures on R2.
+- URL access: `getSignedUrl()` with 24h expiry. Never expose raw R2 object URLs.
+- Key format: `receipts/${orgId}/${filingId}.pdf` | `documents/${orgId}/${documentId}`
+- Audit: `await writeAuditEvent` on every upload and every download (C-25)
+- NRS stamp check on invoice upload when value ≥ ₦200,000
+- Retention: soft-delete only; SUPER_ADMIN hard-delete only after 7-year retention period
+- PDF receipts: auto-generated via BullMQ `pdfWorker.ts` on `filing.submitted` event (C-40)
+
+---
+
+## PART II — ALL 19 COMP GAPS CLOSED
+
+### COMP-01 · WHT 4% Non-Resident Rate — ERADICATED — CRITICAL
+
+**The 4% non-resident WHT rate does not exist in Nigerian law (CITA, PITA, or WHT schedules). Any prior reference is a regulatory violation.**
+
+Canonical rates in `packages/contracts/src/constants.ts`:
+```typescript
+export const WHT_RATES={
+  professional: 0.10,  // consultancy/management/technical/dividends/interest/royalties/rent
+  construction: 0.05,  // survey/contracts
+  nonResident:  0.10,  // same rate; nonResident:true flag routes to separate NRS TCC channel
+} as const;
+// CIT_DEV_LEVY_RATE=0.04 is the ITF Development Levy on CIT assessable profit — NOT a WHT rate
+```
+Gates:
+```bash
+grep -rn "0\.04\b\|\"4%\"\|'4%'" backend/src/routes/v1/filings/wht.ts packages/contracts/src  # → 0
+npx ts-node -e "const{WHT_RATES:w}=require('./packages/contracts/src/constants');if(w.nonResident!==0.10)process.exit(1);console.log('✅')"
+```
+
+---
+
+### COMP-02 · `computeGaugeMode()` — Exported from TaxHealthGauge.tsx — CRITICAL
+
+Location: `mobile/src/components/dashboard/TaxHealthGauge.tsx`
+```typescript
+export function computeGaugeMode(data:DashboardStats|undefined):'expanded'|'compact'{
+  if(!data)return'expanded';
+  const deadlines=data.upcomingDeadlines??[];
+  return deadlines.some(d=>d.daysRemaining<=7||d.daysRemaining<0)?'compact':'expanded';
+  // compact:  120px right-aligned — any deadline ≤7d or overdue
   // expanded: 200px centered    — no imminent urgency
 }
 ```
-**Usage in `DashboardScreen.tsx`:** `const gaugeMode = useMemo(() => computeGaugeMode(data), [data]);`
-**Gates (all must exit 0):**
-```bash
-grep -q "computeGaugeMode" mobile/src/components/dashboard/TaxHealthGauge.tsx  # defined
-grep -q "computeGaugeMode" mobile/src/screens/DashboardScreen.tsx               # consumed
-npx ts-node -e "const{computeGaugeMode}=require('./mobile/src/components/dashboard/TaxHealthGauge');if(computeGaugeMode(undefined)!=='expanded')process.exit(1);if(computeGaugeMode({upcomingDeadlines:[{daysRemaining:5}]})!=='compact')process.exit(1);console.log('✅ computeGaugeMode')"
-```
-**Priority:** M
+Usage: `const gaugeMode=useMemo(()=>computeGaugeMode(data),[data]);`
+Gate: `grep -q "computeGaugeMode" mobile/src/components/dashboard/TaxHealthGauge.tsx`
 
 ---
 
-## COMP-03 · `backend/src/routes/v2/analytics.ts` — File Never Specified — HIGH · P1
+### COMP-03 · `backend/src/routes/v2/analytics.ts` — All 5 Endpoints
 
-**Location:** Architecture §4.1 and admin panel reference 5 analytics endpoints; no backend route file ever spec'd.
-**Spec:** `backend/src/routes/v2/analytics.ts` [CREATE]
+All routes: `authenticate + requireRole('ADMIN')`. Base path: `/api/v2/analytics/`.
 ```typescript
-// All routes: authenticate + requireRole('ADMIN')
-GET /api/v2/analytics/revenue-at-risk    → TaxReturn where status='draft' AND dueDate < now(), grouped by taxType
-// NOTE: 'Revenue at Risk' = unfiled past-due returns (penalty exposure), NOT unpaid-but-filed returns.
-// This follows Architecture §13. Confirm with product owner if business intent differs before implementing.
-GET /api/v2/analytics/compliance-rate    → 6-month window: filed_on_time / total_due per month
-GET /api/v2/analytics/risk-distribution  → SMERiskRecord count grouped by band
-GET /api/v2/analytics/nrs-health         → nrsCircuitState timeline (last 24h, from metrics + audit events)
-GET /api/v2/analytics/dlq-trend          → BullMQ DLQ depth samples, last 7d
+GET /revenue-at-risk
+  // TaxReturn where status='draft' AND dueDate < now(), grouped by taxType
+  // Response: {taxType:string, totalAtRisk:number, count:number}[]
+
+GET /compliance-rate
+  // 6 calendar months; per month: {month:string, filedOnTime:number, totalDue:number, rate:number}[]
+  // month format: 'YYYY-MM', WAT timezone
+
+GET /risk-distribution
+  // SMERiskRecord.count() grouped by band
+  // Response: {band:RiskBand, count:number}[]
+
+GET /nrs-health
+  // nrsCircuitState samples last 24h from taxbridge_nrs_circuit_state metric
+  // Response: {ts:string, state:0|1|2}[]
+
+GET /dlq-trend
+  // BullMQ DLQ depth samples last 7 days
+  // Response: {ts:string, depth:number, queueName:string}[]
 ```
-Mount in `app.ts`: `app.use('/api/v2/analytics', analyticsRouter)`
-**Gate:** `test -f backend/src/routes/v2/analytics.ts`
-**Priority:** M
 
 ---
 
-## COMP-04 · `docker-compose.yml` — Referenced but Never Spec'd — HIGH · P3
+### COMP-04 · `docker-compose.yml` and `.env.example`
 
-**Location:** APEX V3 §Local Dev, Architecture §16 both say `docker compose up -d` with no file spec.
-**Spec:** `docker-compose.yml` [CREATE at repo root]
-```yaml
-version: '3.8'
-services:
-  postgres:
-    image: postgres:15-alpine
-    ports: ['5432:5432']
-    environment:
-      POSTGRES_DB: taxbridge_dev
-      POSTGRES_USER: taxbridge
-      POSTGRES_PASSWORD: dev_password_only
-    volumes: ['pg_data:/var/lib/postgresql/data']
-  redis:
-    image: redis:7-alpine
-    ports: ['6379:6379']
-    command: redis-server --appendonly yes
-    volumes: ['redis_data:/data']
-volumes:
-  pg_data:
-  redis_data:
-```
-`.env.example` must contain:
-```bash
-DATABASE_URL="postgresql://taxbridge:dev_password_only@localhost:5432/taxbridge_dev?sslmode=disable"
-REDIS_URL="redis://localhost:6379"
-JWT_SECRET="dev-secret-minimum-32-characters-replace-in-prod"
-JWT_REFRESH_SECRET="dev-refresh-secret-minimum-64-characters-replace-in-production-env"
-NODE_ENV=development
-PORT=10000
-DIGITAX_MOCK_MODE=true
-EXPO_PUBLIC_API_URL=http://localhost:10000
-LOG_LEVEL=debug
-```
-**Gate:** `test -f docker-compose.yml && test -f .env.example`
-**Priority:** M
+See Master Prompt §5.2. Both files are required before `yarn dev` and before CI Stage 1.
 
 ---
 
-## COMP-05 · `backend/src/services/eventBus.ts` — Only One Line Ever Spec'd — HIGH · P2
+### COMP-05 · `backend/src/services/eventBus.ts` — Complete Implementation
 
-**Location:** All artifacts show only: `eventBus.on('filing.submitted', ...)`. Full setup contract undefined.
-**Spec:** `backend/src/services/eventBus.ts` [CREATE]
+See Master Prompt §2.5. Key invariants:
+- `eventBus.setMaxListeners(20)` — prevents Node warning when many modules listen
+- `pdfQueue` uses `redis` singleton from `lib/redis.ts` (C-46)
+- `pdfQueue.add` errors captured by Sentry and logged — never thrown to caller
+
+Gate: `grep -q "setMaxListeners" backend/src/services/eventBus.ts`
+
+---
+
+### COMP-06 · `scripts/backfill-v12.ts` — Idempotent, 4 Operations
+
 ```typescript
-import { EventEmitter } from 'events';
-import { Queue } from 'bullmq';
-import * as Sentry from '@sentry/node';
-import { redis } from '../lib/redis';  // shared ioredis singleton — see COMP-19
-import { logger } from './logger';    // Pino logger — C-26
+// Operation 1: PDF receipt backfill
+// Find TaxReturn where receiptUrl IS NULL AND status='filed'
+// Emit 'filing.submitted' for each → pdfQueue picks up
+// Idempotency: check TaxReturn.receiptUrl again before emitting
 
-export const eventBus = new EventEmitter();
-eventBus.setMaxListeners(20);
+// Operation 2: TaxHealthSnapshot band backfill
+// TaxHealthSnapshot is INSERT-ONLY — NO prisma.update — use raw SQL:
+// UPDATE "TaxHealthSnapshot" SET band=CASE WHEN score>=80 THEN 'healthy'... WHERE band IS NULL;
 
-export const pdfQueue = new Queue('pdf-generation', {
-  connection: redis,
-  defaultJobOptions: { attempts:3, backoff:{ type:'exponential', delay:5000 }, removeOnComplete:100, removeOnFail:200 },
-});
+// Operation 3: filingReference format audit
+// SELECT id, "filingReference" FROM "TaxReturn" WHERE "filingReference" NOT LIKE 'TB-%'
+// Log warnings only — NEVER mutate references
 
-// Wire: filing.submitted → PDF receipt async (C-40)
-eventBus.on('filing.submitted', (payload: { filingId:string; orgId:string }) =>
-  pdfQueue.add('generate-receipt', payload, { priority:2 })
-    .catch(e => { Sentry.captureException(e); logger.error({err:e},'pdfQueue.add failed'); })
-);
+// Operation 4: UserDevice — no-op (schema already correct)
+
+// All 4 operations are idempotent: safe to re-run
 ```
-**Gate:** `grep -q "setMaxListeners" backend/src/services/eventBus.ts`
-**Note:** `backend/src/lib/redis.ts` singleton is a prerequisite — see COMP-19.
-**Priority:** M
 
 ---
 
----
+### COMP-07 · `scripts/create-emergency-rollback-proc.sql`
 
-## COMP-19 · `backend/src/lib/redis.ts` — IORedis Singleton Never Spec'd — HIGH · P0
-
-**Location:** `eventBus.ts` (COMP-05), `idempotency.ts` (C-35), `require2FA.ts`, and `nrsService.ts` all import `redis` from `'../lib/redis'` but this singleton is spec'd nowhere — parallel to the `prisma.ts` gap that was closed as C-43.
-**Spec:** `backend/src/lib/redis.ts` [CREATE]
-```typescript
-import IORedis from 'ioredis';
-import { logger } from './logger';
-
-const createClient = (): IORedis => {
-  const client = new IORedis(process.env.REDIS_URL!, {
-    maxRetriesPerRequest: null,  // required for BullMQ
-    enableReadyCheck: false,     // prevents startup errors on Render Redis
-    lazyConnect: false,
-  });
-  client.on('error', err => logger.error({ err }, 'Redis connection error'));
-  return client;
-};
-
-declare global { var __taxbridge_redis: IORedis | undefined; }
-export const redis: IORedis =
-  process.env.NODE_ENV === 'production'
-    ? createClient()
-    : (global.__taxbridge_redis ??= createClient());
-```
-`REDIS_URL` in production: `rediss://` (TLS). In `.env.example`: `redis://localhost:6379` (plain).
-**Gate:** `grep -q "global.__taxbridge_redis" backend/src/lib/redis.ts`
-**Priority:** M
-
----
-
-## COMP-06 · `scripts/backfill-v12.ts` — Referenced but Zero Spec — HIGH · P3
-
-**Location:** Migration sequence in all 3 artifacts: `yarn workspace backend ts-node scripts/backfill-v12.ts`. Content never defined.
-**Spec:** `scripts/backfill-v12.ts` [CREATE]
-```typescript
-// Backfill operations (run once between migrations — idempotent):
-// 1. For every existing TaxReturn with receiptUrl=null and status='filed':
-//    emit 'filing.submitted' to trigger PDF receipt generation
-// 2. For every existing OrgMember without UserDevice record: no-op (devices registered on next login)
-// 3. Set TaxHealthSnapshot.band for any rows where band is null (legacy):
-//    band = score>=80?'healthy':score>=60?'low':score>=40?'medium':score>=20?'high':'critical'
-// 4. Validate all existing TaxReturn.filingReference match TB-{YEAR}-{TAXTYPE}-{NANOID(8)} pattern;
-//    log warnings for non-conforming records (do not mutate — alert for manual review)
-async function main() {
-  logger.info('Starting v12 backfill...');
-  // Step 1: PDF receipts (C-01: always use (prisma as any))
-  const unfiled = await (prisma as any).taxReturn.findMany({ where:{ receiptUrl:null, status:'filed' } });
-  logger.info({ count:unfiled.length }, 'Queuing PDF receipts for filed returns');
-  for (const r of unfiled) eventBus.emit('filing.submitted', { filingId:r.id, orgId:r.orgId });
-  // Step 3: Band backfill — TaxHealthSnapshot is INSERT-ONLY (immutability contract, no updatedAt).
-  // NEVER use prisma.update here. Use raw SQL for this one-time migration only.
-  await (prisma as any).$executeRaw`
-    UPDATE "TaxHealthSnapshot" SET band = CASE
-      WHEN score >= 80 THEN 'healthy'::text WHEN score >= 60 THEN 'low'::text
-      WHEN score >= 40 THEN 'medium'::text  WHEN score >= 20 THEN 'high'::text
-      ELSE 'critical'::text END
-    WHERE band IS NULL`;
-  // Step 4: Audit filingReference format — log warnings, never mutate
-  const badRef = await (prisma as any).taxReturn.findMany({
-    where:{ NOT:{ filingReference:{ startsWith:'TB-' } } }, select:{ id:true, filingReference:true }
-  });
-  if (badRef.length) logger.warn({ count:badRef.length, sample:badRef.slice(0,3) }, 'Non-conforming filingReference — manual review required');
-  logger.info('v12 backfill complete');
-  await (prisma as any).$disconnect();
-}
-main().catch(e => { logger.error(e); process.exit(1); });
-```
-**Gate:** `test -f scripts/backfill-v12.ts`
-**Priority:** M
-
----
-
-## COMP-07 · `taxbridge_v12_emergency_rollback()` Stored Procedure — Never Defined — HIGH · P3
-
-**Location:** All rollback sections reference `CALL taxbridge_v12_emergency_rollback()` — procedure body never defined.
-**Spec:** `scripts/create-emergency-rollback-proc.sql` [CREATE — run once pre-deploy]
 ```sql
+-- Create BEFORE every production deploy
+-- Uses _V12DeployMarker table (NOT SystemConfig — not in Prisma schema)
+CREATE TABLE IF NOT EXISTS "_V12DeployMarker" (
+  id          TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  version     TEXT NOT NULL,
+  deployed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  rolled_back BOOLEAN NOT NULL DEFAULT false
+);
+INSERT INTO "_V12DeployMarker" (version) VALUES ('v12');
+
 CREATE OR REPLACE PROCEDURE taxbridge_v12_emergency_rollback()
 LANGUAGE plpgsql AS $$
 BEGIN
-  -- SCOPE: Only used when code rollback is insufficient and DB state must be reverted.
-  -- DOES NOT roll back migrations (never use prisma migrate rollback).
-  -- REVERTS application-layer data written by V12 only:
-  --   1. Soft-delete all UserDevice records created after V12 deploy timestamp
-  UPDATE "UserDevice" SET active = false
-    WHERE "createdAt" > (SELECT value::timestamptz FROM "_V12DeployMarker" WHERE key = 'v12_deploy_at');
-  --   2. Null-out receiptUrl for TaxReturn records generated by pdfWorker post-V12
-  UPDATE "TaxReturn" SET "receiptUrl" = NULL
-    WHERE "updatedAt" > (SELECT value::timestamptz FROM "_V12DeployMarker" WHERE key = 'v12_deploy_at')
-    AND "receiptUrl" IS NOT NULL;
-  --   3. Log the rollback event
-  INSERT INTO "AuditEvent" ("id","orgId","actorId","actorRole","targetType","targetId","action","createdAt")
-    VALUES (gen_random_uuid(),'SYSTEM','SYSTEM','SYSTEM','Database','ALL','OVERRIDE',now());
-  RAISE NOTICE 'V12 emergency rollback complete. Review data integrity before resuming traffic.';
+  -- Log rollback event
+  INSERT INTO "AuditEvent" (id,"orgId","actorId","actorRole","targetType","targetId",action,after,"createdAt")
+    VALUES (gen_random_uuid()::text,'SYSTEM','DBA','SYSTEM','Deployment','v12','OVERRIDE',
+            '{"reason":"emergency_rollback"}',now());
+  UPDATE "_V12DeployMarker" SET rolled_back=true WHERE version='v12';
+  RAISE NOTICE 'V12 emergency rollback marker set. Execute infra rollback separately.';
 END;
 $$;
--- Pre-create: record V12 deploy timestamp.
--- NOTE: "SystemConfig" is NOT in the Prisma schema. Use a raw migration-marker table instead.
-CREATE TABLE IF NOT EXISTS "_V12DeployMarker" (key TEXT PRIMARY KEY, value TEXT);
-INSERT INTO "_V12DeployMarker" (key, value) VALUES ('v12_deploy_at', now()::text)
-  ON CONFLICT (key) DO NOTHING;
 ```
-**Gate:** `test -f scripts/create-emergency-rollback-proc.sql`
-**Priority:** S (should — required pre-deploy)
 
 ---
 
-## COMP-08 · `resolveOrgContext` Dual Check — C-12 Enforcement Gap — HIGH · P0
+### COMP-08 · `backend/src/middleware/tenant.ts` — Dual Status Check
 
-**Location:** Architecture §3.1 specifies `OrgMember status:'active' AND deletedAt:null` in `tenant.ts`. C-12 specifies `Organisation.status` checked on every request. No artifact joins both checks in a single spec.
-**Spec:** `backend/src/middleware/tenant.ts` must enforce BOTH:
-```typescript
-export async function resolveOrgContext(req: Request, res: Response, next: NextFunction) {
-  const membership = await (prisma as any).orgMember.findFirst({
-    where: { userId:req.user.id, orgId:req.params.orgId ?? req.body.orgId,
-             status:'active', deletedAt:null },
-    include: { org: true },
-  });
-  if (!membership) return res.status(403).json({ error:'NOT_A_MEMBER' });
-  if (membership.org.status === 'suspended')
-    return res.status(403).json({ error:'ORG_SUSPENDED' });  // C-12
-  if (membership.org.status === 'pending_verification')
-    return res.status(403).json({ error:'ORG_PENDING_VERIFICATION' });
-  req.orgContext = { orgId:membership.orgId, role:membership.role, org:membership.org };
-  next();
-}
-```
-**Gate:** `grep -q "ORG_SUSPENDED" backend/src/middleware/tenant.ts`
-**Priority:** M
+See Master Prompt §2.5. Both checks are mandatory:
+1. `OrgMember.status === 'active'` AND `OrgMember.deletedAt IS NULL`
+2. `Organisation.status` — suspended → `403 ORG_SUSPENDED`, pending → `403 ORG_PENDING_VERIFICATION`
+
+Gate: `grep -q "ORG_SUSPENDED" backend/src/middleware/tenant.ts`
 
 ---
 
-## COMP-09 · `prompts:verify` — 11 Modules Never Listed — MEDIUM · P0
+### COMP-09 · `scripts/verify-prompts.ts` — 12 Required Modules
 
-**Location:** Every pre-execution gate requires `yarn prompts:verify → "✅ 12/12 modules"`. The 11 modules and the verifier script are never defined.
-**Spec:** `scripts/verify-prompts.ts` [CREATE] — add to `package.json` scripts as `"prompts:verify"`
 ```typescript
-import fs from 'fs';
-import path from 'path';
-
-// The 12 required modules (updated from 11 after COMP-19 added redis.ts):
-const REQUIRED_MODULES = [
-  'prompts/v12_master_prompt.md',
-  'prompts/v12_production_architecture_module.md',
+const REQUIRED_MODULES=[
+  'prompts/TAXBRIDGE_V12_MASTER_PROMPT.md',
+  'prompts/v12_complementary_architecture.md',
+  'packages/contracts/src/constants.ts',
   'packages/contracts/src/cit.ts',
-  'packages/contracts/src/types.ts',
-  'backend/src/validateEnv.ts',
+  'backend/src/lib/redis.ts',
   'backend/src/lib/prisma.ts',
+  'backend/src/lib/logger.ts',
+  'backend/src/services/eventBus.ts',
+  'backend/src/services/anomalyEngine.ts',
+  'backend/src/workers/pdfWorker.ts',
   'backend/src/routes/v1/auth/totp.ts',
   'backend/src/routes/v1/notifications.ts',
-  'backend/src/workers/pdfWorker.ts',
-  'mobile/src/hooks/useDeepLink.ts',
-  'mobile/src/components/shared/ConfettiAnimation.tsx',
-  'backend/src/lib/redis.ts',
 ];
-const missing = REQUIRED_MODULES.filter(m => !fs.existsSync(path.resolve(m)));
-if (missing.length) { console.error(`❌ Missing: ${missing.join(', ')}`); process.exit(1); }
-console.log('✅ 12/12 modules');
+let passed=0;
+for(const m of REQUIRED_MODULES){
+  if(require('fs').existsSync(m)){passed++;console.log(`✅ ${m}`);}
+  else{console.error(`❌ MISSING: ${m}`);}
+}
+if(passed<REQUIRED_MODULES.length)process.exit(1);
+console.log(`\n✅ ${passed}/${REQUIRED_MODULES.length} modules verified`);
 ```
-**Gate:** `yarn prompts:verify` → exits 0
-**Priority:** M
+Register in root `package.json`: `"prompts:verify": "ts-node scripts/verify-prompts.ts"`
 
 ---
 
-## COMP-10 · `backend/src/lib/logger.ts` — C-45 Redaction Incomplete — MEDIUM · P0
+### COMP-10 · `backend/src/lib/logger.ts` — Complete Redaction Array
 
-**Location:** All artifacts specify Pino redaction. APEX V3 adds `receiptUrl` and `documentUrl` (C-45) but the logger.ts spec in the main body only lists 6 fields.
-**Complete redaction array (authoritative):**
 ```typescript
-redact: {
-  paths: [
-    'req.headers.authorization',
-    'body.password',
-    'body.tin',
-    'body.bvn',
-    'body.bankAccount',
-    'body.cardNumber',
-    'body.receiptUrl',      // C-21, C-45
-    'body.documentUrl',     // C-21, C-45
-    '*.receiptUrl',
-    '*.documentUrl',
-  ],
-  censor: '[REDACTED]',
+import pino from'pino';
+export const logger=pino({
+  level:process.env.LOG_LEVEL??'info',
+  redact:{
+    paths:[
+      'req.headers.authorization',
+      'body.password','body.tin','body.bvn',
+      'body.bankAccount','body.cardNumber',
+      'body.receiptUrl','body.documentUrl',
+      '*.receiptUrl','*.documentUrl',
+    ],
+    censor:'[REDACTED]',
+  },
+});
+```
+Gate: `grep -q "receiptUrl" backend/src/lib/logger.ts`
+
+---
+
+### COMP-11 · `decodeCursor` — try/catch with 400 Status
+
+See Master Prompt §2.5 `packages/contracts/src/types.ts`. Malformed base64 or missing `{createdAt,id}` → `throw Object.assign(new Error('INVALID_CURSOR'),{status:400})`. Route error handler reads `.status` and returns 400.
+
+---
+
+### COMP-12 · `formatNGN` K Suffix — `toFixed(1)`
+
+```typescript
+if(amount>=1e3)return`₦${(amount/1e3).toFixed(1)}K`;
+```
+Gate: `formatNGN(1_500,{compact:true})==='₦1.5K'` — NOT `'₦2K'`
+
+---
+
+### COMP-13 · `admin/next.config.js` — CSP Header
+
+See Master Prompt §3.2. CSP must include `connect-src` for both `https://api.taxbridge.ng` and `https://*.r2.cloudflarestorage.com`.
+Gate: `grep -q "Content-Security-Policy" admin/next.config.js`
+
+---
+
+### COMP-14 · `useDashboard.ts` — Stale-on-Resume
+
+```typescript
+// On AppState 'active': if last fetch was >120s ago → invalidate dashboard query
+// Update lastFetchTimeRef.current=Date.now() in each successful fetch's onSuccess callback
+```
+Gate: `grep -q "lastFetchTimeRef" mobile/src/hooks/useDashboard.ts`
+
+---
+
+### COMP-15 · Auth Failure Flood — Dual Threshold (Both Required)
+
+| Mechanism | Threshold | Purpose |
+|---|---|---|
+| `anomalyEngine.ts` signal | >10 failures/1h/IP | Long-window pattern detection → `AnomalySignal` |
+| Grafana `Auth_Flood` alert | rate >10/1min | Real-time spike detection → PagerDuty/webhook |
+
+**These are complementary. Do NOT consolidate. Do NOT change either threshold.**
+
+Required comment in `anomalyEngine.ts`:
+```typescript
+// auth_failure_flood: >10/1h/IP long-window anomaly; Grafana Auth_Flood >10/1min real-time spike (COMP-15)
+```
+
+---
+
+### COMP-16 · `VIEWER_TOKEN` in GitHub Secrets
+
+Add to GitHub repository secrets:
+```
+VIEWER_TOKEN  # Low-privilege JWT for smoke test #6 RBAC enforcement verification
+```
+Used in: `smoke test #6 — curl -H "Authorization:Bearer $VIEWER_TOKEN"` attempting ADMIN action → assert `error==="INSUFFICIENT_ROLE"`.
+
+---
+
+### COMP-17 · TOTP Lockout Recovery Runbook
+
+See §5 Security Architecture above. Three paths in priority order: peer SUPER_ADMIN → backup code redemption → DBA emergency fallback (maintenance window only, connections drained).
+
+---
+
+### COMP-18 · `scripts/seed-dev.ts` — Dev Seed Data
+
+```typescript
+// Creates in order (respect FK constraints):
+// 1. Organisation { name:'Acme Ltd', status:'active', vatRegistrationNumber:'12345678-0001' }
+// 2. User { email:'admin@acme.ng', role:'SUPER_ADMIN', orgId:<above> }
+// 3. 3× TaxReturn { orgId, taxType:'VAT'|'WHT'|'PAYE', status:'draft', period:'2026-01' }
+// 4. TaxHealthSnapshot { orgId, userId, score:62, band:'low', period:'2026-01' }
+// All creates are idempotent: use upsert or check-then-insert
+```
+
+---
+
+### COMP-19 · `backend/src/lib/redis.ts` — IORedis Singleton (C-46)
+
+See Master Prompt §2.5 for complete implementation.
+
+Key invariants:
+- `maxRetriesPerRequest:null` — required by BullMQ v5
+- `enableReadyCheck:false` — prevents startup race in serverless/warm restarts
+- `global.__taxbridge_redis` dev-mode singleton prevents connection leaks in HMR
+- Production: new connection per cold start (Render is always cold-start safe)
+
+Gate: `grep -q "global.__taxbridge_redis" backend/src/lib/redis.ts`
+Gate: `grep -rn "new IORedis" backend/src | grep -v lib/redis` → 0
+
+---
+
+## PART III — QUICK-WIN PLAYBOOK
+
+Each win is implementable within one engineering day. Implement in priority order.
+
+---
+
+### QW-01 · Skeleton Pixel-Perfect Geometry *(4h)*
+
+**Impact:** 0px CLS — the single largest perceived-performance killer on 2G.
+
+Set exact pixel dimensions in `DashboardSkeleton.tsx` matching each zone's final rendered size (specified in Master Prompt §2.4). Use `RADIUS.*` tokens per block to prevent shape-pop on reveal. Set `accessibilityElementsHidden={true}` on all shimmer blocks.
+
+Gate: Visual diff shows 0px layout shift in RN Profiler on reveal.
+
+---
+
+### QW-02 · Expo Font Preload Splash Lock *(2h)*
+
+**Impact:** Eliminates FOUT (flash of unstyled text) on first impression.
+
+Implemented via BUG-S01. Verify:
+```typescript
+SplashScreen.preventAutoHideAsync();  // module level
+// in App.tsx:
+const[fontsLoaded]=useFonts({Inter_400Regular,Inter_600SemiBold,Inter_700Bold});
+useEffect(()=>{if(fontsLoaded)SplashScreen.hideAsync();},[fontsLoaded]);
+if(!fontsLoaded)return null;
+```
+Gate: No system font fallback visible on Tecno Spark cold start.
+
+---
+
+### QW-03 · Push Notification Deep Link Handler *(3h)*
+
+**Impact:** Every compliance push becomes a one-tap filing action — direct conversion driver.
+
+In App root (alongside `usePushNotification`):
+```typescript
+Notifications.addNotificationResponseReceivedListener(response=>{
+  const route=response.notification.request.content.data?.route as string|undefined;
+  if(route&&(SAFE_ROUTES as readonly string[]).includes(route))router.push(route);
+});
+```
+Gate: Tapping a test push notification navigates to the correct filing screen without additional taps.
+
+---
+
+### QW-04 · `X-Request-ID` on Every Response *(1h)*
+
+**Impact:** Enables support staff to trace any user-reported error to a specific Sentry/Pino entry in seconds. Production debuggability is impossible at scale without this.
+
+Already specified in Master Prompt §2.5 `app.ts` middleware line 6. Verify `nanoid(21)` is used (21 chars = 128 bits collision resistance).
+
+Gate: `curl -I localhost:10000/api/v2/monitoring/health | grep X-Request-ID` returns header.
+
+---
+
+### QW-05 · Offline Queue for Onboarding Steps *(4h)*
+
+**Impact:** 2G users frequently lose connectivity mid-onboarding. Converts failure into seamless resume.
+
+In `OnboardingWizard.tsx`:
+```typescript
+async function completeStep(step:number){
+  try{
+    await apiClient.patch('/onboarding/step',{step});
+  }catch(e){
+    if(isOfflineError(e)){
+      const existing=JSON.parse(await AsyncStorage.getItem('onboarding_queue')||'[]');
+      await AsyncStorage.setItem('onboarding_queue',JSON.stringify([...existing,step]));
+      // Show "Saving..." indicator — not a blocking error
+    }else throw e;
+  }
+}
+// Drain queue on AppState 'active':
+useEffect(()=>{
+  const sub=AppState.addEventListener('change',async s=>{
+    if(s==='active'){
+      const q:number[]=JSON.parse(await AsyncStorage.getItem('onboarding_queue')||'[]');
+      if(!q.length)return;
+      for(const step of q){await apiClient.patch('/onboarding/step',{step});}
+      await AsyncStorage.removeItem('onboarding_queue');
+    }
+  });
+  return()=>sub.remove();
+},[]);
+```
+Gate: Complete step while offline → queue written → reconnect → step synced without user action.
+
+---
+
+### QW-06 · Haptic Confirmation Choreography *(2h)*
+
+**Impact:** Disproportionate perceived responsiveness on low-end devices — zero engineering risk.
+
+Audit all interactive elements. All haptics fire synchronously before any `await` (C-20):
+
+| Interaction | Haptic |
+|---|---|
+| `QuickActionsGrid` tile press | `Haptics.impactAsync(Light)` |
+| Filing submission success | `Haptics.notificationAsync(Success)` |
+| Form validation error | `Haptics.notificationAsync(Error)` |
+| WHT rate toggle | `Haptics.impactAsync(Medium)` |
+| `ConfettiAnimation` trigger | `Haptics.notificationAsync(Success)` |
+| Biometric prompt | `Haptics.impactAsync(Medium)` |
+
+Gate: `grep -rn "await.*Haptics\|Haptics.*await" mobile/src` → 0 (haptics always before await)
+
+---
+
+### QW-07 · 429 Rate-Limit Toast with Retry Countdown *(2h)*
+
+**Impact:** Stops rage-tapping escalation. Turns throttle error into a reassuring system message.
+
+In `apiClient.ts` response interceptor:
+```typescript
+if(error.response?.status===429){
+  const retryAfter=parseInt(error.response.headers['retry-after']||'60',10);
+  Toast.show(`Too many requests — try again in ${retryAfter}s`,{
+    type:'warning',duration:Math.min(retryAfter*1000,30_000)
+  });
+  return Promise.reject(error); // NEVER auto-retry on 429
 }
 ```
-**Gate:** `grep -q "receiptUrl" backend/src/lib/logger.ts`
-**Priority:** M
+Pidgin variant: `"Too many request — wait ${retryAfter}s before you try again"`
+Gate: 429 response → toast shows correct seconds → no automatic retry occurs.
 
 ---
 
-## COMP-11 · `decodeCursor` Safety — Master Prompt Retains Unsafe Version — MEDIUM · P0
+### QW-08 · Accessibility Announcements on Step Transitions *(2h)*
 
-**Location:** Master prompt P0.5 lines 189–192: `JSON.parse(Buffer.from(cursor,...))` has no try/catch.
-**Authoritative spec (APEX V3 corrected version — canonical):**
+**Impact:** WCAG 2.2 AA compliance (GAP-08) + usable by ~15% of users with visual impairment.
+
+Pattern (already in Master Prompt §3.3). Apply to all 5 filing wizards:
 ```typescript
-export const decodeCursor = (c: string): { createdAt:Date; id:string } => {
-  try {
-    const { createdAt, id } = JSON.parse(Buffer.from(c,'base64').toString('utf8'));
-    if (!createdAt || !id) throw new Error('invalid cursor shape');
-    return { createdAt:new Date(createdAt), id };
-  } catch {
-    throw Object.assign(new Error('INVALID_CURSOR'), { status:400 });
-  }
-};
+useEffect(()=>{
+  AccessibilityInfo.announceForAccessibility(`Step ${currentStep} of ${totalSteps}: ${stepTitle}`);
+},[currentStep]);
 ```
-**Gate:** Completion criterion 33 (`decodeCursor` has try/catch with 400 status)
-**Priority:** M
+Gate: VoiceOver (iOS) and TalkBack (Android) announce step changes in all 5 wizards.
 
 ---
 
-## COMP-12 · `formatNGN` K Suffix — Master Prompt Retains `toFixed(0)` — MEDIUM · P0
+### QW-09 · TIN Validation State Machine *(3h)*
 
-**Location:** Master prompt line 76: `.toFixed(0)K` — produces `₦1K` instead of `₦1.5K`.
-**Authoritative spec:** `if(amount>=1e3)return \`₦${(amount/1e3).toFixed(1)}K\``
-**Gate:** `formatNGN(1_500,{compact:true})==='₦1.5K'` (completion criterion 31)
-**Priority:** M
+**Impact:** TIN validation is the first NRS interaction. Clear states reduce support tickets.
 
----
-
-## COMP-13 · Admin `next.config.js` CSP Header — Absent from Master Prompt — MEDIUM · P1
-
-**Location:** APEX V3 P1.B has full CSP configuration. Master prompt P3.4 only has compress/poweredByHeader/images.
-**Complete authoritative spec:**
-```javascript
-module.exports = {
-  compress:true, poweredByHeader:false,
-  experimental:{ optimizeCss:true }, images:{ formats:['image/avif','image/webp'] },
-  async headers() {
-    return [{ source:'/(.*)', headers:[{
-      key:'Content-Security-Policy',
-      value:"default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self' https://api.taxbridge.ng https://*.r2.cloudflarestorage.com"
-    }]}];
-  },
-};
-```
-**Gate:** `grep -q "Content-Security-Policy" admin/next.config.js`
-**Priority:** S
-
----
-
-## COMP-14 · `useDashboard` Stale-on-Resume Check — Missing from Master Prompt — MEDIUM · P0
-
-**Location:** APEX V3 spec includes AppState `'active'` → 120s staleness check before invalidation. Master prompt omits it.
-**Spec:** `mobile/src/hooks/useDashboard.ts` must include:
+In `OnboardingWizard.tsx` TIN field:
 ```typescript
-const lastFetchTimeRef = useRef<number>(0);
-useEffect(() => {
-  const sub = AppState.addEventListener('change', state => {
-    if (state === 'active' && Date.now() - lastFetchTimeRef.current > 120_000)
-      queryClient.invalidateQueries({ queryKey:['dashboard', orgId, userId] });
-  });
-  return () => sub.remove();
-}, [orgId, userId]);
-// Update lastFetchTimeRef.current = Date.now() on each successful fetch
+type TINState='IDLE'|'VALIDATING'|'SUCCESS'|'FAILED'|'NETWORK_ERROR';
+
+// IDLE:          default — i18n key 'onboarding.tin.placeholder'
+// VALIDATING:    spinner — i18n key 'onboarding.tin.checking'       Pidgin: "Dey check am..."
+// SUCCESS:       green ✓ — i18n key 'onboarding.tin.success'        Pidgin: "Your TIN don check out"
+// FAILED:        red ✗  — i18n key 'onboarding.tin.failed'          Pidgin: "TIN no dey valid. Check am again"
+// NETWORK_ERROR: amber ⚠ — i18n key 'onboarding.tin.networkError'   Pidgin: "Network issue — try again when you get signal"
+//   On NETWORK_ERROR: store TIN in AsyncStorage; offer Retry button; NEVER block onboarding progress
 ```
-**Gate:** `grep -q "lastFetchTime\|lastFetchTimeRef" mobile/src/hooks/useDashboard.ts`
-**Priority:** S
+Gate: All 4 non-IDLE states render correctly in EN and Pidgin.
 
 ---
 
-## COMP-15 · Auth_Failure_Flood Dual Threshold — Architecture Clarification Missing from Master Prompt — MEDIUM · P1
+### QW-10 · Asset Compression Pipeline *(2h)*
 
-**Location:** Architecture V3 §7.1 clarifies two complementary thresholds. Master prompt anomalyEngine only shows one.
-**Authoritative spec:**
-- `anomalyEngine.ts`: `auth_failure_flood` signal fires when `>10 failures/1h/IP` — long-window pattern detection
-- `infra/grafana/alerts.yml` `Auth_Flood` alert fires when `rate(...[1m]) > 10` — real-time spike alert
-- **Both are required and complementary. Do NOT consolidate. Do NOT change either threshold.**
-**Gate:** Comment in `anomalyEngine.ts`: `// auth_failure_flood: >10/1h/IP → long-window; Grafana fires >10/1min → spike`
-**Priority:** S
+**Impact:** 30–50% bundle size reduction → faster first paint on 2G.
 
----
+`scripts/compress-assets.sh`:
+```bash
+#!/bin/bash
+set -e
 
----
+# PNG compression (requires pngquant)
+find mobile/src/assets -name "*.png" -exec pngquant --force --quality=65-80 --output {} {} \;
 
-*— Items below this line are LOW priority (Could Have) —*
+# Lottie minification
+node -e "
+const fs=require('fs'),path=require('path'),d='mobile/src/assets/animations';
+fs.readdirSync(d).filter(f=>f.endsWith('.json')).forEach(f=>{
+  const fp=path.join(d,f),before=fs.statSync(fp).size;
+  fs.writeFileSync(fp,JSON.stringify(JSON.parse(fs.readFileSync(fp,'utf8'))));
+  const after=fs.statSync(fp).size;
+  console.log(f+': '+before+'→'+after+' ('+Math.round((1-after/before)*100)+'% reduction)');
+});
+"
 
----
-
-## COMP-16 · VIEWER_TOKEN Missing from Master Prompt GitHub Secrets — LOW · P3
-
-**Location:** APEX V3 env manifest lists `VIEWER_TOKEN` in GITHUB SECRETS (used in smoke test #6 RBAC check). Master prompt omits it.
-**Add to env manifest GitHub Secrets section:** `VIEWER_TOKEN  # low-privilege token for RBAC smoke test`
-**Priority:** C
-
----
-
-## COMP-17 · TOTP Lockout Recovery Runbook — Missing from Master Prompt — LOW · P0
-
-**Location:** Enhancement Guide Risk Register has recovery path. Master prompt has none.
-**Spec:** Add to runbook/README:
+# Enforce size limits
+for f in mobile/src/assets/animations/*.json; do
+  size=$(wc -c < "$f")
+  if [ "$size" -gt 51200 ]; then echo "❌ $f exceeds 50KB ($size bytes)"; exit 1; fi
+done
+for f in mobile/src/assets/icons/*.png; do
+  [ -f "$f" ] || continue
+  size=$(wc -c < "$f")
+  if [ "$size" -gt 51200 ]; then echo "❌ $f exceeds 50KB ($size bytes)"; exit 1; fi
+done
+echo "✅ All assets within size limits"
 ```
-TOTP LOCKOUT RECOVERY:
-(1) Primary: Peer SUPER_ADMIN calls POST /api/v1/auth/totp/disable with their own 2FA confirmation
-(2) Fallback (no peer): ⚠️ EXECUTE ONLY DURING MAINTENANCE WINDOW with active connections drained.
-    A concurrent login attempt during this window can bypass the lockout — drain connections first.
-    DBA runs: UPDATE "User" SET "totpEnabled"=false, "totpSecret"=NULL WHERE id='<userId>';
-    Write AuditEvent manually: INSERT INTO "AuditEvent" (id,"orgId","actorId","actorRole","targetType","targetId",action,after,"createdAt")
-      VALUES (gen_random_uuid(),'SYSTEM','DBA','SYSTEM','User','<userId>','OVERRIDE','{"reason":"emergency_totp_disable"}',now());
-(3) Backup codes: POST /api/v1/auth/totp/backup with bcrypt.compare — one-time, immutable once redeemed
-```
-**Priority:** C
+Gate: All Lottie files <50KB; all icon PNGs <50KB; illustration PNGs <200KB.
 
 ---
 
-## COMP-18 · `scripts/seed-dev.ts` Missing from Repo Structure in Master Prompt — LOW · P3
+## PART IV — IMPLEMENTATION CHECKLIST
 
-**Location:** Architecture §16 and APEX V3 define seed-dev.ts spec; master prompt repo structure tree does not list it.
-**Canonical path:** `scripts/seed-dev.ts` — must appear in `scripts/` directory in repo structure documentation.
-**Priority:** C
+### Pre-Execution (Day 0)
+- [ ] Pre-execution gate (§0): all commands exit 0
+- [ ] Dependency installation (§1) complete
+- [ ] EAS secrets created via CLI — never written to `eas.json`
+- [ ] `.env.local` created from `.env.example`
+- [ ] `git tag | grep "v11\|v10"` returns ≥1 rollback tag
+- [ ] `scripts/create-emergency-rollback-proc.sql` executed in target DB
+
+### Phase 0 — Foundation
+- [ ] BUG-S01 through BUG-S04 fixed
+- [ ] Design system: `animation.ts` | `ngn.ts` | `tokens.ts` | `ThemeContext.tsx`
+- [ ] Shared components: `SectionState` | `InlineError` | `EmptyState` | `ConfettiAnimation`
+- [ ] Lottie assets bundled locally and minified (QW-10)
+- [ ] Dashboard components: `DashboardZone` | `DashboardSkeleton` (QW-01) | `TaxHealthGauge` (COMP-02)
+- [ ] Backend: `validateEnv.ts` | `redis.ts` (COMP-19, C-46) | `prisma.ts` (C-43) | `logger.ts` (COMP-10) | `app.ts`
+- [ ] Backend: `eventBus.ts` (COMP-05) | `anomalyEngine.ts` | `riskScoring.ts` | `notifications.ts` | `pdfWorker.ts`
+- [ ] Auth: `auth.ts` + `handleSuspiciousReuse` (GAP-02) | `auth/totp.ts` (GAP-03, C-38)
+- [ ] Routes: `notifications.ts` (GAP-01) | `dashboard.ts` | `analytics.ts` (COMP-03) | `flutterwave.ts` (GAP-06)
+- [ ] Middleware: `tenant.ts` (COMP-08, C-12) | `rateLimit.ts` (GAP-09, C-30) | `idempotency.ts` (C-35) | `validate.ts` (C-34)
+- [ ] Database: schema migrations | `UserDevice` model | immutability gates (CI Stage 3)
+- [ ] Mobile: `apiClient.ts` (GAP-11) | `useDashboard.ts` (COMP-14) | `usePushNotification.ts` (GAP-01, QW-03) | `useDeepLink.ts` (GAP-07, C-36)
+- [ ] Mobile: `DashboardScreen.tsx` | `OnboardingWizard.tsx` (QW-05, QW-09) | `TOTPSetupScreen.tsx`
+- [ ] Quick wins: QW-02 font preload | QW-04 X-Request-ID | QW-07 429 toast
+- [ ] Phase 0 gate: all commands exit 0
+
+### Phase 1 — Sprint
+- [ ] Dashboard: `QuickActionsGrid` (QW-06) | `ComplianceCalendar` | `OfflineSyncStatus` | `MetricsRow`
+- [ ] Admin: `analytics/index.tsx` | `dlq/index.tsx` | `audit/index.tsx` | `middleware.ts` (GAP-12)
+- [ ] `admin/next.config.js` with CSP (COMP-13)
+- [ ] WCAG 2.2 AA on all 5 filing wizards (GAP-08, QW-08)
+- [ ] All raw hex → theme tokens | all `FlatList` → `FlashList`
+- [ ] Biometric fallthrough | haptic choreography complete (QW-06)
+- [ ] Pidgin translations natural and complete
+- [ ] Phase 1 gate: all commands exit 0
+
+### Phase 2 — Tax Modules
+- [ ] MOD-22 VAT Filing Wizard (9 steps, WCAG)
+- [ ] MOD-23 WHT Remittance (no 4% rate — COMP-01)
+- [ ] MOD-24 PAYE Payroll (`calculatePIT` per employee, ConfettiAnimation)
+- [ ] MOD-25 NIL Return (409 on duplicate)
+- [ ] MOD-26 Document Vault (no `ServerSideEncryption` — COMP-08 R2 caveat)
+- [ ] MOD-27 Team Management (`role_version` increment path 1 — C-44)
+- [ ] MOD-28 CIT Assessment (8 steps, `calculateCIT` only — C-41)
+- [ ] Phase 2 gate: all commands exit 0
+
+### Phase 3 — Infrastructure
+- [ ] Dockerfile (multi-stage, `USER taxbridge`, dual `prisma generate`)
+- [ ] `docker-compose.yml` + `.env.example` (COMP-04)
+- [ ] `render.yaml` (`region:fra` — NOT `frankfurt`)
+- [ ] `mobile/eas.json` (`compileSdkVersion:36` in all 3 profiles; `SENTRY_DSN` via EAS secret)
+- [ ] `scripts/backfill-v12.ts` (COMP-06) | `scripts/seed-dev.ts` (COMP-18)
+- [ ] `scripts/verify-prompts.ts` → `yarn prompts:verify` (COMP-09)
+- [ ] `scripts/compress-assets.sh` (QW-10)
+- [ ] Cron orchestrator (exactly 7 jobs; `setInterval` outside orchestrator → 0)
+- [ ] `infra/grafana/alerts.yml` (5 rules) + `infra/grafana/dashboard.json` (6 panels) (COMP-15)
+- [ ] `.github/workflows/pipeline.yml` (5 stages)
+- [ ] Phase 3 gate: all commands exit 0
+
+### Pre-Deployment
+- [ ] Full pre-deployment validation: all commands exit 0
+- [ ] All 5 tax accuracy tests pass (PIT | Penalty | CIT large | CIT small | formatNGN)
+- [ ] All 9 smoke tests pass in staging
+- [ ] All 33 completion criteria simultaneously true
+- [ ] Admin Lighthouse ≥98 | Dashboard 2G paint <2000ms | Skeleton 0px CLS
+- [ ] `git commit -m "feat(v12): SOVEREIGN — complete production deployment"`
 
 ---
 
-# SECTION 3 — EXECUTIVE SUMMARY
+## PART V — RISK REGISTER
 
-## Gaps Closed (19 items across all four artifacts)
+| Risk | Likelihood | Impact | Mitigation |
+|---|---|---|---|
+| NRS API downtime during filing window | High | Critical | opossum circuit breaker + `DIGITAX_MOCK_MODE` fallback + `NRS_Circuit_Open` Grafana alert (5m) |
+| PgBouncer misconfiguration → connection exhaustion | Medium | Critical | `pgbouncer=true&connection_limit=1` in `DATABASE_URL`; Prisma singleton (C-43) |
+| `CBN_MPR` env var stale after rate change | High | High | C-27: update within 24h; stored in GitHub Secrets; never hardcode |
+| WHT 4% rate regulatory violation in production | Low (mitigated) | Critical | COMP-01 eradication + `grep -n "0\.04"` gate in CI Stage 1 |
+| Refresh token reuse attack | Low (mitigated) | Critical | `handleSuspiciousReuse` + `SECURITY_ALERT` + all sessions invalidated (GAP-02) |
+| EAS secret leakage via `eas.json` commit | Low (mitigated) | Critical | C-33 gate in CI Stage 1; `git log -S "SENTRY_DSN"` in pre-execution gate |
+| `TaxHealthSnapshot` mutated via `prisma.update` | Low (mitigated) | High | CI Stage 3 `awk` check; `backfill-v12.ts` uses raw SQL only |
+| R2 upload failure from `ServerSideEncryption` | Low (mitigated) | High | `pdfWorker.ts` comment + completion criterion 26 |
+| Expo push token absent on filing deadline | Medium | Medium | Africa's Talking SMS fallback; both `AFRICA_TALKING_API_KEY` and `AFRICA_TALKING_USERNAME` required |
+| DLQ depth spike → missed PDF receipts | Medium | Medium | Grafana `DLQ_Depth_High` alert (>10 for 15m); 2FA gate on bulk retry |
+| 2G connection loss mid-filing | High | Medium | `networkMode:'offlineFirst'` + `AsyncStorage` offline queue (QW-05) + exponential backoff |
+| Deep link injection attack | Low (mitigated) | High | `SAFE_ROUTES` allowlist (C-36); no dynamic path construction |
+| Role escalation via stale JWT | Low (mitigated) | Critical | `role_version` check in `authenticate.ts` + Vercel Edge Config 30s TTL (C-44) |
+| Admin CSRF | Low (mitigated) | High | `X-CSRF-Token` cookie check in `admin/src/middleware.ts` (GAP-12) |
+| Lottie animation crash → white screen | Medium | Medium | `ConfettiAnimation` `onError` fallback (C-42); local bundle prevents network dependency |
 
-| ID | Gap | Severity |
-|---|---|---|
-| COMP-01 | WHT 4% non-resident rate eradicated; 10% enforced with `grep` gate added to pre-deployment validation | Critical |
-| COMP-02 | `computeGaugeMode()` function fully spec'd and placed in `TaxHealthGauge.tsx` | Critical |
-| COMP-03 | `backend/src/routes/v2/analytics.ts` route file spec'd with all 5 endpoints | High |
-| COMP-04 | `docker-compose.yml` and `.env.example` fully spec'd | High |
-| COMP-05 | `backend/src/services/eventBus.ts` fully spec'd with EventEmitter, BullMQ, error handling | High |
-| COMP-06 | `scripts/backfill-v12.ts` spec'd: PDF receipt queue backfill + band backfill + reference audit | High |
-| COMP-07 | `taxbridge_v12_emergency_rollback()` stored procedure spec'd in `scripts/create-emergency-rollback-proc.sql` | High |
-| COMP-08 | `tenant.ts` spec'd to enforce BOTH OrgMember status AND Organisation.status (C-12 gap closed) | High |
-| COMP-19 | `backend/src/lib/redis.ts` IORedis singleton fully spec'd; C-46 added; all consumers import from single source | High |
-| COMP-09 | `scripts/verify-prompts.ts` spec'd; 12 modules explicitly listed (includes `redis.ts`); `yarn prompts:verify` contract defined | Medium |
-| COMP-10 | `logger.ts` redaction made complete: `receiptUrl` and `documentUrl` added (C-45) | Medium |
-| COMP-11 | `decodeCursor` authoritative safe version with try/catch and 400 status enforced | Medium |
-| COMP-12 | `formatNGN` K suffix corrected to `toFixed(1)` — gate `₦1.5K` added to pre-deployment validation | Medium |
-| COMP-13 | Admin panel `next.config.js` CSP header spec integrated | Medium |
-| COMP-14 | `useDashboard` stale-on-resume 120s AppState check spec'd | Medium |
-| COMP-15 | `auth_failure_flood` dual threshold clarified: anomaly engine >10/1h/IP (long-window) + Grafana Auth_Flood >10/1min (spike) — both required, neither replaces the other | Medium |
-| COMP-16 | `VIEWER_TOKEN` added to GitHub Secrets env manifest | Low |
-| COMP-17 | TOTP lockout recovery runbook documented: peer SUPER_ADMIN path, DBA fallback (maintenance-window only — race condition risk noted), backup codes path | Low |
-| COMP-18 | `scripts/seed-dev.ts` confirmed in scripts/ directory structure | Low |
-
-## Enhancements Integrated
-
-All 15 GAPs from Enhancement Guide V3 (GAP-01 through GAP-15) fully merged. All 7 quick wins from Enhancement Guide integrated. All selective feature enhancements (admin analytics, DLQ management, audit log, TOTP, WCAG 2.2 AA) embedded directly in phase execution flow with binary gates. Constraint C-46 (Redis singleton, COMP-19) added, bringing the enforceable constraint total to 46.
-
-## Estimated Length Reduction
-
-| Artifact | Lines | Status |
-|---|---|---|
-| APEX V3 | 1,195 | Retired |
-| Enhancement Guide V3 | 801 | Retired |
-| Production Architecture V3 | 690 | Retired |
-| Master Prompt | 1,210 | Retired |
-| **Total prior** | **3,896** | |
-| Complementary Document (Section 1) | ~430 | New |
-| Condensed Directive (Section 2) | ~960 | New |
-| **Total condensed** | **~1,390** | |
-| **Reduction** | **~64%** | Zero loss of enforceable content; 46 constraints, 19 COMP gaps, 33 criteria |
-
-## Final Readiness Status: 100% Production-Symmetric
-
-- **All 46 constraints** (C-01–C-46) present with gates — C-46 (Redis singleton) added in this revision
-- **All 15 enhancement gaps** (GAP-01–15) resolved
-- **All 19 complementary gaps** (COMP-01–19) closed — including 5 previously undefined files/singletons, 1 critical regulatory error (4% WHT), 1 undefined function, 2 unsafe code patterns, and 1 C-01 violation in backfill script
-- **33 completion criteria** — all binary, measurable, simultaneously enforceable
-- **Zero deferred items** — every spec is complete and actionable
-- **Single document** — no cross-referencing required between multiple artifacts
 ---
 
-*End of Complementary Document — 19 gaps closed (COMP-01–19). Priorities: 10 Must · 5 Should · 4 Could*
+## PART VI — GAP CLOSURE SUMMARY
+
+| ID | Gap | Severity | Status |
+|---|---|---|---|
+| COMP-01 | WHT 4% non-resident rate eradicated; canonical 10% enforced | Critical | ✅ Closed |
+| COMP-02 | `computeGaugeMode()` spec'd and exported from `TaxHealthGauge.tsx` | Critical | ✅ Closed |
+| COMP-03 | `analytics.ts` all 5 endpoints spec'd with response shapes | High | ✅ Closed |
+| COMP-04 | `docker-compose.yml` and `.env.example` fully spec'd | High | ✅ Closed |
+| COMP-05 | `eventBus.ts` complete: EventEmitter + BullMQ + `setMaxListeners` + error capture | High | ✅ Closed |
+| COMP-06 | `scripts/backfill-v12.ts` spec'd: 4 idempotent operations; raw SQL for INSERT-ONLY models | High | ✅ Closed |
+| COMP-07 | Emergency rollback stored procedure with `_V12DeployMarker` table | High | ✅ Closed |
+| COMP-08 | `tenant.ts` enforces both `OrgMember.status` and `Organisation.status` | High | ✅ Closed |
+| COMP-09 | `verify-prompts.ts` spec'd with exact 12 module list | Medium | ✅ Closed |
+| COMP-10 | `logger.ts` redaction includes `receiptUrl` and `documentUrl` | Medium | ✅ Closed |
+| COMP-11 | `decodeCursor` has try/catch throwing 400 on malformed input | Medium | ✅ Closed |
+| COMP-12 | `formatNGN` K suffix uses `toFixed(1)` — gate `₦1.5K` not `₦2K` | Medium | ✅ Closed |
+| COMP-13 | `admin/next.config.js` CSP header with R2 connect-src | Medium | ✅ Closed |
+| COMP-14 | `useDashboard` stale-on-resume: 120s `AppState` check + `lastFetchTimeRef` | Medium | ✅ Closed |
+| COMP-15 | Auth failure flood: dual threshold — anomaly engine >10/1h AND Grafana >10/1min | Medium | ✅ Closed |
+| COMP-16 | `VIEWER_TOKEN` added to GitHub Secrets manifest | Low | ✅ Closed |
+| COMP-17 | TOTP lockout recovery: 3-path runbook documented | Low | ✅ Closed |
+| COMP-18 | `scripts/seed-dev.ts` spec'd with Acme Ltd seed data | Low | ✅ Closed |
+| COMP-19 | `backend/src/lib/redis.ts` IORedis singleton; C-46 enforced | High | ✅ Closed |
+
+**19 complementary gaps closed · 15 enhancement gaps resolved (GAP-01–15) · 46 constraints enforced (C-01–C-46) · 33 completion criteria binary-gated · 10 quick wins specified.**
+
+---
+
+*TaxBridge V12 — Sovereign Complementary Architecture & Quick-Win Playbook | V12-COMP-FINAL-HARDENED | 2026-03-07*
+*Branch: `upgrade/v12-elevated-20260302` | Commit to: `prompts/v12_complementary_architecture.md`*
+*19 COMP gaps closed · 10 Quick Wins · Zero deferred items.*

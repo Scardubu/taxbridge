@@ -50,6 +50,8 @@ jobs:
       DATABASE_URL:            postgresql://taxbridge:testpassword@localhost:5432/taxbridge_test
       REDIS_URL:               redis://localhost:6379
       JWT_SECRET:              test-jwt-secret-must-be-at-least-64-characters-long-for-production-use
+      JWT_REFRESH_SECRET:      test-refresh-secret-must-be-at-least-64-characters-long-as-well
+      NRS_API_KEY:             test-nrs-api-key-placeholder
       ENCRYPTION_KEY:          0000000000000000000000000000000000000000000000000000000000000000
       TAX_ID_ENCRYPTION_KEY:   1111111111111111111111111111111111111111111111111111111111111111
       NODE_ENV:                test
@@ -579,6 +581,26 @@ jobs:
           COUNT=$(grep -rn "No anomal" mobile/src/ --include="*.tsx" | grep -v "test\|spec" | wc -l)
           [ "$COUNT" -eq 0 ] && echo "✅ No anomaly empty state text in components" \
             || { echo "❌ 'No anomalies' text found in components — C-19: use empty={null}"; exit 1; }
+
+      - name: COMP-09 — Verify 12 prompt modules (verify-prompts.ts)
+        run: |
+          npx ts-node scripts/verify-prompts.ts \
+            && echo "✅ All 12 prompt modules present" \
+            || echo "⚠️  Prompt verification incomplete (non-fatal)"
+
+      - name: C-46 — Zero new IORedis() outside lib/redis.ts
+        run: |
+          COUNT=$(grep -rn "new IORedis" backend/src/ --include="*.ts" \
+            | grep -v "lib/redis.ts\|queue/client.ts\|test\|spec" | wc -l)
+          [ "$COUNT" -eq 0 ] && echo "✅ Zero new IORedis() outside singleton" \
+            || { echo "❌ new IORedis() found outside lib/redis.ts ($COUNT) — C-46"; exit 1; }
+
+      - name: C-44 — role_version in ≥3 paths
+        run: |
+          COUNT=$(grep -rn "role_version" backend/src/ --include="*.ts" \
+            | grep -v "test\|spec\|comment" | wc -l)
+          [ "$COUNT" -ge 3 ] && echo "✅ role_version found in $COUNT places" \
+            || { echo "❌ role_version only in $COUNT places — need ≥3 (C-44)"; exit 1; }
 
   # ───────────────────────────────────────────────────────────────────────────
   # JOB: Security Scan

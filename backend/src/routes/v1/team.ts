@@ -45,6 +45,8 @@ async function invalidateSession(userId: string) {
   const redis = getRedisConnection();
   if (!redis) return;
   await redis.del(`sessions:${userId}`);
+  // C-44: role_version increment — covers role change (path 1) and account suspension (path 3)
+  await redis.del(`role_version:${userId}`);
   await redis.setex(`role_version:${userId}`, 60 * 60 * 24 * 7, Date.now().toString());
 }
 

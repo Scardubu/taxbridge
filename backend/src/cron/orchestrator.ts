@@ -152,7 +152,7 @@ async function sessionCleanup(): Promise<void> {
 // ─── Job 6: DLQ monitor ───────────────────────────────────────────────────────
 // Every 15 minutes — alert if DLQ depth exceeds threshold
 
-const DLQ_ALERT_THRESHOLD = 50;
+const DLQ_ALERT_THRESHOLD = 10;
 
 async function dlqMonitor(): Promise<void> {
   const redis = getRedisConnection();

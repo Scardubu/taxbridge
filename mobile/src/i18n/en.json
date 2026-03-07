@@ -1,4 +1,4 @@
-﻿{
+{
     "home":  {
                  "welcome":  "Welcome back",
                  "createInvoice":  "Create Invoice",
@@ -897,6 +897,7 @@
                    "scan":  "ðŸ“· Scan",
                    "syncReady":  "Sync Ready",
                    "offlineMode":  "Offline Mode",
+                   "offline":  "You are offline. Data will sync when connection is restored.",
                    "syncPending":  "Sync pending invoices",
                    "complete":  "complete",
                    "comingSoon":  "Coming Soon",
@@ -1655,7 +1656,7 @@
     "anomaly":  {
                     "title":  "Anomaly Alerts",
                     "subtitle":  "Unusual patterns detected in your transactions",
-                    "noAnomalies":  "No anomalies detected â€” your records look healthy!",
+                    "noAnomalies":  "All clear â€” your records look healthy!",
                     "dismiss":  "Dismiss",
                     "dismissed":  "Dismissed",
                     "reviewNow":  "Review Now",

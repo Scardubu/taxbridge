@@ -26,10 +26,13 @@
       "developmentClient": true,
       "env": {
         "EXPO_PUBLIC_ENV": "development",
-        "EXPO_PUBLIC_API_URL": "${EXPO_PUBLIC_DEV_API_URL}"
+        "EXPO_PUBLIC_API_URL": "${EXPO_PUBLIC_DEV_API_URL}",
+        "SENTRY_DSN": "SET_VIA_EAS_SECRET"
       },
       "android": {
         "buildType": "apk",
+        "compileSdkVersion": 36,
+        "targetSdkVersion": 35,
         "gradleCommand": ":app:assembleDebug --no-daemon --no-build-cache --stacktrace"
       },
       "ios": {
@@ -46,6 +49,8 @@
       "distribution": "internal",
       "android": {
         "buildType": "apk",
+        "compileSdkVersion": 36,
+        "targetSdkVersion": 35,
         "gradleCommand": ":app:assembleRelease --no-daemon --no-build-cache --rerun-tasks --refresh-dependencies --stacktrace"
       },
       "ios": {
@@ -53,7 +58,8 @@
       },
       "env": {
         "EXPO_PUBLIC_ENV": "preview",
-        "EXPO_PUBLIC_API_URL": "https://taxbridge-api-ker8.onrender.com"
+        "EXPO_PUBLIC_API_URL": "https://taxbridge-api-ker8.onrender.com",
+        "SENTRY_DSN": "SET_VIA_EAS_SECRET"
       }
     },
     "production-apk": {
@@ -65,11 +71,14 @@
       "distribution": "internal",
       "android": {
         "buildType": "apk",
+        "compileSdkVersion": 36,
+        "targetSdkVersion": 35,
         "gradleCommand": ":app:assembleRelease --no-daemon --no-build-cache --rerun-tasks --refresh-dependencies --stacktrace"
       },
       "env": {
         "EXPO_PUBLIC_ENV": "production",
         "EXPO_PUBLIC_API_URL": "https://taxbridge-api-ker8.onrender.com",
+        "SENTRY_DSN": "SET_VIA_EAS_SECRET",
         "CI": "1"
       }
     },
@@ -82,6 +91,8 @@
       "distribution": "store",
       "android": {
         "buildType": "app-bundle",
+        "compileSdkVersion": 36,
+        "targetSdkVersion": 35,
         "gradleCommand": ":app:bundleRelease --no-daemon --no-build-cache --rerun-tasks --refresh-dependencies --stacktrace --warning-mode all"
       },
       "ios": {
@@ -92,6 +103,7 @@
         "NODE_ENV": "production",
         "EXPO_PUBLIC_ENV": "production",
         "EXPO_PUBLIC_API_URL": "https://taxbridge-api-ker8.onrender.com",
+        "SENTRY_DSN": "SET_VIA_EAS_SECRET",
         "CI": "1"
       }
     }

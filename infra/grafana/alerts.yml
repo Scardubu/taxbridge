@@ -110,7 +110,7 @@ groups:
 
       # ── DLQ Depth > 50 ────────────────────────────────────────────────────
       - uid: taxbridge-dlq-depth
-        title: "DLQ Depth High (> 50 jobs)"
+        title: "DLQ Depth High (> 10 jobs)"
         condition: C
         data:
           - refId: A
@@ -127,7 +127,7 @@ groups:
             model:
               conditions:
                 - evaluator:
-                    params: [50]
+                    params: [10]
                     type: gt
                   operator:
                     type: and
@@ -153,7 +153,7 @@ groups:
 
       # ── Auth Flood — > 100 failed logins / min ────────────────────────────
       - uid: taxbridge-auth-flood
-        title: "Auth Flood — > 100 failed logins/min"
+        title: "Auth Flood — > 10 failed logins/min"
         condition: C
         data:
           - refId: A
@@ -171,7 +171,7 @@ groups:
             model:
               conditions:
                 - evaluator:
-                    params: [100]
+                    params: [10]
                     type: gt
                   operator:
                     type: and
@@ -206,7 +206,7 @@ groups:
               to: 0
             datasourceUid: prometheus
             model:
-              expr: "taxbridge_nrs_circuit_state == 1"
+              expr: "taxbridge_nrs_circuit_state == 2"
               instant: true
               refId: A
           - refId: C

@@ -13,8 +13,9 @@
  * Deadline: "Due 21st {{month}} — {{days}} days" + red badge ≤ 5 days
  */
 
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  AccessibilityInfo,
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
@@ -59,7 +60,24 @@ export default function VATFilingScreen() {
   const { colors }   = useTheme();
   const navigation   = useNavigation<any>();
 
+  const STEPS: WizardStep[] = ['period', 'output', 'input', 'review', 'confirm'];
+  const STEP_TITLES: Record<WizardStep, string> = {
+    period: t('wizard.period', 'Select Period'),
+    output: t('wizard.outputVat', 'Output VAT'),
+    input: t('wizard.inputVat', 'Input VAT'),
+    review: t('wizard.review', 'Review'),
+    confirm: t('wizard.confirm', 'Confirm'),
+  };
   const [step,        setStep]        = useState<WizardStep>('period');
+  const currentStep = STEPS.indexOf(step) + 1;
+  const totalSteps = STEPS.length;
+
+  useEffect(() => {
+    AccessibilityInfo.announceForAccessibility(
+      `Step ${currentStep} of ${totalSteps}: ${STEP_TITLES[step]}`
+    );
+  }, [step]);
+
   const [period,      setPeriod]      = useState(currentPeriod());
   const [outputVAT,   setOutputVAT]   = useState(0);
   const [inputVAT,    setInputVAT]    = useState(0);

@@ -1127,6 +1127,22 @@ taxbridge_component_status{component="sms"} ${serverMetrics.componentStatus.sms 
   await app.register(notificationsRoutes, { prefix: '/api/v1/notifications' });
   await app.register(totpRoutes, { prefix: '/api/v1/auth/totp' });
 
+  // ── V12 filing routes (MOD-22 through MOD-28) ─────────────────────────
+  const vatFiling = await import('./routes/filings/vat');
+  await app.register(vatFiling.default);
+  const whtFiling = await import('./routes/filings/wht');
+  await app.register(whtFiling.default);
+  const payeFiling = await import('./routes/filings/paye');
+  await app.register(payeFiling.default);
+  const nilFiling = await import('./routes/filings/nil');
+  await app.register(nilFiling.default);
+  const citFiling = await import('./routes/filings/cit');
+  await app.register(citFiling.default);
+  const documentsRoute = await import('./routes/v1/documents');
+  await app.register(documentsRoute.default);
+  const teamRoute = await import('./routes/v1/team');
+  await app.register(teamRoute.default);
+
   setFastifyInstance(app);
 
   // Phase 3: Feature flags endpoint for mobile app

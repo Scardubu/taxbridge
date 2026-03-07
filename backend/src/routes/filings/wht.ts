@@ -3,10 +3,10 @@
  *
  * POST /api/v1/filings/wht
  *
- * Rate decision tree:
- *   10% — professional services (legal, consulting, management fees)
- *    5% — rent, dividends, interest, royalties
- *    4% — construction, contract work
+ * Rate decision tree (NTA 2025 §78):
+ *   10% — professional/consultancy/management/technical/dividends/interest/royalties/rent
+ *    5% — construction/survey/contracts
+ *   10% — non-resident (same rate, different NRS remittance channel — COMP-01)
  *
  * Exemption check (C-23): BOTH conditions must be met simultaneously:
  *   1. Recipient has a valid TIN
@@ -22,28 +22,27 @@ import { authenticate } from '../../middleware/authenticate';
 import { resolveOrgContext } from '../../middleware/tenant';
 import { idempotency } from '../../middleware/idempotency';
 import { writeAuditEvent } from '../../services/audit';
-import { calculateWHT } from '@taxbridge/contracts';
 import { createLogger } from '../../lib/logger';
 import { getPrismaClient } from '../../lib/prisma';
 
 const log = createLogger('filings:wht');
 
-// ─── Constants ────────────────────────────────────────────────────────────
+// C-04 / C-10: All rates from packages/contracts/src/constants.ts — never inline
+import { WHT_RATES, WHT_EXEMPTION_MONTHLY_THRESHOLD } from '@taxbridge/contracts/constants';
 
-const WHT_RATES: Record<string, number> = {
-  professional_fee:  0.10,
-  rent:              0.10,
-  dividend:          0.10,
-  interest:          0.10,
-  royalty:           0.05,
-  construction:      0.05,
-  contract:          0.05,
-  commission:        0.10,
-  director_fee:      0.10,
+const CATEGORY_TO_RATE: Record<string, number> = {
+  professional_fee:  WHT_RATES.professional,
+  rent:              WHT_RATES.rent,
+  dividend:          WHT_RATES.dividends,
+  interest:          WHT_RATES.interest,
+  royalty:           WHT_RATES.royalties,
+  construction:      WHT_RATES.construction,
+  contract:          WHT_RATES.contracts,
+  commission:        WHT_RATES.professional,
+  director_fee:      WHT_RATES.management,
 };
 
-// WHT exemption: recipient TIN + amount ≤ ₦2M (C-23)
-const TWO_MILLION_THRESHOLD = 2_000_000;
+const TWO_MILLION_THRESHOLD = WHT_EXEMPTION_MONTHLY_THRESHOLD;
 
 // ─── Schema (C-34) ────────────────────────────────────────────────────────
 
@@ -104,7 +103,7 @@ export default async function whtFilingRoutes(app: FastifyInstance) {
       // Process each transaction: rate decision tree + exemption check
       const warnings: string[] = [];
       const processedTransactions = transactions.map((txn) => {
-        const rate = txn.rateOverride ?? (WHT_RATES[txn.category] ?? 0.10);
+        const rate = txn.rateOverride ?? (CATEGORY_TO_RATE[txn.category] ?? WHT_RATES.professional);
 
         // Warn if professional_fee charged at rate < 10%
         if (txn.category === 'professional_fee' && rate < 0.10) {

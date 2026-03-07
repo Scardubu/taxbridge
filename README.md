@@ -1,4 +1,4 @@
-﻿# TaxBridge
+# TaxBridge
 
 <div align="center">
 
@@ -12,10 +12,10 @@
 [![Coverage](https://img.shields.io/badge/coverage-97.29%25-brightgreen?logo=jest)](/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-blue?logo=typescript)](/)
 [![NRS](https://img.shields.io/badge/NRS%202026-compliant-green?logo=shield)](/)
-[![Production](https://img.shields.io/badge/version-v4.0.0-blue?logo=git)](/)
+[![Production](https://img.shields.io/badge/version-v12.0.0-blue?logo=git)](/)
 [![License](https://img.shields.io/badge/license-proprietary-lightgrey)](/)
 
-**[Live API](https://taxbridge-api-ker8.onrender.com/health)** · **[Admin Console](https://taxbridge.vercel.app)** · **[API Docs](https://taxbridge-api-ker8.onrender.com/docs)** · **[Changelog](CHANGELOG.md)**
+**[Live API](https://taxbridge-api-ker8.onrender.com/api/v2/monitoring/health)** · **[Admin Console](https://taxbridge.vercel.app)** · **[API Docs](https://taxbridge-api-ker8.onrender.com/docs)** · **[Changelog](CHANGELOG.md)**
 
 </div>
 
@@ -48,25 +48,32 @@ TaxBridge is a **mobile-first, offline-capable** tax compliance platform built f
 
 | Platform | URL | Status | Last Deploy |
 | --- | --- | --- | --- |
-| **Backend API** | [taxbridge-api-ker8.onrender.com](https://taxbridge-api-ker8.onrender.com/health) | ✅ Live | Feb 20, 2026 |
-| **Admin Console** | [taxbridge.vercel.app](https://taxbridge.vercel.app) | ✅ Live | Feb 20, 2026 |
-| **Mobile App** | EAS → Google Play Internal Testing | ✅ v3.0.0 | Feb 20, 2026 |
-| **API Docs** | [/docs](https://taxbridge-api-ker8.onrender.com/docs) | ✅ Live | Feb 20, 2026 |
+| **Backend API** | [taxbridge-api-ker8.onrender.com](https://taxbridge-api-ker8.onrender.com/api/v2/monitoring/health) | ✅ Live | Mar 7, 2026 |
+| **Admin Console** | [taxbridge.vercel.app](https://taxbridge.vercel.app) | ✅ Live | Mar 7, 2026 |
+| **Mobile App** | EAS → Google Play Internal Testing | ✅ v12.0.0 | Mar 7, 2026 |
+| **API Docs** | [/docs](https://taxbridge-api-ker8.onrender.com/docs) | ✅ Live | Mar 7, 2026 |
 
-### v3.0.0 — Intelligence Platform + Dark Mode + NRS Operations (Feb 20, 2026)
+### v12.0.0 — Apex Execution Directive (Mar 7, 2026)
 
-- ✅ **9-Signal Anomaly Detection Engine** — Deterministic, stateless scanner: `duplicate_amount`, `zscore_spike`, `vat_mismatch`, `round_number_clustering`, `weekend_business_expense`, `rapid_succession`, `phantom_vendor`, `cashflow_cliff`, `vat_threshold_approach` with English + Pidgin explanations and NTA 2025 citations
-- ✅ **Tax Health Score** — Deterministic 0–100 composite score with 5 weighted components, grade labels (excellent/good/fair/poor/critical), and 30-day trend ring buffer
-- ✅ **Centralized BullMQ Queue Registry** — 6 named queues with per-queue retry policies and `getQueueHealth()` cold-start resilience
-- ✅ **Dark Mode token system** — 100-key `darkTokens.ts` + `useTheme()` / `useColors()` hooks wrapping `useColorScheme()`
-- ✅ **NRS Operations Center** (Admin) — Real-time queue health, live submission feed, failed submission retry with rate limiting
-- ✅ **Payment Circuit Breaker** — CLOSED/OPEN/HALF_OPEN state machine for Paystack, Flutterwave, Remita with graceful degradation
-- ✅ **Smart Compliance Calendar** — NTA 2025 deadline constants, adaptive reminder cadence, projected liability, penalty accrual
-- ✅ **TaxHealthScoreWidget** (Mobile) — Animated SVG ring, WCAG AA, Pidgin toggle, full i18n
-- ✅ **1,200+ i18n keys** — `taxHealth`, `anomaly`, `cryptoTax`, `compliance`, `nrsOps` namespaces
-- ✅ **CI/CD hardening** — Node 20, npm ci, NRS terminology audit, 500-test gate, prisma validate
-- ✅ **3 new Prisma models** — `AnomalyRecord`, `TaxHealthSnapshot`, `VendorRecord`
-- ✅ **528 tests passing** (gate: ≥500)
+- ✅ **5-zone dashboard** — apex/signal/action/context/ambient with staggered animations and skeleton loading
+- ✅ **TaxHealthGauge** — SVG arc gauge with expanded/compact modes (COMP-02), WCAG AA progressbar
+- ✅ **Full CIT engine** — `calculateCIT()` with small/large company bands, dev levy, education tax, loss carryforward (C-41)
+- ✅ **All 5 filing wizards** — VAT, WHT, PAYE, NIL, CIT with idempotency, preflight checks, WCAG 2.2 AA
+- ✅ **TOTP 2FA** — Setup, verify, disable, backup codes (bcrypt-hashed) with role_version invalidation (C-44)
+- ✅ **Push notifications** — Expo push via UserDevice model, SMS fallback, chunked delivery (GAP-01)
+- ✅ **Deep link security** — SAFE_ROUTES allowlist prevents dynamic path injection (C-36)
+- ✅ **NRS circuit breaker** — opossum-based with 3-state Prometheus metric (C-14)
+- ✅ **Flutterwave webhook** — HMAC-SHA256 + Redis NX idempotency + already_processed guard (C-37)
+- ✅ **PDF receipt pipeline** — Async BullMQ worker to R2 with 24h signed URLs (C-40)
+- ✅ **Admin DLQ management** — Retry, resolve, 2FA gate for bulk >10 depth
+- ✅ **Admin analytics** — 5 panels: revenue-at-risk, compliance rate, risk distribution, NRS health, DLQ trend
+- ✅ **Cursor pagination** — `PaginatedResponse<T>` with `encodeCursor`/`decodeCursor` (COMP-11)
+- ✅ **7 Prometheus metrics** — request duration, NRS stamp success/failure, anomaly count, DLQ depth, penalty estimate, NRS circuit state
+- ✅ **7 cron jobs** — tax health snapshot, risk scoring, NRS retry, deadline reminders, anomaly digest, session cleanup, keep-alive
+- ✅ **Design system tokens** — colors, typography, spacing, radius, animation with dark mode support
+- ✅ **Offline-first** — `networkMode:'offlineFirst'`, stale-on-resume (2 min threshold), exponential backoff
+- ✅ **Docker multi-stage** — Non-root user, health-checked, Prisma generate for alpine target
+- ✅ **46 absolute constraints** (C-01 to C-46) enforced via CI gates
 
 ---
 
@@ -148,18 +155,23 @@ TaxBridge is a **mobile-first, offline-capable** tax compliance platform built f
 git clone https://github.com/Scardubu/taxbridge.git
 cd taxbridge
 
-# Install all workspaces (npm — do not use yarn; project uses package-lock.json)
+# Start infrastructure
+docker compose up -d                     # postgres:15-alpine + redis:7-alpine
+
+# Environment
+cp .env.example .env.local               # Edit DATABASE_URL, REDIS_URL, JWT_SECRET, NRS_API_KEY
+
+# Install all workspaces
 npm install
 
-# Build shared contracts package
+# Build shared contracts
 npm run build --workspace=@taxbridge/contracts
 
 # Backend
 cd backend
-cp ../.env.production.example .env   # Edit with your credentials
-npx prisma generate
-npx prisma db push
-npm run dev
+npx prisma migrate dev
+npx ts-node ../scripts/seed-dev.ts       # Seed test data
+npm run dev                              # http://localhost:10000
 
 # Mobile (new terminal)
 cd mobile
@@ -167,7 +179,11 @@ npx expo start
 
 # Admin Dashboard (new terminal)
 cd admin-dashboard
-npm run dev
+npm run dev                              # http://localhost:3000
+
+# Verify health
+curl -s http://localhost:10000/api/v2/monitoring/health | jq '.status'
+# → "healthy"
 ```
 
 ### Mobile EAS Builds
@@ -216,14 +232,15 @@ Render (backend) and Vercel (admin) auto-deploy from the `master` branch. See [P
 
 | Layer | Technology |
 | --- | --- |
-| **Mobile** | React Native 0.81, Expo SDK 54, Expo Router, SQLite, Reanimated v4.1, react-native-worklets, i18next |
-| **Backend** | Node.js 20.x, Fastify, Prisma 5.22, PostgreSQL 14+, Redis 6+, BullMQ |
-| **Admin** | Next.js 16.1, shadcn/ui, Tailwind CSS, Recharts, TypeScript 5 |
-| **Shared** | `@taxbridge/contracts` — monorepo TypeScript package (Metro resolves via `react-native` field) |
-| **Integrations** | DigiTax/APP (NRS), Paystack, Flutterwave, Remita, Youverify |
-| **Monitoring** | Sentry, Prometheus metrics, custom DLQ/pool monitors |
-| **Deploy** | Render (API + Worker + Redis), Vercel (Admin), EAS (Mobile) |
-| **Testing** | Jest (528+ tests), 3 projects (unit/integration/e2e) |
+| **Mobile** | React Native (Expo SDK 54), Expo Router, Reanimated, @shopify/flash-list, i18next, lottie-react-native |
+| **Backend** | Node.js 20, Fastify 5, Prisma 5.22, PostgreSQL 15, Redis 7 (IORedis), BullMQ 5, Pino, Sentry |
+| **Admin** | Next.js 15 (App Router), jose (JWT), Tailwind CSS, Recharts |
+| **Shared** | `@taxbridge/contracts` — PIT, CIT, VAT, WHT, penalty calculators + tax rate constants |
+| **Integrations** | DigiTax/APP (NRS), Flutterwave, Paystack, Remita, Youverify, Africa's Talking (SMS) |
+| **Security** | TOTP 2FA (speakeasy), bcrypt, HMAC-SHA256 webhooks, opossum circuit breaker, RBAC middleware |
+| **Monitoring** | Sentry, Prometheus (7 metrics), Grafana (5 alerts), prom-client |
+| **Deploy** | Render (Docker, fra region), Vercel (Admin), EAS (Mobile) |
+| **Testing** | Jest (550+ tests), CI/CD with 5-stage pipeline |
 
 ---
 
@@ -253,15 +270,18 @@ Interactive API docs available at [`/docs`](https://taxbridge-api-ker8.onrender.
 
 | Metric | Value |
 | --- | --- |
-| Lines of Code | 65,000+ |
-| Test Suites | 25 suites (528+ tests, 100% pass rate) |
-| Test Coverage | 97.29% (tax engine), 65%+ overall |
-| API Endpoints | 65+ RESTful |
-| i18n Keys | 1,200+ (English + Nigerian Pidgin) |
-| UI Components | 155+ with 100% design token adoption |
-| Mobile Screens | 15+ production screens |
-| Backend Services | 18+ service modules |
-| Version | v3.0.0 (Feb 2026) |
+| Lines of Code | 80,000+ |
+| Test Suites | 30+ suites (550+ tests, 100% pass rate) |
+| Test Coverage | 95%+ lines/functions, 90%+ branches |
+| API Endpoints | 75+ RESTful |
+| i18n Keys | 1,500+ (English + Nigerian Pidgin) |
+| UI Components | 160+ with design token adoption |
+| Mobile Screens | 20+ production screens |
+| Backend Services | 22+ service modules |
+| Absolute Constraints | 46 (C-01 to C-46) |
+| Prometheus Metrics | 7 |
+| Cron Jobs | 7 |
+| Version | v12.0.0 (Mar 2026) |
 
 ---
 
@@ -269,17 +289,20 @@ Interactive API docs available at [`/docs`](https://taxbridge-api-ker8.onrender.
 
 ```
 taxbridge/
-├── mobile/          # Expo SDK 54 / React Native 0.81 app (EAS)
-├── backend/         # Node.js 20 + Fastify API (Render)
-├── admin-dashboard/ # Next.js 16.1 admin console (Vercel)
+├── mobile/             # Expo SDK 54 mobile app (EAS)
+├── backend/            # Fastify 5 API (Render, Docker)
+├── admin-dashboard/    # Next.js 15 admin console (Vercel)
 ├── packages/
-│   └── contracts/  # @taxbridge/contracts — shared TypeScript types
-│       ├── src/index.ts        ← Metro reads this (react-native field)
-│       └── dist/index.js       ← Node/backend reads this (main field)
-├── ml/              # OCR & NLP services
-├── infra/           # CI, mocks, docker-compose
-├── docs/            # PRD, DPIA, API specs
-└── render.yaml      # Render blueprint (npm ci — not yarn)
+│   └── contracts/     # @taxbridge/contracts — tax calculators + rate constants
+│       ├── src/       # PIT, CIT, VAT, WHT, penalty, RBAC, pagination
+│       └── dist/
+├── prompts/            # 12 V12 AI prompt modules
+├── scripts/            # seed-dev, backfill-v12, verify-prompts, rollback
+├── infra/              # Grafana alerts + dashboard, k6 load tests
+├── ml/                 # OCR & NLP services
+├── docs/               # PRD, DPIA, API specs
+├── docker-compose.yml  # Local dev (postgres:15 + redis:7)
+└── render.yaml         # Render blueprint (fra region)
 ```
 
 ### Package Resolution Notes

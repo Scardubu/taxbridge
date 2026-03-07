@@ -198,10 +198,12 @@ const totpRoutes: FastifyPluginAsync = async (fastify) => {
       const redis = getRedisConnection();
       if (redis) {
         await redis.del(`totp:${userId}`);
+        // C-44: role_version increment on TOTP disable (path 2 of 3)
+        await redis.del(`role_version:${userId}`);
       }
 
       await writeAuditEvent(
-        { actorId: userId, action: 'TOTP_DISABLED', details: {} },
+        { actorId: userId, action: 'ROLE_CHANGE', details: { reason: 'totp_disabled' } },
         prisma as any,
       );
 

@@ -9,9 +9,14 @@
 
 export interface PaginatedResponse<T> {
   data: T[];
-  nextCursor: string | null;
-  hasMore: boolean;
-  total?: number;
+  meta: {
+    nextCursor: string | null;
+    prevCursor: string | null;
+    hasNextPage: boolean;
+    hasPreviousPage: boolean;
+    total: number | null;
+    pageSize: number;
+  };
 }
 
 /**
@@ -25,18 +30,18 @@ export function encodeCursor(id: string, createdAt: Date): string {
 
 /**
  * Decode a cursor string back to its components.
- * Returns null on invalid input (never throws).
+ * Throws with status 400 on malformed input (COMP-11).
  */
-export function decodeCursor(cursor: string): { id: string; t: string } | null {
+export function decodeCursor(cursor: string): { createdAt: Date; id: string } {
   try {
     const json = Buffer.from(cursor, 'base64url').toString('utf8');
     const parsed = JSON.parse(json);
-    if (typeof parsed.id === 'string' && typeof parsed.t === 'string') {
-      return parsed;
+    if (!parsed.id || !parsed.t) {
+      throw new Error('invalid cursor shape');
     }
-    return null;
+    return { createdAt: new Date(parsed.t), id: parsed.id };
   } catch {
-    return null;
+    throw Object.assign(new Error('INVALID_CURSOR'), { status: 400 });
   }
 }
 

@@ -12,7 +12,9 @@
  * Falls back to the composite endpoint defined in @store/queries.
  */
 
-import { useQuery, type UseQueryResult } from '@tanstack/react-query';
+import { useEffect, useRef } from 'react';
+import { AppState, type AppStateStatus } from 'react-native';
+import { useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-query';
 import { useCurrentUser } from '@store/authStore';
 import type { DashboardComposite } from '@api/client';
 
@@ -20,30 +22,45 @@ import type { DashboardComposite } from '@api/client';
 export const dashboardQueryKey = (orgId: string, userId: string) =>
   ['dashboard', orgId, userId] as const;
 
+// ── Stale-on-resume threshold (COMP-14) ──────────────────────────────
+const STALE_RESUME_MS = 120_000; // 2 minutes
+
 // ── Composite dashboard hook ──────────────────────────────────────────
 export function useDashboard(): UseQueryResult<DashboardComposite> {
   const user = useCurrentUser();
   const orgId = user?.orgId ?? 'default';
   const userId = user?.id ?? 'anonymous';
+  const queryClient = useQueryClient();
+  const lastFetchTimeRef = useRef(Date.now());
 
-  return useQuery<DashboardComposite>({
+  const query = useQuery<DashboardComposite>({
     queryKey: dashboardQueryKey(orgId, userId),
     queryFn: async () => {
-      // Dynamic import to avoid circular dependency with API client
       const { dashboardApi } = await import('@api/client');
       const res = await dashboardApi.composite();
+      lastFetchTimeRef.current = Date.now();
       return res.data;
     },
-    staleTime: 30 * 1000,    // 30 seconds — V12 spec
-    gcTime: 5 * 60 * 1000,   // 5 minutes — V12 spec
+    staleTime: 30 * 1000,
+    gcTime: 5 * 60 * 1000,
     retry: (failureCount, err: any) => {
-      // Never retry auth failures
       if (err?.statusCode === 401 || err?.statusCode === 403) return false;
       return failureCount < 2;
     },
-    // Return stale cache while re-fetching (offline-first feel)
     placeholderData: (prev) => prev,
   });
+
+  useEffect(() => {
+    const handleAppState = (nextState: AppStateStatus) => {
+      if (nextState === 'active' && Date.now() - lastFetchTimeRef.current > STALE_RESUME_MS) {
+        queryClient.invalidateQueries({ queryKey: dashboardQueryKey(orgId, userId) });
+      }
+    };
+    const sub = AppState.addEventListener('change', handleAppState);
+    return () => sub.remove();
+  }, [orgId, userId, queryClient]);
+
+  return query;
 }
 
 export default useDashboard;

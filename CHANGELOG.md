@@ -7,6 +7,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [12.0.0] - 2026-03-07 - V12 Apex Execution Directive — Full Rollout
+
+### Phase 0 — Foundation
+- **Design system tokens** — COLORS, TYPOGRAPHY, SPACING, RADIUS constants with dark/light mode
+- **Animation tokens** — DURATION, EASE, ENTER_FROM, ZONE_DELAY for staggered dashboard zones
+- **formatNGN** — Compact formatting fix (toFixed(1) for consistent ₦1.5K display, COMP-12)
+- **PaginatedResponse<T>** — Cursor-based pagination with meta object (GAP-04, COMP-11)
+- **decodeCursor** — try/catch with 400 status on malformed input
+- **CIT engine** — calculateCIT() with small/large bands, dev levy, education tax, loss carryforward (C-41)
+- **validateEnv.ts** — NRS_API_KEY always required; 10 production-only vars added
+- **tenant middleware** — ORG_SUSPENDED + ORG_PENDING_VERIFICATION enforcement (COMP-08, C-12)
+- **rateLimit** — standardHeaders:true, legacyHeaders:false on all limiters (GAP-09)
+- **7 Prometheus metrics** — request duration, NRS stamps, anomaly count, DLQ depth, penalty, circuit state
+- **Prisma schema** — AuditAction (17 types), RiskBand, OrgStatus enums; UserDevice model (GAP-01)
+- **EAS config** — compileSdkVersion:36, targetSdkVersion:35, SENTRY_DSN via EAS secrets
+
+### Phase 1 — Sprint
+- **WCAG 2.2 AA** — AccessibilityInfo.announceForAccessibility on all filing wizard step changes
+- **Admin DLQ page** — Retry, resolve, 2FA gate for bulk >10 depth
+- **Admin audit page** — Cursor-paginated audit log viewer with NDJSON export
+- **Admin security headers** — CSP, X-Content-Type-Options, X-Frame-Options, Referrer-Policy (COMP-13)
+- **i18n** — common.offline key in EN + Pidgin; FIRS→NRS terminology fix (C-02)
+- **Deep links** — SAFE_ROUTES allowlist with all filing paths (C-36)
+
+### Phase 2 — Tax Workflow Modules
+- **WHT filing screen** — 9-category rate table, exemption check (TIN + ≤₦2M), WCAG steps
+- **PAYE filing screen** — Multi-employee payroll with per-employee PIT calculation
+- **CIT filing screen** — 8-step wizard with threshold warnings, payment, receipt download
+- **WHT route** — Rates imported from @taxbridge/contracts, no inline rates (C-10)
+- **CIT route** — POST /api/v1/filings/cit with idempotency + calculateCIT() exclusively
+- **role_version** — Incremented in 3 paths: role change, TOTP disable, account suspension (C-44)
+
+### Phase 3 — Infrastructure + Observability
+- **Dockerfile** — Multi-stage with monorepo contracts build, non-root user, health check
+- **Cron orchestrator** — 7 jobs with DLQ threshold at 10 (aligned with Grafana alert)
+- **Grafana alerts** — NRS circuit state==2 (OPEN), DLQ depth>10, auth flood>10/min
+- **render.yaml** — Region fra (Frankfurt), healthCheckPath /api/v2/monitoring/health
+- **CI gates** — C-46 (no new IORedis outside lib/redis), C-44 (role_version ≥3 paths), COMP-09 (12 prompt modules)
+- **API client** — isOfflineError helper, 429 toast handling, stale-on-resume (2 min threshold)
+
+### Constraints Enforced
+- 46 absolute constraints (C-01 to C-46) verified via CI grep gates
+- Zero FIRS references, zero console.log in backend, zero new PrismaClient in routes
+- Zero schema.parse() in handlers, zero hardcoded rates outside constants.ts
+- All tax rates from @taxbridge/contracts only
+
+---
+
 ## [4.3.1] - 2026-03-03 - V12 Integration Wiring · Biometric Auth · Final Gate Closure
 
 ### Added
