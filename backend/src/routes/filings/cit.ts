@@ -21,7 +21,7 @@ import { writeAuditEvent } from '../../services/audit';
 import { createLogger } from '../../lib/logger';
 import { getPrismaClient } from '../../lib/prisma';
 import { calculateCIT } from '@taxbridge/contracts';
-import { SMALL_CO_CIT_THRESHOLD } from '@taxbridge/contracts/constants';
+import { SMALL_CO_CIT_THRESHOLD } from '@taxbridge/contracts';
 import crypto from 'node:crypto';
 
 const log = createLogger('filing-cit');

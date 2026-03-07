@@ -28,7 +28,7 @@ import { getPrismaClient } from '../../lib/prisma';
 const log = createLogger('filings:wht');
 
 // C-04 / C-10: All rates from packages/contracts/src/constants.ts — never inline
-import { WHT_RATES, WHT_EXEMPTION_MONTHLY_THRESHOLD } from '@taxbridge/contracts/constants';
+import { WHT_RATES, WHT_EXEMPTION_MONTHLY_THRESHOLD } from '@taxbridge/contracts';
 
 const CATEGORY_TO_RATE: Record<string, number> = {
   professional_fee:  WHT_RATES.professional,
