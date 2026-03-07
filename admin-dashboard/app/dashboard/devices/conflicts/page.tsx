@@ -409,6 +409,7 @@ export default function ConflictsPage() {
                   </Label>
                   <Input
                     id="admin-user-id"
+                    name="adminUserId"
                     value={adminUserId}
                     onChange={(e) => setAdminUserId(e.target.value)}
                     placeholder={t('conflicts.resolve.adminUserIdPlaceholder')}
@@ -423,6 +424,7 @@ export default function ConflictsPage() {
                   </Label>
                   <Textarea
                     id="admin-reason"
+                    name="adminReason"
                     value={adminReason}
                     onChange={(e) => setAdminReason(e.target.value)}
                     placeholder={t('conflicts.resolve.adminReasonPlaceholder')}

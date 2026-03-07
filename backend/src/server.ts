@@ -341,18 +341,20 @@ async function bootstrap() {
   const isProduction = process.env.NODE_ENV === 'production';
 
   const corsOriginsRaw = (process.env.ALLOWED_ORIGINS ?? process.env.CORS_ORIGINS ?? '*').trim();
-  const corsOrigins = corsOriginsRaw === '*'
-    ? '*'
+  const corsOriginsList = corsOriginsRaw === '*'
+    ? ['*']
     : corsOriginsRaw
         .split(',')
         .map((o) => o.trim())
-        .filter(Boolean);
+        .filter((o) => Boolean(o) && /^https?:\/\//.test(o));
+  // Use '*' when list is empty or only invalid entries — avoids invalid CORS header values
+  const corsOrigins = corsOriginsList.length === 0 ? '*' : (corsOriginsList.length === 1 && corsOriginsList[0] === '*' ? '*' : corsOriginsList);
 
   if (isProduction && corsOrigins === '*') {
     log.warn('CORS is set to wildcard (*) in production — set ALLOWED_ORIGINS to restrict access');
   }
 
-  await app.register(cors, { 
+  await app.register(cors, {
     origin: corsOrigins,
     credentials: corsOrigins !== '*',
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],

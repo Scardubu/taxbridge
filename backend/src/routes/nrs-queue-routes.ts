@@ -8,6 +8,11 @@
 
 import type { FastifyInstance } from 'fastify';
 import { getQueueHealth, enqueueNRSSubmission, QUEUE_NAMES } from '../queues/index.js';
+import { authenticate } from '../middleware/authenticate.js';
+import { requireRole } from '../middleware/requireRole.js';
+import { getPrismaClient } from '../lib/prisma.js';
+
+const prisma = getPrismaClient();
 
 export default async function nrsQueueRoutes(fastify: FastifyInstance) {
 
@@ -20,11 +25,11 @@ export default async function nrsQueueRoutes(fastify: FastifyInstance) {
    */
   fastify.post<{ Params: { invoiceId: string } }>(
     '/api/v1/nrs/requeue/:invoiceId',
-    { preHandler: [(fastify as any).authenticateAdmin] },
+    { preHandler: [authenticate, requireRole('admin')] },
     async (req, reply) => {
       const { invoiceId } = req.params;
 
-      const invoice = await (fastify as any).prisma.invoice.findUnique({
+      const invoice = await (prisma as any).invoice.findUnique({
         where:  { id: invoiceId },
         select: { id: true, businessId: true, status: true },
       });

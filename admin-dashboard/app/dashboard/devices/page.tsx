@@ -193,8 +193,10 @@ export default function DevicesPage() {
                 </select>
               </div>
 
-              <label className="flex items-center gap-2 text-sm">
+              <label htmlFor="devices-active-only" className="flex items-center gap-2 text-sm">
                 <input
+                  id="devices-active-only"
+                  name="activeOnly"
                   type="checkbox"
                   checked={activeOnly}
                   onChange={(e) => setActiveOnly(e.target.checked)}
@@ -349,12 +351,15 @@ export default function DevicesPage() {
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div>
-              <label className="text-sm font-medium">{t('devices.forceSync.reason')}</label>
+              <label htmlFor="force-sync-reason" className="text-sm font-medium">{t('devices.forceSync.reason')}</label>
               <Input
+                id="force-sync-reason"
+                name="forceSyncReason"
                 value={forceSyncReason}
                 onChange={(e) => setForceSyncReason(e.target.value)}
                 placeholder={t('devices.forceSync.reasonPlaceholder')}
                 className="mt-1"
+                aria-label={t('devices.forceSync.reason')}
               />
             </div>
           </div>
