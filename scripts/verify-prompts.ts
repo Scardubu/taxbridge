@@ -19,48 +19,52 @@ import path from 'path';
 
 const REQUIRED_PROMPT_MODULES: Array<{ file: string; description: string }> = [
   {
-    file: 'prompts/M00_CORE_IDENTITY.md',
+    file: 'prompts/core/M00-identity-rules.md',
     description: 'M00 — Core Identity & System Rules',
   },
   {
-    file: 'prompts/M01_BACKEND_CONTRACTS.md',
-    description: 'M01 — Backend & Contracts Layer',
+    file: 'prompts/backend/M01-backend-architecture.md',
+    description: 'M01 — Backend Architecture',
   },
   {
-    file: 'prompts/M02_MOBILE_UX.md',
+    file: 'prompts/mobile/M02-mobile-ux.md',
     description: 'M02 — Mobile UX & Offline-First',
   },
   {
-    file: 'prompts/M03_ADMIN_DASHBOARD.md',
-    description: 'M03 — Admin Dashboard',
+    file: 'prompts/ai/M03-ai-intelligence.md',
+    description: 'M03 — AI Intelligence',
   },
   {
-    file: 'prompts/M04_TAX_ENGINE.md',
-    description: 'M04 — Tax Engine & Compliance Rules',
+    file: 'prompts/payments/M04-payments-compliance.md',
+    description: 'M04 — Payments & Compliance',
   },
   {
-    file: 'prompts/M05_NRS_DIGITAX.md',
-    description: 'M05 — NRS / DigiTax Integration',
+    file: 'prompts/data/M05-data-tax-engine.md',
+    description: 'M05 — Data & Tax Engine',
   },
   {
-    file: 'prompts/M06_PAYMENTS.md',
-    description: 'M06 — Payments & Reconciliation',
+    file: 'prompts/devops/M06-deployment-devops.md',
+    description: 'M06 — Deployment & DevOps',
   },
   {
-    file: 'prompts/M07_SECURITY.md',
-    description: 'M07 — Security, Auth & NDPC',
+    file: 'prompts/monetization/M07-monetization-analytics.md',
+    description: 'M07 — Monetization & Analytics',
   },
   {
-    file: 'prompts/M08_DEVOPS_INFRA.md',
-    description: 'M08 — DevOps & Infrastructure',
+    file: 'prompts/mobile/M08-dashboard-ux-patterns.md',
+    description: 'M08 — Dashboard UX Patterns',
   },
   {
-    file: 'prompts/M09_OBSERVABILITY.md',
-    description: 'M09 — Observability & Monitoring',
+    file: 'prompts/mobile/M09-enhancement-integration.md',
+    description: 'M09 — Enhancement Integration',
   },
   {
-    file: 'prompts/M10_RELEASE.md',
-    description: 'M10 — Release Management & Go-Live',
+    file: 'prompts/TAXBRIDGE_V12_MASTER_PROMPT.md',
+    description: 'V12 — Master Prompt',
+  },
+  {
+    file: 'prompts/taxbridge_production_architecture_module.md',
+    description: 'V12 — Production Architecture Module',
   },
 ];
 
@@ -76,7 +80,7 @@ interface Result {
 }
 
 function verifyPrompts(): void {
-  console.log('\nTaxBridge V12 — Prompt Module Verification (COMP-09)');
+  console.log('\nTaxBridge V12 — Prompt Module Verification (COMP-09 — 12 modules)');
   console.log('='.repeat(60));
 
   const results: Result[] = REQUIRED_PROMPT_MODULES.map(({ file, description }) => {

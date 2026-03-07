@@ -1,13 +1,11 @@
 import { Queue, Worker, type Job } from 'bullmq';
-import IORedis from 'ioredis';
 import { createLogger } from '../lib/logger';
 import { submitToNRS } from '../services/nrs-submission';
+import { getRedis } from '../lib/redis';
 
 const log = createLogger('nrs-queue');
 
-const connection = new IORedis(process.env.REDIS_URL || 'redis://localhost:6379', {
-  maxRetriesPerRequest: null,
-});
+const connection = getRedis();
 
 export const nrsQueue = new Queue('nrs-submissions', {
   connection: connection as any,

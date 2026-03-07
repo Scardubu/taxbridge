@@ -34,6 +34,8 @@ export interface OrgContext {
  * Fastify preHandler — resolve org context for the authenticated user.
  * Requires `authenticate` to have run first (populates request.user).
  */
+export { resolveTenant as resolveOrgContext };
+
 export async function resolveTenant(
   request: FastifyRequest,
   reply: FastifyReply,
@@ -65,6 +67,8 @@ export async function resolveTenant(
         where: {
           userId: user.id,
           orgId: requestedOrgId,
+          status: 'active',
+          deletedAt: null,
         },
       });
 
@@ -94,6 +98,14 @@ export async function resolveTenant(
           success: false,
           error: 'Organization is suspended',
           code: 'ORG_SUSPENDED',
+        });
+      }
+
+      if (org?.status === 'pending_verification') {
+        return reply.code(403).send({
+          success: false,
+          error: 'Organization is pending verification',
+          code: 'ORG_PENDING_VERIFICATION',
         });
       }
 

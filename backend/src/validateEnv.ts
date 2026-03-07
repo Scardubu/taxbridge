@@ -18,16 +18,22 @@ const ALWAYS_REQUIRED = [
   'REDIS_URL',
   'JWT_SECRET',
   'JWT_REFRESH_SECRET',
+  'NRS_API_KEY',
   'PORT',
   'NODE_ENV',
 ] as const;
 
 const PROD_REQUIRED = [
   'SENTRY_DSN',
-  'NRS_API_KEY',
+  'RENDER_EXTERNAL_URL',
   'FLUTTERWAVE_SECRET',
-  'EXPO_ACCESS_TOKEN',
-  'ALLOWED_ORIGINS',
+  'CBN_MPR',
+  'CORS_ORIGIN',
+  'DOCUMENT_VAULT_KMS_PROVIDER',
+  'R2_ENDPOINT',
+  'R2_BUCKET_NAME',
+  'R2_ACCESS_KEY_ID',
+  'R2_SECRET_ACCESS_KEY',
 ] as const;
 
 // ─── Formatters ───────────────────────────────────────────────────────────────

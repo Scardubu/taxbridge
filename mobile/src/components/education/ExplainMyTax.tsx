@@ -46,7 +46,7 @@ const CONCEPTS: Record<TaxConcept, ConceptEntry> = {
       pidgin: 'VAT na 7.5% wey you go collect from customer for goods wey you sell. Every month, you go pay am give goment. No be your money — you dey hold am for goment.',
     },
     example: {
-      en:     'You invoice ₦100,000 → Charge ₦107,500 (7.5% VAT) → Remit ₦7,500 to FIRS.',
+      en:     'You invoice ₦100,000 → Charge ₦107,500 (7.5% VAT) → Remit ₦7,500 to NRS.',
       pidgin: 'If you invoice ₦100,000 → Charge customer ₦107,500 → Pay ₦7,500 go goment.',
     },
   },

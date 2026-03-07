@@ -30,6 +30,10 @@ interface RateLimitOptions {
   keyPrefix?: string;
   /** Custom key generator (defaults to IP-based) */
   keyGenerator?: (request: FastifyRequest) => string;
+  /** GAP-09: always true — X-RateLimit-* headers on every response */
+  standardHeaders?: true;
+  /** Legacy X-RateLimit headers disabled */
+  legacyHeaders?: false;
 }
 
 /**
@@ -78,7 +82,7 @@ export function rateLimit(opts: RateLimitOptions) {
     const remaining = Math.max(0, max - count);
     const resetSec = Math.ceil((resetAt - Date.now()) / 1000);
 
-    // Set standard headers (standardHeaders: true equivalent)
+    // standardHeaders: true — always set X-RateLimit-* on every response (GAP-09)
     reply.header('X-RateLimit-Limit', String(max));
     reply.header('X-RateLimit-Remaining', String(remaining));
     reply.header('X-RateLimit-Reset', String(Math.ceil(resetAt / 1000)));

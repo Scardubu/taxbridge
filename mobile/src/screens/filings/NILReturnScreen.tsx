@@ -20,8 +20,9 @@
  *   C-35  Idempotency via X-Idempotency-Key header
  */
 
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
+  AccessibilityInfo,
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
@@ -94,6 +95,16 @@ export default function NILReturnScreen() {
   const { t, i18n }  = useTranslation();
   const { colors }   = useTheme();
   const navigation   = useNavigation<any>();
+
+  const NIL_STEPS = ['type', 'period', 'reason', 'confirm'] as const;
+  const [currentStepIdx, setCurrentStepIdx] = useState(0);
+  const totalSteps = NIL_STEPS.length;
+
+  useEffect(() => {
+    AccessibilityInfo.announceForAccessibility(
+      `Step ${currentStepIdx + 1} of ${totalSteps}: NIL Return`
+    );
+  }, [currentStepIdx]);
 
   const [taxType,  setTaxType]  = useState<TaxType>('VAT');
   const [period,   setPeriod]   = useState(currentPeriod());

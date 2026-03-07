@@ -12,7 +12,7 @@ services:
     name: taxbridge-api
     runtime: node
     plan: starter
-    region: oregon
+    region: fra
     branch: master
     autoDeploy: true
     buildCommand: >-
@@ -21,7 +21,7 @@ services:
       npm run build --workspace=@taxbridge/backend &&
       npm run ubl:download-xsd --workspace=@taxbridge/backend
     startCommand: npm run start --workspace=@taxbridge/backend
-    healthCheckPath: /health/live
+    healthCheckPath: /api/v2/monitoring/health
     envVars:
       # Node Environment
       - key: NODE_VERSION

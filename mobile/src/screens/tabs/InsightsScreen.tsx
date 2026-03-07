@@ -382,15 +382,7 @@ export default function InsightsScreen() {
             )}
           </View>
 
-          {anomalies.length === 0 ? (
-            <View style={styles.allClear}>
-              <Text style={styles.allClearEmoji}>✅</Text>
-              <View>
-                <Text style={styles.allClearTitle}>All Clear</Text>
-                <Text style={styles.allClearSub}>No anomalies in recent transactions</Text>
-              </View>
-            </View>
-          ) : (
+          {anomalies.length === 0 ? null : (
             <View style={styles.anomalyList}>
               {anomalies.map((a, i) => (
                 <AnomalyCard key={i} anomaly={a} index={i} />
