@@ -6,7 +6,7 @@
  */
 
 import type { FastifyInstance } from 'fastify';
-import { NTA_2025_RULES } from '@taxbridge/contracts';
+import { NTA_2025 } from '@taxbridge/contracts';
 
 export default async function taxRulesRoutes(app: FastifyInstance) {
   
@@ -20,7 +20,7 @@ export default async function taxRulesRoutes(app: FastifyInstance) {
       data: {
         version: 'NTA 2025',
         effectiveDate: '2026-01-01',
-        rules: NTA_2025_RULES,
+        rules: NTA_2025,
       },
     });
   });
@@ -42,7 +42,7 @@ export default async function taxRulesRoutes(app: FastifyInstance) {
       });
     }
 
-    const rules = NTA_2025_RULES[type as keyof typeof NTA_2025_RULES];
+    const rules = NTA_2025[type.toUpperCase() as keyof typeof NTA_2025];
     
     return reply.send({
       success: true,

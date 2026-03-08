@@ -24,7 +24,6 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   AccessibilityInfo,
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -40,8 +39,10 @@ import * as Haptics from 'expo-haptics';
 
 import { apiClient } from '../../services/apiClient';
 import { useTheme } from '../../hooks/useTheme';
-import { COLORS, TYPOGRAPHY, SPACING, RADIUS } from '../../design-system/tokens';
+import { colors, typography, spacing, radii } from '../../design-system/tokens';
 import { calculatePenalty } from '@taxbridge/contracts';
+import { ConfettiAnimation } from '../../components/shared/ConfettiAnimation';
+import { generateUuid } from '../../utils/uuid';
 
 // ─── Constants ────────────────────────────────────────────────────────────
 
@@ -56,6 +57,17 @@ const NIL_REASONS = [
 ] as const;
 
 type NilReasonId = typeof NIL_REASONS[number]['id'];
+
+type PreflightCheck = {
+  name: string;
+  status: 'pass' | 'warn' | 'fail';
+  message?: string;
+};
+
+type PreflightResult = {
+  pass: boolean;
+  checks: PreflightCheck[];
+};
 
 // ─── Helpers ─────────────────────────────────────────────────────────────
 
@@ -111,28 +123,58 @@ export default function NILReturnScreen() {
   const [reason,   setReason]   = useState<NilReasonId>('NO_REVENUE_THIS_PERIOD');
   const [loading,  setLoading]  = useState(false);
   const [error,    setError]    = useState<string | null>(null);
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [preflight, setPreflight] = useState<PreflightResult | null>(null);
+  const [preflightLoading, setPreflightLoading] = useState(false);
 
   const isPidgin = i18n.language === 'pidgin';
   const penaltyInfo = useMemo(() => getPenaltyInfo(taxType, period), [taxType, period]);
 
+  const runPreflight = useCallback(async () => {
+    setPreflightLoading(true);
+    try {
+      const response = await apiClient.get('/filings/preflight', {
+        params: { taxType, period },
+      });
+      const result = response.data as PreflightResult;
+      setPreflight(result);
+      return result;
+    } catch {
+      const fallback = {
+        pass: false,
+        checks: [{ name: 'preflight', status: 'fail' as const, message: t('filing.preflight.error', 'Could not run preflight checks.') }],
+      };
+      setPreflight(fallback);
+      return fallback;
+    } finally {
+      setPreflightLoading(false);
+    }
+  }, [taxType, period, t]);
+
+  useEffect(() => {
+    runPreflight().catch(() => undefined);
+  }, [runPreflight]);
+
   const handleSubmit = useCallback(async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setError(null);
+    if (preflight?.pass !== true) {
+      setError(t('filing.preflight.blocked', 'Resolve the blocking preflight checks before submitting.'));
+      return;
+    }
     setLoading(true);
 
     try {
-      const idempotencyKey = `nil-${taxType}-${period}-${Date.now()}`;
+      const idempotencyKey = generateUuid();
       await apiClient.post(
         '/filings/nil',
-        { taxType, period, reason },
+        { taxType, period, nilReason: reason },
         { headers: { 'X-Idempotency-Key': idempotencyKey } },
       );
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert(
-        t('filing.nil.successTitle', 'NIL Return Filed'),
-        t('filing.nil.successMessage', `NIL ${taxType} return for ${period} has been submitted.`),
-        [{ text: 'OK', onPress: () => navigation.goBack() }],
-      );
+      setShowConfetti(true);
+      setSubmitted(true);
     } catch (err: any) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       if (err?.response?.status === 409) {
@@ -143,14 +185,15 @@ export default function NILReturnScreen() {
     } finally {
       setLoading(false);
     }
-  }, [taxType, period, reason, t, navigation]);
+  }, [preflight, taxType, period, reason, t]);
 
   return (
     <KeyboardAvoidingView
       style={[s.root, { backgroundColor: colors.surface }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
+      {showConfetti && <ConfettiAnimation onFinish={() => setShowConfetti(false)} />}
+      <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <Animated.View entering={FadeInDown.duration(300)}>
           <Text style={[s.title, { color: colors.textPrimary }]}>
             {t('filing.nil.title', 'File NIL Return')}
@@ -159,6 +202,15 @@ export default function NILReturnScreen() {
             {t('filing.nil.subtitle', 'No taxable activity this period? File a NIL return to stay compliant.')}
           </Text>
         </Animated.View>
+
+        {submitted && (
+          <Animated.View entering={FadeInDown.duration(200)} style={s.successBox}>
+            <Text style={s.successTitle}>{t('filing.nil.successTitle', 'NIL Return Filed')}</Text>
+            <Text style={s.successText}>
+              {t('filing.nil.successMessage', `NIL ${taxType} return for ${period} has been submitted.`)}
+            </Text>
+          </Animated.View>
+        )}
 
         {/* ── Penalty warning ─────────────────────────────────────────── */}
         {penaltyInfo && (
@@ -169,6 +221,24 @@ export default function NILReturnScreen() {
             </Text>
           </Animated.View>
         )}
+
+        {preflightLoading && (
+          <View style={s.infoBox}>
+            <Text style={s.infoBoxText}>{t('filing.preflight.loading', 'Running compliance preflight checks...')}</Text>
+          </View>
+        )}
+
+        {preflight?.checks.filter((check) => check.status === 'warn').map((check) => (
+          <View key={`warn-${check.name}`} style={s.warningBanner}> 
+            <Text style={s.warningText}>⚠️ {check.message ?? check.name}</Text>
+          </View>
+        ))}
+
+        {preflight?.checks.filter((check) => check.status === 'fail').map((check) => (
+          <View key={`fail-${check.name}`} style={s.errorBox}>
+            <Text style={s.errorText}>⚠️ {check.message ?? check.name}</Text>
+          </View>
+        ))}
 
         {/* ── Tax type selector ───────────────────────────────────────── */}
         <Animated.View entering={FadeInDown.duration(300).delay(100)} style={s.section}>
@@ -183,14 +253,14 @@ export default function NILReturnScreen() {
                 style={({ pressed }) => [
                   s.chip,
                   { borderColor: colors.border, backgroundColor: colors.surface },
-                  taxType === type && { borderColor: COLORS.primary, backgroundColor: `${COLORS.primary}18` },
+                  taxType === type && { borderColor: colors.primary[500], backgroundColor: `${colors.primary[500]}18` },
                   pressed && { transform: [{ scale: 0.97 }] },
                 ]}
                 accessibilityRole="radio"
                 accessibilityState={{ selected: taxType === type }}
                 accessibilityLabel={type}
               >
-                <Text style={[s.chipText, { color: taxType === type ? COLORS.primary : colors.textPrimary }]}>
+                <Text style={[s.chipText, { color: taxType === type ? colors.primary[500] : colors.textPrimary }]}>
                   {type}
                 </Text>
               </Pressable>
@@ -209,14 +279,14 @@ export default function NILReturnScreen() {
               onPress={() => { setReason(r.id); Haptics.selectionAsync(); }}
               style={({ pressed }) => [
                 s.reasonRow,
-                { borderColor: reason === r.id ? COLORS.primary : colors.border, backgroundColor: reason === r.id ? `${COLORS.primary}18` : colors.surface },
+                { borderColor: reason === r.id ? colors.primary[500] : colors.border, backgroundColor: reason === r.id ? `${colors.primary[500]}18` : colors.surface },
                 pressed && { opacity: 0.85 },
               ]}
               accessibilityRole="radio"
               accessibilityState={{ selected: reason === r.id }}
               accessibilityLabel={isPidgin ? r.pidgin : r.label}
             >
-              <View style={[s.radio, { borderColor: reason === r.id ? COLORS.primary : colors.border }]}>
+              <View style={[s.radio, { borderColor: reason === r.id ? colors.primary[500] : colors.border }]}>
                 {reason === r.id && <View style={s.radioDot} />}
               </View>
               <Text style={[s.reasonText, { color: colors.textPrimary }]}>
@@ -236,16 +306,16 @@ export default function NILReturnScreen() {
         {/* ── Submit button ────────────────────────────────────────────── */}
         <Animated.View entering={FadeInDown.duration(300).delay(200)}>
           <Pressable
-            onPress={handleSubmit}
-            disabled={loading}
+            onPress={submitted ? () => navigation.goBack() : handleSubmit}
+            disabled={loading || preflightLoading || (!submitted && preflight?.pass !== true)}
             style={({ pressed }) => [s.submitBtn, pressed && s.submitBtnPressed, loading && s.submitBtnDisabled]}
             accessibilityRole="button"
-            accessibilityLabel={t('filing.nil.submit', 'Submit NIL Return')}
-            accessibilityState={{ disabled: loading }}
+            accessibilityLabel={submitted ? t('common.done', 'Done') : t('filing.nil.submit', 'Submit NIL Return')}
+            accessibilityState={{ disabled: loading || preflightLoading || (!submitted && preflight?.pass !== true) }}
           >
             {loading
               ? <ActivityIndicator color="#fff" />
-              : <Text style={s.submitBtnText}>{t('filing.nil.submit', 'Submit NIL Return')}</Text>
+              : <Text style={s.submitBtnText}>{submitted ? t('common.done', 'Done') : t('filing.nil.submit', 'Submit NIL Return')}</Text>
             }
           </Pressable>
         </Animated.View>
@@ -258,47 +328,57 @@ export default function NILReturnScreen() {
 
 const s = StyleSheet.create({
   root:   { flex: 1 },
-  scroll: { padding: SPACING[24], paddingBottom: SPACING[48] },
+  scroll: { padding: spacing[24], paddingBottom: spacing['2xl'] },
 
-  title:    { fontSize: TYPOGRAPHY['2xl'], fontWeight: '700', marginBottom: SPACING[8] },
-  subtitle: { fontSize: TYPOGRAPHY.sm, marginBottom: SPACING[24], lineHeight: 22 },
+  title:    { fontSize: typography.sizes['2xl'], fontWeight: '700', marginBottom: spacing[8] },
+  subtitle: { fontSize: typography.sizes.sm, marginBottom: spacing[24], lineHeight: 22 },
 
   penaltyBanner: {
     backgroundColor: '#FEF3C7',
-    borderRadius:    RADIUS.md,
-    padding:         SPACING[16],
-    marginBottom:    SPACING[16],
+    borderRadius:    radii.md,
+    padding:         spacing[16],
+    marginBottom:    spacing[16],
     borderWidth:     1,
     borderColor:     '#F59E0B',
   },
-  penaltyTitle: { color: '#92400E', fontWeight: '700', fontSize: TYPOGRAPHY.sm, marginBottom: SPACING[4] },
-  penaltyText:  { color: '#78350F', fontSize: TYPOGRAPHY.xs, lineHeight: 18 },
+  penaltyTitle: { color: '#92400E', fontWeight: '700', fontSize: typography.sizes.sm, marginBottom: spacing[4] },
+  penaltyText:  { color: '#78350F', fontSize: typography.sizes.xs, lineHeight: 18 },
 
-  section:      { marginBottom: SPACING[24] },
-  sectionLabel: { fontSize: TYPOGRAPHY.xs, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: SPACING[12] },
+  successBox:   { backgroundColor: '#ECFDF5', borderRadius: radii.md, padding: spacing[16], marginBottom: spacing[16], borderWidth: 1, borderColor: '#A7F3D0' },
+  successTitle: { color: '#065F46', fontWeight: '700', fontSize: typography.sizes.base, marginBottom: spacing[4] },
+  successText:  { color: '#047857', fontSize: typography.sizes.sm },
 
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING[8] },
-  chip:    { paddingVertical: SPACING[8], paddingHorizontal: SPACING[16], borderRadius: RADIUS.full, borderWidth: 1.5 },
-  chipText:{ fontSize: TYPOGRAPHY.sm, fontWeight: '600' },
+  infoBox:      { backgroundColor: '#EFF6FF', borderRadius: radii.md, padding: spacing[12], marginBottom: spacing[12], borderWidth: 1, borderColor: '#BFDBFE' },
+  infoBoxText:  { color: '#1D4ED8', fontSize: typography.sizes.xs },
+
+  warningBanner:{ backgroundColor: '#FEF3C7', borderRadius: radii.md, padding: spacing[12], marginBottom: spacing[12], borderWidth: 1, borderColor: '#FCD34D' },
+  warningText:  { color: '#92400E', fontSize: typography.sizes.sm },
+
+  section:      { marginBottom: spacing[24] },
+  sectionLabel: { fontSize: typography.sizes.xs, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: spacing[12] },
+
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[8] },
+  chip:    { paddingVertical: spacing[8], paddingHorizontal: spacing[16], borderRadius: radii.full, borderWidth: 1.5 },
+  chipText:{ fontSize: typography.sizes.sm, fontWeight: '600' },
 
   reasonRow: {
     flexDirection:  'row',
     alignItems:     'center',
-    padding:        SPACING[16],
-    borderRadius:   RADIUS.md,
+    padding:        spacing[16],
+    borderRadius:   radii.md,
     borderWidth:    1.5,
-    marginBottom:   SPACING[8],
-    gap:            SPACING[12],
+    marginBottom:   spacing[8],
+    gap:            spacing[12],
   },
   radio:    { width: 20, height: 20, borderRadius: 10, borderWidth: 2, justifyContent: 'center', alignItems: 'center' },
-  radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: COLORS.primary },
-  reasonText:{ flex: 1, fontSize: TYPOGRAPHY.sm },
+  radioDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.primary[500] },
+  reasonText:{ flex: 1, fontSize: typography.sizes.sm },
 
-  errorBox:  { backgroundColor: '#FEF2F2', borderRadius: RADIUS.md, padding: SPACING[12], marginBottom: SPACING[16], borderWidth: 1, borderColor: '#FECACA' },
-  errorText: { color: '#991B1B', fontSize: TYPOGRAPHY.sm },
+  errorBox:  { backgroundColor: '#FEF2F2', borderRadius: radii.md, padding: spacing[12], marginBottom: spacing[16], borderWidth: 1, borderColor: '#FECACA' },
+  errorText: { color: '#991B1B', fontSize: typography.sizes.sm },
 
-  submitBtn:         { height: 52, backgroundColor: COLORS.primary, borderRadius: RADIUS.md, justifyContent: 'center', alignItems: 'center' },
+  submitBtn:         { height: 52, backgroundColor: colors.primary[500], borderRadius: radii.md, justifyContent: 'center', alignItems: 'center' },
   submitBtnPressed:  { opacity: 0.88, transform: [{ scale: 0.97 }] },
   submitBtnDisabled: { opacity: 0.5 },
-  submitBtnText:     { color: '#fff', fontSize: TYPOGRAPHY.base, fontWeight: '700' },
+  submitBtnText:     { color: '#fff', fontSize: typography.sizes.base, fontWeight: '700' },
 });

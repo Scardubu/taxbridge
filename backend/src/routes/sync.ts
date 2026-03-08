@@ -1,11 +1,9 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
-import jwt from 'jsonwebtoken';
 import { getPrismaClient } from '../lib/prisma';
 import { HeartbeatSchema, PushSyncSchema, type HeartbeatPayload } from '@taxbridge/contracts';
 import { createLogger } from '../lib/logger';
 import { enqueueDeviceSync } from '../queue/client';
-import { AuthenticationError } from '../lib/errors';
 
 const log = createLogger('sync-routes');
 const prisma = getPrismaClient();
@@ -13,33 +11,6 @@ const prisma = getPrismaClient();
 // Feature flag check
 function isDeviceSyncEnabled(): boolean {
   return String(process.env.FEATURE_DEVICE_SYNC || 'false').toLowerCase() === 'true';
-}
-
-// Manual JWT authentication helper (matches pattern from invoices route)
-async function authenticate(request: FastifyRequest): Promise<string> {
-  const authHeader = request.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    throw new AuthenticationError('Missing or invalid authorization header');
-  }
-
-  const token = authHeader.substring(7);
-  const secrets = [process.env.JWT_SECRET, process.env.JWT_SECRET_PREVIOUS].filter(Boolean) as string[];
-
-  for (const secret of secrets) {
-    try {
-      const decoded = jwt.verify(token, secret) as { userId?: string };
-      if (!decoded.userId) {
-        throw new Error('Invalid token payload');
-      }
-      return decoded.userId;
-    } catch (err) {
-      if (secret === secrets[secrets.length - 1]) {
-        throw new Error('Invalid or expired token');
-      }
-    }
-  }
-
-  throw new Error('Invalid or expired token');
 }
 
 // Conflict resolution schema
@@ -51,13 +22,13 @@ const ConflictResolutionSchema = z.object({
 
 export default async function syncRoutes(app: FastifyInstance) {
   // POST /api/v1/device/heartbeat - Register/update device presence
-  app.post('/api/v1/device/heartbeat', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/api/v1/device/heartbeat', { preHandler: [app.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
     if (!isDeviceSyncEnabled()) {
       return reply.status(404).send({ error: 'Device sync feature is disabled' });
     }
 
     try {
-      const userId = await authenticate(request);
+      const userId = request.user.userId;
       const body: HeartbeatPayload = HeartbeatSchema.parse(request.body);
 
       // Check if device already exists and verify ownership
@@ -143,13 +114,13 @@ export default async function syncRoutes(app: FastifyInstance) {
   });
 
   // POST /api/v1/sync/push - Upload local changes with conflict detection
-  app.post('/api/v1/sync/push', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/api/v1/sync/push', { preHandler: [app.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
     if (!isDeviceSyncEnabled()) {
       return reply.status(404).send({ error: 'Device sync feature is disabled' });
     }
 
     try {
-      const userId = await authenticate(request);
+      const userId = request.user.userId;
       const body = PushSyncSchema.parse(request.body);
 
       // Verify device ownership
@@ -384,13 +355,13 @@ export default async function syncRoutes(app: FastifyInstance) {
   });
 
   // GET /api/v1/sync/pull - Download server changes since last sync
-  app.get('/api/v1/sync/pull', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/api/v1/sync/pull', { preHandler: [app.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
     if (!isDeviceSyncEnabled()) {
       return reply.status(404).send({ error: 'Device sync feature is disabled' });
     }
 
     try {
-      const userId = await authenticate(request);
+      const userId = request.user.userId;
       const { deviceId, since } = request.query as { deviceId?: string; since?: string };
 
       if (!deviceId) {
@@ -475,13 +446,13 @@ export default async function syncRoutes(app: FastifyInstance) {
   });
 
   // GET /api/v1/sync/conflicts - List unresolved conflicts for device
-  app.get('/api/v1/sync/conflicts', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/api/v1/sync/conflicts', { preHandler: [app.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
     if (!isDeviceSyncEnabled()) {
       return reply.status(404).send({ error: 'Device sync feature is disabled' });
     }
 
     try {
-      const userId = await authenticate(request);
+      const userId = request.user.userId;
       const { deviceId } = request.query as { deviceId?: string };
 
       if (!deviceId) {
@@ -532,13 +503,13 @@ export default async function syncRoutes(app: FastifyInstance) {
   });
 
   // POST /api/v1/sync/conflicts/resolve - Resolve conflict with strategy
-  app.post('/api/v1/sync/conflicts/resolve', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/api/v1/sync/conflicts/resolve', { preHandler: [app.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
     if (!isDeviceSyncEnabled()) {
       return reply.status(404).send({ error: 'Device sync feature is disabled' });
     }
 
     try {
-      const userId = await authenticate(request);
+      const userId = request.user.userId;
       const body = ConflictResolutionSchema.parse(request.body);
 
       // Find conflict and verify ownership
@@ -647,13 +618,13 @@ export default async function syncRoutes(app: FastifyInstance) {
   });
 
   // GET /api/v1/sync/status - Get sync status for device
-  app.get('/api/v1/sync/status', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/api/v1/sync/status', { preHandler: [app.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
     if (!isDeviceSyncEnabled()) {
       return reply.status(404).send({ error: 'Device sync feature is disabled' });
     }
 
     try {
-      const userId = await authenticate(request);
+      const userId = request.user.userId;
       const { deviceId } = request.query as { deviceId?: string };
 
       if (!deviceId) {

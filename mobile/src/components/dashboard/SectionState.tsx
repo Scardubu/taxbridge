@@ -74,7 +74,7 @@ const e = StyleSheet.create({
     borderRadius:       radii.sm ?? 6,
   },
   retryText: {
-    color:      colors.gray[0],
+    color:      '#FFFFFF',
     fontSize:   typography.sizes.sm ?? 13,
     fontWeight: typography.weights.semibold ?? '600',
   },

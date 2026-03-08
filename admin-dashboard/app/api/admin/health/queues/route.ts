@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { logError } from '@/lib/logger';
+import { fetchHealthEndpoint } from '@/lib/backendHealth';
 
 type QueueStats = {
   name: string;
@@ -17,15 +18,6 @@ type QueueHealthPayload = {
   timestamp?: string;
   error?: string;
 };
-
-const BACKEND_URL =
-  process.env.BACKEND_API_URL ||
-  process.env.BACKEND_URL ||
-  process.env.NEXT_PUBLIC_API_URL ||
-  process.env.NEXT_PUBLIC_BACKEND_URL ||
-  'http://localhost:3000';
-
-const TIMEOUT_MS = 8000;
 
 function parsePayload(raw: unknown): QueueHealthPayload {
   if (!raw || typeof raw !== 'object') return {};
@@ -90,32 +82,23 @@ function fallbackResponse(message?: string) {
 
 export async function GET() {
   try {
-    const res = await fetch(`${BACKEND_URL}/health/queues`, {
-      method: 'GET',
-      headers: {
-        Accept: 'application/json',
-      },
-      cache: 'no-store',
-      signal: AbortSignal.timeout(TIMEOUT_MS),
-    });
-
-    const json = await res.json().catch(() => undefined);
+    const { data: json, ok } = await fetchHealthEndpoint('/health/queues');
     const data = parsePayload(json);
 
     const queues = Array.isArray(data.queues) ? data.queues : [];
 
     return NextResponse.json(
       {
-        fallback: !res.ok,
+        fallback: !ok,
         nrs: mapNrsQueue(queues),
         queues,
-        status: data.status ?? (res.ok ? 'healthy' : 'unavailable'),
+        status: data.status ?? (ok ? 'healthy' : 'unavailable'),
         error: data.error,
         timestamp: data.timestamp ?? new Date().toISOString(),
       },
       {
         status: 200,
-        headers: !res.ok
+        headers: !ok
           ? {
               'Cache-Control': 'no-store',
               'X-Fallback': 'true',

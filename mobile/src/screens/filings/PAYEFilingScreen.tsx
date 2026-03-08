@@ -13,7 +13,6 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   AccessibilityInfo,
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -30,10 +29,26 @@ import * as Haptics from 'expo-haptics';
 
 import { apiClient } from '../../services/apiClient';
 import { useTheme } from '../../hooks/useTheme';
-import { COLORS, TYPOGRAPHY, SPACING, RADIUS } from '../../design-system/tokens';
+import { colors, typography, spacing, radii } from '../../design-system/tokens';
 import { formatNGN } from '../../design-system/ngn';
+import { generateUuid } from '../../utils/uuid';
+import { getBusinessProfile } from '../../services/businessApi';
+import { enqueueFilingRequest } from '../../services/filingQueue';
+import { isOfflineError } from '../../services/apiClient';
+import { ConfettiAnimation } from '../../components/shared/ConfettiAnimation';
 
 type WizardStep = 'employees' | 'review' | 'confirm' | 'done';
+
+type PreflightCheck = {
+  name: string;
+  status: 'pass' | 'warn' | 'fail';
+  message?: string;
+};
+
+type PreflightResult = {
+  pass: boolean;
+  checks: PreflightCheck[];
+};
 
 interface EmployeeEntry {
   name: string;
@@ -73,16 +88,45 @@ export default function PAYEFilingScreen() {
   }, [step]);
 
   const [period]                = useState(currentPeriod());
+  const [businessId, setBusinessId] = useState<string | null>(null);
   const [employees, setEmployees] = useState<EmployeeEntry[]>([{ ...EMPTY_EMPLOYEE }]);
+
+  useEffect(() => {
+    getBusinessProfile()
+      .then((profile) => setBusinessId(profile.id))
+      .catch(() => setError(t('filing.paye.noBusinessError', 'Could not load business profile.')));
+  }, []);
   const [loading,   setLoading]   = useState(false);
   const [error,     setError]     = useState<string | null>(null);
   const [results,   setResults]   = useState<any[] | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [preflight, setPreflight] = useState<PreflightResult | null>(null);
+  const [preflightLoading, setPreflightLoading] = useState(false);
 
   const totalPAYE = useMemo(
     () => (results ?? []).reduce((sum: number, r: any) => sum + (r.taxLiability ?? 0), 0),
     [results],
   );
+
+  const runPreflight = useCallback(async () => {
+    setPreflightLoading(true);
+    try {
+      const response = await apiClient.get('/filings/preflight', { params: { taxType: 'PAYE', period } });
+      const result = response.data as PreflightResult;
+      setPreflight(result);
+      return result;
+    } catch {
+      const fallback = {
+        pass: false,
+        checks: [{ name: 'preflight', status: 'fail' as const, message: t('filing.preflight.error', 'Could not run preflight checks.') }],
+      };
+      setPreflight(fallback);
+      return fallback;
+    } finally {
+      setPreflightLoading(false);
+    }
+  }, [period, t]);
 
   const addEmployee = useCallback(() => {
     setEmployees(prev => [...prev, { ...EMPTY_EMPLOYEE }]);
@@ -110,7 +154,7 @@ export default function PAYEFilingScreen() {
         return;
       }
       const res = await apiClient.post('/payroll/calculate', { period, employees: payload });
-      setResults(res.data.results ?? res.data);
+      setResults(res.data?.data?.results ?? res.data?.results ?? res.data);
       setStep('review');
     } catch {
       setError(t('filing.paye.calcError', 'Could not calculate PAYE. Try again.'));
@@ -122,35 +166,57 @@ export default function PAYEFilingScreen() {
   const handleSubmit = useCallback(async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setError(null);
+    if (preflight?.pass !== true) {
+      setError(t('filing.preflight.blocked', 'Resolve the blocking preflight checks before submitting.'));
+      return;
+    }
     setLoading(true);
     try {
-      const idempotencyKey = `paye-${period}-${Date.now()}`;
+      if (!businessId) {
+        setError(t('filing.paye.noBusinessError', 'Business profile not loaded.'));
+        return;
+      }
+      const idempotencyKey = generateUuid();
+      const payload = { businessId, period };
       await apiClient.post(
-        '/payroll/run',
-        { period, employees: results },
+        '/payroll/process',
+        payload,
         { headers: { 'X-Idempotency-Key': idempotencyKey } },
       );
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setShowConfetti(true);
+      setSubmitted(true);
       setStep('done');
     } catch (err: any) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      setError(
-        err?.response?.status === 409
-          ? t('filing.paye.duplicate', `Payroll for ${period} already submitted.`)
-          : t('filing.paye.error', 'Could not submit payroll. Try again.'),
-      );
+      if (isOfflineError(err) && businessId) {
+        const idempotencyKey = generateUuid();
+        await enqueueFilingRequest({
+          idempotencyKey,
+          endpoint: '/payroll/process',
+          payload: { businessId, period },
+          createdAt: new Date().toISOString(),
+        });
+        setError(t('filing.offlineQueued', 'You are offline. This filing has been queued and will retry when network returns.'));
+      } else {
+        setError(
+          err?.response?.status === 409
+            ? t('filing.paye.duplicate', `Payroll for ${period} already submitted.`)
+            : t('filing.paye.error', 'Could not submit payroll. Try again.'),
+        );
+      }
     } finally {
       setLoading(false);
     }
-  }, [period, results, t]);
+  }, [businessId, period, preflight, t]);
 
   return (
     <KeyboardAvoidingView
       style={[s.root, { backgroundColor: colors.surface }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
+      {showConfetti && <ConfettiAnimation onFinish={() => setShowConfetti(false)} />}
+      <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <Animated.View entering={FadeInDown.duration(300)} style={s.header}>
           <Text style={[s.title, { color: colors.textPrimary }]}>
             {t('filing.paye.title', 'PAYE Payroll Run')}
@@ -165,6 +231,18 @@ export default function PAYEFilingScreen() {
             ))}
           </View>
         </Animated.View>
+
+        {preflightLoading && (
+          <View style={s.infoBox}>
+            <Text style={s.infoText}>ℹ️ {t('filing.preflight.loading', 'Running compliance preflight checks...')}</Text>
+          </View>
+        )}
+
+        {preflight?.checks.filter((check) => check.status === 'warn').map((check) => (
+          <View key={check.name} style={s.warningBanner}>
+            <Text style={s.warningText}>⚠️ {check.message ?? check.name}</Text>
+          </View>
+        ))}
 
         {step === 'employees' && (
           <Animated.View entering={FadeInRight.duration(300)} key="employees">
@@ -233,9 +311,24 @@ export default function PAYEFilingScreen() {
               <View style={s.divider} />
               <View style={s.resultRow}>
                 <Text style={[s.totalLabel, { color: colors.textPrimary }]}>{t('filing.paye.totalPAYE', 'Total PAYE')}</Text>
-                <Text style={[s.totalAmount, { color: COLORS.primary }]}>{formatNGN(totalPAYE)}</Text>
+                <Text style={[s.totalAmount, { color: colors.primary[500] }]}>{formatNGN(totalPAYE)}</Text>
               </View>
             </View>
+            <Pressable
+              onPress={() => {
+                runPreflight().then((result) => {
+                  if (result.pass) {
+                    Haptics.selectionAsync();
+                    setStep('confirm');
+                  }
+                }).catch(() => undefined);
+              }}
+              disabled={preflightLoading}
+              style={({ pressed }) => [s.btn, pressed && s.btnPressed, preflightLoading && s.btnDisabled]}
+              accessibilityRole="button"
+            >
+              <Text style={s.btnText}>{t('common.continue', 'Continue')}</Text>
+            </Pressable>
           </Animated.View>
         )}
 
@@ -249,7 +342,7 @@ export default function PAYEFilingScreen() {
 
         {step === 'done' && (
           <Animated.View entering={FadeInDown.duration(300)} key="done" style={s.doneContainer}>
-            <Text style={[s.doneTitle, { color: COLORS.primary }]}>
+            <Text style={[s.doneTitle, { color: colors.primary[500] }]}>
               {t('filing.paye.doneTitle', 'Payroll Submitted!')}
             </Text>
             <Text style={[s.doneBody, { color: colors.textSecondary }]}>
@@ -281,27 +374,18 @@ export default function PAYEFilingScreen() {
                 accessibilityRole="button"
                 accessibilityLabel={t('filing.paye.calculate', 'Calculate PAYE')}
               >
-                {loading ? <ActivityIndicator color={COLORS.dark.text} /> : <Text style={s.btnText}>{t('filing.paye.calculate', 'Calculate PAYE')}</Text>}
-              </Pressable>
-            )}
-            {step === 'review' && (
-              <Pressable
-                onPress={() => { Haptics.selectionAsync(); setStep('confirm'); }}
-                style={({ pressed }) => [s.btn, pressed && s.btnPressed]}
-                accessibilityRole="button"
-              >
-                <Text style={s.btnText}>{t('common.continue', 'Continue')}</Text>
+                {loading ? <ActivityIndicator color="#FFFFFF" /> : <Text style={s.btnText}>{t('filing.paye.calculate', 'Calculate PAYE')}</Text>}
               </Pressable>
             )}
             {step === 'confirm' && (
               <Pressable
-                onPress={handleSubmit}
-                disabled={loading}
+                onPress={submitted ? () => navigation.goBack() : handleSubmit}
+                disabled={loading || (!submitted && preflight?.pass !== true)}
                 style={({ pressed }) => [s.btn, pressed && s.btnPressed, loading && s.btnDisabled]}
                 accessibilityRole="button"
-                accessibilityLabel={t('filing.paye.submit', 'Submit Payroll')}
+                accessibilityLabel={submitted ? t('common.done', 'Done') : t('filing.paye.submit', 'Submit Payroll')}
               >
-                {loading ? <ActivityIndicator color={COLORS.dark.text} /> : <Text style={s.btnText}>{t('filing.paye.submit', 'Submit Payroll')}</Text>}
+                {loading ? <ActivityIndicator color="#FFFFFF" /> : <Text style={s.btnText}>{submitted ? t('common.done', 'Done') : t('filing.paye.submit', 'Submit Payroll')}</Text>}
               </Pressable>
             )}
           </View>
@@ -313,44 +397,48 @@ export default function PAYEFilingScreen() {
 
 const s = StyleSheet.create({
   root:   { flex: 1 },
-  scroll: { padding: SPACING[24], paddingBottom: SPACING[48] },
+  scroll: { padding: spacing[24], paddingBottom: spacing['2xl'] },
 
-  header:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: SPACING[24] },
-  title:       { fontSize: TYPOGRAPHY['2xl'], fontWeight: '700', flex: 1 },
-  progressRow: { flexDirection: 'row', gap: 6, alignItems: 'center', paddingTop: SPACING[8] },
-  dot:         { width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS.dark.border },
-  dotActive:   { backgroundColor: COLORS.primary },
+  header:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing[24] },
+  title:       { fontSize: typography.sizes['2xl'], fontWeight: '700', flex: 1 },
+  progressRow: { flexDirection: 'row', gap: 6, alignItems: 'center', paddingTop: spacing[8] },
+  dot:         { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.dark.border },
+  dotActive:   { backgroundColor: colors.primary[500] },
 
-  stepLabel:   { fontSize: TYPOGRAPHY.base, fontWeight: '600', marginBottom: SPACING[12] },
-  confirmText: { fontSize: TYPOGRAPHY.base, lineHeight: 24, marginBottom: SPACING[24] },
+  stepLabel:   { fontSize: typography.sizes.base, fontWeight: '600', marginBottom: spacing[12] },
+  confirmText: { fontSize: typography.sizes.base, lineHeight: 24, marginBottom: spacing[24] },
 
-  employeeCard: { borderWidth: 1, borderRadius: RADIUS.lg, padding: SPACING[16], marginBottom: SPACING[12] },
-  empHeader:    { fontSize: TYPOGRAPHY.sm, fontWeight: '700', marginBottom: SPACING[8] },
-  input:        { fontSize: TYPOGRAPHY.base, borderWidth: 1, borderRadius: RADIUS.md, padding: SPACING[12], marginBottom: SPACING[8] },
-  inputHalf:    { flex: 1, fontSize: TYPOGRAPHY.sm, borderWidth: 1, borderRadius: RADIUS.md, padding: SPACING[12], marginRight: SPACING[8] },
+  employeeCard: { borderWidth: 1, borderRadius: radii.lg, padding: spacing[16], marginBottom: spacing[12] },
+  empHeader:    { fontSize: typography.sizes.sm, fontWeight: '700', marginBottom: spacing[8] },
+  input:        { fontSize: typography.sizes.base, borderWidth: 1, borderRadius: radii.md, padding: spacing[12], marginBottom: spacing[8] },
+  inputHalf:    { flex: 1, fontSize: typography.sizes.sm, borderWidth: 1, borderRadius: radii.md, padding: spacing[12], marginRight: spacing[8] },
   row:          { flexDirection: 'row' },
 
-  addBtn:     { alignSelf: 'center', paddingVertical: SPACING[12] },
-  addBtnText: { color: COLORS.primary, fontWeight: '700', fontSize: TYPOGRAPHY.sm },
+  addBtn:     { alignSelf: 'center', paddingVertical: spacing[12] },
+  addBtnText: { color: colors.primary[500], fontWeight: '700', fontSize: typography.sizes.sm },
 
-  reviewCard:  { borderWidth: 1, borderRadius: RADIUS.lg, padding: SPACING[16], marginBottom: SPACING[16] },
-  resultRow:   { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: SPACING[8] },
-  resultName:  { fontSize: TYPOGRAPHY.sm },
-  resultAmount:{ fontSize: TYPOGRAPHY.sm, fontWeight: '600' },
-  totalLabel:  { fontSize: TYPOGRAPHY.base, fontWeight: '700' },
-  totalAmount: { fontSize: TYPOGRAPHY.base, fontWeight: '700' },
-  divider:     { height: 1, backgroundColor: '#E5E7EB', marginVertical: SPACING[8] },
+  reviewCard:  { borderWidth: 1, borderRadius: radii.lg, padding: spacing[16], marginBottom: spacing[16] },
+  resultRow:   { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: spacing[8] },
+  resultName:  { fontSize: typography.sizes.sm },
+  resultAmount:{ fontSize: typography.sizes.sm, fontWeight: '600' },
+  totalLabel:  { fontSize: typography.sizes.base, fontWeight: '700' },
+  totalAmount: { fontSize: typography.sizes.base, fontWeight: '700' },
+  divider:     { height: 1, backgroundColor: '#E5E7EB', marginVertical: spacing[8] },
+  infoBox:      { backgroundColor: '#EFF6FF', borderRadius: radii.md, padding: spacing[12], marginBottom: spacing[12], borderWidth: 1, borderColor: '#BFDBFE' },
+  infoText:     { color: '#1D4ED8', fontSize: typography.sizes.xs },
+  warningBanner:{ backgroundColor: '#FEF3C7', borderRadius: radii.md, padding: spacing[12], marginBottom: spacing[12], borderWidth: 1, borderColor: '#FCD34D' },
+  warningText:  { color: '#92400E', fontSize: typography.sizes.sm },
 
-  doneContainer: { alignItems: 'center', paddingTop: SPACING[48] },
-  doneTitle:     { fontSize: TYPOGRAPHY.xl, fontWeight: '700', marginBottom: SPACING[8] },
-  doneBody:      { fontSize: TYPOGRAPHY.base, textAlign: 'center', marginBottom: SPACING[32] },
+  doneContainer: { alignItems: 'center', paddingTop: spacing['2xl'] },
+  doneTitle:     { fontSize: typography.sizes.xl, fontWeight: '700', marginBottom: spacing[8] },
+  doneBody:      { fontSize: typography.sizes.base, textAlign: 'center', marginBottom: spacing[32] },
 
-  errorBox:    { backgroundColor: '#FEF2F2', borderRadius: RADIUS.md, padding: SPACING[12], marginBottom: SPACING[16], borderWidth: 1, borderColor: '#FECACA' },
-  errorText:   { color: '#991B1B', fontSize: TYPOGRAPHY.sm },
+  errorBox:    { backgroundColor: '#FEF2F2', borderRadius: radii.md, padding: spacing[12], marginBottom: spacing[16], borderWidth: 1, borderColor: '#FECACA' },
+  errorText:   { color: '#991B1B', fontSize: typography.sizes.sm },
 
-  actions:     { marginTop: SPACING[24] },
-  btn:         { height: 52, backgroundColor: COLORS.primary, borderRadius: RADIUS.md, justifyContent: 'center', alignItems: 'center' },
+  actions:     { marginTop: spacing[24] },
+  btn:         { height: 52, backgroundColor: colors.primary[500], borderRadius: radii.md, justifyContent: 'center', alignItems: 'center' },
   btnPressed:  { opacity: 0.88, transform: [{ scale: 0.97 }] },
   btnDisabled: { opacity: 0.5 },
-  btnText:     { color: COLORS.dark.text, fontSize: TYPOGRAPHY.base, fontWeight: '700' },
+  btnText:     { color: '#FFFFFF', fontSize: typography.sizes.base, fontWeight: '700' },
 });

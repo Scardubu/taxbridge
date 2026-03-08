@@ -1,109 +1,71 @@
 /**
- * DashboardZone — V10.3 Zone Choreography Wrapper
+ * DashboardZone — TaxBridge V13 Sovereign
  *
- * C-17: DashboardScreen MUST contain all 5 zones: apex, signal, action, context, ambient.
- * C-18: Every dashboard section must be wrapped in <DashboardZone>.
- * ER-07: Staggered reveal with per-zone animation config.
+ * C-16: Animation tokens only — DURATION, EASE from animation.ts
+ * C-17: DashboardScreen must have exactly 5 DashboardZone elements
+ * C-18: Every dashboard content section in <DashboardZone zone="…" visible={!isLoading}>
  *
- * Zone stagger delays (default):
- *   apex:    0ms   — scale(0.92→1) + opacity(0→1)
- *   signal:  80ms  — translateY(12→0) + opacity(0→1)
- *   action:  160ms — translateY(12→0) + opacity(0→1)
- *   context: 240ms — translateY(12→0) + opacity(0→1)  [0ms when urgent=true]
- *   ambient: 320ms — opacity(0→1) only
+ * Zones:
+ *   apex    — Tax Health Gauge (primary signal)
+ *   signal  — Anomaly / Risk alerts
+ *   action  — Quick Actions Grid
+ *   context — Compliance Calendar, deadlines
+ *   ambient — Offline sync status, NRS health
  */
-
 import React, { useEffect } from 'react';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
-  withDelay,
   withTiming,
+  withDelay,
 } from 'react-native-reanimated';
-import {
-  DURATION,
-  EASE,
-  ENTER_FROM,
-  ZONE_DELAYS,
-  type ZoneName,
-} from '../../design-system/animation';
+import { DURATION, EASE, ZONE_DELAYS } from '../../design-system/animation';
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+export type ZoneId = 'apex' | 'signal' | 'action' | 'context' | 'ambient';
 
-export type DashboardZoneName = ZoneName;
-
-interface ZoneConfig {
-  delay:     number;
-  from:      keyof typeof ENTER_FROM;
-  duration:  number;
+interface DashboardZoneProps {
+  zone:      ZoneId;
+  visible:   boolean;
+  urgent?:   boolean;
+  children:  React.ReactNode;
 }
 
-/* eslint-disable @typescript-eslint/consistent-type-assertions */
-const ZONE_CONFIG: Record<DashboardZoneName, ZoneConfig> = {
-  apex:    { delay: ZONE_DELAYS.apex,    from: 'scale', duration: DURATION.standard  },
-  signal:  { delay: ZONE_DELAYS.signal,  from: 'below', duration: DURATION.standard  },
-  action:  { delay: ZONE_DELAYS.action,  from: 'below', duration: DURATION.standard  },
-  context: { delay: ZONE_DELAYS.context, from: 'below', duration: DURATION.standard  },
-  ambient: { delay: ZONE_DELAYS.ambient, from: 'fade',  duration: DURATION.deliberate },
+/**
+ * Zone animation delays per §12.
+ * context zone delay → 0 when urgent=true
+ */
+const BASE_DELAY: Record<ZoneId, number> = {
+  apex:    ZONE_DELAYS.apex,
+  signal:  ZONE_DELAYS.signal,
+  action:  ZONE_DELAYS.action,
+  context: ZONE_DELAYS.context,
+  ambient: ZONE_DELAYS.ambient,
 };
 
-export interface DashboardZoneProps {
-  /** One of the 5 named zones — determines default stagger delay and entry direction */
-  zone: DashboardZoneName;
-  /**
-   * True when data has arrived and isLoading === false.
-   * Zone is hidden (opacity 0) until visible=true.
-   */
-  visible: boolean;
-  /**
-   * Urgent override — collapses delay to 0ms and uses EASE.urgent (e.g. high-severity anomaly).
-   * Context zone uses this to bubble to top of render order.
-   */
-  urgent?: boolean;
-  children: React.ReactNode;
-}
-
-// ─── Component ────────────────────────────────────────────────────────────────
-
-export function DashboardZone({
-  zone,
-  visible,
-  urgent = false,
-  children,
-}: DashboardZoneProps) {
-  const config   = ZONE_CONFIG[zone];
-  const from     = ENTER_FROM[config.from];
-
-  // Shared animation values
-  const opacity     = useSharedValue(0);
-  const translateY  = useSharedValue('translateY' in from ? (from as { translateY: number }).translateY : 0);
-  const scale       = useSharedValue('scale' in from ? (from as { scale: number }).scale : 1);
+export function DashboardZone({ zone, visible, urgent = false, children }: DashboardZoneProps) {
+  const opacity    = useSharedValue(0);
+  const translateY = useSharedValue(12);
 
   useEffect(() => {
-    if (!visible) return;
+    const delay = zone === 'context' && urgent ? 0 : BASE_DELAY[zone];
+    if (visible) {
+      opacity.value    = withDelay(delay, withTiming(1, { duration: DURATION.standard, easing: EASE.enter }));
+      translateY.value = withDelay(delay, withTiming(0, { duration: DURATION.standard, easing: EASE.enter }));
+    } else {
+      opacity.value    = withTiming(0, { duration: DURATION.fast });
+      translateY.value = withTiming(12, { duration: DURATION.fast });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, urgent, zone]);
 
-    const delay    = urgent ? 0 : config.delay;
-    const duration = urgent ? DURATION.fast : config.duration;
-    const easing   = urgent ? EASE.urgent   : EASE.enter;
-
-    opacity.value     = withDelay(delay, withTiming(1,  { duration, easing }));
-    translateY.value  = withDelay(delay, withTiming(0,  { duration, easing }));
-    scale.value       = withDelay(delay, withTiming(1,  { duration, easing }));
-  }, [visible, urgent]);
-
-  const animStyle = useAnimatedStyle(() => ({
+  const animatedStyle = useAnimatedStyle(() => ({
     opacity:   opacity.value,
-    transform: [
-      { translateY: translateY.value },
-      { scale:      scale.value      },
-    ],
+    transform: [{ translateY: translateY.value }],
   }));
 
   return (
-    <Animated.View style={animStyle}>
+    <Animated.View style={animatedStyle}>
       {children}
     </Animated.View>
   );
 }
-
-export default DashboardZone;

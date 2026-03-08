@@ -23,6 +23,7 @@ import {
 import { colors, typography, spacing, radii, shadows } from '../../design-system/tokens';
 import { DURATION } from '../../design-system/animation';
 import type { Expense, CreateExpenseRequest } from '../../api/client';
+import { VAT_RATE } from '@taxbridge/contracts';
 
 // ─── NTA 2025 expense categories (M03 spec) ───────────────────────────────────
 
@@ -293,7 +294,7 @@ function AddExpenseSheet({ onClose }: { onClose: () => void }) {
         vendorName:  form.vendorName  || undefined,
         date:        form.date,
         vatEligible: form.vatEligible,
-        vatAmount:   form.vatEligible ? form.vatAmount || form.amount * 0.075 : undefined,
+        vatAmount:   form.vatEligible ? form.vatAmount || form.amount * VAT_RATE : undefined,
       };
       await createExpense(payload);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
@@ -342,7 +343,7 @@ function AddExpenseSheet({ onClose }: { onClose: () => void }) {
               value={form.amount || undefined}
               onChangeText={(raw) => {
                 set('amount')(raw);
-                if (form.vatEligible) set('vatAmount')(raw * 0.075);
+                if (form.vatEligible) set('vatAmount')(raw * VAT_RATE);
               }}
               required
             />
@@ -357,7 +358,7 @@ function AddExpenseSheet({ onClose }: { onClose: () => void }) {
                     set('category')(cat.value);
                     set('vatEligible')(cat.vatEligible);
                     if (cat.vatEligible && form.amount > 0) {
-                      set('vatAmount')(form.amount * 0.075);
+                      set('vatAmount')(form.amount * VAT_RATE);
                     }
                   }}
                   style={[
@@ -412,7 +413,7 @@ function AddExpenseSheet({ onClose }: { onClose: () => void }) {
                       <View>
                         <Text style={styles.vatTitle}>✅ {t('expenses.vatEligible')}</Text>
                         <Text style={styles.vatSub}>
-                          {t('expenses.vatAmount')}: ₦{(form.vatAmount || form.amount * 0.075).toLocaleString('en-NG', { maximumFractionDigits: 0 })}
+                          {t('expenses.vatAmount')}: ₦{(form.vatAmount || form.amount * VAT_RATE).toLocaleString('en-NG', { maximumFractionDigits: 0 })}
                         </Text>
                       </View>
                       <TrustBadge type="nrs_stamped" label="NTA §11" compact />

@@ -8,6 +8,7 @@
     "start:online": "cross-env EXPO_NO_DOCTOR=1 expo start",
     "start:no-doctor": "cross-env EXPO_NO_DOCTOR=1 expo start",
     "test": "jest",
+    "type-check": "tsc --noEmit",
     "check:ui-consistency": "node scripts/ui-consistency-check.js",
     "check:accessibility": "node scripts/accessibility-audit.js",
     "check:post-deploy": "node scripts/post-deployment-check.js",

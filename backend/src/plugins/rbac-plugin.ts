@@ -153,7 +153,7 @@ async function rbacPlugin(fastify: FastifyInstance): Promise<void> {
     }
 
     // Default for existing users who haven't been assigned a role
-    return 'owner';
+    return 'OWNER';
   }
 
   // Hook: populate request.user.role for all authenticated requests

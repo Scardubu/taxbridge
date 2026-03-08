@@ -19,10 +19,10 @@ import { Button, TextInputField, NairaInput, Card, Badge, TrustBadge } from '../
 import { colors, typography, spacing, radii, shadows } from '../../design-system/tokens';
 import { DURATION } from '../../design-system/animation';
 import type { CreateInvoiceRequest, InvoiceItem } from '../../api/client';
+import { VAT_RATE } from '@taxbridge/contracts';
 
 // ─── NTA 2025 constants ───────────────────────────────────────────────────────
 
-const VAT_RATE           = 0.075;  // NTA 2025 §11
 const NRS_THRESHOLD      = 200_000; // ₦200k — mandatory NRS stamp
 
 // ─── Types ────────────────────────────────────────────────────────────────────

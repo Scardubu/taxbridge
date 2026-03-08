@@ -13,7 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { colors, typography, spacing, radii, shadows } from '../../design-system/tokens';
 import { DURATION, STAGGER } from '../../design-system/animation';
-import { Card, NairaInput, Button, ProgressBar, Badge } from '../../design-system/components';
+import { Card, NairaInput, Button, Badge } from '../../design-system/components';
 import { TaxTooltip } from '../../components/education/TaxEducation';
 import {
   PIT_BRACKETS,

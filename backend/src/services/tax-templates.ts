@@ -7,6 +7,12 @@
  */
 
 import { PrismaClient } from '@prisma/client';
+import {
+  VAT_RATE,
+  WHT_CONSTRUCTION_RATE,
+  WHT_DIVIDEND_RATE,
+  WHT_PROFESSIONAL_RATE,
+} from '@taxbridge/contracts';
 import { createLogger } from '../lib/logger';
 
 const log = createLogger('tax-templates');
@@ -78,7 +84,7 @@ export const BUILTIN_TEMPLATES: Omit<TaxTemplate, 'id' | 'businessId' | 'created
         field: 'amount',
         operator: 'gt',
         value: 0,
-        rate: 0.075,
+        rate: VAT_RATE,
         description: 'Standard VAT at 7.5%',
       },
     ],
@@ -95,7 +101,7 @@ export const BUILTIN_TEMPLATES: Omit<TaxTemplate, 'id' | 'businessId' | 'created
         field: 'amount',
         operator: 'gt',
         value: 0,
-        rate: 0.10,
+        rate: WHT_PROFESSIONAL_RATE,
         description: 'WHT on professional services at 10%',
       },
     ],
@@ -112,7 +118,7 @@ export const BUILTIN_TEMPLATES: Omit<TaxTemplate, 'id' | 'businessId' | 'created
         field: 'amount',
         operator: 'gt',
         value: 0,
-        rate: 0.10,
+        rate: WHT_DIVIDEND_RATE,
         description: 'WHT on rent at 10%',
       },
     ],
@@ -129,7 +135,7 @@ export const BUILTIN_TEMPLATES: Omit<TaxTemplate, 'id' | 'businessId' | 'created
         field: 'amount',
         operator: 'gt',
         value: 0,
-        rate: 0.10,
+        rate: WHT_DIVIDEND_RATE,
         description: 'WHT on dividends at 10%',
       },
     ],
@@ -146,7 +152,7 @@ export const BUILTIN_TEMPLATES: Omit<TaxTemplate, 'id' | 'businessId' | 'created
         field: 'amount',
         operator: 'gt',
         value: 0,
-        rate: 0.05,
+        rate: WHT_CONSTRUCTION_RATE,
         description: 'WHT on contracts/supply at 5%',
       },
     ],

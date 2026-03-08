@@ -69,13 +69,15 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   heading: {
-    ...typography.h3,
+    fontSize: typography.sizes.lg,
+    fontWeight: typography.weights.semibold,
     color: colors.gray[800],
     textAlign: 'center',
     marginBottom: spacing.xs,
   },
   body: {
-    ...typography.body,
+    fontSize: typography.sizes.base,
+    fontWeight: typography.weights.regular,
     color: colors.gray[500],
     textAlign: 'center',
     maxWidth: 280,
@@ -89,7 +91,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
   buttonText: {
-    ...typography.label,
+    fontSize: typography.sizes.sm,
     color: colors.gray[0],
     fontWeight: '700',
     letterSpacing: 0.3,

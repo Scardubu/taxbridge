@@ -1,15 +1,10 @@
 import { NextResponse } from 'next/server';
 import { logError } from '@/lib/logger';
+import { BACKEND_URL, HAS_BACKEND_URL, getErrorMessage } from '@/lib/backendHealth';
 
-const BACKEND_URL = process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3000';
-const HAS_BACKEND_URL = Boolean(process.env.BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL);
 const IS_PRODUCTION = process.env.NODE_ENV === 'production';
 const DIGITAX_MODE = IS_PRODUCTION ? 'live' : 'mock';
 const REMITA_MODE = IS_PRODUCTION ? 'live' : 'sandbox';
-
-function getErrorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : 'Unknown error';
-}
 
 interface HealthCheckResult {
   name: string;

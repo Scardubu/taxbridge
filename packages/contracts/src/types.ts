@@ -187,22 +187,17 @@ export interface DeviceInfo {
   lastActiveAt: string;
 }
 
-// ─── Tax Calculation Input/Output ───────────────────────────────────────────────
+// CITInput and CITResult are defined in cit.ts — not duplicated here
 
-export interface CITInput {
-  turnover: number;
-  profit: number;
-  devLevyApplies: boolean;
-  taxLossCarryforward: number;
+// ─── Compliance Preflight ────────────────────────────────────────────────────
+
+export interface PreFlightCheck {
+  name:     string;
+  status:   'pass' | 'warn' | 'fail';
+  message?: string;
 }
 
-export interface CITResult {
-  tier: 'small' | 'medium' | 'large';
-  citRate: number;
-  citAmount: number;
-  devLevy: number;
-  educationTax: number;
-  taxLossApplied: number;
-  total: number;
-  exempt: boolean;
+export interface PreFlightResult {
+  pass:   boolean;
+  checks: PreFlightCheck[];
 }

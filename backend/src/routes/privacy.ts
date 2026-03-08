@@ -1,35 +1,7 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
-import jwt from 'jsonwebtoken';
 import { privacyService } from '../services/privacy';
 import { logSecurityEvent } from '../lib/security';
-
-// JWT authentication helper
-async function authenticate(request: FastifyRequest): Promise<string> {
-  const authHeader = request.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    throw new Error('Missing or invalid authorization header');
-  }
-
-  const token = authHeader.substring(7);
-  const secrets = [process.env.JWT_SECRET, process.env.JWT_SECRET_PREVIOUS].filter(Boolean) as string[];
-
-  for (const secret of secrets) {
-    try {
-      const decoded = jwt.verify(token, secret) as { userId?: string };
-      if (!decoded.userId) {
-        throw new Error('Invalid token payload');
-      }
-      return decoded.userId;
-    } catch (err) {
-      if (secret === secrets[secrets.length - 1]) {
-        throw new Error('Invalid or expired token');
-      }
-    }
-  }
-
-  throw new Error('Invalid or expired token');
-}
 
 const deleteRequestSchema = z.object({
   userId: z.string().uuid(),
@@ -44,11 +16,11 @@ const consentUpdateSchema = z.object({
 
 export default async function privacyRoutes(app: FastifyInstance) {
   // Export user data (DSAR)
-  app.get('/api/v1/privacy/export/:userId', async (request: FastifyRequest<{
+  app.get<{
     Params: { userId: string }
-  }>, reply: FastifyReply) => {
+  }>('/api/v1/privacy/export/:userId', { preHandler: [app.authenticate] }, async (request, reply: FastifyReply) => {
     try {
-      const authenticatedUserId = await authenticate(request);
+      const authenticatedUserId = request.user.userId;
       const { userId } = request.params;
       
       // Verify ownership - user can only export their own data
@@ -73,11 +45,11 @@ export default async function privacyRoutes(app: FastifyInstance) {
   });
 
   // Download portable data (CSV)
-  app.get('/api/v1/privacy/download/:userId', async (request: FastifyRequest<{
+  app.get<{
     Params: { userId: string }
-  }>, reply: FastifyReply) => {
+  }>('/api/v1/privacy/download/:userId', { preHandler: [app.authenticate] }, async (request, reply: FastifyReply) => {
     try {
-      const authenticatedUserId = await authenticate(request);
+      const authenticatedUserId = request.user.userId;
       const { userId } = request.params;
       
       // Verify ownership - user can only download their own data
@@ -101,9 +73,9 @@ export default async function privacyRoutes(app: FastifyInstance) {
   });
 
   // Delete user data (Right to erasure)
-  app.post('/api/v1/privacy/delete', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/api/v1/privacy/delete', { preHandler: [app.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const authenticatedUserId = await authenticate(request);
+      const authenticatedUserId = request.user.userId;
       const body = deleteRequestSchema.parse(request.body);
       
       // Verify ownership - user can only delete their own data
@@ -128,9 +100,9 @@ export default async function privacyRoutes(app: FastifyInstance) {
   });
 
   // Update consent
-  app.post('/api/v1/privacy/consent', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/api/v1/privacy/consent', { preHandler: [app.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const authenticatedUserId = await authenticate(request);
+      const authenticatedUserId = request.user.userId;
       const body = consentUpdateSchema.parse(request.body);
       
       // Verify ownership - user can only update their own consent
@@ -159,11 +131,11 @@ export default async function privacyRoutes(app: FastifyInstance) {
   });
 
   // Check consent
-  app.get('/api/v1/privacy/consent/:userId/:consentType', async (request: FastifyRequest<{
+  app.get<{
     Params: { userId: string; consentType: string }
-  }>, reply: FastifyReply) => {
+  }>('/api/v1/privacy/consent/:userId/:consentType', { preHandler: [app.authenticate] }, async (request, reply: FastifyReply) => {
     try {
-      const authenticatedUserId = await authenticate(request);
+      const authenticatedUserId = request.user.userId;
       const { userId, consentType } = request.params;
       
       // Verify ownership - user can only check their own consent

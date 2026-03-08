@@ -14,6 +14,7 @@ import CircuitBreaker from 'opossum';
 import * as Sentry from '@sentry/node';
 import { createLogger } from '../lib/logger';
 import { registry as metricsRegistry } from './metrics';
+import { eventBus } from './eventBus';
 import { Gauge } from 'prom-client';
 
 const log = createLogger('nrs-service');
@@ -89,6 +90,7 @@ breaker.on('open',     () => {
   nrsCircuitStateGauge.set(1);
   log.error('NRS circuit breaker OPENED — all calls will fast-fail');
   Sentry.captureMessage('NRS circuit breaker opened', { level: 'error' });
+  eventBus.emit('nrs.circuitOpened');
 });
 breaker.on('close',    () => {
   nrsCircuitStateGauge.set(0);

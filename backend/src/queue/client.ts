@@ -1,107 +1,43 @@
 import { Queue } from 'bullmq';
-import Redis from 'ioredis';
 import { createLogger } from '../lib/logger';
 
 const log = createLogger('redis');
 
-let redisConnection: Redis | undefined;
 let invoiceSyncQueue: Queue | undefined;
 let paymentQueue: Queue | undefined;
 let deviceSyncQueue: Queue | undefined;
 let redisAvailable = true;
 
 const isDevelopment = process.env.NODE_ENV === 'development';
+const isDocsMode = process.env.TAXBRIDGE_DOCS_MODE === '1';
 
-export function getRedisConnection(): Redis | null {
+/**
+ * Lazy-load Redis singleton only when actually needed.
+ * In docs mode we never connect — OpenAPI generation must work offline.
+ */
+export function getRedisConnection() {
+  if (isDocsMode) {
+    return null;
+  }
+
   if (!redisAvailable && isDevelopment) {
     return null;
   }
 
-  if (!redisConnection) {
-    const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
-    
-    // Parse Redis URL for Redis Cloud connection
-    // Format: rediss://username:password@host:port or redis://localhost:6379
-    const isRedisCloud = redisUrl.includes('redislabs.com') || redisUrl.includes('cloud.redis');
-    
-    if (isRedisCloud) {
-      // Parse Redis Cloud URL manually
-      const urlMatch = redisUrl.match(/redis(?:s)?:\/\/([^:]+):([^@]+)@([^:]+):(\d+)/);
-      if (urlMatch) {
-        const [, username, password, host, port] = urlMatch;
-        
-        // Try connection without TLS first (some Redis Cloud instances don't use TLS)
-        log.info('Connecting to Redis Cloud', { host, port });
-        
-        redisConnection = new Redis({
-          host,
-          port: parseInt(port),
-          username,
-          password,
-          // Don't specify TLS - let Redis Cloud handle it
-          maxRetriesPerRequest: null,
-          retryStrategy: (times: number) => {
-            if (isDevelopment && times > 3) {
-              log.warn('Redis Cloud unavailable - running in degraded mode');
-              redisAvailable = false;
-              return null;
-            }
-            const delay = Math.min(times * 1000, 10000);
-            return delay;
-          },
-          lazyConnect: true,
-          enableOfflineQueue: false,
-          connectTimeout: 10000
-        });
-      } else {
-        throw new Error('Invalid Redis Cloud URL format');
-      }
-    } else {
-      // Standard Redis connection (local or non-cloud)
-      redisConnection = new Redis(redisUrl, {
-        maxRetriesPerRequest: null,
-        retryStrategy: (times: number) => {
-          if (isDevelopment && times > 3) {
-            log.warn('Redis unavailable - running in degraded mode (queues disabled)');
-            redisAvailable = false;
-            return null;
-          }
-          const delay = Math.min(times * 1000, 10000);
-          return delay;
-        },
-        lazyConnect: true,
-        enableOfflineQueue: false
-      });
+  try {
+    // Lazy import to avoid module-load-time connection in docs mode
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { redis } = require('../lib/redis');
+    return redis;
+  } catch (err: any) {
+    if (isDevelopment) {
+      log.warn('Redis unavailable - continuing without queue support', { error: err?.message ?? String(err) });
+      redisAvailable = false;
+      return null;
     }
 
-    // Handle connection errors gracefully
-    redisConnection.on('error', (err) => {
-      if (isDevelopment) {
-        log.warn('Redis connection error (development mode)', { error: err.message });
-        redisAvailable = false;
-      } else {
-        log.error('Redis connection error', { error: err.message });
-      }
-    });
-
-    redisConnection.on('connect', () => {
-      log.info('Redis connected successfully');
-      redisAvailable = true;
-    });
-
-    // Attempt to connect
-    redisConnection.connect().catch((err) => {
-      if (isDevelopment) {
-        log.warn('Redis not available - continuing without queue support');
-        redisAvailable = false;
-      } else {
-        log.error('Failed to connect to Redis', { error: err.message || String(err) });
-        throw err;
-      }
-    });
+    throw err;
   }
-
-  return redisConnection;
 }
 
 export function getInvoiceSyncQueue(): Queue | null {
@@ -159,10 +95,10 @@ export async function closeDeviceSyncQueue(): Promise<void> {
 }
 
 export async function closeRedisConnection(): Promise<void> {
-  if (!redisConnection) return;
-  const redis = redisConnection;
-  redisConnection = undefined;
-  await redis.quit();
+  const redis = getRedisConnection();
+  if (redis) {
+    await redis.quit();
+  }
 }
 
 /**

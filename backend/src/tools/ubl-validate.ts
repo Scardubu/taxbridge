@@ -6,8 +6,10 @@
  */
 
 import { generateUBL, InvoiceData } from '../lib/ubl/generator';
+import { VAT_RATE } from '@taxbridge/contracts';
 import { createLogger } from '../lib/logger';
 import { analyzeMandatoryFields, PEPPOL_MANDATORY_FIELDS } from '../lib/ubl/mandatoryFields';
+import { validateUblXml } from '../lib/ubl';
 import { PARTY_ID_SCHEME_TIN, PEPPOL_ENDPOINT_SCHEME } from '../lib/constants';
 
 const log = createLogger('ubl-validate');
@@ -100,7 +102,7 @@ async function main() {
       { description: 'Test Item 2', quantity: 5, unitPrice: 2000 }
     ];
     const subtotal = sampleItems.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
-    const vat = +(subtotal * 0.075).toFixed(2);
+    const vat = +(subtotal * VAT_RATE).toFixed(2);
     const total = +(subtotal + vat).toFixed(2);
 
     const sampleInvoice: InvoiceData = {

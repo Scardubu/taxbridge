@@ -31,6 +31,7 @@ import {
   hasMinRole,
   canAccess,
   assertValidRole,
+  normaliseRole,
 } from '@taxbridge/contracts';
 import { createLogger } from '../lib/logger';
 
@@ -83,14 +84,14 @@ export function requireRole(minimumRole: UserRole) {
       });
     }
 
-    const rawRole = user.role ?? 'viewer';
+    const rawRole = String(user.role ?? 'VIEWER');
 
     let role: UserRole;
     try {
       assertValidRole(rawRole);
-      role = rawRole;
+      role = normaliseRole(rawRole);
     } catch {
-      role = 'viewer';
+      role = 'VIEWER';
     }
 
     if (!hasMinRole(role, minimumRole)) {
@@ -107,16 +108,6 @@ export function requireRole(minimumRole: UserRole) {
 }
 
 // ─── requireResource factory ──────────────────────────────────────────────────
-
-/**
- * Returns a Fastify preHandler that blocks unless the user has access
- * to the named resource per the RBAC permission matrix.
- *
- * Preferred over `requireRole` when guarding a specific operation because
- * it documents intent and degrades gracefully if the matrix changes.
- *
- * @param resource — Resource key from the RBAC matrix (e.g. 'payroll:run')
- */
 export function requireResource(resource: Resource) {
   return async function resourceGuard(
     request: FastifyRequest,
@@ -134,14 +125,14 @@ export function requireResource(resource: Resource) {
       });
     }
 
-    const rawRole = user.role ?? 'viewer';
+    const rawRole = String(user.role ?? 'VIEWER');
 
     let role: UserRole;
     try {
       assertValidRole(rawRole);
-      role = rawRole;
+      role = normaliseRole(rawRole);
     } catch {
-      role = 'viewer';
+      role = 'VIEWER';
     }
 
     if (!canAccess(role, resource)) {

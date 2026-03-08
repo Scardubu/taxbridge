@@ -26,7 +26,7 @@ import {
 } from 'react-native';
 import { TaxHealthGauge, computeGaugeMode } from '../../components/TaxHealthGauge';
 import { DashboardZone } from '../../components/dashboard/DashboardZone';
-import { DashboardSkeleton, SectionSkeletonRows } from '../../components/dashboard/DashboardSkeleton';
+import { DashboardSkeleton } from '../../components/dashboard/DashboardSkeleton';
 import { SectionState, InlineError } from '../../components/dashboard/SectionState';
 import { TopAnomaliesSection } from '../../components/dashboard/TopAnomaliesSection';
 import { ComplianceCalendar } from '../../components/dashboard/ComplianceCalendar';
@@ -299,7 +299,7 @@ export default function DashboardScreen() {
             isLoading={false}
             error={isError ? new Error('load failed') : null}
             isEmpty={(d) => d.length === 0}
-            loading={<SectionSkeletonRows count={2} />}
+            loading={<SkeletonCard />}
             empty={null}
             errorView={
               <InlineError
@@ -324,7 +324,7 @@ export default function DashboardScreen() {
             isLoading={false}
             error={isError ? new Error('load failed') : null}
             isEmpty={(d) => d.length === 0}
-            loading={<SectionSkeletonRows count={1} />}
+            loading={<SkeletonCard />}
             empty={null}
             errorView={
               <InlineError
@@ -427,7 +427,7 @@ export default function DashboardScreen() {
             isLoading={false}
             error={isError ? new Error('load failed') : null}
             isEmpty={(d) => !d?.length}
-            loading={<SectionSkeletonRows count={1} />}
+            loading={<SkeletonCard />}
             empty={null}
             errorView={
               <InlineError
@@ -454,7 +454,7 @@ export default function DashboardScreen() {
             isLoading={false}
             error={isError ? new Error('load failed') : null}
             isEmpty={(d) => !d?.length}
-            loading={<SectionSkeletonRows count={2} />}
+            loading={<SkeletonCard />}
             empty={null}
             errorView={null}
           >

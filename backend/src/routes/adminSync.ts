@@ -1,12 +1,11 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { z } from 'zod';
-import { getPrismaClient } from '../lib/prisma';
+import { prisma } from '../lib/prisma';
 import { requireAdminApiKey } from '../lib/security';
 import { createLogger } from '../lib/logger';
 import { enqueueDeviceSync } from '../queue/client';
 
 const log = createLogger('admin-sync-routes');
-const prisma = getPrismaClient();
 
 // Feature flag check
 function isDeviceSyncEnabled(): boolean {

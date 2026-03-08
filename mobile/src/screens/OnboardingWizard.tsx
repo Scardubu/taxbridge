@@ -1,12 +1,11 @@
 /**
- * TaxBridge V12 — OnboardingWizard (§6.7)
+ * TaxBridge V13 Sovereign — OnboardingWizard
  *
- * TIN + CAC/RC validation wizard with:
+ * 5-step wizard: TIN → CAC → Obligations → Security (TOTP) → Review
  *   - AsyncStorage offline queue: saves progress locally if API is unreachable
- *   - Resume on relaunch: if OnboardingProgress.completed===false AND currentStep>1
- *   - router.replace('/dashboard') on completion — never router.push (prevents back)
- *
- * Gate: □ OnboardingWizard: router.replace on completion, AsyncStorage resume path
+ *   - Resume on relaunch: if completed===false AND currentStep>1, show resume modal
+ *   - router.replace('Dashboard') on completion — never push (prevents back nav)
+ *   - TOTP step for 2FA recommendation
  */
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -34,8 +33,11 @@ import { COLORS, TYPOGRAPHY, SPACING, RADIUS } from '../design-system/tokens';
 
 // ─── Constants ────────────────────────────────────────────────────────────
 
-const STORAGE_KEY   = 'onboarding_v12_progress';
-const OFFLINE_QUEUE = 'onboarding_v12_offline_queue';
+const STORAGE_KEY   = 'onboarding_v13_progress';
+const OFFLINE_QUEUE = 'onboarding_v13_offline_queue';
+const BRAND_PRIMARY = COLORS.primary[500];
+const BRAND_DANGER = COLORS.error;
+const TYPE_SCALE = TYPOGRAPHY.sizes;
 
 const OBLIGATIONS = [
   { id: 'vat',  label: 'Value Added Tax (VAT)',      icon: '🟢' },
@@ -46,12 +48,13 @@ const OBLIGATIONS = [
 ] as const;
 
 type ObligationId = typeof OBLIGATIONS[number]['id'];
-type WizardStep   = 'tin' | 'cac' | 'obligations' | 'review';
+type WizardStep   = 'tin' | 'cac' | 'obligations' | 'security' | 'review';
 
 interface ProgressState {
   step:                WizardStep;
   tinVerified:         boolean;
   cacVerified:         boolean;
+  securityConfirmed:   boolean;
   tin:                 string;
   entityName:          string;
   rcNumber:            string;
@@ -63,6 +66,7 @@ const DEFAULT_PROGRESS: ProgressState = {
   step:                'tin',
   tinVerified:         false,
   cacVerified:         false,
+  securityConfirmed:   false,
   tin:                 '',
   entityName:          '',
   rcNumber:            '',
@@ -130,7 +134,7 @@ function StepHeader({ title, subtitle, step, total }: StepHeaderProps) {
         Step {step} of {total}
       </Text>
       <View style={s.progressBar} accessibilityRole="progressbar" accessibilityValue={{ now: step, min: 1, max: total }}>
-        <View style={[s.progressFill, { width: `${(step / total) * 100}%`, backgroundColor: COLORS.primary }]} />
+        <View style={[s.progressFill, { width: `${(step / total) * 100}%`, backgroundColor: BRAND_PRIMARY }]} />
       </View>
       <Text style={[s.stepTitle, { color: colors.textPrimary }]}>{title}</Text>
       <Text style={[s.stepSubtitle, { color: colors.textSecondary }]}>{subtitle}</Text>
@@ -140,7 +144,7 @@ function StepHeader({ title, subtitle, step, total }: StepHeaderProps) {
 
 // ─── Main Wizard ──────────────────────────────────────────────────────────
 
-const STEP_ORDER: WizardStep[] = ['tin', 'cac', 'obligations', 'review'];
+const STEP_ORDER: WizardStep[] = ['tin', 'cac', 'obligations', 'security', 'review'];
 
 export default function OnboardingWizard() {
   const { t }              = useTranslation();
@@ -305,11 +309,19 @@ export default function OnboardingWizard() {
       return;
     }
     setError(null);
-    const next: ProgressState = { ...progress, step: 'review' };
+    const next: ProgressState = { ...progress, step: 'security' };
     setProgress(next);
     await saveProgress(next);
-    await syncProgress({ step: 'review', selectedObligations: progress.selectedObligations });
+    await syncProgress({ step: 'security', selectedObligations: progress.selectedObligations });
   }, [progress, t, saveProgress, syncProgress]);
+
+  const handleSecurityContinue = useCallback(async () => {
+    setError(null);
+    const next: ProgressState = { ...progress, securityConfirmed: true, step: 'review' };
+    setProgress(next);
+    await saveProgress(next);
+    await syncProgress({ step: 'review' });
+  }, [progress, saveProgress, syncProgress]);
 
   // ── Complete wizard — router.replace (never push) to prevent back navigation
   const handleComplete = useCallback(async () => {
@@ -339,7 +351,7 @@ export default function OnboardingWizard() {
   if (resuming) {
     return (
       <View style={[s.center, { backgroundColor: colors.surface }]}>
-        <ActivityIndicator color={COLORS.primary} size="large" />
+        <ActivityIndicator color={BRAND_PRIMARY} size="large" />
       </View>
     );
   }
@@ -440,7 +452,7 @@ export default function OnboardingWizard() {
                   key={o.id}
                   style={({ pressed }) => [
                     s.obligationRow,
-                    { borderColor: selected ? COLORS.primary : colors.border, backgroundColor: selected ? `${COLORS.primary}18` : colors.surface },
+                    { borderColor: selected ? BRAND_PRIMARY : colors.border, backgroundColor: selected ? `${BRAND_PRIMARY}18` : colors.surface },
                     pressed && { opacity: 0.8 },
                   ]}
                   onPress={() => toggleObligation(o.id)}
@@ -450,7 +462,7 @@ export default function OnboardingWizard() {
                 >
                   <Text style={s.obligationIcon}>{o.icon}</Text>
                   <Text style={[s.obligationLabel, { color: colors.textPrimary }]}>{o.label}</Text>
-                  <Text style={[s.obligationCheck, { color: COLORS.primary }]}>{selected ? '✓' : ''}</Text>
+                  <Text style={[s.obligationCheck, { color: BRAND_PRIMARY }]}>{selected ? '✓' : ''}</Text>
                 </Pressable>
               );
             })}
@@ -462,6 +474,39 @@ export default function OnboardingWizard() {
               accessibilityLabel={t('common.continue', 'Continue')}
             >
               <Text style={s.btnText}>{t('common.continue', 'Continue')}</Text>
+            </Pressable>
+          </Animated.View>
+        )}
+
+        {/* ── Security Step (TOTP) ──────────────────────────────────── */}
+        {progress.step === 'security' && (
+          <Animated.View entering={FadeInRight.duration(300)} key="security">
+            <StepHeader
+              title={t('onboarding.securityTitle', 'Secure Your Account')}
+              subtitle={t('onboarding.securitySubtitle', 'Set up two-factor authentication to protect filings and payments.')}
+              step={stepIndex + 1}
+              total={totalSteps}
+            />
+            <View style={[s.reviewCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <Text style={[s.stepSubtitle, { color: colors.textPrimary, marginBottom: SPACING[8] }]}>
+                {t('onboarding.totpExplainer', 'We strongly recommend enabling TOTP (Authenticator App) for 2FA. You can also configure this later in Settings.')}
+              </Text>
+              <Pressable
+                style={({ pressed }) => [s.btn, pressed && s.btnPressed]}
+                onPress={() => navigation.navigate('TOTPSetup')}
+                accessibilityRole="button"
+                accessibilityLabel={t('onboarding.setupTOTP', 'Set Up TOTP')}
+              >
+                <Text style={s.btnText}>{t('onboarding.setupTOTP', 'Set Up TOTP')}</Text>
+              </Pressable>
+            </View>
+            <Pressable
+              style={({ pressed }) => [s.btn, { backgroundColor: colors.textMuted }, pressed && s.btnPressed]}
+              onPress={handleSecurityContinue}
+              accessibilityRole="button"
+              accessibilityLabel={t('onboarding.skipSecurity', 'Skip for now')}
+            >
+              <Text style={s.btnText}>{t('onboarding.skipSecurity', 'Skip for now')}</Text>
             </Pressable>
           </Animated.View>
         )}
@@ -519,27 +564,27 @@ function ReviewRow({ label, value }: { label: string; value: string }) {
 const s = StyleSheet.create({
   root:   { flex: 1 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  scroll: { padding: SPACING[24], paddingBottom: SPACING[48] },
+  scroll: { padding: SPACING[24], paddingBottom: SPACING[12] * 4 },
 
   stepHeader:   { marginBottom: SPACING[24] },
-  stepCounter:  { fontSize: TYPOGRAPHY.xs, fontWeight: '600', marginBottom: SPACING[8], textTransform: 'uppercase', letterSpacing: 1 },
+  stepCounter:  { fontSize: TYPE_SCALE.xs, fontWeight: '600', marginBottom: SPACING[8], textTransform: 'uppercase', letterSpacing: 1 },
   progressBar:  { height: 4, backgroundColor: '#E5E7EB', borderRadius: RADIUS.full, marginBottom: SPACING[16], overflow: 'hidden' },
   progressFill: { height: '100%', borderRadius: RADIUS.full },
-  stepTitle:    { fontSize: TYPOGRAPHY['2xl'], fontWeight: '700', marginBottom: SPACING[4] },
-  stepSubtitle: { fontSize: TYPOGRAPHY.sm, lineHeight: 22 },
+  stepTitle:    { fontSize: TYPE_SCALE['2xl'], fontWeight: '700', marginBottom: SPACING[4] },
+  stepSubtitle: { fontSize: TYPE_SCALE.sm, lineHeight: 22 },
 
   input: {
     height:       48,
     borderWidth:  1,
     borderRadius: RADIUS.md,
     paddingHorizontal: SPACING[16],
-    fontSize:     TYPOGRAPHY.base,
+    fontSize:     TYPE_SCALE.base,
     marginBottom: SPACING[16],
   },
 
   btn: {
     height:          48,
-    backgroundColor: COLORS.primary,
+    backgroundColor: BRAND_PRIMARY,
     borderRadius:    RADIUS.md,
     justifyContent:  'center',
     alignItems:      'center',
@@ -547,9 +592,9 @@ const s = StyleSheet.create({
   },
   btnPressed:  { opacity: 0.85, transform: [{ scale: 0.97 }] },
   btnDisabled: { opacity: 0.5 },
-  btnText:     { color: '#fff', fontSize: TYPOGRAPHY.base, fontWeight: '600' },
+  btnText:     { color: '#fff', fontSize: TYPE_SCALE.base, fontWeight: '600' },
 
-  errorText: { color: COLORS.danger, fontSize: TYPOGRAPHY.sm, marginBottom: SPACING[8] },
+  errorText: { color: BRAND_DANGER, fontSize: TYPE_SCALE.sm, marginBottom: SPACING[8] },
 
   obligationRow: {
     flexDirection:  'row',
@@ -560,12 +605,12 @@ const s = StyleSheet.create({
     marginBottom:   SPACING[8],
     gap:            SPACING[12],
   },
-  obligationIcon:  { fontSize: TYPOGRAPHY.xl },
-  obligationLabel: { flex: 1, fontSize: TYPOGRAPHY.base, fontWeight: '500' },
-  obligationCheck: { fontSize: TYPOGRAPHY.lg, fontWeight: '700' },
+  obligationIcon:  { fontSize: TYPE_SCALE.xl },
+  obligationLabel: { flex: 1, fontSize: TYPE_SCALE.base, fontWeight: '500' },
+  obligationCheck: { fontSize: TYPE_SCALE.lg, fontWeight: '700' },
 
   reviewCard: { borderRadius: RADIUS.lg, borderWidth: 1, padding: SPACING[16], marginBottom: SPACING[24], gap: SPACING[12] },
   reviewRow:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
-  reviewLabel:{ fontSize: TYPOGRAPHY.sm, fontWeight: '600' },
-  reviewValue:{ fontSize: TYPOGRAPHY.sm, textAlign: 'right', flex: 1, marginLeft: SPACING[8] },
+  reviewLabel:{ fontSize: TYPE_SCALE.sm, fontWeight: '600' },
+  reviewValue:{ fontSize: TYPE_SCALE.sm, textAlign: 'right', flex: 1, marginLeft: SPACING[8] },
 });

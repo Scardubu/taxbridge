@@ -10,10 +10,9 @@
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import type { FastifyInstance } from 'fastify';
-import jwt from 'jsonwebtoken';
 
 import { BulkOperationsService } from '../services/bulk-operations';
-import { AuthenticationError, ValidationError } from '../lib/errors';
+import { ValidationError } from '../lib/errors';
 import { createLogger } from '../lib/logger';
 
 const log = createLogger('bulk-routes');
@@ -24,23 +23,6 @@ export default async function bulkRoutes(
 ) {
   const prisma = opts.prisma;
   const bulkService = new BulkOperationsService(prisma);
-
-  // =========================================================================
-  // Auth helper
-  // =========================================================================
-  async function authenticate(req: any): Promise<string> {
-    const authHeader = req.headers.authorization;
-    if (!authHeader?.startsWith('Bearer ')) {
-      throw new AuthenticationError('Missing or invalid authorization header');
-    }
-    const token = authHeader.slice(7);
-    try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
-      return decoded.userId || decoded.sub || decoded.id;
-    } catch {
-      throw new AuthenticationError('Invalid or expired token');
-    }
-  }
 
   // =========================================================================
   // Schemas
@@ -71,8 +53,8 @@ export default async function bulkRoutes(
   // =========================================================================
   // POST /api/v1/bulk/status-update
   // =========================================================================
-  app.post('/api/v1/bulk/status-update', async (req, reply) => {
-    const userId = await authenticate(req);
+  app.post('/api/v1/bulk/status-update', { preHandler: [app.authenticate, app.resolveOrgContext] }, async (req, reply) => {
+    const userId = req.user.userId;
     const body = BulkStatusUpdateSchema.parse(req.body);
 
     const result = await bulkService.bulkStatusUpdate({
@@ -86,8 +68,8 @@ export default async function bulkRoutes(
   // =========================================================================
   // POST /api/v1/bulk/delete
   // =========================================================================
-  app.post('/api/v1/bulk/delete', async (req, reply) => {
-    const userId = await authenticate(req);
+  app.post('/api/v1/bulk/delete', { preHandler: [app.authenticate, app.resolveOrgContext] }, async (req, reply) => {
+    const userId = req.user.userId;
     const body = BulkDeleteSchema.parse(req.body);
 
     const result = await bulkService.bulkDelete({
@@ -101,8 +83,8 @@ export default async function bulkRoutes(
   // =========================================================================
   // POST /api/v1/bulk/export
   // =========================================================================
-  app.post('/api/v1/bulk/export', async (req, reply) => {
-    const userId = await authenticate(req);
+  app.post('/api/v1/bulk/export', { preHandler: [app.authenticate, app.resolveOrgContext] }, async (req, reply) => {
+    const userId = req.user.userId;
     const body = BulkExportSchema.parse(req.body);
 
     const result = await bulkService.bulkExport({

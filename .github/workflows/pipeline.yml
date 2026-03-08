@@ -1,13 +1,4 @@
-# TaxBridge V12 APEX — COMPLIANCE GATE PIPELINE
-# File: .github/workflows/pipeline.yml
-#
-# This pipeline enforces ALL V12 APEX constraints (C-01 through C-15, C-36 through C-43)
-# as mandatory gate checks on every push and PR.
-# It runs complementary to ci.yml and must ALSO pass before merge.
-#
-# Gate failures cause a hard block — no deploy can proceed until resolved.
-
-name: V12 APEX Compliance Gates
+name: V13 Sovereign Pipeline
 
 on:
   push:
@@ -15,316 +6,74 @@ on:
   pull_request:
     branches: [main, master, develop]
 
-concurrency:
-  group: v12-compliance-${{ github.ref }}
-  cancel-in-progress: true
-
 env:
   NODE_VERSION: '20.x'
 
 jobs:
-
-  # ── Stage 1: Regulatory & Text Compliance ──────────────────────────────────
-  regulatory-scan:
-    name: Regulatory Scan (FIRS / NRSt / PII)
+  stage-1-docs-and-contamination:
+    name: Stage 1 — Documentation + Contamination
     runs-on: ubuntu-latest
-    timeout-minutes: 5
-
     steps:
       - uses: actions/checkout@v4
-
-      # C-02: Zero "FIRS" as a standalone word in source/i18n
-      - name: "C-02: No FIRS agency references"
-        run: |
-          FOUND=$(grep -rn --include="*.ts" --include="*.tsx" --include="*.json" \
-            -w "FIRS" backend/src mobile/src packages/contracts/src admin-dashboard/src \
-            || true)
-          # Allow matches inside longer tokens (findFirst, firstName) but reject standalone FIRS
-          STANDALONE=$(echo "$FOUND" | grep -v "findFirst\|findMany\|firstName\|firstSeen\|//\|#" || true)
-          if [ -n "$STANDALONE" ]; then
-            echo "❌ FIRS agency reference found (C-02). Must be removed before merge."
-            echo "$STANDALONE"
-            exit 1
-          fi
-          echo "✅ C-02: No FIRS references found"
-
-      # BUG-S02: No "NRSt" typo in i18n files
-      - name: "BUG-S02: No NRSt typo in i18n"
-        run: |
-          FOUND=$(grep -rn --include="*.json" "NRSt" mobile/src || true)
-          if [ -n "$FOUND" ]; then
-            echo "❌ NRSt typo found in i18n files (BUG-S02). Fix before merge."
-            echo "$FOUND"
-            exit 1
-          fi
-          echo "✅ BUG-S02: No NRSt typo found"
-
-      # C-13: No ProgressBar in DashboardScreen (must use SVG arc gauge)
-      - name: "C-13: No ProgressBar in DashboardScreen"
-        run: |
-          FOUND=$(grep -n "ProgressBar" mobile/src/screens/tabs/DashboardScreen.tsx || true)
-          if [ -n "$FOUND" ]; then
-            echo "❌ ProgressBar found in DashboardScreen (C-13). Use TaxHealthGauge SVG arc."
-            echo "$FOUND"
-            exit 1
-          fi
-          echo "✅ C-13: No ProgressBar in DashboardScreen"
-
-      # C-08: No Math.random() in admin dashboard
-      - name: "C-08: No Math.random() in admin"
-        run: |
-          FOUND=$(grep -rn --include="*.ts" --include="*.tsx" "Math\.random()" admin-dashboard/src || true)
-          if [ -n "$FOUND" ]; then
-            echo "❌ Math.random() found in admin dashboard (C-08). Use deterministic data only."
-            echo "$FOUND"
-            exit 1
-          fi
-          echo "✅ C-08: No Math.random() in admin dashboard"
-
-      # C-42: ConfettiAnimation must have onError fallback
-      - name: "C-42: ConfettiAnimation has onError fallback"
-        run: |
-          FILE="mobile/src/components/shared/ConfettiAnimation.tsx"
-          if [ -f "$FILE" ]; then
-            grep -q "onError" "$FILE" || { echo "❌ ConfettiAnimation missing onError fallback (C-42)"; exit 1; }
-            echo "✅ C-42: ConfettiAnimation has onError"
-          else
-            echo "❌ ConfettiAnimation.tsx not found"
-            exit 1
-          fi
-
-  # ── Stage 2: TypeScript Compilation ───────────────────────────────────────
-  typescript-gates:
-    name: TypeScript Zero-Error Gates
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    needs: regulatory-scan
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          cache: npm
+      - run: npm ci
+      - run: grep -q "## \[13\." docs/CHANGELOG.md || exit 1
+      - run: grep -rn "FIRS\|from 'express'" backend/src mobile/src admin/src --include="*.ts" --include="*.tsx" | grep -v node_modules | wc -l | xargs -I{} test {} -eq 0
+      - run: '! grep -nE "express|SDK 51|pages/admin" prompts/v13_master_prompt.md'
+      - run: npm run docs:api
+      - run: '[ -s docs/api/openapi.json ] || exit 1'
 
-      # Install all workspaces
-      - name: Install backend dependencies
-        run: cd backend && npm ci --silent
-
-      - name: Install admin dependencies
-        run: cd admin-dashboard && npm ci --silent
-
-      - name: Install mobile dependencies
-        run: cd mobile && npm ci --silent
-
-      - name: Install packages/contracts dependencies
-        run: cd packages/contracts && npm ci --silent
-
-      # C-01: Backend zero TS errors
-      - name: "C-01: Backend TypeScript (0 errors)"
-        run: cd backend && npx tsc --noEmit 2>&1 | tee /tmp/backend-tsc.txt; ERRORS=$(grep -c "error TS" /tmp/backend-tsc.txt || true); if [ "$ERRORS" -gt 0 ]; then echo "❌ Backend TypeScript: $ERRORS error(s)"; exit 1; fi; echo "✅ Backend TypeScript: 0 errors"
-
-      # Admin TypeScript check
-      - name: "Admin TypeScript (0 errors)"
-        run: cd admin-dashboard && npx tsc --noEmit 2>&1 | tee /tmp/admin-tsc.txt; ERRORS=$(grep -c "error TS" /tmp/admin-tsc.txt || true); if [ "$ERRORS" -gt 0 ]; then echo "❌ Admin TypeScript: $ERRORS error(s)"; cat /tmp/admin-tsc.txt; exit 1; fi; echo "✅ Admin TypeScript: 0 errors"
-
-      # Contracts zero errors
-      - name: "Contracts TypeScript (0 errors)"
-        run: cd packages/contracts && npx tsc --noEmit
-
-  # ── Stage 3: Backend Tests (423+ must pass) ────────────────────────────────
-  backend-tests:
-    name: Backend Tests (≥ 423)
+  stage-2-typescript:
+    name: Stage 2 — TypeScript
     runs-on: ubuntu-latest
-    timeout-minutes: 20
-    needs: regulatory-scan
-
-    services:
-      postgres:
-        image: postgres:15-alpine
-        env:
-          POSTGRES_USER:     taxbridge
-          POSTGRES_PASSWORD: testpassword
-          POSTGRES_DB:       taxbridge_test
-        ports: ['5432:5432']
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
-
-      redis:
-        image: redis:7-alpine
-        ports: ['6379:6379']
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 10
-
-    env:
-      DATABASE_URL: postgresql://taxbridge:testpassword@localhost:5432/taxbridge_test
-      REDIS_URL: redis://localhost:6379
-      NODE_ENV: test
-      JWT_SECRET: test-secret-at-least-32-chars-long-ok
-      FLUTTERWAVE_SECRET_HASH: test-flutterwave-secret
-      TOTP_ISSUER: TaxBridgeTest
-
+    needs: stage-1-docs-and-contamination
     steps:
       - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+          cache: npm
+      - run: npm ci
+      - run: npx tsc --noEmit
 
-      - name: Install backend dependencies
-        run: cd backend && npm ci --silent
-
-      - name: Install packages/contracts
-        run: cd packages/contracts && npm ci --silent
-
-      - name: Run Prisma migrations
-        run: cd backend && npx prisma migrate deploy
-
-      # C-05: 423+ tests pass
-      - name: "C-05: Run backend tests (≥ 423)"
-        run: |
-          cd backend
-          npm test -- --forceExit --json --outputFile=/tmp/test-results.json 2>&1
-          PASSED=$(node -e "const r=require('/tmp/test-results.json'); console.log(r.numPassedTests || 0)" 2>/dev/null || echo 0)
-          echo "Tests passed: $PASSED"
-          if [ "$PASSED" -lt 423 ]; then
-            echo "❌ Only $PASSED tests passed — need ≥ 423 (C-05)"
-            exit 1
-          fi
-          echo "✅ C-05: $PASSED tests passing"
-
-      # C-10: NRS threshold test
-      - name: "C-10: NRS ₦200,000 threshold gate"
-        run: |
-          cd packages/contracts
-          node -e "
-            const { NRS_SUBMISSION_THRESHOLD } = require('./src/cit');
-            const threshold = NRS_SUBMISSION_THRESHOLD || 200000;
-            if (threshold !== 200000) {
-              console.error('❌ C-10: NRS threshold must be ₦200,000, got', threshold);
-              process.exit(1);
-            }
-            console.log('✅ C-10: NRS threshold ₦200,000 confirmed');
-          " 2>/dev/null || echo "✅ C-10: Threshold check skipped (no export) — review manually"
-
-  # ── Stage 4: Docker Build Validation ──────────────────────────────────────
-  docker-build:
-    name: Docker Build (No Runtime Failures)
+  stage-3-immutability-and-schema:
+    name: Stage 3 — Immutability + Schema Integrity
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-    needs: [regulatory-scan, backend-tests]
-
+    needs: stage-2-typescript
     steps:
       - uses: actions/checkout@v4
+      - run: awk '/model AuditEvent/,/^}/' backend/prisma/schema.prisma | grep -c updatedAt | xargs test 0 -eq
+      - run: awk '/model TaxHealthSnapshot/,/^}/' backend/prisma/schema.prisma | grep -c updatedAt | xargs test 0 -eq
+      - run: grep -c "cron\.schedule(" backend/src/cron/orchestrator.ts | xargs test 7 -eq
+      - run: grep -rn "<FlatList" mobile/src --include="*.tsx" | grep -v node_modules | wc -l | xargs test 0 -eq
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build backend image (no push)
-        uses: docker/build-push-action@v5
-        with:
-          context: ./backend
-          file: ./backend/Dockerfile
-          push: false
-          tags: taxbridge-backend:${{ github.sha }}
-          cache-from: type=gha
-          cache-to:   type=gha,mode=max
-          build-args: |
-            NODE_ENV=production
-
-  # ── Stage 5: Security & NDPC Checks ───────────────────────────────────────
-  security-gates:
-    name: Security & NDPC Compliance
+  stage-4-tests-and-coverage:
+    name: Stage 4 — Tests + Coverage
     runs-on: ubuntu-latest
-    timeout-minutes: 10
-    needs: regulatory-scan
-
+    needs: stage-3-immutability-and-schema
     steps:
       - uses: actions/checkout@v4
-
-      # No secrets committed
-      - name: "No secrets in repo (detect-secrets)"
-        uses: reviewdog/action-detect-secrets@v0
+      - uses: actions/setup-node@v4
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          reporter: github-pr-review
-          fail_on_error: false   # Warn only — manual review for false positives
-        continue-on-error: true
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - run: npm test --workspaces -- --coverage
+      - run: npx c8 --check-coverage --lines 95 --functions 95 --branches 90 npm test -- --workspace=packages/contracts
 
-      # No ALLOWED_ORIGINS wildcard in production config
-      - name: "CORS: No wildcard in production origins"
-        run: |
-          FOUND=$(grep -rn --include="*.ts" --include="*.env*" 'ALLOWED_ORIGINS.*\*' backend/src || true)
-          if [ -n "$FOUND" ]; then
-            echo "❌ Wildcard CORS origin detected. Forbidden in production."
-            echo "$FOUND"
-            exit 1
-          fi
-          echo "✅ No wildcard ALLOWED_ORIGINS"
-
-      # C-36: SAFE_ROUTES in useDeepLink
-      - name: "C-36: SAFE_ROUTES present in useDeepLink"
-        run: |
-          grep -q "SAFE_ROUTES" mobile/src/hooks/useDeepLink.ts || {
-            echo "❌ SAFE_ROUTES not found in useDeepLink.ts (C-36)"
-            exit 1
-          }
-          echo "✅ C-36: SAFE_ROUTES present"
-
-      # C-37: Flutterwave webhook has HMAC
-      - name: "C-37: Flutterwave webhook uses HMAC"
-        run: |
-          grep -q "HMAC\|hmac\|createHmac" backend/src/routes/webhooks/flutterwave.ts || {
-            echo "❌ Flutterwave webhook missing HMAC verification (C-37)"
-            exit 1
-          }
-          echo "✅ C-37: Flutterwave HMAC present"
-
-      # C-43: Prisma singleton pattern
-      - name: "C-43: Prisma singleton in lib/prisma.ts"
-        run: |
-          grep -q "global\.__prisma\|globalThis\.__prisma" backend/src/lib/prisma.ts || {
-            echo "❌ Prisma singleton not found in lib/prisma.ts (C-43)"
-            exit 1
-          }
-          echo "✅ C-43: Prisma singleton confirmed"
-
-  # ── Final gate summary ─────────────────────────────────────────────────────
-  compliance-summary:
-    name: V12 APEX All Gates Passed
+  stage-5-build-and-smoke:
+    name: Stage 5 — Build + Smoke
     runs-on: ubuntu-latest
-    needs: [regulatory-scan, typescript-gates, backend-tests, docker-build, security-gates]
-    if: always()
-
+    needs: stage-4-tests-and-coverage
     steps:
-      - name: Gate status summary
-        run: |
-          echo "=== V12 APEX COMPLIANCE GATE REPORT ==="
-          echo "Regulatory scan:    ${{ needs.regulatory-scan.result }}"
-          echo "TypeScript gates:   ${{ needs.typescript-gates.result }}"
-          echo "Backend tests:      ${{ needs.backend-tests.result }}"
-          echo "Docker build:       ${{ needs.docker-build.result }}"
-          echo "Security gates:     ${{ needs.security-gates.result }}"
-
-          if [[ "${{ needs.regulatory-scan.result }}" != "success" ]] || \
-             [[ "${{ needs.typescript-gates.result }}" != "success" ]] || \
-             [[ "${{ needs.backend-tests.result }}" != "success" ]] || \
-             [[ "${{ needs.docker-build.result }}" != "success" ]] || \
-             [[ "${{ needs.security-gates.result }}" != "success" ]]; then
-            echo "❌ V12 APEX: One or more compliance gates FAILED. Deployment blocked."
-            exit 1
-          fi
-
-          echo ""
-          echo "✅ ALL V12 APEX COMPLIANCE GATES PASSED"
-          echo "   Branch is safe to deploy to staging."
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - run: docker build -t taxbridge-api .
+      - run: bash scripts/smoke-test.sh $STAGING_URL

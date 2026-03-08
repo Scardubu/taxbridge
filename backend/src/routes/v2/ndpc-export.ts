@@ -15,43 +15,18 @@
  */
 
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import jwt from 'jsonwebtoken';
 import { successResponse, errorResponse } from '../../lib/api-envelope';
-import { getPrismaClient } from '../../lib/prisma';
-import { createLogger } from '../../lib/logger';
-
-const log = createLogger('v2-ndpc');
-const prisma = getPrismaClient();
-
-// ─── Auth ─────────────────────────────────────────────────────────────────────
-
-async function authenticate(req: FastifyRequest, reply: FastifyReply) {
-  const authHeader = typeof req.headers?.authorization === 'string'
-    ? req.headers.authorization : '';
-  if (!authHeader.startsWith('Bearer ')) {
-    return reply.code(401).send(errorResponse('Unauthorized', 'AUTH_REQUIRED'));
-  }
-  const token = authHeader.replace(/^Bearer\s+/i, '').trim();
-  const secrets = [process.env.JWT_SECRET, process.env.JWT_SECRET_PREVIOUS].filter(Boolean) as string[];
-  let userId: string | undefined;
-  for (const secret of secrets) {
-    try {
-      const decoded = jwt.verify(token, secret) as { userId?: string };
-      if (decoded?.userId) { userId = decoded.userId; break; }
-    } catch { /* next */ }
-  }
-  if (!userId) return reply.code(401).send(errorResponse('Invalid or expired token', 'AUTH_INVALID'));
-  (req as any).user = { id: userId };
-}
+import { prisma } from '../../lib/prisma';
+import { requireRole } from '../../plugins/requireRole';
 
 // ─── Route ───────────────────────────────────────────────────────────────────
 
 export default async function v2NdpcExportRoute(fastify: FastifyInstance) {
 
   fastify.get('/api/v2/privacy/ndpc-export/:userId', {
-    preHandler: [authenticate],
+    preHandler: [fastify.authenticate, fastify.resolveOrgContext, requireRole('ADMIN')],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    const adminId = (request as any).user.id as string;
+    const adminId = request.user.userId;
     const { userId } = request.params as { userId: string };
 
     // RBAC enforcement is handled by the rbac-plugin (ndpc:export → admin only)
@@ -65,7 +40,7 @@ export default async function v2NdpcExportRoute(fastify: FastifyInstance) {
         return reply.code(403).send(errorResponse('Admin access required for NDPC export', 'FORBIDDEN'));
       }
     } catch (err) {
-      log.error('Failed to verify admin role for NDPC export', { adminId, error: err });
+      request.log.error({ adminId, error: err }, 'Failed to verify admin role for NDPC export');
       return reply.code(403).send(errorResponse('Access verification failed', 'FORBIDDEN'));
     }
 
@@ -163,15 +138,11 @@ export default async function v2NdpcExportRoute(fastify: FastifyInstance) {
         // Audit log failure should not block export
       }
 
-      log.info('NDPC data export completed', {
-        adminId,
-        targetUserId: userId,
-        requestId: request.id,
-      });
+      request.log.info({ adminId, targetUserId: userId }, 'NDPC data export completed');
 
       return reply.send(successResponse(ndpcExport, { requestId: request.id }));
     } catch (error) {
-      log.error('NDPC export failed', { adminId, userId, error });
+      request.log.error({ adminId, userId, error }, 'NDPC export failed');
       return reply.code(500).send(errorResponse('Export failed', 'EXPORT_FAILED'));
     }
   });

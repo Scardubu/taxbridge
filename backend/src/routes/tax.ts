@@ -20,6 +20,7 @@ import {
   calculateWHT,
   calculatePAYE,
 } from '../services/tax-engine';
+import { VAT_RATE, type CGTInput, type WHTInput } from '@taxbridge/contracts';
 
 // =============================================================================
 // Zod Schemas
@@ -132,7 +133,10 @@ export default async function taxRoutes(app: FastifyInstance) {
     async (req, reply) => {
       try {
         const input = req.body as z.infer<typeof VATBodySchema>;
-        const result = calculateVAT(input);
+        const result = calculateVAT({
+          outputVAT: Math.round(input.amount * VAT_RATE),
+          inputVAT: 0,
+        });
         return reply.send({ success: true, data: result });
       } catch (err: any) {
         return reply.status(400).send({ success: false, error: err.message });
@@ -155,7 +159,11 @@ export default async function taxRoutes(app: FastifyInstance) {
     async (req, reply) => {
       try {
         const input = req.body as z.infer<typeof CITBodySchema>;
-        const result = calculateCIT(input);
+        const result = calculateCIT({
+          turnover: input.revenue,
+          taxableProfit: Math.max(0, input.revenue - input.expenses),
+          devLevyApplies: (input.digitalIncome ?? 0) > 0,
+        });
         return reply.send({ success: true, data: result });
       } catch (err: any) {
         return reply.status(400).send({ success: false, error: err.message });
@@ -178,7 +186,18 @@ export default async function taxRoutes(app: FastifyInstance) {
     async (req, reply) => {
       try {
         const input = req.body as z.infer<typeof CGTBodySchema>;
-        const result = calculateCGT(input);
+        const assetType: CGTInput['assetType'] =
+          input.assetType === 'shares' ||
+          input.assetType === 'property' ||
+          input.assetType === 'crypto' ||
+          input.assetType === 'other'
+            ? input.assetType
+            : 'other';
+        const result = calculateCGT({
+          proceeds: input.proceeds,
+          costBasis: input.costBasis,
+          assetType,
+        });
         return reply.send({ success: true, data: result });
       } catch (err: any) {
         return reply.status(400).send({ success: false, error: err.message });
@@ -201,7 +220,20 @@ export default async function taxRoutes(app: FastifyInstance) {
     async (req, reply) => {
       try {
         const input = req.body as z.infer<typeof WHTBodySchema>;
-        const result = calculateWHT(input);
+        const categoryMap: Record<z.infer<typeof WHTBodySchema>['type'], WHTInput['category']> = {
+          dividend: 'dividends',
+          interest: 'interest',
+          rent: 'rent',
+          royalty: 'royalties',
+          consultancy: 'consultancy',
+          construction: 'contracts',
+          contractServices: 'contracts',
+          professionalFees: 'consultancy',
+        };
+        const result = calculateWHT({
+          amount: input.amount,
+          category: categoryMap[input.type],
+        });
         return reply.send({ success: true, data: result });
       } catch (err: any) {
         return reply.status(400).send({ success: false, error: err.message });

@@ -10,41 +10,15 @@
  */
 
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import jwt from 'jsonwebtoken';
 import { successResponse, errorResponse } from '../../lib/api-envelope';
-import { getPrismaClient } from '../../lib/prisma';
-import { getRedisConnection } from '../../queue/client';
+import { prisma } from '../../lib/prisma';
+import { redis } from '../../lib/redis';
 import {
   detectExpenseAnomalies,
   forecastQuarterlyTax,
   computeTaxHealthScore,
   getPillarScores,
 } from '../../services/tax-intelligence';
-import { createLogger } from '../../lib/logger';
-
-const log = createLogger('v2-intelligence');
-const prisma = getPrismaClient();
-
-// ─── Auth ─────────────────────────────────────────────────────────────────────
-
-async function authenticate(req: FastifyRequest, reply: FastifyReply) {
-  const authHeader = typeof req.headers?.authorization === 'string'
-    ? req.headers.authorization : '';
-  if (!authHeader.startsWith('Bearer ')) {
-    return reply.code(401).send(errorResponse('Unauthorized', 'AUTH_REQUIRED'));
-  }
-  const token = authHeader.replace(/^Bearer\s+/i, '').trim();
-  const secrets = [process.env.JWT_SECRET, process.env.JWT_SECRET_PREVIOUS].filter(Boolean) as string[];
-  let userId: string | undefined;
-  for (const secret of secrets) {
-    try {
-      const decoded = jwt.verify(token, secret) as { userId?: string };
-      if (decoded?.userId) { userId = decoded.userId; break; }
-    } catch { /* try next */ }
-  }
-  if (!userId) return reply.code(401).send(errorResponse('Invalid or expired token', 'AUTH_INVALID'));
-  (req as any).user = { id: userId };
-}
 
 // ─── Routes ──────────────────────────────────────────────────────────────────
 
@@ -52,9 +26,9 @@ export default async function v2IntelligenceRoute(fastify: FastifyInstance) {
 
   // ── Anomalies with AI explanations and risk prioritization ────────────────
   fastify.get('/api/v2/intelligence/anomalies', {
-    preHandler: [authenticate],
+    preHandler: [fastify.authenticate],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    const userId = (request as any).user.id as string;
+    const userId = request.user.userId;
     const query = request.query as { days?: string; severity?: string };
     const lookbackDays = Math.min(Number(query.days) || 90, 365);
     const severityFilter = query.severity;
@@ -82,7 +56,7 @@ export default async function v2IntelligenceRoute(fastify: FastifyInstance) {
         lookbackDays,
       }, { requestId: request.id }));
     } catch (error) {
-      log.error('Failed to get anomalies', { userId, error });
+      request.log.error({ userId, error }, 'Failed to get anomalies');
       return reply.send(successResponse({
         anomalies: [],
         total: 0,
@@ -96,9 +70,9 @@ export default async function v2IntelligenceRoute(fastify: FastifyInstance) {
 
   // ── Quarterly forecast ─────────────────────────────────────────────────────
   fastify.get('/api/v2/intelligence/forecast', {
-    preHandler: [authenticate],
+    preHandler: [fastify.authenticate],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    const userId = (request as any).user.id as string;
+    const userId = request.user.userId;
 
     try {
       const forecast = await forecastQuarterlyTax(userId, prisma);
@@ -111,20 +85,19 @@ export default async function v2IntelligenceRoute(fastify: FastifyInstance) {
         deadlineRisk,
       }, { requestId: request.id }));
     } catch (error) {
-      log.error('Failed to compute forecast', { userId, error });
+      request.log.error({ userId, error }, 'Failed to compute forecast');
       return reply.code(500).send(errorResponse('Forecast unavailable', 'FORECAST_FAILED'));
     }
   });
 
   // ── Health score with trends ───────────────────────────────────────────────
   fastify.get('/api/v2/intelligence/health-score', {
-    preHandler: [authenticate],
+    preHandler: [fastify.authenticate],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    const userId = (request as any).user.id as string;
+    const userId = request.user.userId;
 
     try {
       // P10: Redis cache for health score (60s TTL — lower than dashboard composite)
-      const redis = getRedisConnection();
       const cacheKey = `intelligence:health:${userId}`;
       try {
         const cached = redis ? await redis.get(cacheKey) : null;
@@ -180,16 +153,16 @@ export default async function v2IntelligenceRoute(fastify: FastifyInstance) {
       reply.header('X-Cache', 'MISS');
       return reply.send(successResponse(payload, { requestId: request.id }));
     } catch (error) {
-      log.error('Failed to compute health score', { userId, error });
+      request.log.error({ userId, error }, 'Failed to compute health score');
       return reply.code(500).send(errorResponse('Health score unavailable', 'HEALTH_SCORE_FAILED'));
     }
   });
 
   // ── Trends endpoint (CF-05) ─────────────────────────────────────────────────
   fastify.get('/api/v2/intelligence/trends', {
-    preHandler: [authenticate],
+    preHandler: [fastify.authenticate],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    const userId = (request as any).user.id as string;
+    const userId = request.user.userId;
     const query = request.query as { days?: string };
     const days = Math.min(Number(query.days) || 30, 90);
 
@@ -230,7 +203,7 @@ export default async function v2IntelligenceRoute(fastify: FastifyInstance) {
         period: { days, from: sinceDate.toISOString().split('T')[0] },
       }, { requestId: request.id }));
     } catch (error) {
-      log.error('Failed to get trend data', { userId, error });
+      request.log.error({ userId, error }, 'Failed to get trend data');
       return reply.send(successResponse({
         snapshots: [],
         period: { days, from: new Date().toISOString().split('T')[0] },

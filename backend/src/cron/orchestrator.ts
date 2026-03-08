@@ -1,234 +1,230 @@
 /**
- * Cron Orchestrator — TaxBridge V12
+ * Cron Orchestrator — TaxBridge V13 Sovereign
  *
- * Central registry of ALL scheduled jobs.
- * Exactly 7 jobs — as required by V12 spec §10.
+ * Exactly 7 jobs registered — no setInterval anywhere else.
+ * registerCronJobs(fastify) called from server.ts onReady hook.
  *
- * Rules:
- *   - NO scattered setInterval() allowed anywhere else in the codebase.
- *   - All timing uses node-cron schedule strings (WAT = UTC+1).
- *   - Each job has a name, schedule, and isolated error handling.
- *   - A failed job logs + Sentry but NEVER crashes the server.
+ * All times are WAT (UTC+1). Pass { timezone: 'Africa/Lagos' } to node-cron.
  *
  * Jobs:
- *   1. taxHealthSnapshot   — daily at 03:00 WAT (02:00 UTC)
- *   2. riskScoringUpdate   — every 6 hours
- *   3. deadlineReminders   — daily at 08:00 WAT (07:00 UTC)
- *   4. nrsStampRetry       — every hour
- *   5. sessionCleanup      — daily at 00:00 WAT (23:00 UTC prev day)
- *   6. dlqMonitor          — every 15 minutes
- *   7. keepAlive           — every 10 minutes (Render cold-start prevention)
+ *   1. riskScoringCron       — Daily 04:00 WAT
+ *   2. snapshotCron          — Daily 04:30 WAT
+ *   3. snapshotPruneCron     — Weekly Sunday 03:00 WAT
+ *   4. deadlineCron          — Daily 07:00 WAT
+ *   5. queueHealthCron       — Every 5 min (monitor + alert only — NEVER re-enqueue)
+ *   6. dlqMonitorCron        — Every 15 min
+ *   7. sessionCleanupCron    — Daily 02:00 WAT
+ *
+ * CRITICAL: queueHealthCron only monitors and alerts — must NEVER call
+ * queue.add() or job.retry() directly, as BullMQ handles retries automatically.
  */
+import cron                 from 'node-cron';
+import * as Sentry          from '@sentry/node';
+import { FastifyInstance }  from 'fastify';
+import { logger }           from '../lib/logger';
+import { prisma }           from '../lib/prisma';
+import { redis }            from '../lib/redis';
+import { nrsStampQueue }    from '../services/eventBus';
+import { computeRiskScore } from '../services/riskScoring';
+import { buildIntelligenceInput } from '../services/dashboardService';
 
-import cron from 'node-cron';
-import * as Sentry from '@sentry/node';
-import { createLogger } from '../lib/logger';
-import { prisma } from '../lib/prisma';
-import { getRedisConnection } from '../queue/client';
+// All times in WAT (Africa/Lagos = UTC+1)
+const WAT = { timezone: 'Africa/Lagos' } as const;
 
-const log = createLogger('cron-orchestrator');
-
-// ─── Type helpers ─────────────────────────────────────────────────────────────
-
-interface CronJob {
-  name:     string;
-  schedule: string;
-  handler:  () => Promise<void>;
-}
-
-function safe(name: string, fn: () => Promise<void>): () => Promise<void> {
-  return async () => {
+function safe(name: string, fn: () => Promise<void>): () => void {
+  return () => {
     const t0 = Date.now();
-    try {
-      await fn();
-      log.info('Cron job completed', { job: name, ms: Date.now() - t0 });
-    } catch (err) {
-      Sentry.captureException(err, { extra: { cronJob: name } });
-      log.error('Cron job failed — continuing', { err, job: name });
-    }
+    fn()
+      .then(() => logger.info({ job: name, ms: Date.now() - t0 }, 'Cron job completed'))
+      .catch(err => {
+        Sentry.captureException(err, { extra: { cronJob: name } });
+        logger.error({ err, job: name }, 'Cron job failed — continuing');
+      });
   };
 }
 
-// ─── Job 1: Tax health snapshot ───────────────────────────────────────────────
-// 03:00 WAT = 02:00 UTC (spec §10: "0 3 * * * WAT")
-
-async function taxHealthSnapshot(): Promise<void> {
-  log.info('Running tax health snapshot');
-  const orgs = await (prisma as any).org.findMany({
-    where:   { isActive: true },
-    select:  { id: true },
-    take:    500,
-  });
+// ─── Job 1: riskScoringCron — Daily 04:00 WAT ────────────────────────────────
+async function riskScoringCron(): Promise<void> {
+  logger.info('riskScoringCron: starting');
+  const orgs: any[] = await (prisma as any).organisation?.findMany({
+    where:  { status: 'ACTIVE' },
+    select: { id: true },
+    take:   1000,
+  }).catch(() => []) ?? [];
 
   for (const org of orgs) {
-    await (prisma as any).taxHealthSnapshot.upsert({
-      where:  { orgId_period: { orgId: org.id, period: _periodKey() } },
-      create: {
-        orgId:     org.id,
-        period:    _periodKey(),
-        score:     0,   // populated by risk scoring job
-        createdAt: new Date(),
-      },
-      update: { updatedAt: new Date() },
-    }).catch(() => {/* non-critical */});
+    try {
+      const input = await buildIntelligenceInput(org.id, 'system');
+      const result = computeRiskScore(input);
+      const scoreVal: number = typeof result === 'number' ? result : (result as any).score ?? 50;
+      const band = scoreVal >= 70 ? 'low' : scoreVal >= 40 ? 'medium' : 'high';
+      const existing = await (prisma as any).sMERiskRecord?.findFirst({
+        where:  { orgId: org.id },
+        select: { id: true },
+      }).catch(() => null);
+      if (existing?.id) {
+        await (prisma as any).sMERiskRecord?.update({
+          where: { id: existing.id },
+          data: { score: Math.round(scoreVal), band, computedAt: new Date() },
+        });
+      } else {
+        await (prisma as any).sMERiskRecord?.create({
+          data: { orgId: org.id, score: Math.round(scoreVal), band, anomalyScore: 0, computedAt: new Date() },
+        });
+      }
+    } catch { /* non-critical per org */ }
   }
-  log.info('Tax health snapshots upserted', { orgCount: orgs.length });
+
+  logger.info({ orgCount: orgs.length }, 'riskScoringCron: completed');
 }
 
-// ─── Job 2: Risk scoring update ───────────────────────────────────────────────
-// Every 6 hours — keeps risk scores fresh without hammering DB
+// ─── Job 2: snapshotCron — Daily 04:30 WAT ───────────────────────────────────
+async function snapshotCron(): Promise<void> {
+  logger.info('snapshotCron: starting');
+  const period = _periodKey();
+  const orgs: any[] = await (prisma as any).organisation?.findMany({
+    where:  { status: 'ACTIVE' },
+    select: { id: true },
+    take:   1000,
+  }).catch(() => []) ?? [];
 
-async function riskScoringUpdate(): Promise<void> {
-  log.info('Risk scoring batch update — starting');
-  // Build intelligence input and recompute scores in batches
-  // Full implementation deferred to riskScoringCron.ts integration
-  // This job triggers the queue so work is distributed
-  const redis = getRedisConnection();
-  if (!redis) { log.warn('Redis unavailable — skipping risk scoring queue'); return; }
-  await redis.lpush('jobs:risk-scoring', JSON.stringify({ triggeredAt: new Date().toISOString() }));
-  log.info('Risk scoring update queued');
+  for (const org of orgs) {
+    await (prisma as any).taxHealthSnapshot?.create({
+      data: { orgId: org.id, period, score: 0, createdAt: new Date() },
+    }).catch(() => {/* skip if exists — no updatedAt on this model */});
+  }
+
+  logger.info({ orgCount: orgs.length, period }, 'snapshotCron: completed');
 }
 
-// ─── Job 3: Deadline reminders ────────────────────────────────────────────────
-// 08:00 WAT = 07:00 UTC daily
+// ─── Job 3: snapshotPruneCron — Weekly Sunday 03:00 WAT ──────────────────────
+async function snapshotPruneCron(): Promise<void> {
+  logger.info('snapshotPruneCron: starting');
+  const cutoff = new Date();
+  cutoff.setMonth(cutoff.getMonth() - 24);
 
-async function deadlineReminders(): Promise<void> {
-  log.info('Deadline reminder job started');
-  // Fetch upcoming deadlines in next 7 days
-  const in7Days  = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-  const filings  = await (prisma as any).taxFiling.findMany({
-    where: {
-      status:       'DRAFT',
-      deadlineDate: { lte: in7Days, gte: new Date() },
-    },
-    select:  { id: true, orgId: true, taxType: true, period: true, deadlineDate: true },
-    take:    500,
-  });
+  const result = await (prisma as any).taxHealthSnapshot?.deleteMany({
+    where: { createdAt: { lt: cutoff } },
+  }).catch(() => ({ count: 0 })) ?? { count: 0 };
 
-  const redis = getRedisConnection();
-  if (!redis) { log.warn('Redis unavailable — skipping deadline reminders'); return; }
-  for (const f of filings) {
-    const jKey = `deadline-reminder:${f.id}`;
-    const sent = await redis.get(jKey);
-    if (!sent) {
-      await redis.lpush('jobs:deadline-notify', JSON.stringify(f));
-      await redis.set(jKey, '1', 'EX', 86_400); // don't remind twice in 24h
+  logger.info({ deleted: result.count }, 'snapshotPruneCron: pruned snapshots > 24 months');
+}
+
+// ─── Job 4: deadlineCron — Daily 07:00 WAT ───────────────────────────────────
+async function deadlineCron(): Promise<void> {
+  logger.info('deadlineCron: starting');
+  // Generate upcoming ComplianceEvent reminders
+  const orgs: any[] = await (prisma as any).organisation?.findMany({
+    where:  { status: 'ACTIVE' },
+    select: { id: true },
+    take:   1000,
+  }).catch(() => []) ?? [];
+
+  const upcomingDeadlines = getUpcomingDeadlines();
+
+  for (const org of orgs) {
+    for (const deadline of upcomingDeadlines) {
+      await (prisma as any).complianceEvent?.upsert({
+        where:  { orgId_taxType_period: { orgId: org.id, taxType: deadline.taxType, period: deadline.period } },
+        create: { orgId: org.id, ...deadline, status: 'upcoming', createdAt: new Date() },
+        update: { deadline: deadline.deadline, status: 'upcoming' },
+      }).catch(() => {});
     }
   }
-  log.info('Deadline reminders queued', { count: filings.length });
+
+  logger.info({ orgCount: orgs.length, deadlineCount: upcomingDeadlines.length }, 'deadlineCron: completed');
 }
 
-// ─── Job 4: NRS stamp retry ───────────────────────────────────────────────────
-// Every hour — retries invoices stuck in UNSTAMPED state
+// ─── Job 5: queueHealthCron — Every 5 min (MONITOR ONLY) ─────────────────────
+// CRITICAL: NEVER calls queue.add() or job.retry() — BullMQ handles retries.
+async function queueHealthCron(): Promise<void> {
+  const nrsDepth = await nrsStampQueue.getWaitingCount().catch(() => 0);
 
-async function nrsStampRetry(): Promise<void> {
-  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-  const unstamped    = await (prisma as any).invoice.findMany({
-    where:  { status: 'UNSTAMPED', createdAt: { gte: sevenDaysAgo } },
-    select: { id: true, orgId: true },
-    take:   50,
-  });
-
-  if (unstamped.length === 0) return;
-
-  const redis = getRedisConnection();
-  if (!redis) { log.warn('Redis unavailable — skipping NRS stamp retry'); return; }
-  for (const inv of unstamped) {
-    await redis.lpush('jobs:nrs-stamp-retry', JSON.stringify(inv));
-  }
-  log.info('NRS stamp retry jobs queued', { count: unstamped.length });
-}
-
-// ─── Job 5: Session cleanup ───────────────────────────────────────────────────
-// 00:00 WAT = 23:00 UTC (prev day)
-
-async function sessionCleanup(): Promise<void> {
-  const result = await (prisma as any).userSession.deleteMany({
-    where: { expiresAt: { lt: new Date() } },
-  });
-  log.info('Expired sessions cleaned up', { deleted: result.count });
-}
-
-// ─── Job 6: DLQ monitor ───────────────────────────────────────────────────────
-// Every 15 minutes — alert if DLQ depth exceeds threshold
-
-const DLQ_ALERT_THRESHOLD = 10;
-
-async function dlqMonitor(): Promise<void> {
-  const redis = getRedisConnection();
-  if (!redis) { log.warn('Redis unavailable — skipping DLQ monitor'); return; }
-  const dlqLen = await redis.llen('bull:pdf-generation:failed');
-  if (dlqLen > DLQ_ALERT_THRESHOLD) {
-    Sentry.captureMessage(`DLQ depth critical: ${dlqLen} failed PDF jobs`, { level: 'error' });
-    log.error('DLQ depth exceeds threshold', { dlqLen });
+  if (nrsDepth > 50) {
+    Sentry.captureMessage(`NRS stamp queue depth critical: ${nrsDepth}`, { level: 'warning' });
+    logger.warn({ nrsDepth }, 'queueHealthCron: nrs-stamp queue depth > 50');
   } else {
-    log.debug('DLQ monitor check passed', { dlqLen });
+    logger.debug({ nrsDepth }, 'queueHealthCron: nrs-stamp depth OK');
   }
 }
 
-// ─── Job 7: Keep-alive ────────────────────────────────────────────────────────
-// Every 10 minutes — prevents Render free-tier cold starts
+// ─── Job 6: dlqMonitorCron — Every 15 min ────────────────────────────────────
+async function dlqMonitorCron(): Promise<void> {
+  const dlqCount = await (prisma as any).dLQJob?.count({
+    where: { status: 'FAILED' },
+  }).catch(() => 0) ?? 0;
 
-async function keepAlive(): Promise<void> {
-  const apiUrl = process.env.RENDER_EXTERNAL_URL || `http://localhost:${process.env.PORT || 10000}`;
-  try {
-    const res = await fetch(`${apiUrl}/api/v2/monitoring/health`, { signal: AbortSignal.timeout(5_000) });
-    log.debug('Keep-alive ping sent', { status: res.status });
-  } catch {
-    // Expected on shutdown — ignore
+  if (dlqCount > 10) {
+    Sentry.captureMessage(`DLQ count critical: ${dlqCount} failed jobs`, { level: 'error' });
+    logger.error({ dlqCount }, 'dlqMonitorCron: DLQ count > 10');
+  } else {
+    logger.debug({ dlqCount }, 'dlqMonitorCron: DLQ count OK');
   }
 }
 
-// ─── Registry (exactly 7) ─────────────────────────────────────────────────────
+// ─── Job 7: sessionCleanupCron — Daily 02:00 WAT ─────────────────────────────
+async function sessionCleanupCron(): Promise<void> {
+  logger.info('sessionCleanupCron: starting');
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 7);
 
-const JOBS: CronJob[] = [
-  { name: 'taxHealthSnapshot', schedule: '0 2 * * *',    handler: taxHealthSnapshot },   // 02:00 UTC = 03:00 WAT
-  { name: 'riskScoringUpdate', schedule: '0 */6 * * *',  handler: riskScoringUpdate },
-  { name: 'deadlineReminders', schedule: '0 7 * * *',    handler: deadlineReminders },   // 07:00 UTC = 08:00 WAT
-  { name: 'nrsStampRetry',     schedule: '0 * * * *',    handler: nrsStampRetry     },   // every hour
-  { name: 'sessionCleanup',    schedule: '0 23 * * *',   handler: sessionCleanup    },   // 23:00 UTC = 00:00 WAT
-  { name: 'dlqMonitor',        schedule: '*/15 * * * *', handler: dlqMonitor        },   // every 15 min
-  { name: 'keepAlive',         schedule: '*/10 * * * *', handler: keepAlive         },   // every 10 min
-];
+  const result = await (prisma as any).refreshToken?.deleteMany({
+    where: { expiresAt: { lt: cutoff } },
+  }).catch(() => ({ count: 0 })) ?? { count: 0 };
 
-// ─── Start / stop ─────────────────────────────────────────────────────────────
+  logger.info({ deleted: result.count }, 'sessionCleanupCron: pruned expired refresh tokens');
+}
+
+// ─── Registry ─────────────────────────────────────────────────────────────────
 
 const _tasks: ReturnType<typeof cron.schedule>[] = [];
 
-/**
- * Start all 7 cron jobs.
- * Call once during server startup.
- * safe() wrapper ensures individual job failures are isolated.
- */
-export function startCronOrchestrator(): void {
+export function registerCronJobs(_fastify: FastifyInstance): void {
   if (_tasks.length > 0) {
-    log.warn('startCronOrchestrator called more than once — skipping duplicate start');
+    logger.warn('registerCronJobs called more than once — skipping');
     return;
   }
 
-  for (const job of JOBS) {
-    const task = cron.schedule(job.schedule, safe(job.name, job.handler), {
-      timezone: 'UTC', // All schedules specified in UTC
-    });
-    _tasks.push(task);
-    log.info('Cron job registered', { job: job.name, schedule: job.schedule });
-  }
+  // Exactly 7 calls below — CI gate verifies this count
+  _tasks.push(cron.schedule('0 4 * * *',    safe('riskScoringCron',    riskScoringCron),    WAT));
+  _tasks.push(cron.schedule('30 4 * * *',   safe('snapshotCron',       snapshotCron),       WAT));
+  _tasks.push(cron.schedule('0 3 * * 0',    safe('snapshotPruneCron',  snapshotPruneCron),  WAT));
+  _tasks.push(cron.schedule('0 7 * * *',    safe('deadlineCron',       deadlineCron),       WAT));
+  _tasks.push(cron.schedule('*/5 * * * *',  safe('queueHealthCron',    queueHealthCron),    WAT));
+  _tasks.push(cron.schedule('*/15 * * * *', safe('dlqMonitorCron',     dlqMonitorCron),     WAT));
+  _tasks.push(cron.schedule('0 2 * * *',    safe('sessionCleanupCron', sessionCleanupCron), WAT));
 
-  log.info(`Cron orchestrator started with ${_tasks.length} jobs`, { count: _tasks.length });
+  logger.info({ count: _tasks.length }, 'Cron orchestrator started — 7 jobs registered');
 }
 
-/** Graceful shutdown of all cron jobs. */
 export function stopCronOrchestrator(): void {
-  for (const task of _tasks) {
-    task.stop();
-  }
+  for (const task of _tasks) task.stop();
   _tasks.length = 0;
-  log.info('Cron orchestrator stopped');
+  logger.info('Cron orchestrator stopped');
 }
+
+// Legacy compat
+export const startCronOrchestrator = registerCronJobs as any;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function _periodKey(): string {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function getUpcomingDeadlines(): Array<{ taxType: string; period: string; deadline: string; description: string }> {
+  const now   = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const year  = now.getFullYear();
+  const period = `${year}-${month}`;
+
+  const vatDeadline  = new Date(year, now.getMonth() + 1, 21).toISOString();
+  const payeDeadline = new Date(year, now.getMonth() + 1, 10).toISOString();
+
+  return [
+    { taxType: 'VAT',  period, deadline: vatDeadline,  description: 'Monthly VAT return due' },
+    { taxType: 'PAYE', period, deadline: payeDeadline, description: 'Monthly PAYE remittance due' },
+    { taxType: 'WHT',  period, deadline: vatDeadline,  description: 'Monthly WHT remittance due' },
+  ];
 }

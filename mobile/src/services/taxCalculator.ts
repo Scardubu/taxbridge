@@ -8,13 +8,10 @@ import {
   RENT_RELIEF_RATE,
   PENSION_RATE,
   NHF_RATE,
-  CRA_FIXED,
-  CRA_PERCENTAGE,
-  CRA_MIN_PERCENTAGE,
   MINIMUM_WAGE_ANNUAL,
   CIT_TIERS,
   VAT_REGISTRATION_THRESHOLD,
-} from '@taxbridge/contracts';
+} from '../../../packages/contracts/src/tax-rules';
 
 export interface PITInputs {
   annualGrossIncome: number;
@@ -111,15 +108,10 @@ export function calculatePIT(inputs: PITInputs): PITResult {
   const lifeInsuranceRelief = lifeInsurance || 0;
   const housingLoanRelief = housingLoanInterest || 0;
 
-  // CRA per Section 33(1): higher of (1% of gross) OR (₦200,000 + 20% of gross)
-  const cra = Math.max(
-    annualGrossIncome * CRA_MIN_PERCENTAGE,
-    CRA_FIXED + annualGrossIncome * CRA_PERCENTAGE,
-  );
+  const rentBasedRelief = calculateRentRelief(annualRent);
 
   const totalDeductions =
-    cra +
-    rentRelief +
+    rentBasedRelief +
     nhfDeduction +
     pensionDeduction +
     nhisDeduction +
@@ -162,7 +154,7 @@ export function calculatePIT(inputs: PITInputs): PITResult {
 
   return {
     grossIncome: annualGrossIncome,
-    rentRelief,
+    rentRelief: rentBasedRelief,
     pensionDeduction,
     nhfDeduction,
     nhisDeduction,

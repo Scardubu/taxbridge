@@ -1,18 +1,17 @@
 /**
- * Audit Service — TaxBridge V12
+ * Audit Service — TaxBridge V13 Sovereign
  *
  * Immutable audit event writer.
- * AuditEvent records are append-only; no updates or deletes (regulatory).
+ * AuditEvent records are append-only; no updates or deletes.
  *
- * C-01: Uses (prisma as any) pattern — no Prisma typed helpers.
- * C-07: Never throws — swallows all errors to prevent audit failures
- *        from crashing the application.
+ * C-25: Callers should await writeAuditEvent(...).
+ * C-07: This function never throws; audit failures must not crash requests.
  */
 
-import { createLogger } from '../lib/logger';
-import { getPrismaClient } from '../lib/prisma';
+import { logger } from '../lib/logger';
+import { prisma } from '../lib/prisma';
 
-const log = createLogger('audit');
+const auditLogger = logger.child({ service: 'audit' });
 
 /**
  * Extended audit event input — accepts both the canonical field names
@@ -53,7 +52,7 @@ export interface AuditEventInput {
 }
 
 /**
- * Write an immutable audit event. Fire-and-forget safe — never throws.
+ * Write an immutable audit event. Never throws.
  *
  * Accepts both the old two-argument form (prismaClient second arg) and
  * the new single-argument form that uses the global Prisma singleton.
@@ -67,8 +66,6 @@ export async function writeAuditEvent(
   _ignored?: unknown,
 ): Promise<void> {
   try {
-    const prisma = getPrismaClient();
-
     // Resolve canonical field names from either alias
     const resource   = input.resource   ?? input.targetType ?? null;
     const resourceId = input.resourceId ?? input.targetId   ?? null;
@@ -97,7 +94,6 @@ export async function writeAuditEvent(
       },
     });
   } catch (err) {
-    // Audit failures must NEVER crash the application (C-07).
-    log.error('writeAuditEvent failed', { err });
+    auditLogger.error({ err }, 'writeAuditEvent failed');
   }
 }

@@ -25,7 +25,7 @@ export default async function nrsQueueRoutes(fastify: FastifyInstance) {
    */
   fastify.post<{ Params: { invoiceId: string } }>(
     '/api/v1/nrs/requeue/:invoiceId',
-    { preHandler: [authenticate, requireRole('admin')] },
+    { preHandler: [authenticate, requireRole('ADMIN')] },
     async (req, reply) => {
       const { invoiceId } = req.params;
 

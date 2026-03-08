@@ -15,11 +15,10 @@
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import type { FastifyInstance } from 'fastify';
-import jwt from 'jsonwebtoken';
 
 import { ComplianceService } from '../services/compliance';
 import { runCompliancePreFlight } from '../services/compliancePreFlight';
-import { AuthenticationError, NotFoundError } from '../lib/errors';
+import { NotFoundError } from '../lib/errors';
 import { createLogger } from '../lib/logger';
 
 const log = createLogger('compliance-routes');
@@ -30,28 +29,6 @@ export default async function complianceRoutes(
 ) {
   const prisma = opts.prisma;
   const complianceService = new ComplianceService(prisma);
-
-  // =========================================================================
-  // Auth helper
-  // =========================================================================
-  async function authenticate(req: any): Promise<string> {
-    const authHeader = req.headers.authorization;
-    if (!authHeader?.startsWith('Bearer ')) {
-      throw new AuthenticationError('Missing or invalid authorization header');
-    }
-    const token = authHeader.slice(7);
-    try {
-      const secret = process.env.JWT_SECRET;
-      if (!secret) throw new Error('JWT_SECRET not configured');
-      const payload = jwt.verify(token, secret) as { sub?: string; userId?: string };
-      const userId = payload.sub || payload.userId;
-      if (!userId) throw new Error('Invalid token payload');
-      return userId;
-    } catch (err: any) {
-      if (err instanceof AuthenticationError) throw err;
-      throw new AuthenticationError('Invalid or expired token');
-    }
-  }
 
   // =========================================================================
   // Validation Schemas
@@ -77,8 +54,8 @@ export default async function complianceRoutes(
   // =========================================================================
   // POST /api/v1/compliance/generate — Generate reminders
   // =========================================================================
-  app.post('/api/v1/compliance/generate', async (req, reply) => {
-    const userId = await authenticate(req);
+  app.post('/api/v1/compliance/generate', { preHandler: [app.authenticate, app.resolveOrgContext] }, async (req, reply) => {
+    const userId = req.user.userId;
     const body = GenerateSchema.parse(req.body);
 
     try {
@@ -97,8 +74,8 @@ export default async function complianceRoutes(
   // =========================================================================
   // GET /api/v1/compliance/dashboard — Get compliance dashboard
   // =========================================================================
-  app.get('/api/v1/compliance/dashboard', async (req, reply) => {
-    const userId = await authenticate(req);
+  app.get('/api/v1/compliance/dashboard', { preHandler: [app.authenticate, app.resolveOrgContext] }, async (req, reply) => {
+    const userId = req.user.userId;
     const query = req.query as Record<string, string>;
 
     const businessId = query.businessId;
@@ -118,8 +95,8 @@ export default async function complianceRoutes(
   // =========================================================================
   // GET /api/v1/compliance/reminders — List reminders
   // =========================================================================
-  app.get('/api/v1/compliance/reminders', async (req, reply) => {
-    const userId = await authenticate(req);
+  app.get('/api/v1/compliance/reminders', { preHandler: [app.authenticate, app.resolveOrgContext] }, async (req, reply) => {
+    const userId = req.user.userId;
     const query = req.query as Record<string, string>;
 
     const businessId = query.businessId;
@@ -145,8 +122,8 @@ export default async function complianceRoutes(
   // =========================================================================
   // POST /api/v1/compliance/reminders — Create custom reminder
   // =========================================================================
-  app.post('/api/v1/compliance/reminders', async (req, reply) => {
-    const userId = await authenticate(req);
+  app.post('/api/v1/compliance/reminders', { preHandler: [app.authenticate, app.resolveOrgContext] }, async (req, reply) => {
+    const userId = req.user.userId;
     const body = CreateReminderSchema.parse(req.body);
 
     try {
@@ -174,8 +151,8 @@ export default async function complianceRoutes(
   // =========================================================================
   // POST /api/v1/compliance/reminders/:id/file — Mark as filed
   // =========================================================================
-  app.post('/api/v1/compliance/reminders/:id/file', async (req, reply) => {
-    const userId = await authenticate(req);
+  app.post('/api/v1/compliance/reminders/:id/file', { preHandler: [app.authenticate, app.resolveOrgContext] }, async (req, reply) => {
+    const userId = req.user.userId;
     const { id } = req.params as { id: string };
     const body = req.body ? FileReminderSchema.parse(req.body) : {};
 
@@ -204,8 +181,8 @@ export default async function complianceRoutes(
   // =========================================================================
   // POST /api/v1/compliance/reminders/:id/dismiss — Dismiss reminder
   // =========================================================================
-  app.post('/api/v1/compliance/reminders/:id/dismiss', async (req, reply) => {
-    const userId = await authenticate(req);
+  app.post('/api/v1/compliance/reminders/:id/dismiss', { preHandler: [app.authenticate, app.resolveOrgContext] }, async (req, reply) => {
+    const userId = req.user.userId;
     const { id } = req.params as { id: string };
 
     try {
@@ -244,8 +221,8 @@ export default async function complianceRoutes(
   // GET /api/v1/compliance/projected-liability
   app.get<{
     Querystring: { businessId: string; taxType?: string; periods?: string }
-  }>('/api/v1/compliance/projected-liability', async (req, reply) => {
-    const userId = await authenticate(req);
+  }>('/api/v1/compliance/projected-liability', { preHandler: [app.authenticate, app.resolveOrgContext] }, async (req, reply) => {
+    const userId = req.user.userId;
     const { businessId, taxType = 'VAT', periods = '3' } = req.query;
     if (!businessId) return reply.code(400).send({ success: false, error: 'businessId required' });
 
@@ -261,8 +238,8 @@ export default async function complianceRoutes(
   // POST /api/v1/compliance/smart-generate — Adaptive cadence reminder generation
   app.post<{
     Body: { businessId: string; monthsAhead?: number }
-  }>('/api/v1/compliance/smart-generate', async (req, reply) => {
-    const userId = await authenticate(req);
+  }>('/api/v1/compliance/smart-generate', { preHandler: [app.authenticate, app.resolveOrgContext] }, async (req, reply) => {
+    const userId = req.user.userId;
     const { businessId, monthsAhead = 3 } = req.body ?? {};
     if (!businessId) return reply.code(400).send({ success: false, error: 'businessId required' });
 
@@ -273,8 +250,9 @@ export default async function complianceRoutes(
   // GET /api/v1/compliance/savings-windows
   app.get<{ Querystring: { businessId: string } }>(
     '/api/v1/compliance/savings-windows',
+    { preHandler: [app.authenticate, app.resolveOrgContext] },
     async (req, reply) => {
-      const userId = await authenticate(req);
+      const userId = req.user.userId;
       const { businessId } = req.query;
       if (!businessId) return reply.code(400).send({ success: false, error: 'businessId required' });
 
@@ -286,8 +264,9 @@ export default async function complianceRoutes(
   // GET /api/v1/compliance/penalty-accrual
   app.get<{ Querystring: { businessId: string } }>(
     '/api/v1/compliance/penalty-accrual',
+    { preHandler: [app.authenticate, app.resolveOrgContext] },
     async (req, reply) => {
-      const userId = await authenticate(req);
+      const userId = req.user.userId;
       const { businessId } = req.query;
       if (!businessId) return reply.code(400).send({ success: false, error: 'businessId required' });
 
@@ -301,15 +280,12 @@ export default async function complianceRoutes(
   // GET /api/v1/filings/preflight?taxType=CIT&turnoverHint=95000000
   // =========================================================================
   app.get<{
-    Querystring: {
-      taxType: string;
-      turnoverHint?: string;
-      orgId?: string;
-    };
+    Querystring: { taxType?: string; turnoverHint?: string; orgId?: string }
   }>(
     '/api/v1/filings/preflight',
+    { preHandler: [app.authenticate, app.resolveOrgContext] },
     async (req, reply) => {
-      const userId = await authenticate(req);
+      const userId = req.user.userId;
       const { taxType, turnoverHint, orgId } = req.query;
 
       if (!taxType) {

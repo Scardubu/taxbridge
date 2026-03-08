@@ -43,7 +43,7 @@ describe('DashboardScreen visual tests', () => {
   });
 
   it('renders with default state', async () => {
-    const { toJSON, getByText } = render(<DashboardScreen navigation={mockNavigation} />);
+    const { toJSON } = render(<DashboardScreen />);
 
     // Advance timers to allow async data loading
     jest.advanceTimersByTime(1000);

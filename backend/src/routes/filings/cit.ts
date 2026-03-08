@@ -7,7 +7,7 @@
  * 8 steps on mobile: tax year → P&L → loss carry-forward → dev levy →
  * education tax → assessment summary → payment → receipt.
  *
- * Backend: authenticate + resolveOrgContext + requireRole('accountant') +
+ * Backend: authenticate + resolveOrgContext + requireRole('ACCOUNTANT') +
  * validate(CITSchema) + idempotency
  */
 
@@ -39,7 +39,7 @@ export default async function citFilingRoutes(app: FastifyInstance) {
 
   app.post(
     '/api/v1/filings/cit',
-    { preHandler: [authenticate, resolveTenant, requireRole('accountant'), idempotency()] },
+    { preHandler: [authenticate, resolveTenant, requireRole('ACCOUNTANT'), idempotency()] },
     async (req, reply) => {
       const parsed = CITSchema.safeParse(req.body);
       if (!parsed.success) {
@@ -63,7 +63,7 @@ export default async function citFilingRoutes(app: FastifyInstance) {
         });
       }
 
-      const result = calculateCIT({ turnover, profit, devLevyApplies, taxLossCarryforward });
+      const result = calculateCIT({ turnover, taxableProfit: profit, devLevyApplies, taxLossCarryforward });
 
       const warnings: string[] = [];
       if (turnover >= SMALL_CO_CIT_THRESHOLD * 0.9 && turnover < SMALL_CO_CIT_THRESHOLD) {

@@ -33,12 +33,25 @@ import * as Haptics from 'expo-haptics';
 
 import { apiClient } from '../../services/apiClient';
 import { useTheme } from '../../hooks/useTheme';
-import { COLORS, TYPOGRAPHY, SPACING, RADIUS } from '../../design-system/tokens';
+import { colors, typography, spacing, radii } from '../../design-system/tokens';
 import { formatNGN } from '../../design-system/ngn';
+import { ConfettiAnimation } from '../../components/shared/ConfettiAnimation';
+import { generateUuid } from '../../utils/uuid';
 
 // ─── Types ────────────────────────────────────────────────────────────────
 
 type WizardStep = 'period' | 'output' | 'input' | 'review' | 'confirm';
+
+type PreflightCheck = {
+  name: string;
+  status: 'pass' | 'warn' | 'fail';
+  message?: string;
+};
+
+type PreflightResult = {
+  pass: boolean;
+  checks: PreflightCheck[];
+};
 
 function currentPeriod(): string {
   const now = new Date();
@@ -84,31 +97,44 @@ export default function VATFilingScreen() {
   const [creditCarry, setCreditCarry] = useState(0);
   const [loading,     setLoading]     = useState(false);
   const [error,       setError]       = useState<string | null>(null);
-  const [preflight,   setPreflight]   = useState<{ pass: boolean; warnings: string[]; failures: string[] } | null>(null);
+  const [preflight,   setPreflight]   = useState<PreflightResult | null>(null);
+  const [showConfetti, setShowConfetti] = useState(false);
 
   const net        = outputVAT - inputVAT - creditCarry;
   const daysLeft   = useMemo(() => getDaysToVATDeadline(period), [period]);
   const isUrgent   = daysLeft <= 5;
   const isLate     = daysLeft < 0;
 
+  const PREFLIGHT_ERROR_MESSAGE = 'Could not run preflight checks.';
+
   // Preflight check before showing Submit CTA (§6.9)
   const runPreflight = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const res = await apiClient.get('/filings/preflight', { params: { taxType: 'VAT', period } });
-      setPreflight(res.data);
-      if (res.data.failures.length > 0) {
-        // Failures block submission
-        setError(res.data.failures.map((f: any) => f.message).join('; '));
+      const result = res.data as PreflightResult;
+      setPreflight(result);
+      if (!result.pass) {
+        const failures = result.checks.filter((check) => check.status === 'fail');
+        if (failures.length > 0) {
+          setError(failures.map((check) => check.message ?? check.name).join('; '));
+        }
         return false;
       }
       return true;
     } catch {
-      return true;  // If preflight fails, proceed (C-07: degrade gracefully)
+      const fallback = {
+        pass: false,
+        checks: [{ name: 'preflight', status: 'fail' as const, message: t('filing.preflight.error', PREFLIGHT_ERROR_MESSAGE) }],
+      };
+      setPreflight(fallback);
+      setError(t('filing.preflight.error', PREFLIGHT_ERROR_MESSAGE));
+      return false;
     } finally {
       setLoading(false);
     }
-  }, [period]);
+  }, [period, t]);
 
   const handleNext = useCallback(async () => {
     Haptics.selectionAsync();
@@ -147,13 +173,14 @@ export default function VATFilingScreen() {
     setLoading(true);
 
     try {
-      const idempotencyKey = `vat-${period}-${Date.now()}`;
+      const idempotencyKey = generateUuid();
       const res = await apiClient.post(
         '/filings/vat',
         { period, outputVAT, inputVAT },
         { headers: { 'X-Idempotency-Key': idempotencyKey } },
       );
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setShowConfetti(true);
       Alert.alert(
         t('filing.vat.successTitle', 'VAT Return Filed'),
         res.data.paymentRequired
@@ -178,6 +205,7 @@ export default function VATFilingScreen() {
       style={[s.root, { backgroundColor: colors.surface }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
+      {showConfetti && <ConfettiAnimation onFinish={() => setShowConfetti(false)} />}
       <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
         {/* Header */}
         <Animated.View entering={FadeInDown.duration(300)} style={s.header}>
@@ -243,9 +271,9 @@ export default function VATFilingScreen() {
                 isCredit={net < 0}
               />
             </View>
-            {preflight?.warnings.map((w: any, i: number) => (
+            {preflight?.checks.filter((check) => check.status === 'warn').map((warning, i: number) => (
               <View key={i} style={s.warningBanner}>
-                <Text style={s.warningText}>⚠️ {typeof w === 'string' ? w : w.message}</Text>
+                <Text style={s.warningText}>⚠️ {warning.message ?? warning.name}</Text>
               </View>
             ))}
           </Animated.View>
@@ -284,7 +312,7 @@ export default function VATFilingScreen() {
           ) : (
             <Pressable
               onPress={handleSubmit}
-              disabled={loading || (preflight?.failures.length ?? 0) > 0}
+              disabled={loading || preflight?.pass !== true}
               style={({ pressed }) => [s.btn, pressed && s.btnPressed, loading && s.btnDisabled]}
               accessibilityRole="button"
               accessibilityLabel={t('filing.vat.submit', 'Submit VAT Return')}
@@ -311,8 +339,8 @@ function SummaryRow({ label, value, isDeduction, isTotal, isCredit }: SummaryRow
       <Text style={[
         srStyles.value,
         isTotal && srStyles.totalValue,
-        isCredit && { color: COLORS.primary },
-        { color: isTotal ? (isCredit ? COLORS.primary : COLORS.danger) : colors.textPrimary },
+        isCredit && { color: colors.primary[500] },
+        { color: isTotal ? (isCredit ? colors.primary[500] : colors.error) : colors.textPrimary },
       ]}>
         {isDeduction ? '−' : ''}{formatNGN(Math.abs(value))}
       </Text>
@@ -321,43 +349,43 @@ function SummaryRow({ label, value, isDeduction, isTotal, isCredit }: SummaryRow
 }
 
 const srStyles = StyleSheet.create({
-  row:        { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: SPACING[8] },
-  label:      { fontSize: TYPOGRAPHY.sm },
-  value:      { fontSize: TYPOGRAPHY.sm, fontWeight: '600' },
-  totalLabel: { fontWeight: '700', fontSize: TYPOGRAPHY.base },
-  totalValue: { fontWeight: '700', fontSize: TYPOGRAPHY.base },
+  row:        { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: spacing[8] },
+  label:      { fontSize: typography.sizes.sm },
+  value:      { fontSize: typography.sizes.sm, fontWeight: '600' },
+  totalLabel: { fontWeight: '700', fontSize: typography.sizes.base },
+  totalValue: { fontWeight: '700', fontSize: typography.sizes.base },
 });
 
 // ─── Styles ───────────────────────────────────────────────────────────────
 
 const s = StyleSheet.create({
   root:   { flex: 1 },
-  scroll: { padding: SPACING[24], paddingBottom: SPACING[48] },
+  scroll: { padding: spacing[24], paddingBottom: spacing['2xl'] },
 
-  header:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: SPACING[24] },
-  title:       { fontSize: TYPOGRAPHY['2xl'], fontWeight: '700', flex: 1 },
-  deadlineBadge:{ paddingVertical: SPACING[4], paddingHorizontal: SPACING[8], borderRadius: RADIUS.sm },
+  header:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing[24] },
+  title:       { fontSize: typography.sizes['2xl'], fontWeight: '700', flex: 1 },
+  deadlineBadge:{ paddingVertical: spacing[4], paddingHorizontal: spacing[8], borderRadius: radii.sm },
   deadlineOk:  { backgroundColor: '#D1FAE5' },
   deadlineUrgent:{ backgroundColor: '#FEF3C7' },
   deadlineLate:{ backgroundColor: '#FEE2E2' },
-  deadlineText:{ fontSize: TYPOGRAPHY.xs, fontWeight: '700', color: '#1F2937' },
+  deadlineText:{ fontSize: typography.sizes.xs, fontWeight: '700', color: '#1F2937' },
 
-  stepLabel:   { fontSize: TYPOGRAPHY.base, fontWeight: '600', marginBottom: SPACING[8] },
-  hint:        { fontSize: TYPOGRAPHY.xs, marginBottom: SPACING[24], lineHeight: 18 },
-  confirmText: { fontSize: TYPOGRAPHY.base, lineHeight: 24, marginBottom: SPACING[24] },
+  stepLabel:   { fontSize: typography.sizes.base, fontWeight: '600', marginBottom: spacing[8] },
+  hint:        { fontSize: typography.sizes.xs, marginBottom: spacing[24], lineHeight: 18 },
+  confirmText: { fontSize: typography.sizes.base, lineHeight: 24, marginBottom: spacing[24] },
 
-  reviewCard:  { borderRadius: RADIUS.lg, borderWidth: 1, padding: SPACING[16], marginBottom: SPACING[16] },
-  divider:     { height: 1, backgroundColor: '#E5E7EB', marginVertical: SPACING[8] },
+  reviewCard:  { borderRadius: radii.lg, borderWidth: 1, padding: spacing[16], marginBottom: spacing[16] },
+  divider:     { height: 1, backgroundColor: '#E5E7EB', marginVertical: spacing[8] },
 
-  warningBanner: { backgroundColor: '#FEF3C7', borderRadius: RADIUS.md, padding: SPACING[12], marginBottom: SPACING[8] },
-  warningText:   { color: '#92400E', fontSize: TYPOGRAPHY.xs },
+  warningBanner: { backgroundColor: '#FEF3C7', borderRadius: radii.md, padding: spacing[12], marginBottom: spacing[8] },
+  warningText:   { color: '#92400E', fontSize: typography.sizes.xs },
 
-  errorBox:    { backgroundColor: '#FEF2F2', borderRadius: RADIUS.md, padding: SPACING[12], marginBottom: SPACING[16], borderWidth: 1, borderColor: '#FECACA' },
-  errorText:   { color: '#991B1B', fontSize: TYPOGRAPHY.sm },
+  errorBox:    { backgroundColor: '#FEF2F2', borderRadius: radii.md, padding: spacing[12], marginBottom: spacing[16], borderWidth: 1, borderColor: '#FECACA' },
+  errorText:   { color: '#991B1B', fontSize: typography.sizes.sm },
 
-  actions:     { marginTop: SPACING[24] },
-  btn:         { height: 52, backgroundColor: COLORS.primary, borderRadius: RADIUS.md, justifyContent: 'center', alignItems: 'center' },
+  actions:     { marginTop: spacing[24] },
+  btn:         { height: 52, backgroundColor: colors.primary[500], borderRadius: radii.md, justifyContent: 'center', alignItems: 'center' },
   btnPressed:  { opacity: 0.88, transform: [{ scale: 0.97 }] },
   btnDisabled: { opacity: 0.5 },
-  btnText:     { color: '#fff', fontSize: TYPOGRAPHY.base, fontWeight: '700' },
+  btnText:     { color: '#fff', fontSize: typography.sizes.base, fontWeight: '700' },
 });

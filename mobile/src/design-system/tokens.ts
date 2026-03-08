@@ -386,6 +386,12 @@ export type Theme = typeof theme;
 export type ColorToken = keyof typeof colors;
 export type SpacingToken = keyof typeof spacing;
 
+// ─── Uppercase Aliases (backward compatibility) ──────────────────────────────
+export const COLORS = colors;
+export const TYPOGRAPHY = typography;
+export const SPACING = spacing;
+export const RADIUS = radii;
+
 // ─── Dark Mode Theme ──────────────────────────────────────────────────────────
 
 export const darkTheme: Partial<Theme> = {

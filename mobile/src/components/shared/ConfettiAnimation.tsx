@@ -79,11 +79,11 @@ export const ConfettiAnimation: React.FC<ConfettiAnimationProps> = ({
     (isCancelled: boolean) => {
       if (isCancelled) return;
       opacity.value = withDelay(
-        DURATION.NORMAL,
+        DURATION.standard,
         withSequence(
           withTiming(0, {
             duration: fadeOutDuration,
-            easing: EASE.STANDARD,
+            easing: EASE.enter,
           }),
         ),
       );
@@ -126,7 +126,7 @@ export const ConfettiAnimation: React.FC<ConfettiAnimationProps> = ({
     >
       <LottieView
         ref={lottieRef}
-        source={animationSource as Parameters<typeof LottieView>[0]['source']}
+        source={animationSource as any}
         autoPlay={autoPlay}
         loop={loop}
         onAnimationFinish={handleFinish}

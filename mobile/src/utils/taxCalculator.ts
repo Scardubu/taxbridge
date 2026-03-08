@@ -2,7 +2,8 @@
 // Nigeria Tax Act 2025 - Personal Income Tax Bands
 // Now using canonical rules from @taxbridge/contracts
 
-import { PIT_BRACKETS, RENT_RELIEF_CAP, RENT_RELIEF_RATE, PENSION_RATE, NHF_RATE, CIT_TIERS, VAT_RATE, VAT_REGISTRATION_THRESHOLD } from '@taxbridge/contracts';
+import { VAT_RATE } from '../../../packages/contracts/src/constants';
+import { PIT_BRACKETS, RENT_RELIEF_CAP, RENT_RELIEF_RATE, PENSION_RATE, NHF_RATE, CIT_TIERS, VAT_REGISTRATION_THRESHOLD } from '../../../packages/contracts/src/tax-rules';
 
 export interface PITBand {
   limit: number;
@@ -169,22 +170,24 @@ export interface CITRateResult {
 }
 
 export function checkCITRate(annualTurnover: number): CITRateResult {
-  if (annualTurnover <= 25_000_000) {
+  const [smallTier, mediumTier, largeTier] = CIT_TIERS;
+
+  if (annualTurnover <= smallTier.maxRevenue) {
     return {
-      rate: 0,
+      rate: smallTier.rate,
       descriptionCode: 'small',
       bracket: 'small',
     };
   }
-  if (annualTurnover <= 100_000_000) {
+  if (annualTurnover <= mediumTier.maxRevenue) {
     return {
-      rate: 0.20,
+      rate: mediumTier.rate,
       descriptionCode: 'medium',
       bracket: 'medium',
     };
   }
   return {
-    rate: 0.30,
+    rate: largeTier.rate,
     descriptionCode: 'large',
     bracket: 'large',
   };

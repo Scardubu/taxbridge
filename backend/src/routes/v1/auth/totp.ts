@@ -23,17 +23,14 @@ import { z } from 'zod';
 import * as OTPAuth from 'otpauth';
 import bcrypt from 'bcryptjs';
 import * as Sentry from '@sentry/node';
-import { createLogger } from '../../../lib/logger';
 import { prisma } from '../../../lib/prisma';
-import { getRedisConnection } from '../../../queue/client';
+import { redis } from '../../../lib/redis';
 import { writeAuditEvent } from '../../../services/audit';
 
 import crypto from 'node:crypto';
 
-const log = createLogger('totp-routes');
-
 const TOTP_ISSUER  = 'TaxBridge';
-const BCRYPT_COST  = 10;
+const BCRYPT_COST  = 12;
 const BACKUP_COUNT = 8;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -63,7 +60,9 @@ const totpRoutes: FastifyPluginAsync = async (fastify) => {
   // Generates a TOTP secret and returns the provisioning URI for a QR code.
   // Does NOT activate 2FA until /verify succeeds.
 
-  fastify.post('/setup', async (request: FastifyRequest, reply: FastifyReply) => {
+  fastify.post('/setup', {
+    preHandler: [fastify.authenticate],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const userId = requireAuth(request, reply);
     if (!userId) return;
 
@@ -86,11 +85,11 @@ const totpRoutes: FastifyPluginAsync = async (fastify) => {
         update: { pendingSecret: secret },
       });
 
-      log.info('TOTP setup initiated', { userId });
+      request.log.info({ userId }, 'TOTP setup initiated');
       return reply.status(200).send({ secret, uri });
     } catch (err) {
       Sentry.captureException(err);
-      log.error('TOTP setup failed', { err, userId });
+      request.log.error({ err, userId }, 'TOTP setup failed');
       return reply.status(500).send({ error: 'Setup failed' });
     }
   });
@@ -101,13 +100,15 @@ const totpRoutes: FastifyPluginAsync = async (fastify) => {
 
   const VerifyBody = z.object({ token: z.string().length(6) });
 
-  fastify.post('/verify', async (request: FastifyRequest, reply: FastifyReply) => {
+  fastify.post('/verify', {
+    preHandler: [fastify.authenticate],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const userId = requireAuth(request, reply);
     if (!userId) return;
 
     const parsed = VerifyBody.safeParse(request.body);
     if (!parsed.success) {
-      return reply.status(400).send({ error: 'Token must be 6 digits', issues: parsed.error.issues });
+      return reply.status(400).send({ error: 'VALIDATION_ERROR', issues: parsed.error.issues });
     }
     const { token } = parsed.data;
 
@@ -140,24 +141,21 @@ const totpRoutes: FastifyPluginAsync = async (fastify) => {
       });
 
       // Mark session as 2FA-passed in Redis
-      const redis = getRedisConnection();
-      if (redis) {
-        await redis.set(`totp:${userId}`, '1', 'EX', 12 * 60 * 60); // 12h
-      }
+      await redis.setex(`totp:verified:${userId}`, 300, '1');
 
       await writeAuditEvent(
         { actorId: userId, action: 'TOTP_ACTIVATED', details: {} },
         prisma as any,
       );
 
-      log.info('2FA activated successfully', { userId });
+      request.log.info({ userId }, '2FA activated successfully');
       return reply.status(200).send({
         status:       'activated',
         backupCodes:  raw, // returned ONCE — never stored in plaintext
       });
     } catch (err) {
       Sentry.captureException(err);
-      log.error('TOTP verify failed', { err, userId });
+      request.log.error({ err, userId }, 'TOTP verify failed');
       return reply.status(500).send({ error: 'Verification failed' });
     }
   });
@@ -167,13 +165,15 @@ const totpRoutes: FastifyPluginAsync = async (fastify) => {
 
   const DisableBody = z.object({ token: z.string().min(6).max(8) });
 
-  fastify.post('/disable', async (request: FastifyRequest, reply: FastifyReply) => {
+  fastify.post('/disable', {
+    preHandler: [fastify.authenticate],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const userId = requireAuth(request, reply);
     if (!userId) return;
 
     const parsed = DisableBody.safeParse(request.body);
     if (!parsed.success) {
-      return reply.status(400).send({ error: 'Token required', issues: parsed.error.issues });
+      return reply.status(400).send({ error: 'VALIDATION_ERROR', issues: parsed.error.issues });
     }
     const { token } = parsed.data;
 
@@ -195,23 +195,20 @@ const totpRoutes: FastifyPluginAsync = async (fastify) => {
         data:  { active: false, secret: null, backupCodes: [], disabledAt: new Date() },
       });
 
-      const redis = getRedisConnection();
-      if (redis) {
-        await redis.del(`totp:${userId}`);
-        // C-44: role_version increment on TOTP disable (path 2 of 3)
-        await redis.del(`role_version:${userId}`);
-      }
+      await redis.del(`totp:verified:${userId}`);
+      // C-44: role_version increment on TOTP disable (path 2 of 3)
+      await redis.incr(`role_version:${userId}`);
 
       await writeAuditEvent(
         { actorId: userId, action: 'ROLE_CHANGE', details: { reason: 'totp_disabled' } },
         prisma as any,
       );
 
-      log.info('2FA disabled', { userId });
+      request.log.info({ userId }, '2FA disabled');
       return reply.status(200).send({ status: 'disabled' });
     } catch (err) {
       Sentry.captureException(err);
-      log.error('TOTP disable failed', { err, userId });
+      request.log.error({ err, userId }, 'TOTP disable failed');
       return reply.status(500).send({ error: 'Disable failed' });
     }
   });
@@ -221,13 +218,15 @@ const totpRoutes: FastifyPluginAsync = async (fastify) => {
 
   const BackupBody = z.object({ token: z.string().length(6) });
 
-  fastify.post('/backup', async (request: FastifyRequest, reply: FastifyReply) => {
+  fastify.post('/backup', {
+    preHandler: [fastify.authenticate],
+  }, async (request: FastifyRequest, reply: FastifyReply) => {
     const userId = requireAuth(request, reply);
     if (!userId) return;
 
     const parsed = BackupBody.safeParse(request.body);
     if (!parsed.success) {
-      return reply.status(400).send({ error: 'TOTP token required to regenerate backup codes', issues: parsed.error.issues });
+      return reply.status(400).send({ error: 'VALIDATION_ERROR', issues: parsed.error.issues });
     }
     const { token } = parsed.data;
 
@@ -252,11 +251,11 @@ const totpRoutes: FastifyPluginAsync = async (fastify) => {
         data:  { backupCodes: hashed },
       });
 
-      log.info('Backup codes regenerated', { userId });
+      request.log.info({ userId }, 'Backup codes regenerated');
       return reply.status(200).send({ backupCodes: raw }); // raw returned ONCE
     } catch (err) {
       Sentry.captureException(err);
-      log.error('Backup code regeneration failed', { err, userId });
+      request.log.error({ err, userId }, 'Backup code regeneration failed');
       return reply.status(500).send({ error: 'Regeneration failed' });
     }
   });

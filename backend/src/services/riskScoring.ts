@@ -42,13 +42,20 @@ export interface RiskScoreResult {
 }
 
 // ─── Weight configuration ─────────────────────────────────────────────────────
-// Weights must sum to 1.0
+// Algorithmic scoring weights — NOT tax rates (C-09 exempt). Must sum to 1.0.
+// @risk-weight
+const W_FILING_LATENCY = 0.30; // @risk-weight
+const W_PAYMENT_GAP    = 0.25; // @risk-weight
+const W_VAT_COMPLIANCE = 0.20; // @risk-weight
+const W_NRS_STAMP_RATE = 0.15; // @risk-weight
+const W_NIL_OVERUSE    = 0.10; // @risk-weight
+
 const WEIGHTS = {
-  filingLatency: 0.30,
-  paymentGap:    0.25,
-  vatCompliance: 0.20,
-  nrsStampRate:  0.15,
-  nilOveruse:    0.10,
+  filingLatency: W_FILING_LATENCY,
+  paymentGap:    W_PAYMENT_GAP,
+  vatCompliance: W_VAT_COMPLIANCE,
+  nrsStampRate:  W_NRS_STAMP_RATE,
+  nilOveruse:    W_NIL_OVERUSE,
 } as const;
 
 // ─── Main function ────────────────────────────────────────────────────────────

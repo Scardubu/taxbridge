@@ -87,10 +87,10 @@ export default async function payeFilingRoutes(app: FastifyInstance) {
       const computedEmployees = employees.map((emp: EmployeeInput) => {
         const rra           = calculateRRA(emp.rentPaid);
         const taxableIncome = Math.max(0, emp.grossIncome - rra - emp.pension - emp.nhf);
-        const pitResult     = calculatePIT(taxableIncome);
+        const pitResult     = calculatePIT({ grossIncome: taxableIncome });
 
         // Monthly PAYE = annual tax / 12
-        const annualTax     = pitResult.totalTax;
+        const annualTax     = pitResult.taxLiability;
         const monthlyPAYE   = Math.round(annualTax / 12);
         const takeHome      = Math.round(emp.grossIncome / 12) - monthlyPAYE;
 

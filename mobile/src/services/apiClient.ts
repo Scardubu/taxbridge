@@ -32,9 +32,6 @@ let _refreshInFlight: Promise<string | null> | null = null;
 // ─── Axios instance ───────────────────────────────────────────────────────────
 
 export const apiClient = axios.create({
-  get baseURL() {
-    return getApiBaseUrl();
-  },
   timeout: 15_000,
   headers: {
     'Content-Type': 'application/json',
@@ -46,6 +43,9 @@ export const apiClient = axios.create({
 
 apiClient.interceptors.request.use(
   async (config: InternalAxiosRequestConfig) => {
+    if (!config.baseURL) {
+      config.baseURL = await getApiBaseUrl();
+    }
     const token = await getAccessToken();
     if (token && config.headers) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -104,15 +104,16 @@ apiClient.interceptors.response.use(
 async function doRefreshToken(): Promise<string | null> {
   const refreshToken = await getRefreshToken();
   if (!refreshToken) return null;
+  const baseUrl = await getApiBaseUrl();
 
   const response = await axios.post<{ success: boolean; accessToken: string }>(
-    `${getApiBaseUrl()}/api/v1/auth/refresh`,
+    `${baseUrl}/api/v1/auth/refresh`,
     { refreshToken },
     { timeout: 15_000 },
   );
 
   if (response.data?.accessToken) {
-    await setAuthTokens(response.data.accessToken, refreshToken);
+    await setAuthTokens({ accessToken: response.data.accessToken, refreshToken });
     return response.data.accessToken;
   }
   return null;
@@ -152,9 +153,11 @@ export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       retry: (failureCount, error) => {
-        const err = error as ApiClientError;
+        const err = (error as ApiClientError | Error | undefined);
         // Never retry 401 / 403 / 404 — they won't self-heal
-        if ([401, 403, 404].includes(err?.status)) return false;
+        if (typeof err === 'object' && err !== null && 'status' in err) {
+          if ([401, 403, 404].includes((err as ApiClientError).status)) return false;
+        }
         return failureCount < 2;
       },
       retryDelay: (attemptIndex) => Math.min(1_000 * 2 ** attemptIndex, 10_000),

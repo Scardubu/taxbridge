@@ -258,3 +258,22 @@ function _periodKeyMonthsAgo(months: number): string {
   d.setMonth(d.getMonth() - months);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
+
+// ─── V13 FALLBACK_* constants (exported for dashboard route and admin) ────────
+
+export const FALLBACK_STATS = {
+  taxHealth:    { score: 0, trend: 'stable' as const, breakdown: { filing: 0, payment: 0, accuracy: 0, timeliness: 0 } },
+  riskScore:    50,
+  revenue:      { totalRevenue: 0, totalTax: 0, invoiceCount: 0, period: '' },
+};
+
+export const FALLBACK_ANOMALIES: never[] = [];
+
+export const FALLBACK_DEADLINES: Array<{ taxType: string; deadline: string; status: string; daysRemaining: number; description: string }> = [];
+
+export const FALLBACK_NRS_HEALTH = {
+  status:      'unknown' as const,
+  latencyMs:   0,
+  lastChecked: new Date(0).toISOString(),
+  circuitState: 'closed' as const,
+};

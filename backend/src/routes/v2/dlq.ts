@@ -1,220 +1,96 @@
 /**
- * TaxBridge — V12 APEX: DLQ Management Route
- * GET  /api/v2/admin/dlq        — list failed jobs (ADMIN+)
- * POST /api/v2/admin/dlq/:id/retry   — retry a specific job (require2FA if depth > 10)
- * POST /api/v2/admin/dlq/:id/resolve — mark a job as resolved / discarded
+ * DLQ Management Routes — TaxBridge V13 Sovereign
  *
- * All mutations write an OVERRIDE audit event.
- * Cursor-paginated via encodeCursor/decodeCursor from @taxbridge/contracts.
+ * Fastify plugin. prefix: '/api/v2'
+ * GET  /dlq           — list failed jobs (ADMIN+)
+ * POST /dlq/:id/retry — retry a specific job (require2FA if depth > 10)
+ * POST /dlq/:id/resolve — mark a job resolved
  */
+import { FastifyPluginAsync }   from 'fastify';
+import { requireRole }          from '../../plugins/requireRole';
+import { require2FA }           from '../../plugins/require2FA';
+import { prisma }               from '../../lib/prisma';
+import { writeAuditEvent }      from '../../services/audit';
 
-import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { encodeCursor, decodeCursor, type PaginatedResponse } from '@taxbridge/contracts';
-import { successResponse, errorResponse } from '../../lib/api-envelope';
-import { getPrismaClient } from '../../lib/prisma';
-import { getInvoiceSyncQueue, getPaymentQueue } from '../../queue/client';
-import { writeAuditEvent } from '../../services/audit';
-import { requireRole } from '../../middleware/requireRole';
-import { require2FA } from '../../middleware/require2FA';
-import { createLogger } from '../../lib/logger';
+const dlqRoutes: FastifyPluginAsync = async (fastify) => {
+  // GET /dlq — list DLQ jobs
+  fastify.get('/dlq', {
+    preHandler: [fastify.authenticate, requireRole('ADMIN')],
+  }, async (request, reply) => {
+    const cursor = (request.query as any).cursor;
+    const limit  = Math.min(parseInt((request.query as any).limit ?? '20', 10), 100);
 
-const log = createLogger('v2-dlq');
-const prisma = getPrismaClient();
+    const jobs = await (prisma as any).dLQJob?.findMany({
+      where:   cursor ? { id: { gt: cursor } } : {},
+      take:    limit + 1,
+      orderBy: { createdAt: 'desc' },
+    }).catch(() => []) ?? [];
 
-/** All queues that feed the DLQ view */
-const getQueues = () =>
-  [getInvoiceSyncQueue(), getPaymentQueue()].filter(Boolean);
+    const hasNext = jobs.length > limit;
+    const items   = hasNext ? jobs.slice(0, limit) : jobs;
 
-interface DlqJobSummary {
-  id: string;
-  queueName: string;
-  depth: number;
-  failedReason: string | null;
-  attemptsMade: number;
-  timestamp: number;
-  cursor: string;
-}
+    return reply.send({
+      data:    items,
+      meta:    { hasNextPage: hasNext, nextCursor: hasNext ? items[items.length - 1]?.id : null },
+    });
+  });
 
-export default async function v2DlqRoute(fastify: FastifyInstance) {
+  // POST /dlq/:id/retry
+  fastify.post('/dlq/:id/retry', {
+    preHandler: [fastify.authenticate, requireRole('ADMIN')],
+  }, async (request, reply) => {
+    const jobId = (request.params as any).id;
 
-  // ── GET /api/v2/admin/dlq ─────────────────────────────────────────────────
-  fastify.get(
-    '/api/v2/admin/dlq',
-    { preHandler: [requireRole('admin')] },
-    async (req: FastifyRequest, reply: FastifyReply) => {
-      try {
-        const { after, limit = '25' } = (req.query as Record<string, string>);
-        const pageSize = Math.min(parseInt(limit, 10) || 25, 100);
-        const cursor = after ? decodeCursor(after) : null;
+    // require2FA for bulk retry of > 10 jobs (here: single retry is unrestricted)
+    const dlqDepth = await (prisma as any).dLQJob?.count({ where: { status: 'FAILED' } }).catch(() => 0) ?? 0;
+    if (dlqDepth > 10) {
+      await require2FA(request, reply);
+      if (reply.sent) return;
+    }
 
-        const jobs: DlqJobSummary[] = [];
+    const job = await (prisma as any).dLQJob?.update({
+      where:  { id: jobId },
+      data: { status: 'RETRYING', retryAt: new Date() },
+    }).catch(() => null);
 
-        for (const queue of getQueues()) {
-          if (!queue) continue;
-          const failedJobs = await (queue as any).getFailed(0, 200);
-          for (const job of failedJobs) {
-            const createdAt = new Date(job.timestamp ?? Date.now());
-            // Apply cursor filter
-            if (cursor && createdAt <= cursor.createdAt) continue;
+    if (!job) return reply.code(404).send({ error: 'JOB_NOT_FOUND' });
 
-            jobs.push({
-              id: String(job.id),
-              queueName: (queue as any).name ?? 'unknown',
-              depth: job.attemptsMade ?? 0,
-              failedReason: job.failedReason ?? null,
-              attemptsMade: job.attemptsMade ?? 0,
-              timestamp: job.timestamp ?? 0,
-              cursor: encodeCursor(String(job.id), createdAt),
-            });
-          }
-        }
+    await writeAuditEvent({
+      actorId:  request.user.userId,
+      actorRole: request.orgContext?.role,
+      action:   'DLQ_RETRY',
+      resource: 'DLQJob',
+      resourceId: jobId,
+      ip:       request.ip,
+    });
 
-        // Sort descending by timestamp, take page
-        jobs.sort((a, b) => b.timestamp - a.timestamp);
-        const page = jobs.slice(0, pageSize);
-        const nextCursor = page.length === pageSize ? page[page.length - 1].cursor : null;
+    return reply.send({ status: 'queued' });
+  });
 
-        const response: PaginatedResponse<DlqJobSummary> = {
-          data: page,
-          meta: {
-            nextCursor,
-            prevCursor:      null,
-            hasNextPage:     nextCursor !== null,
-            hasPreviousPage: !!after,
-            total:           null,
-            pageSize,
-          },
-        };
+  // POST /dlq/:id/resolve
+  fastify.post('/dlq/:id/resolve', {
+    preHandler: [fastify.authenticate, requireRole('ADMIN')],
+  }, async (request, reply) => {
+    const jobId = (request.params as any).id;
 
-        return reply.send(successResponse(response));
-      } catch (err) {
-        log.error('dlq:list error', { err });
-        return reply.status(500).send(errorResponse('Failed to fetch DLQ jobs'));
-      }
-    },
-  );
+    const job = await (prisma as any).dLQJob?.update({
+      where:  { id: jobId },
+      data: { status: 'RESOLVED', resolvedAt: new Date(), resolvedBy: request.user.userId },
+    }).catch(() => null);
 
-  // ── POST /api/v2/admin/dlq/:id/retry ──────────────────────────────────────
-  fastify.post(
-    '/api/v2/admin/dlq/:id/retry',
-    {
-      preHandler: [
-        requireRole('admin'),
-        // C-38: require2FA for high-depth re-queue (depth > 10),
-        // evaluated dynamically via the route handler; hooked at preHandler
-        // for all retries to keep audit trail tight.
-        require2FA,
-      ],
-    },
-    async (req: FastifyRequest, reply: FastifyReply) => {
-      const { id } = req.params as { id: string };
-      const actor = (req as any).user;
+    if (!job) return reply.code(404).send({ error: 'JOB_NOT_FOUND' });
 
-      try {
-        let retried = false;
+    await writeAuditEvent({
+      actorId:  request.user.userId,
+      actorRole: request.orgContext?.role,
+      action:   'DLQ_RESOLVE',
+      resource: 'DLQJob',
+      resourceId: jobId,
+      ip:       request.ip,
+    });
 
-        for (const queue of getQueues()) {
-          if (!queue) continue;
-          const job = await (queue as any).getJob(id);
-          if (!job) continue;
+    return reply.send({ status: 'resolved' });
+  });
+};
 
-          // Depth guard — block retry of > 10 attempts (write audit and reject)
-          if (job.attemptsMade > 10) {
-            await writeAuditEvent(
-              {
-                actorId:    actor?.id ?? 'system',
-                orgId:      actor?.businessId,
-                action:     'DLQ_RETRY_BLOCKED_DEPTH',
-                resource:   'Job',
-                resourceId: id,
-                details:    { depth: job.attemptsMade, queue: (queue as any).name },
-                ipAddress:  req.ip,
-                userAgent:  req.headers['user-agent'],
-              },
-              prisma,
-            );
-            return reply.status(422).send(
-              errorResponse('Job exceeded max retry depth (10). Resolve instead.'),
-            );
-          }
-
-          await job.retry();
-          retried = true;
-
-          await writeAuditEvent(
-            {
-              actorId:    actor?.id ?? 'system',
-              orgId:      actor?.businessId,
-              action:     'OVERRIDE',
-              resource:   'Job',
-              resourceId: id,
-              details:    { op: 'retry', queue: (queue as any).name, depth: job.attemptsMade },
-              ipAddress:  req.ip,
-              userAgent:  req.headers['user-agent'],
-            },
-            prisma,
-          );
-          break;
-        }
-
-        if (!retried) {
-          return reply.status(404).send(errorResponse('Job not found in DLQ'));
-        }
-
-        return reply.send(successResponse({ id, status: 'retried' }));
-      } catch (err) {
-        log.error('dlq:retry error', { err, id });
-        return reply.status(500).send(errorResponse('Retry failed'));
-      }
-    },
-  );
-
-  // ── POST /api/v2/admin/dlq/:id/resolve ────────────────────────────────────
-  fastify.post(
-    '/api/v2/admin/dlq/:id/resolve',
-    { preHandler: [requireRole('admin'), require2FA] },
-    async (req: FastifyRequest, reply: FastifyReply) => {
-      const { id } = req.params as { id: string };
-      const actor = (req as any).user;
-
-      try {
-        let resolved = false;
-
-        for (const queue of getQueues()) {
-          if (!queue) continue;
-          const job = await (queue as any).getJob(id);
-          if (!job) continue;
-
-          // Discard — remove from failed set
-          await job.discard?.();
-          await job.remove?.();
-          resolved = true;
-
-          await writeAuditEvent(
-            {
-              actorId:    actor?.id ?? 'system',
-              orgId:      actor?.businessId,
-              action:     'OVERRIDE',
-              resource:   'Job',
-              resourceId: id,
-              details:    { op: 'resolve', queue: (queue as any).name },
-              ipAddress:  req.ip,
-              userAgent:  req.headers['user-agent'],
-            },
-            prisma,
-          );
-          break;
-        }
-
-        if (!resolved) {
-          return reply.status(404).send(errorResponse('Job not found in DLQ'));
-        }
-
-        return reply.send(successResponse({ id, status: 'resolved' }));
-      } catch (err) {
-        log.error('dlq:resolve error', { err, id });
-        return reply.status(500).send(errorResponse('Resolve failed'));
-      }
-    },
-  );
-}
+export default dlqRoutes;

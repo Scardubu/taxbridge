@@ -23,6 +23,9 @@ import { useTranslation } from 'react-i18next';
 import { useTheme } from '../../hooks/useTheme';
 import { COLORS, TYPOGRAPHY, SPACING, RADIUS } from '../../design-system/tokens';
 
+const TYPE_SCALE = TYPOGRAPHY.sizes;
+const BRAND_PRIMARY = COLORS.primary[500];
+
 // ─── Bundled content ──────────────────────────────────────────────────────────
 
 export type TaxConcept = 'vat' | 'wht' | 'paye' | 'nil_return' | 'tin' | 'cit' | 'penalty';
@@ -218,7 +221,7 @@ export function ExplainMyTax({ concept, collapsible = true }: ExplainMyTaxProps)
       {expanded && (
         <Animated.View entering={FadeInDown.duration(200)} exiting={FadeOutUp.duration(150)} style={s.body}>
           <Text style={[s.bodyText, { color: colors.textPrimary }]}>{body}</Text>
-          <View style={[s.exampleBox, { backgroundColor: colors.surfaceSubtle ?? '#F3F4F6', borderColor: colors.border }]}>
+          <View style={[s.exampleBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Text style={[s.exampleLabel, { color: colors.textSecondary }]}>📌 Example</Text>
             <Text style={[s.exampleText, { color: colors.textPrimary }]}>{example}</Text>
           </View>
@@ -243,9 +246,9 @@ const s = StyleSheet.create({
     padding:        SPACING[16],
     gap:            SPACING[8],
   },
-  icon:    { fontSize: TYPOGRAPHY.xl },
-  title:   { flex: 1, fontSize: TYPOGRAPHY.base, fontWeight: '600' },
-  chevron: { fontSize: TYPOGRAPHY.xs },
+  icon:    { fontSize: TYPE_SCALE.xl },
+  title:   { flex: 1, fontSize: TYPE_SCALE.base, fontWeight: '600' },
+  chevron: { fontSize: TYPE_SCALE.xs },
 
   langRow: {
     flexDirection:    'row',
@@ -261,10 +264,10 @@ const s = StyleSheet.create({
     borderColor:       '#D1D5DB',
   },
   langBtnActive: {
-    backgroundColor: COLORS.primary,
-    borderColor:     COLORS.primary,
+    backgroundColor: BRAND_PRIMARY,
+    borderColor:     BRAND_PRIMARY,
   },
-  langText:       { fontSize: TYPOGRAPHY.xs, fontWeight: '600', color: '#6B7280' },
+  langText:       { fontSize: TYPE_SCALE.xs, fontWeight: '600', color: '#6B7280' },
   langTextActive: { color: '#fff' },
 
   body: {
@@ -272,15 +275,15 @@ const s = StyleSheet.create({
     paddingBottom:     SPACING[16],
     gap:               SPACING[12],
   },
-  bodyText: { fontSize: TYPOGRAPHY.sm, lineHeight: 22 },
+  bodyText: { fontSize: TYPE_SCALE.sm, lineHeight: 22 },
   exampleBox: {
     padding:      SPACING[12],
     borderRadius: RADIUS.md,
     borderWidth:  1,
     gap:          SPACING[4],
   },
-  exampleLabel: { fontSize: TYPOGRAPHY.xs, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
-  exampleText:  { fontSize: TYPOGRAPHY.xs, lineHeight: 18 },
+  exampleLabel: { fontSize: TYPE_SCALE.xs, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5 },
+  exampleText:  { fontSize: TYPE_SCALE.xs, lineHeight: 18 },
 });
 
 export default ExplainMyTax;

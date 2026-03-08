@@ -13,7 +13,7 @@ import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { colors, typography, spacing, radii, shadows } from '../../design-system/tokens';
 import { DURATION } from '../../design-system/animation';
-import { Card, Button, ProgressBar } from '../../design-system/components';
+import { Card, Button } from '../../design-system/components';
 
 // ─── Tooltip Content Library ──────────────────────────────────────────────────
 // 40 most-asked Nigerian SME tax terms (support ticket analysis)
@@ -38,9 +38,9 @@ export const TAX_TOOLTIPS: Record<string, TaxTooltipContent> = {
   },
   pit: {
     term: 'PIT (Personal Income Tax)',
-    plain: 'Tax on income earned by individuals and sole proprietors. Nigeria uses a 6-band progressive system from 7% to 24%.',
-    pidgin: 'PIT na tax wey person go pay on money wey dem earn. E dey go from 7% to 24% depending on how much you earn.',
-    example: 'Annual income ₦2M → first ₦800k taxed at 7% = ₦56k, next ₦1.2M at 11% = ₦132k. Total PIT ≈ ₦188k.',
+    plain: 'Tax on income earned by individuals and sole proprietors. Nigeria uses a 6-band progressive system: 0% up to ₦800k, then 15%, 18%, 21%, 23%, and 25%.',
+    pidgin: 'PIT na tax wey person go pay on money wey dem earn. The first ₦800k no get tax, then the next bands na 15%, 18%, 21%, 23%, and 25% depending on how much you earn.',
+    example: 'Annual income ₦2M → first ₦800k taxed at 0% = ₦0, next ₦1.2M at 15% = ₦180k. Total PIT ≈ ₦180k before any reliefs.',
     statute: 'NTA 2025 §1-40',
     learnMoreScreen: 'pit-guide',
   },
@@ -292,7 +292,13 @@ export function TaxAcademyHomeScreen() {
             </Text>
             <Text style={styles.progressPct}>{Math.round(progress * 100)}%</Text>
           </View>
-          <ProgressBar value={progress} height={8} />
+          <View style={styles.progressTrack}>
+            <Animated.View
+              style={[styles.progressFill, { width: `${Math.round(progress * 100)}%` }]}
+              accessibilityRole="progressbar"
+              accessibilityValue={{ min: 0, max: 100, now: Math.round(progress * 100) }}
+            />
+          </View>
         </Card>
       </Animated.View>
 
@@ -427,6 +433,15 @@ const styles = StyleSheet.create({
   progressTop:   { flexDirection: 'row', justifyContent: 'space-between', marginBottom: spacing[2] },
   progressLabel: { fontSize: typography.sizes.sm, color: colors.textSecondary },
   progressPct:   { fontSize: typography.sizes.sm, fontWeight: typography.weights.bold, color: colors.primary[600] },
+  progressTrack: {
+    height: 8, borderRadius: 4,
+    backgroundColor: colors.gray?.[100] ?? '#F3F4F6',
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: 8, borderRadius: 4,
+    backgroundColor: colors.primary[500] ?? '#16A34A',
+  },
   sectionTitle: {
     fontSize: typography.sizes.base, fontWeight: typography.weights.bold,
     color: colors.textPrimary, marginBottom: spacing[2], marginTop: spacing[4],

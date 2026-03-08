@@ -10,10 +10,9 @@
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import type { FastifyInstance } from 'fastify';
-import jwt from 'jsonwebtoken';
 
 import { ReconciliationService } from '../services/reconciliation';
-import { AuthenticationError, NotFoundError } from '../lib/errors';
+import { NotFoundError } from '../lib/errors';
 import { createLogger } from '../lib/logger';
 
 const log = createLogger('reconciliation-routes');
@@ -24,28 +23,6 @@ export default async function reconciliationRoutes(
 ) {
   const prisma = opts.prisma;
   const reconciliationService = new ReconciliationService(prisma);
-
-  // =========================================================================
-  // Auth helper
-  // =========================================================================
-  async function authenticate(req: any): Promise<string> {
-    const authHeader = req.headers.authorization;
-    if (!authHeader?.startsWith('Bearer ')) {
-      throw new AuthenticationError('Missing or invalid authorization header');
-    }
-    const token = authHeader.slice(7);
-    try {
-      const secret = process.env.JWT_SECRET;
-      if (!secret) throw new Error('JWT_SECRET not configured');
-      const payload = jwt.verify(token, secret) as { sub?: string; userId?: string };
-      const userId = payload.sub || payload.userId;
-      if (!userId) throw new Error('Invalid token payload');
-      return userId;
-    } catch (err: any) {
-      if (err instanceof AuthenticationError) throw err;
-      throw new AuthenticationError('Invalid or expired token');
-    }
-  }
 
   // =========================================================================
   // Validation Schemas
@@ -61,8 +38,8 @@ export default async function reconciliationRoutes(
   // =========================================================================
   // POST /api/v1/reconciliation/run — Run reconciliation
   // =========================================================================
-  app.post('/api/v1/reconciliation/run', async (req, reply) => {
-    const userId = await authenticate(req);
+  app.post('/api/v1/reconciliation/run', { preHandler: [app.authenticate, app.resolveOrgContext] }, async (req, reply) => {
+    const userId = req.user.userId;
     const body = ReconcileSchema.parse(req.body);
 
     try {

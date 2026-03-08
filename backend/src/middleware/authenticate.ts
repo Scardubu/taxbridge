@@ -17,6 +17,7 @@ import type { UserRole } from '@taxbridge/contracts';
 import { assertValidRole } from '@taxbridge/contracts';
 import { getPrismaClient } from '../lib/prisma';
 import { createLogger } from '../lib/logger';
+import { normaliseRole } from '@taxbridge/contracts';
 
 const log = createLogger('auth');
 const prisma = getPrismaClient();
@@ -88,13 +89,13 @@ export async function authenticate(
   }
 
   // If role is in the JWT token, use it; otherwise look up from DB
-  let role: UserRole = 'viewer';
+  let role: UserRole = 'VIEWER';
   if (decoded.role) {
     try {
       assertValidRole(decoded.role);
-      role = decoded.role as UserRole;
+      role = normaliseRole(decoded.role) as UserRole;
     } catch {
-      role = 'viewer';
+      role = 'VIEWER';
     }
   } else {
     // Fetch role from DB (C-01: Prisma `any`)
@@ -106,19 +107,19 @@ export async function authenticate(
       if (user?.role) {
         try {
           assertValidRole(user.role);
-          role = user.role as UserRole;
+          role = normaliseRole(user.role) as UserRole;
         } catch {
-          role = 'owner'; // safe default for existing users
+          role = 'OWNER'; // safe default for existing users
         }
       } else {
-        role = 'owner'; // existing users default to owner
+        role = 'OWNER'; // existing users default to owner
       }
     } catch (dbErr) {
       // C-07: graceful degradation — use minimal role from JWT
       log.warn('Failed to fetch user role from DB, using viewer fallback', {
         userId: decoded.userId,
       });
-      role = 'viewer';
+      role = 'VIEWER';
     }
   }
 

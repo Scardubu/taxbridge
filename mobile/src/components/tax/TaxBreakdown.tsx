@@ -72,7 +72,7 @@ export function TaxBreakdown({ calculation, optimization, onOptimizationPress }:
         <Text style={styles.infoText}>{t('tax.craDescription')}</Text>
         <View style={styles.amountRow}>
           <Text style={styles.amountLabel}>{t('tax.craAmount')}</Text>
-          <Text style={styles.amountValue}>{formatNaira(calculation.cra)}</Text>
+          <Text style={styles.amountValue}>{formatNaira(calculation.rentRelief)}</Text>
         </View>
         <View style={styles.amountRow}>
           <Text style={styles.amountLabel}>{t('tax.taxableIncome')}</Text>
