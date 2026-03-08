@@ -1,5 +1,31 @@
 # Changelog
 
+## [13.4.0] - 2026-03-10
+
+### Fixed
+
+- `package.json` (root) — Added `"packageManager": "npm@10.9.2"` for deterministic installs on Render and Vercel
+- `admin-dashboard/vercel.json` — Changed `buildCommand` from `next build` to `npm run build` to align with canonical package script
+- `package-lock.json` (root) — Regenerated via `npm install` to fix stale workspace metadata; restored missing packages (`encodeurl`, `finalhandler`, `proxy-addr`, `type-is`, etc.) causing Render `npm ci` failures
+- `admin-dashboard/package.json` — Upgraded `@reduxjs/toolkit` from `^1.9.7` to `^2.11.2` to resolve React 19 peer dependency conflict blocking `package-lock.json` generation
+- `render.yaml` — Fixed region values from invalid `fra` to `frankfurt` (valid Render blueprint value); removed invalid `logDrain` field; aligned worker region to `frankfurt` (matches API service); removed `--prefer-offline=false` flag from worker `buildCommand`
+- `.github/workflows/ci.yml` — Fixed `admin-v13` job: changed `cache-dependency-path` from `admin/package-lock.json` to root `package-lock.json` (admin depends on `@taxbridge/contracts` workspace package); switched to root `npm ci` + `npm install --legacy-peer-deps` for admin workspace install
+
+### Added
+
+- `backend/package-lock.json` — Generated workspace-level lockfile for CI npm cache correctness
+- `mobile/package-lock.json` — Generated workspace-level lockfile for CI npm cache correctness
+- `admin-dashboard/package-lock.json` — Generated workspace-level lockfile for CI npm cache correctness
+- `packages/contracts/package-lock.json` — Generated workspace-level lockfile for CI npm cache correctness
+
+### Verified
+
+- `npx tsc --noEmit` (backend): **PASS** — zero errors
+- All 8 session-opening checks pass (contamination, console.log, inline rates, Redis/Prisma singletons)
+- `docs/api/openapi.json` non-empty (CI Stage 1 gate)
+
+---
+
 ## [13.3.0] - 2026-03-09
 
 ### Fixed

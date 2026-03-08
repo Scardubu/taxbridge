@@ -1,5 +1,5 @@
 # TaxBridge Production Render Blueprint
-# Last Updated: January 19, 2026
+# Last Updated: March 2026
 #
 # IMPORTANT: All secrets must be set in Render Dashboard
 # See: backend/.env.production for required values
@@ -10,7 +10,7 @@ services:
   # ============================================
   - type: web
     name: taxbridge-api
-    region: fra
+    region: frankfurt
     runtime: docker
     healthCheckPath: /api/v2/monitoring/health
     envVars:
@@ -18,8 +18,6 @@ services:
         value: production
       - key: PORT
         value: 3000
-    logDrain:
-      type: grafana-loki
   # ============================================
   # WORKER SERVICE (BullMQ Job Processor)
   # ============================================
@@ -27,11 +25,11 @@ services:
     name: taxbridge-worker
     runtime: node
     plan: starter
-    region: oregon
+    region: frankfurt
     branch: master
     autoDeploy: true
     buildCommand: >-
-      npm ci --prefer-offline=false &&
+      npm ci &&
       npm run build --workspace=@taxbridge/backend &&
       npm run ubl:download-xsd --workspace=@taxbridge/backend
     startCommand: npm run worker --workspace=@taxbridge/backend

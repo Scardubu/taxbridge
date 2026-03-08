@@ -2,7 +2,7 @@
   "framework": "nextjs",
   "regions": ["iad1"],
   "installCommand": "npm install",
-  "buildCommand": "next build",
+  "buildCommand": "npm run build",
   "outputDirectory": ".next",
   "env": {
     "NEXT_PUBLIC_APP_URL": "https://admin.taxbridge.ng",

@@ -431,10 +431,9 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
-          cache-dependency-path: admin/package-lock.json
+          cache-dependency-path: package-lock.json
 
-      - name: Install contracts dependencies
-        working-directory: packages/contracts
+      - name: Install workspace dependencies
         run: npm ci
 
       - name: Build contracts (admin depends on it)
@@ -443,7 +442,7 @@ jobs:
 
       - name: Install admin V13 dependencies
         working-directory: admin
-        run: npm ci
+        run: npm install --legacy-peer-deps
 
       - name: TypeScript type check
         working-directory: admin

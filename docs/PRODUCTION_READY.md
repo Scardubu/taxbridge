@@ -1,10 +1,10 @@
 # TaxBridge V13 Production Readiness Snapshot
 
-**Date**: March 9, 2026
-**Version**: v13.3.0
+**Date**: March 10, 2026
+**Version**: v13.4.0
 **Status**: ✅ **READY FOR PRODUCTION**
 
-## Session-Opening Gate Results (v13.3.0)
+## Session-Opening Gate Results (v13.4.0)
 
 | Check | Description | Result |
 |-------|-------------|--------|
@@ -61,6 +61,16 @@
 - **WHT guard**: `WHT_PROFESSIONAL_RATE` from contracts — no inline `0.10`
 - **Donations cap**: `CGT_RATE` from contracts via `DONATIONS_MAX_RATE` — no inline `0.10`
 - **Risk weights**: Named `W_*` constants with `@risk-weight` annotation (C-09 exempt)
+
+### Deployment Stabilization (v13.4.0)
+
+- **Root lockfile regenerated**: `package-lock.json` regenerated to fix stale workspace entries and restore missing packages (`encodeurl`, `finalhandler`, `proxy-addr`, `type-is`) — resolves Render `npm ci` failures
+- **`packageManager` declared**: Root `package.json` now declares `"packageManager": "npm@10.9.2"` for deterministic installs
+- **Vercel build aligned**: `admin-dashboard/vercel.json` `buildCommand` changed to `npm run build`
+- **RTK upgraded**: `@reduxjs/toolkit` `^1.9.7` → `^2.11.2` in `admin-dashboard` to resolve React 19 peer conflict
+- **`render.yaml` fixed**: Region values corrected from invalid `fra` to `frankfurt`; invalid `logDrain` field removed; worker `--prefer-offline=false` flag removed; worker region aligned to `frankfurt`
+- **CI fixed**: `admin-v13` job now uses root lockfile for npm cache; admin workspace installed via `npm install --legacy-peer-deps`
+- **Workspace lockfiles added**: `backend/`, `mobile/`, `admin-dashboard/`, `packages/contracts/` each have their own `package-lock.json` for correct CI caching
 
 ### Known Limitations
 
