@@ -18,14 +18,16 @@
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import type { FastifyInstance } from 'fastify';
-import jwt from 'jsonwebtoken';
 
 import { InvoiceService } from '../services/invoice';
 import { generateInvoicePDF, InvoicePDFData } from '../services/pdf-generator';
 import { getInvoiceSyncQueue } from '../queue/client';
-import { AuthenticationError, ValidationError, NotFoundError } from '../lib/errors';
+import { ValidationError, NotFoundError } from '../lib/errors';
 import { VAT_RATE } from '../lib/constants';
 import { createLogger } from '../lib/logger';
+import { redis } from '../lib/redis';
+import { requireRole } from '../plugins/requireRole';
+import { invalidateDashboardCache } from './dashboard-composite';
 
 const log = createLogger('invoice-mgmt-routes');
 
@@ -35,47 +37,6 @@ export default async function invoiceManagementRoutes(
 ) {
   const prisma = opts.prisma;
   const invoiceService = new InvoiceService(prisma);
-
-  // =========================================================================
-  // Auth helper (matches existing pattern in business.ts / privacy.ts)
-  // =========================================================================
-
-  function authenticate(req: any): string {
-    const authHeader =
-      typeof req.headers?.authorization === 'string'
-        ? req.headers.authorization
-        : undefined;
-    const token = authHeader?.replace(/^Bearer\s+/i, '').trim();
-
-    if (token) {
-      const secrets = [
-        process.env.JWT_SECRET,
-        process.env.JWT_SECRET_PREVIOUS,
-      ].filter(Boolean) as string[];
-
-      for (const secret of secrets) {
-        try {
-          const decoded = jwt.verify(token, secret) as { userId?: string };
-          if (decoded?.userId) return decoded.userId;
-        } catch {
-          // try next
-        }
-      }
-    }
-
-    // Dev fallback
-    if (
-      process.env.NODE_ENV !== 'production' &&
-      String(process.env.ALLOW_DEBUG_USER_ID_HEADER || 'false').toLowerCase() === 'true'
-    ) {
-      const headerValue =
-        req.headers?.['x-taxbridge-user-id'] ?? req.headers?.['x-user-id'];
-      const userId = Array.isArray(headerValue) ? headerValue[0] : headerValue;
-      if (typeof userId === 'string' && userId.trim()) return userId.trim();
-    }
-
-    throw new AuthenticationError();
-  }
 
   // =========================================================================
   // Schemas
@@ -140,8 +101,11 @@ export default async function invoiceManagementRoutes(
   // POST /api/v1/invoice-mgmt — Create Invoice
   // =========================================================================
 
-  app.post('/api/v1/invoice-mgmt', async (req, reply) => {
-    const userId = authenticate(req);
+  app.post('/api/v1/invoice-mgmt', {
+    preHandler: [app.authenticate, app.resolveOrgContext, requireRole('ACCOUNTANT')],
+  }, async (req, reply) => {
+    const { orgId } = req.orgContext;
+    const { userId } = req.user;
 
     const parsed = CreateInvoiceSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -156,6 +120,7 @@ export default async function invoiceManagementRoutes(
       const result = await invoiceService.createInvoice({
         userId,
         ...parsed.data,
+        businessId: parsed.data.businessId ?? orgId,
       });
 
       // If not a draft, queue for NRS stamping
@@ -196,6 +161,8 @@ export default async function invoiceManagementRoutes(
         }
       }
 
+      await invalidateDashboardCache(redis, userId);
+
       return reply.status(201).send({
         success: true,
         data: { invoice: result },
@@ -213,8 +180,11 @@ export default async function invoiceManagementRoutes(
   // GET /api/v1/invoice-mgmt — List Invoices
   // =========================================================================
 
-  app.get('/api/v1/invoice-mgmt', async (req, reply) => {
-    const userId = authenticate(req);
+  app.get('/api/v1/invoice-mgmt', {
+    preHandler: [app.authenticate, app.resolveOrgContext, requireRole('VIEWER')],
+  }, async (req, reply) => {
+    const { orgId } = req.orgContext;
+    const { userId } = req.user;
 
     const parsed = ListQuerySchema.safeParse(req.query);
     if (!parsed.success) {
@@ -229,6 +199,7 @@ export default async function invoiceManagementRoutes(
       const result = await invoiceService.listInvoices({
         userId,
         ...parsed.data,
+        businessId: parsed.data.businessId ?? orgId,
       });
 
       return reply.send({
@@ -248,9 +219,12 @@ export default async function invoiceManagementRoutes(
   // GET /api/v1/invoice-mgmt/stats — Invoice Statistics
   // =========================================================================
 
-  app.get('/api/v1/invoice-mgmt/stats', async (req, reply) => {
-    const userId = authenticate(req);
-    const businessId = (req.query as Record<string, string>)?.businessId;
+  app.get('/api/v1/invoice-mgmt/stats', {
+    preHandler: [app.authenticate, app.resolveOrgContext, requireRole('VIEWER')],
+  }, async (req, reply) => {
+    const { orgId } = req.orgContext;
+    const { userId } = req.user;
+    const businessId = (req.query as Record<string, string>)?.businessId ?? orgId;
 
     try {
       const stats = await invoiceService.getInvoiceStats(userId, businessId);
@@ -268,8 +242,10 @@ export default async function invoiceManagementRoutes(
   // GET /api/v1/invoice-mgmt/:id — Get Invoice Detail
   // =========================================================================
 
-  app.get('/api/v1/invoice-mgmt/:id', async (req, reply) => {
-    const userId = authenticate(req);
+  app.get('/api/v1/invoice-mgmt/:id', {
+    preHandler: [app.authenticate, app.resolveOrgContext, requireRole('VIEWER')],
+  }, async (req, reply) => {
+    const { userId } = req.user;
     const { id } = req.params as z.infer<typeof IdParamSchema>;
 
     try {
@@ -295,8 +271,10 @@ export default async function invoiceManagementRoutes(
   // PUT /api/v1/invoice-mgmt/:id — Update Invoice
   // =========================================================================
 
-  app.put('/api/v1/invoice-mgmt/:id', async (req, reply) => {
-    const userId = authenticate(req);
+  app.put('/api/v1/invoice-mgmt/:id', {
+    preHandler: [app.authenticate, app.resolveOrgContext, requireRole('ACCOUNTANT')],
+  }, async (req, reply) => {
+    const { userId } = req.user;
     const { id } = req.params as z.infer<typeof IdParamSchema>;
 
     const parsed = UpdateInvoiceSchema.safeParse(req.body);
@@ -310,6 +288,7 @@ export default async function invoiceManagementRoutes(
 
     try {
       const result = await invoiceService.updateInvoice(id, userId, parsed.data);
+      await invalidateDashboardCache(redis, userId);
       return reply.send({ success: true, data: { invoice: result } });
     } catch (err: any) {
       const status = err.message?.includes('not found') ? 404 : err.message?.includes('Cannot edit') ? 409 : 500;
@@ -324,12 +303,15 @@ export default async function invoiceManagementRoutes(
   // POST /api/v1/invoice-mgmt/:id/cancel — Cancel Invoice
   // =========================================================================
 
-  app.post('/api/v1/invoice-mgmt/:id/cancel', async (req, reply) => {
-    const userId = authenticate(req);
+  app.post('/api/v1/invoice-mgmt/:id/cancel', {
+    preHandler: [app.authenticate, app.resolveOrgContext, requireRole('ACCOUNTANT')],
+  }, async (req, reply) => {
+    const { userId } = req.user;
     const { id } = req.params as z.infer<typeof IdParamSchema>;
 
     try {
       const result = await invoiceService.cancelInvoice(id, userId);
+      await invalidateDashboardCache(redis, userId);
       return reply.send({ success: true, data: result });
     } catch (err: any) {
       const status = err.message?.includes('not found') ? 404 : err.message?.includes('Cannot cancel') ? 409 : 500;
@@ -344,12 +326,15 @@ export default async function invoiceManagementRoutes(
   // POST /api/v1/invoice-mgmt/:id/send — Mark as Sent
   // =========================================================================
 
-  app.post('/api/v1/invoice-mgmt/:id/send', async (req, reply) => {
-    const userId = authenticate(req);
+  app.post('/api/v1/invoice-mgmt/:id/send', {
+    preHandler: [app.authenticate, app.resolveOrgContext, requireRole('ACCOUNTANT')],
+  }, async (req, reply) => {
+    const { userId } = req.user;
     const { id } = req.params as z.infer<typeof IdParamSchema>;
 
     try {
       const result = await invoiceService.markAsSent(id, userId);
+      await invalidateDashboardCache(redis, userId);
       return reply.send({ success: true, data: result });
     } catch (err: any) {
       const status = err.message?.includes('not found') ? 404 : err.message?.includes('Cannot mark') ? 409 : 500;
@@ -361,11 +346,11 @@ export default async function invoiceManagementRoutes(
   });
 
   // =========================================================================
-  // POST /api/v1/invoice-mgmt/:id/submit-nrs — Submit for NRS Stamping
-  // =========================================================================
 
-  app.post('/api/v1/invoice-mgmt/:id/submit-nrs', async (req, reply) => {
-    const userId = authenticate(req);
+  app.post('/api/v1/invoice-mgmt/:id/submit-nrs', {
+    preHandler: [app.authenticate, app.resolveOrgContext, requireRole('ACCOUNTANT')],
+  }, async (req, reply) => {
+    const { userId } = req.user;
     const { id } = req.params as z.infer<typeof IdParamSchema>;
 
     try {
@@ -377,15 +362,16 @@ export default async function invoiceManagementRoutes(
         await queue.add(
           'sync',
           { invoiceId: id },
-        {
-          attempts: 5,
-          backoff: { type: 'exponential', delay: 1000 },
-          removeOnComplete: true,
-          removeOnFail: false,
-        }
-      );
+          {
+            attempts: 5,
+            backoff: { type: 'exponential', delay: 1000 },
+            removeOnComplete: true,
+            removeOnFail: false,
+          }
+        );
       }
 
+      await invalidateDashboardCache(redis, userId);
       return reply.send({ success: true, data: result });
     } catch (err: any) {
       const status = err.message?.includes('not found') ? 404 : err.message?.includes('Only draft') ? 409 : 500;
@@ -400,8 +386,10 @@ export default async function invoiceManagementRoutes(
   // POST /api/v1/invoice-mgmt/:id/pdf — Generate PDF
   // =========================================================================
 
-  app.post('/api/v1/invoice-mgmt/:id/pdf', async (req, reply) => {
-    const userId = authenticate(req);
+  app.post('/api/v1/invoice-mgmt/:id/pdf', {
+    preHandler: [app.authenticate, app.resolveOrgContext, requireRole('VIEWER')],
+  }, async (req, reply) => {
+    const { userId } = req.user;
     const { id } = req.params as z.infer<typeof IdParamSchema>;
 
     const parsed = PDFRequestSchema.safeParse(req.body || {});

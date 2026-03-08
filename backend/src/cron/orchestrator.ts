@@ -56,22 +56,22 @@ async function riskScoringCron(): Promise<void> {
     try {
       const input = await buildIntelligenceInput(org.id, 'system');
       const result = computeRiskScore(input);
-      const score: number = typeof result === 'number' ? result : (result as any).score ?? 50;
-      await (prisma as any).sMERiskRecord?.upsert({
+      const scoreVal: number = typeof result === 'number' ? result : (result as any).score ?? 50;
+      const band = scoreVal >= 70 ? 'low' : scoreVal >= 40 ? 'medium' : 'high';
+      const existing = await (prisma as any).sMERiskRecord?.findFirst({
         where:  { orgId: org.id },
-        update: {
-          taxHealthScore:  Math.round(score),
-          riskBand:        score >= 70 ? 'low' : score >= 40 ? 'medium' : 'high',
-          computedAt:      new Date(),
-        },
-        create: {
-          orgId:          org.id,
-          taxHealthScore:  Math.round(score),
-          riskBand:        score >= 70 ? 'low' : score >= 40 ? 'medium' : 'high',
-          anomalyCount:    0,
-          computedAt:      new Date(),
-        },
-      });
+        select: { id: true },
+      }).catch(() => null);
+      if (existing?.id) {
+        await (prisma as any).sMERiskRecord?.update({
+          where: { id: existing.id },
+          data: { score: Math.round(scoreVal), band, computedAt: new Date() },
+        });
+      } else {
+        await (prisma as any).sMERiskRecord?.create({
+          data: { orgId: org.id, score: Math.round(scoreVal), band, anomalyScore: 0, computedAt: new Date() },
+        });
+      }
     } catch { /* non-critical per org */ }
   }
 

@@ -76,7 +76,8 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   message: {
-    ...typography.body,
+    fontSize: typography.sizes.base,
+    fontWeight: typography.weights.regular,
     color: colors.red[700],
     textAlign: 'center',
     marginBottom: spacing.xs,
@@ -89,7 +90,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
   buttonText: {
-    ...typography.label,
+    fontSize: typography.sizes.sm,
     color: colors.gray[0],
     fontWeight: '600',
   },

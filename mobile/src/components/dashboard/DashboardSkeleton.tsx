@@ -19,7 +19,7 @@ interface SkeletonBlockProps {
   width:    number | string;
   height:   number;
   radius?:  number;
-  shimmer:  Animated.SharedValue<number>;
+  shimmer:  any;
 }
 
 function SkeletonBlock({ width, height, radius = 8, shimmer }: SkeletonBlockProps) {
@@ -32,10 +32,20 @@ function SkeletonBlock({ width, height, radius = 8, shimmer }: SkeletonBlockProp
       accessibilityElementsHidden={true}
       style={[
         styles.block,
-        { width, height, borderRadius: radius },
+        { width: width as any, height, borderRadius: radius },
         animStyle,
       ]}
     />
+  );
+}
+
+export function SectionSkeletonRows({ count = 2 }: { count?: number }) {
+  return (
+    <View style={styles.sectionRows} accessibilityElementsHidden={true}>
+      {Array.from({ length: count }).map((_, index) => (
+        <View key={index} style={styles.sectionRow} />
+      ))}
+    </View>
   );
 }
 
@@ -117,6 +127,14 @@ const styles = StyleSheet.create({
   },
   gap: {
     height: 4,
+  },
+  sectionRows: {
+    gap: 8,
+  },
+  sectionRow: {
+    height: 56,
+    borderRadius: 8,
+    backgroundColor: '#D1D5DB',
   },
   block: {
     backgroundColor: '#D1D5DB',

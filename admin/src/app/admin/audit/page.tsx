@@ -8,22 +8,24 @@
  * - Fetches from backend API — never calls Prisma directly
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 
 interface AuditEvent {
   id:         string;
   action:     string;
-  actorId:    string;
-  actorEmail: string;
-  orgId:      string;
-  targetId?:  string;
+  userId?:    string;
+  orgId?:     string;
+  resourceId?: string;
   metadata?:  Record<string, unknown>;
   createdAt:  string;
 }
 
 interface AuditPage {
   data:       AuditEvent[];
-  nextCursor: string | null;
+  meta?: {
+    nextCursor?: string | null;
+    hasNextPage?: boolean;
+  };
 }
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? '';
@@ -104,8 +106,8 @@ export default function AuditPage() {
     try {
       const page = await fetchAuditPage(nextCursor);
       setEvents((prev) => nextCursor ? [...prev, ...page.data] : page.data);
-      setCursor(page.nextCursor);
-      setHasMore(page.nextCursor !== null);
+      setCursor(page.meta?.nextCursor ?? null);
+      setHasMore((page.meta?.nextCursor ?? null) !== null);
     } catch (err: any) {
       setError(err.message ?? 'Failed to load audit log');
     } finally {
@@ -114,10 +116,11 @@ export default function AuditPage() {
     }
   }, []);
 
-  // Load first page on mount
-  if (!initialized && !loading) {
-    loadPage();
-  }
+  useEffect(() => {
+    if (!initialized && !loading) {
+      void loadPage();
+    }
+  }, [initialized, loading, loadPage]);
 
   const onExport = async () => {
     setExporting(true);
@@ -188,13 +191,13 @@ export default function AuditPage() {
                   <ActionBadge action={ev.action} />
                 </td>
                 <td style={{ padding: '10px 16px', color: '#111827' }}>
-                  {ev.actorEmail}
+                  {ev.userId ?? 'system'}
                 </td>
                 <td style={{ padding: '10px 16px', color: '#6B7280', fontFamily: 'monospace', fontSize: 11 }}>
-                  {ev.orgId.slice(0, 8)}…
+                  {ev.orgId ? `${ev.orgId.slice(0, 8)}…` : '—'}
                 </td>
                 <td style={{ padding: '10px 16px', color: '#6B7280', fontFamily: 'monospace', fontSize: 11 }}>
-                  {ev.targetId ? `${ev.targetId.slice(0, 8)}…` : '—'}
+                  {ev.resourceId ? `${ev.resourceId.slice(0, 8)}…` : '—'}
                 </td>
               </tr>
             ))}

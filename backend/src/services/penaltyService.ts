@@ -12,14 +12,22 @@ export interface PenaltyInput {
   entityType:       'company' | 'individual';
   daysLate:         number;
   taxAmountDue:     number;
+  /** Maps to contracts DisclosurePhase. Default 'before_audit' (voluntary). */
   disclosurePhase?: 'voluntary' | 'investigation' | 'prosecution';
 }
 
 export interface PenaltyOutput {
-  basePenalty:       number;
-  interestCharge:    number;
-  totalPenalty:      number;
+  lateFiling:        number;
+  interest:          number;
+  netPenalty:        number;
   disclosurePhase:   string;
+}
+
+/** Map service-layer disclosure names to contracts DisclosurePhase values */
+function mapDisclosurePhase(phase?: string): 'before_audit' | 'during_audit' | 'after_assessment' {
+  if (phase === 'investigation') return 'during_audit';
+  if (phase === 'prosecution')   return 'after_assessment';
+  return 'before_audit'; // 'voluntary' or undefined
 }
 
 /**
@@ -29,24 +37,21 @@ export interface PenaltyOutput {
  */
 export function computePenalty(input: PenaltyInput): PenaltyOutput {
   try {
-    const cbnMpr = parseFloat(process.env.CBN_MPR ?? '0.2725');
-
     const result = calculatePenalty({
       entityType:      input.entityType,
       daysLate:        input.daysLate,
       taxAmountDue:    input.taxAmountDue,
-      disclosurePhase: input.disclosurePhase ?? 'voluntary',
-      cbnMpr,
+      disclosurePhase: mapDisclosurePhase(input.disclosurePhase),
     });
 
     return {
-      basePenalty:     result.basePenalty,
-      interestCharge:  result.interestCharge,
-      totalPenalty:    result.totalPenalty,
+      lateFiling:      result.lateFiling,
+      interest:        result.interest,
+      netPenalty:      result.netPenalty,
       disclosurePhase: input.disclosurePhase ?? 'voluntary',
     };
   } catch (err) {
     logger.error({ err }, 'penaltyService.computePenalty failed — returning zero');
-    return { basePenalty: 0, interestCharge: 0, totalPenalty: 0, disclosurePhase: 'voluntary' };
+    return { lateFiling: 0, interest: 0, netPenalty: 0, disclosurePhase: 'voluntary' };
   }
 }

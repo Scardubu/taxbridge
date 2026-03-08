@@ -16,7 +16,8 @@ import { PrismaClient } from '@prisma/client';
 import { requireAdminApiKey } from '../lib/security';
 import { getQueueHealth } from '../queues/index';
 import { createLogger } from '../lib/logger';
-import { getRedisConnection } from '../queue/client';
+import { redis } from '../lib/redis';
+import { invalidateDashboardCache } from './dashboard-composite';
 
 const log = createLogger('admin-nrs');
 
@@ -157,7 +158,6 @@ export async function adminNrsRoutes(app: FastifyInstance, options: { prisma: Pr
         return reply.code(404).send({ success: false, error: 'Invoice not found' });
       }
 
-      const redis = getRedisConnection();
       if (!redis) {
         return reply.code(503).send({ success: false, error: 'Queue service temporarily unavailable' });
       }
@@ -174,6 +174,10 @@ export async function adminNrsRoutes(app: FastifyInstance, options: { prisma: Pr
         where: { id },
         data: { nrsStatus: 'PENDING', nrsError: null },
       });
+
+      if (invoice.userId) {
+        await invalidateDashboardCache(redis, invoice.userId);
+      }
 
       log.info('Admin re-enqueued NRS submission', { invoiceId: id });
       return reply.send({ success: true, message: 'Invoice re-queued for NRS submission', invoiceId: id });

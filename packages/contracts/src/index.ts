@@ -14,6 +14,8 @@ export * from './pit';
 export * from './vat';
 export * from './wht';
 export * from './cit';
+export * from './cgt';
+export * from './paye';
 export * from './penalties';
 export * from './rbac';
 export * from './types';
@@ -30,6 +32,17 @@ export {
   type WhtPaymentType,
   type CompanyTier,
 } from './nta2025';
+
+// ─── constants.ts compatibility re-exports ────────────────────────────────────
+export {
+  PIT_PENSION_RATE,
+  PIT_NHF_RATE,
+  WHT_PROFESSIONAL_RATE,
+  WHT_CONSTRUCTION_RATE,
+  WHT_DIVIDEND_RATE,
+  WHT_MONTHLY_EXEMPTION_CAP,
+  WHT_EXEMPTION_MONTHLY_THRESHOLD,
+} from './constants';
 
 // ─── tax-rules.ts re-exports (backward compat) ───────────────────────────────
 // Only re-export names NOT already defined in constants.ts to avoid conflicts.
@@ -66,7 +79,6 @@ export {
   EMPLOYEE_PENSION_RATE,
   PENALTY_RATES,
   COMPLIANCE_CALENDAR,
-  NTA_2025_RULES,
 } from './tax-rules';
 
 // ─── sync exports ─────────────────────────────────────────────────────────────

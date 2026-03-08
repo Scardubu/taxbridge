@@ -29,7 +29,7 @@ import { apiClient } from '../../services/apiClient';
 import { useTheme } from '../../hooks/useTheme';
 import { COLORS, TYPOGRAPHY, SPACING, RADIUS } from '../../design-system/tokens';
 import { ROLE_HIERARCHY, hasMinRole } from '@taxbridge/contracts';
-import { SectionState } from '../../components/shared/SectionState';
+import type { AlertButton } from 'react-native';
 
 type Role = 'OWNER' | 'ADMIN' | 'ACCOUNTANT' | 'EMPLOYEE' | 'VIEWER';
 
@@ -52,6 +52,10 @@ const ROLE_COLORS: Record<Role, string> = {
   EMPLOYEE:   '#6B7280',
   VIEWER:     '#9CA3AF',
 };
+
+const TYPE_SCALE = TYPOGRAPHY.sizes;
+const BRAND_PRIMARY = COLORS.primary[500];
+const BRAND_DANGER = COLORS.error;
 
 function formatDate(iso: string): string {
   try {
@@ -128,9 +132,9 @@ export default function TeamManagementScreen() {
       return;
     }
 
-    const options = ASSIGNABLE_ROLES.filter(r => r !== member.role).map(r => ({
+    const options: AlertButton[] = ASSIGNABLE_ROLES.filter(r => r !== member.role).map((r) => ({
       text: r,
-      onPress: () => handleRoleChange(member, r),
+      onPress: async () => { await handleRoleChange(member, r); },
     }));
     options.push({ text: t('common.cancel', 'Cancel'), onPress: () => {} });
 
@@ -177,7 +181,7 @@ export default function TeamManagementScreen() {
 
   const renderItem = useCallback(({ item }: { item: TeamMember }) => {
     const isUpdating = updating === item.id;
-    const roleColor = ROLE_COLORS[item.role] ?? COLORS.primary;
+    const roleColor = ROLE_COLORS[item.role] ?? BRAND_PRIMARY;
 
     return (
       <Animated.View entering={FadeInDown.duration(200)}>
@@ -217,8 +221,8 @@ export default function TeamManagementScreen() {
                 accessibilityLabel={t('team.changeRoleLabel', `Change role for ${item.name}`)}
               >
                 {isUpdating
-                  ? <ActivityIndicator size="small" color={COLORS.primary} />
-                  : <Text style={[s.actionText, { color: COLORS.primary }]}>
+                  ? <ActivityIndicator size="small" color={BRAND_PRIMARY} />
+                  : <Text style={[s.actionText, { color: BRAND_PRIMARY }]}>
                       {t('team.editRole', 'Edit')}
                     </Text>
                 }
@@ -231,7 +235,7 @@ export default function TeamManagementScreen() {
                   accessibilityRole="button"
                   accessibilityLabel={t('team.removeLabel', `Remove ${item.name}`)}
                 >
-                  <Text style={[s.actionText, { color: COLORS.danger }]}>
+                  <Text style={[s.actionText, { color: BRAND_DANGER }]}>
                     {t('team.remove', 'Remove')}
                   </Text>
                 </Pressable>
@@ -254,22 +258,36 @@ export default function TeamManagementScreen() {
         </Text>
       </Animated.View>
 
-      <SectionState
-        loading={loading}
-        error={error ? new Error(error) : null}
-        empty={members.length === 0 ? undefined : null}
-        onRetry={() => fetchMembers()}
-      >
+      {loading ? (
+        <View style={s.loadingState}>
+          <ActivityIndicator color={BRAND_PRIMARY} size="large" />
+        </View>
+      ) : error ? (
+        <View style={s.emptyState}>
+          <Text style={s.emptyIcon}>⚠️</Text>
+          <Text style={[s.emptyTitle, { color: colors.textPrimary }]}>
+            {t('team.fetchErrorTitle', 'Could not load team members')}
+          </Text>
+          <Text style={[s.emptyBody, { color: colors.textSecondary }]}>
+            {error}
+          </Text>
+          <Pressable
+            onPress={() => fetchMembers()}
+            style={({ pressed }) => [s.retryButton, pressed && { opacity: 0.85 }]}
+          >
+            <Text style={s.retryButtonText}>{t('common.tryAgain', 'Try Again')}</Text>
+          </Pressable>
+        </View>
+      ) : (
         <FlashList
           data={members}
           renderItem={renderItem}
           keyExtractor={(item) => item.id}
-          estimatedItemSize={120}
           contentContainerStyle={s.list}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={() => fetchMembers(true)} />
           }
-          ListEmptyComponent={
+          ListEmptyComponent={() => (
             <View style={s.emptyState}>
               <Text style={s.emptyIcon}>👥</Text>
               <Text style={[s.emptyTitle, { color: colors.textPrimary }]}>
@@ -279,9 +297,9 @@ export default function TeamManagementScreen() {
                 {t('team.emptyBody', 'Invite team members to collaborate on filings.')}
               </Text>
             </View>
-          }
+          )}
         />
-      </SectionState>
+      )}
     </View>
   );
 }
@@ -289,10 +307,11 @@ export default function TeamManagementScreen() {
 const s = StyleSheet.create({
   root:     { flex: 1 },
   header:   { padding: SPACING[24], paddingBottom: SPACING[16] },
-  title:    { fontSize: TYPOGRAPHY['2xl'], fontWeight: '700', marginBottom: SPACING[4] },
-  subtitle: { fontSize: TYPOGRAPHY.sm, lineHeight: 20 },
+  title:    { fontSize: TYPE_SCALE['2xl'], fontWeight: '700', marginBottom: SPACING[4] },
+  subtitle: { fontSize: TYPE_SCALE.sm, lineHeight: 20 },
 
   list: { paddingHorizontal: SPACING[16], paddingBottom: SPACING[32] },
+  loadingState: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: SPACING[32] },
 
   memberCard: {
     borderRadius:  RADIUS.lg,
@@ -313,11 +332,11 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     alignItems:     'center',
   },
-  avatarText: { fontSize: TYPOGRAPHY.lg, fontWeight: '700' },
+  avatarText: { fontSize: TYPE_SCALE.lg, fontWeight: '700' },
   memberDetails: { flex: 1 },
-  memberName:    { fontSize: TYPOGRAPHY.base, fontWeight: '600', marginBottom: 2 },
-  memberEmail:   { fontSize: TYPOGRAPHY.xs, marginBottom: 2 },
-  memberJoined:  { fontSize: TYPOGRAPHY.xs },
+  memberName:    { fontSize: TYPE_SCALE.base, fontWeight: '600', marginBottom: 2 },
+  memberEmail:   { fontSize: TYPE_SCALE.xs, marginBottom: 2 },
+  memberJoined:  { fontSize: TYPE_SCALE.xs },
 
   memberActions: {
     flexDirection:  'row',
@@ -329,7 +348,7 @@ const s = StyleSheet.create({
     paddingVertical:   SPACING[4],
     borderRadius:      RADIUS.full,
   },
-  roleText: { fontSize: TYPOGRAPHY.xs, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
+  roleText: { fontSize: TYPE_SCALE.xs, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
 
   actionRow: { flexDirection: 'row', gap: SPACING[12] },
   actionBtn: {
@@ -340,10 +359,18 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     alignItems:     'center',
   },
-  actionText: { fontSize: TYPOGRAPHY.sm, fontWeight: '600' },
+  actionText: { fontSize: TYPE_SCALE.sm, fontWeight: '600' },
 
-  emptyState: { alignItems: 'center', paddingVertical: SPACING[48] },
+  emptyState: { alignItems: 'center', paddingVertical: SPACING[12] * 4 },
   emptyIcon:  { fontSize: 48, marginBottom: SPACING[16] },
-  emptyTitle: { fontSize: TYPOGRAPHY.lg, fontWeight: '600', marginBottom: SPACING[8] },
-  emptyBody:  { fontSize: TYPOGRAPHY.sm, textAlign: 'center', paddingHorizontal: SPACING[32], lineHeight: 20 },
+  emptyTitle: { fontSize: TYPE_SCALE.lg, fontWeight: '600', marginBottom: SPACING[8] },
+  emptyBody:  { fontSize: TYPE_SCALE.sm, textAlign: 'center', paddingHorizontal: SPACING[32], lineHeight: 20 },
+  retryButton: {
+    marginTop: SPACING[16],
+    backgroundColor: BRAND_PRIMARY,
+    borderRadius: RADIUS.md,
+    paddingHorizontal: SPACING[16],
+    paddingVertical: SPACING[10],
+  },
+  retryButtonText: { color: '#fff', fontSize: TYPE_SCALE.sm, fontWeight: '600' },
 });

@@ -10,7 +10,6 @@
 
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
-import jwt from 'jsonwebtoken';
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 
 import { youverifyService } from '../integrations/youverify/service';
@@ -18,31 +17,6 @@ import { createLogger } from '../lib/logger';
 import { formatErrorResponse, ValidationError, NotFoundError } from '../lib/errors';
 
 const log = createLogger('business');
-
-// JWT authentication helper (matches existing pattern)
-async function authenticate(request: FastifyRequest): Promise<string> {
-  const authHeader = request.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    throw new Error('Missing or invalid authorization header');
-  }
-
-  const token = authHeader.substring(7);
-  const secrets = [process.env.JWT_SECRET, process.env.JWT_SECRET_PREVIOUS].filter(Boolean) as string[];
-
-  for (const secret of secrets) {
-    try {
-      const decoded = jwt.verify(token, secret) as { userId?: string };
-      if (!decoded.userId) {
-        throw new Error('Invalid token payload');
-      }
-      return decoded.userId;
-    } catch {
-      continue;
-    }
-  }
-
-  throw new Error('Invalid or expired token');
-}
 
 export default async function businessRoutes(app: FastifyInstance, opts: { prisma: PrismaClient }) {
   const prisma = opts.prisma;
@@ -90,9 +64,9 @@ export default async function businessRoutes(app: FastifyInstance, opts: { prism
   // POST /api/v1/business — Create a business
   // =========================================================================
 
-  app.post('/api/v1/business', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/api/v1/business', { preHandler: [app.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const userId = await authenticate(request);
+      const userId = request.user.userId;
       const body = CreateBusinessSchema.parse(request.body);
 
       // Check if user already has a business
@@ -151,9 +125,9 @@ export default async function businessRoutes(app: FastifyInstance, opts: { prism
   // GET /api/v1/business/profile — Get business profile
   // =========================================================================
 
-  app.get('/api/v1/business/profile', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/api/v1/business/profile', { preHandler: [app.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const userId = await authenticate(request);
+      const userId = request.user.userId;
 
       const business = await prisma.business.findFirst({
         where: { ownerId: userId },
@@ -190,9 +164,9 @@ export default async function businessRoutes(app: FastifyInstance, opts: { prism
   // PUT /api/v1/business/profile — Update business profile
   // =========================================================================
 
-  app.put('/api/v1/business/profile', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.put('/api/v1/business/profile', { preHandler: [app.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const userId = await authenticate(request);
+      const userId = request.user.userId;
       const body = UpdateBusinessSchema.parse(request.body);
 
       const business = await prisma.business.findFirst({ where: { ownerId: userId } });
@@ -237,9 +211,9 @@ export default async function businessRoutes(app: FastifyInstance, opts: { prism
   // POST /api/v1/business/verify — Verify business via Youverify
   // =========================================================================
 
-  app.post('/api/v1/business/verify', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/api/v1/business/verify', { preHandler: [app.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const userId = await authenticate(request);
+      const userId = request.user.userId;
       const body = VerifyBusinessSchema.parse(request.body);
 
       const business = await prisma.business.findFirst({ where: { ownerId: userId } });
@@ -350,9 +324,9 @@ export default async function businessRoutes(app: FastifyInstance, opts: { prism
   // GET /api/v1/business/verification — Get verification status
   // =========================================================================
 
-  app.get('/api/v1/business/verification', async (request: FastifyRequest, reply: FastifyReply) => {
+  app.get('/api/v1/business/verification', { preHandler: [app.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
-      const userId = await authenticate(request);
+      const userId = request.user.userId;
 
       const business = await prisma.business.findFirst({
         where: { ownerId: userId },

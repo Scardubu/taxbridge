@@ -14,6 +14,8 @@ import { redis }               from '../../lib/redis';
 import { register }            from '../../metrics';
 
 const monitoringRoutes: FastifyPluginAsync = async (fastify) => {
+  const isDocsMode = process.env.TAXBRIDGE_DOCS_MODE === '1';
+
   // Health — always 200; Render health check must receive 200 within 500ms
   fastify.get('/health', async (_request, reply) => {
     const checks: Record<string, 'ok' | 'degraded'> = {};
@@ -21,7 +23,14 @@ const monitoringRoutes: FastifyPluginAsync = async (fastify) => {
     try   { await (prisma as any).$queryRaw`SELECT 1`; checks.db = 'ok'; }
     catch { checks.db = 'degraded'; }
 
-    try   { await redis.ping(); checks.redis = 'ok'; }
+    try   {
+      if (isDocsMode) {
+        checks.redis = 'degraded';
+      } else {
+        await redis.ping();
+        checks.redis = 'ok';
+      }
+    }
     catch { checks.redis = 'degraded'; }
 
     const status = Object.values(checks).every(v => v === 'ok') ? 'healthy' : 'degraded';

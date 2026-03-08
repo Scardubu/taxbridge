@@ -257,8 +257,8 @@ describe('Crypto Tax — CGT Calculations', () => {
         assetType: 'crypto',
       });
       expect(result.netGain).toBe(400000);
-      expect(result.taxRate).toBe(0.10);
-      expect(result.taxAmount).toBe(40000);
+      expect(result.cgtRate).toBe(0.10);
+      expect(result.cgtLiability).toBe(40000);
       expect(result.isLoss).toBe(false);
     });
 
@@ -269,7 +269,7 @@ describe('Crypto Tax — CGT Calculations', () => {
         assetType: 'crypto',
       });
       expect(result.netGain).toBe(-300000);
-      expect(result.taxAmount).toBe(0);
+      expect(result.cgtLiability).toBe(0);
       expect(result.isLoss).toBe(true);
     });
 
@@ -280,8 +280,8 @@ describe('Crypto Tax — CGT Calculations', () => {
         assetType: 'crypto',
       });
       expect(result.netGain).toBe(0);
-      expect(result.taxAmount).toBe(0);
-      expect(result.isLoss).toBe(true); // 0 gain treated as no gain
+      expect(result.cgtLiability).toBe(0);
+      expect(result.isLoss).toBe(false);
     });
 
     it('handles large crypto gains', () => {
@@ -291,27 +291,27 @@ describe('Crypto Tax — CGT Calculations', () => {
         assetType: 'crypto',
       });
       expect(result.netGain).toBe(40000000);
-      expect(result.taxAmount).toBe(4000000);
+      expect(result.cgtLiability).toBe(4000000);
     });
 
     it('handles NFT transactions', () => {
       const result = calculateCGT({
         proceeds: 2000000,
         costBasis: 500000,
-        assetType: 'nfts',
+        assetType: 'other',
       });
-      expect(result.assetType).toBe('nfts');
-      expect(result.taxAmount).toBe(150000);
+      expect(result.assetType).toBe('other');
+      expect(result.cgtLiability).toBe(150000);
     });
 
     it('handles stock transactions', () => {
       const result = calculateCGT({
         proceeds: 5000000,
         costBasis: 3000000,
-        assetType: 'stocks',
+        assetType: 'shares',
       });
-      expect(result.assetType).toBe('stocks');
-      expect(result.taxAmount).toBe(200000);
+      expect(result.assetType).toBe('shares');
+      expect(result.cgtLiability).toBe(200000);
     });
   });
 

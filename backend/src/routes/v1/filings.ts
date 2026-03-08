@@ -8,9 +8,11 @@ import { FastifyPluginAsync }    from 'fastify';
 import { z }                     from 'zod';
 import { createId }              from '@paralleldrive/cuid2';
 import { prisma }                from '../../lib/prisma';
+import { redis }                 from '../../lib/redis';
 import { validate }              from '../../plugins/validate';
-import { idempotency }           from '../../plugins/idempotency';
+import { cacheIdempotencyResponse, idempotency } from '../../plugins/idempotency';
 import { requireRole }           from '../../plugins/requireRole';
+import { invalidateDashboardCache } from '../dashboard-composite';
 import { writeAuditEvent }       from '../../services/audit';
 import {
   calculateVAT,
@@ -106,13 +108,16 @@ const filingsRoutes: FastifyPluginAsync = async (fastify) => {
       targetType: 'TaxReturn', targetId: filing.id, action: 'FILE',
       ip: request.ip, userAgent: request.headers['user-agent'],
     });
+    await invalidateDashboardCache(redis, request.user.userId);
 
     request.log.info({ filingId: filing.id, orgId, taxType, period }, 'NIL filing submitted');
-    return reply.send({
+    const responseBody = {
       filingReference: filing.filingReference,
       period, taxType,
       ...(penaltyWarning ? { warning: 'LATE_FILING_PENALTY_MAY_APPLY' } : {}),
-    });
+    };
+    await cacheIdempotencyResponse(request, 200, responseBody);
+    return reply.send(responseBody);
   });
 
   // ── VAT ─────────────────────────────────────────────────────────────────────
@@ -154,14 +159,17 @@ const filingsRoutes: FastifyPluginAsync = async (fastify) => {
       targetType: 'TaxReturn', targetId: filing.id, action: 'FILE',
       ip: request.ip, userAgent: request.headers['user-agent'],
     });
+    await invalidateDashboardCache(redis, request.user.userId);
 
-    return reply.send({
+    const responseBody = {
       filingReference: filing.filingReference,
       period,
       taxType: 'VAT',
       netPayable:      vatResult.netPayable,
       creditCarryover: vatResult.creditCarryover,
-    });
+    };
+    await cacheIdempotencyResponse(request, 200, responseBody);
+    return reply.send(responseBody);
   });
 
   // ── WHT ─────────────────────────────────────────────────────────────────────
@@ -201,14 +209,17 @@ const filingsRoutes: FastifyPluginAsync = async (fastify) => {
       targetType: 'TaxReturn', targetId: filing.id, action: 'FILE',
       ip: request.ip, userAgent: request.headers['user-agent'],
     });
+    await invalidateDashboardCache(redis, request.user.userId);
 
-    return reply.send({
+    const responseBody = {
       filingReference: filing.filingReference,
       period, taxType: 'WHT',
       whtAmount:  whtResult.whtAmount,
       rate:       whtResult.rate,
       exempt:     whtResult.exempt,
-    });
+    };
+    await cacheIdempotencyResponse(request, 200, responseBody);
+    return reply.send(responseBody);
   });
 
   // ── PAYE ────────────────────────────────────────────────────────────────────
@@ -252,16 +263,42 @@ const filingsRoutes: FastifyPluginAsync = async (fastify) => {
       targetType: 'TaxReturn', targetId: filing.id, action: 'FILE',
       ip: request.ip, userAgent: request.headers['user-agent'],
     });
+    await invalidateDashboardCache(redis, request.user.userId);
 
-    return reply.send({
+    const responseBody = {
       filingReference: filing.filingReference,
       period, taxType: 'PAYE',
       totalTax,
       employeeCount: employees.length,
-    });
+    };
+    await cacheIdempotencyResponse(request, 200, responseBody);
+    return reply.send(responseBody);
   });
 
   // ── CIT ─────────────────────────────────────────────────────────────────────
+  fastify.post('/cit/calculate', {
+    config: { rateLimit: { max: 10, timeWindow: '1 minute' } },
+    preHandler: [
+      fastify.authenticate,
+      fastify.resolveOrgContext,
+      requireRole('ACCOUNTANT'),
+      validate(CITSchema),
+    ],
+  }, async (request, reply) => {
+    const { turnover, taxableProfit } = request.body as z.infer<typeof CITSchema>;
+    const citResult = calculateCIT({ turnover, taxableProfit });
+
+    return reply.send({
+      taxableProfit: citResult.taxableProfit,
+      citLiability: citResult.citLiability,
+      band: citResult.band,
+      rate: citResult.rate,
+      devLevy: citResult.devLevy,
+      total: citResult.total,
+      exempt: citResult.exempt,
+    });
+  });
+
   fastify.post('/cit', {
     config: { rateLimit: { max: 10, timeWindow: '1 minute' } },
     preHandler: [
@@ -294,13 +331,20 @@ const filingsRoutes: FastifyPluginAsync = async (fastify) => {
       targetType: 'TaxReturn', targetId: filing.id, action: 'FILE',
       ip: request.ip, userAgent: request.headers['user-agent'],
     });
+    await invalidateDashboardCache(redis, request.user.userId);
 
-    return reply.send({
+    const responseBody = {
       filingReference: filing.filingReference,
       period, taxType: 'CIT',
       citLiability: citResult.citLiability,
       band:         citResult.band,
-    });
+      taxableProfit: citResult.taxableProfit,
+      devLevy: citResult.devLevy,
+      total: citResult.total,
+      exempt: citResult.exempt,
+    };
+    await cacheIdempotencyResponse(request, 200, responseBody);
+    return reply.send(responseBody);
   });
 
   // ── Preflight ───────────────────────────────────────────────────────────────

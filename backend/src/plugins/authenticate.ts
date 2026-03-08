@@ -54,7 +54,7 @@ export default fp(async function authenticatePlugin(fastify) {
       const { payload } = await jwtVerify(token, secret);
 
       // role_version check: explicit null check — version 0 is a valid value
-      const storedVersion = await redis.get(`role_version:${payload.sub}`);
+      const storedVersion = await redis.get(`role_version:${payload.sub}`).catch(() => null);
       if (
         storedVersion !== null &&
         Number(storedVersion) !== (payload as any).role_version

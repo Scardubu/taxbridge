@@ -18,13 +18,16 @@
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import type { FastifyInstance } from 'fastify';
-import jwt from 'jsonwebtoken';
 
 import { ExpenseService, EXPENSE_CATEGORIES } from '../services/expense';
 import { performOCR } from '../lib/performOCR';
-import { AuthenticationError, ValidationError, NotFoundError } from '../lib/errors';
+import { ValidationError, NotFoundError } from '../lib/errors';
 import { createLogger } from '../lib/logger';
 import { emitTransactionCreated } from '../services/event-bus';
+import { redis } from '../lib/redis';
+import { requireRole } from '../plugins/requireRole';
+import { validate } from '../plugins/validate';
+import { invalidateDashboardCache } from './dashboard-composite';
 
 const log = createLogger('expense-routes');
 
@@ -34,28 +37,6 @@ export default async function expenseRoutes(
 ) {
   const prisma = opts.prisma;
   const expenseService = new ExpenseService(prisma);
-
-  // =========================================================================
-  // Auth helper (same pattern as other route files)
-  // =========================================================================
-  async function authenticate(req: any): Promise<string> {
-    const authHeader = req.headers.authorization;
-    if (!authHeader?.startsWith('Bearer ')) {
-      throw new AuthenticationError('Missing or invalid authorization header');
-    }
-    const token = authHeader.slice(7);
-    try {
-      const secret = process.env.JWT_SECRET;
-      if (!secret) throw new Error('JWT_SECRET not configured');
-      const payload = jwt.verify(token, secret) as { sub?: string; userId?: string };
-      const userId = payload.sub || payload.userId;
-      if (!userId) throw new Error('Invalid token payload');
-      return userId;
-    } catch (err: any) {
-      if (err instanceof AuthenticationError) throw err;
-      throw new AuthenticationError('Invalid or expired token');
-    }
-  }
 
   // =========================================================================
   // Validation Schemas
@@ -93,15 +74,23 @@ export default async function expenseRoutes(
   // =========================================================================
   // POST /api/v1/expenses — Create expense
   // =========================================================================
-  app.post('/api/v1/expenses', async (req, reply) => {
-    const userId = await authenticate(req);
-    const body = CreateExpenseSchema.parse(req.body);
+  app.post('/api/v1/expenses', {
+    preHandler: [app.authenticate, app.resolveOrgContext, requireRole('ACCOUNTANT'), validate(CreateExpenseSchema)],
+  }, async (req, reply) => {
+    const { orgId } = req.orgContext;
+    const { userId } = req.user;
+    const body = req.body as z.infer<typeof CreateExpenseSchema>;
 
     try {
-      const expense = await expenseService.create(userId, body as import('../services/expense').CreateExpenseInput);
+      const expense = await expenseService.create(userId, {
+        ...body,
+        businessId: orgId,
+      } as import('../services/expense').CreateExpenseInput);
 
       // P4: Emit domain event (fire-and-forget)
       emitTransactionCreated({ invoiceId: expense.id, userId, amount: Number(body.amount), type: 'expense' }).catch(() => {});
+
+      await invalidateDashboardCache(redis, userId);
 
       return reply.status(201).send({
         success: true,
@@ -109,7 +98,7 @@ export default async function expenseRoutes(
       });
     } catch (err: any) {
       if (err.message?.includes('not found') || err.message?.includes('access denied')) {
-        throw new NotFoundError('Business', body.businessId);
+        throw new NotFoundError('Business', orgId);
       }
       throw err;
     }
@@ -118,9 +107,12 @@ export default async function expenseRoutes(
   // =========================================================================
   // POST /api/v1/expenses/scan — Create expense from receipt scan (OCR)
   // =========================================================================
-  app.post('/api/v1/expenses/scan', async (req, reply) => {
-    const userId = await authenticate(req);
-    const body = ScanReceiptSchema.parse(req.body);
+  app.post('/api/v1/expenses/scan', {
+    preHandler: [app.authenticate, app.resolveOrgContext, requireRole('ACCOUNTANT'), validate(ScanReceiptSchema)],
+  }, async (req, reply) => {
+    const { orgId } = req.orgContext;
+    const { userId } = req.user;
+    const body = req.body as z.infer<typeof ScanReceiptSchema>;
 
     // Validate image size (max 5MB)
     const imageSizeBytes = body.image.length * (3 / 4);
@@ -128,7 +120,7 @@ export default async function expenseRoutes(
       throw new ValidationError('Image too large (max 5MB)');
     }
 
-    log.info('OCR expense scan started', { userId, businessId: body.businessId });
+    log.info('OCR expense scan started', { userId, businessId: orgId });
 
     // Run OCR
     const ocrResult = await performOCR(body.image, body.mimeType);
@@ -152,7 +144,7 @@ export default async function expenseRoutes(
     // Create expense from OCR data
     const expense = await expenseService.createFromOCR(
       userId,
-      body.businessId,
+      orgId,
       ocrResult,
       body.image.length > 10000 ? undefined : body.image // Only store small images inline
     );
@@ -162,6 +154,8 @@ export default async function expenseRoutes(
       confidence: ocrResult.confidence,
       amount: ocrResult.amount,
     });
+
+    await invalidateDashboardCache(redis, userId);
 
     return reply.status(201).send({
       success: true,
@@ -180,11 +174,14 @@ export default async function expenseRoutes(
   // =========================================================================
   // GET /api/v1/expenses — List expenses
   // =========================================================================
-  app.get('/api/v1/expenses', async (req, reply) => {
-    const userId = await authenticate(req);
+  app.get('/api/v1/expenses', {
+    preHandler: [app.authenticate, app.resolveOrgContext, requireRole('VIEWER')],
+  }, async (req, reply) => {
+    const { orgId } = req.orgContext;
+    const { userId } = req.user;
     const query = req.query as Record<string, string>;
 
-    const businessId = query.businessId;
+    const businessId = query.businessId ?? orgId;
     if (!businessId) {
       throw new ValidationError('businessId query parameter is required');
     }
@@ -211,7 +208,7 @@ export default async function expenseRoutes(
       });
     } catch (err: any) {
       if (err.message?.includes('not found') || err.message?.includes('access denied')) {
-        throw new NotFoundError('Business', businessId);
+        throw new NotFoundError('Business', orgId);
       }
       throw err;
     }
@@ -220,11 +217,14 @@ export default async function expenseRoutes(
   // =========================================================================
   // GET /api/v1/expenses/stats — Expense statistics
   // =========================================================================
-  app.get('/api/v1/expenses/stats', async (req, reply) => {
-    const userId = await authenticate(req);
+  app.get('/api/v1/expenses/stats', {
+    preHandler: [app.authenticate, app.resolveOrgContext, requireRole('VIEWER')],
+  }, async (req, reply) => {
+    const { orgId } = req.orgContext;
+    const { userId } = req.user;
     const query = req.query as Record<string, string>;
 
-    const businessId = query.businessId;
+    const businessId = query.businessId ?? orgId;
     if (!businessId) {
       throw new ValidationError('businessId query parameter is required');
     }
@@ -234,7 +234,7 @@ export default async function expenseRoutes(
       return reply.send({ success: true, data: stats });
     } catch (err: any) {
       if (err.message?.includes('not found') || err.message?.includes('access denied')) {
-        throw new NotFoundError('Business', businessId);
+        throw new NotFoundError('Business', orgId);
       }
       throw err;
     }
@@ -243,8 +243,10 @@ export default async function expenseRoutes(
   // =========================================================================
   // GET /api/v1/expenses/:id — Get expense detail
   // =========================================================================
-  app.get('/api/v1/expenses/:id', async (req, reply) => {
-    const userId = await authenticate(req);
+  app.get('/api/v1/expenses/:id', {
+    preHandler: [app.authenticate, app.resolveOrgContext, requireRole('VIEWER')],
+  }, async (req, reply) => {
+    const { userId } = req.user;
     const { id } = req.params as { id: string };
 
     const expense = await expenseService.getById(userId, id);
@@ -261,13 +263,16 @@ export default async function expenseRoutes(
   // =========================================================================
   // PUT /api/v1/expenses/:id — Update expense
   // =========================================================================
-  app.put('/api/v1/expenses/:id', async (req, reply) => {
-    const userId = await authenticate(req);
+  app.put('/api/v1/expenses/:id', {
+    preHandler: [app.authenticate, app.resolveOrgContext, requireRole('ACCOUNTANT'), validate(UpdateExpenseSchema)],
+  }, async (req, reply) => {
+    const { userId } = req.user;
     const { id } = req.params as { id: string };
-    const body = UpdateExpenseSchema.parse(req.body);
+    const body = req.body as z.infer<typeof UpdateExpenseSchema>;
 
     try {
       const expense = await expenseService.update(userId, id, body as import('../services/expense').UpdateExpenseInput);
+      await invalidateDashboardCache(redis, userId);
       return reply.send({
         success: true,
         data: { expense: formatExpense(expense) },
@@ -286,12 +291,15 @@ export default async function expenseRoutes(
   // =========================================================================
   // DELETE /api/v1/expenses/:id — Delete expense
   // =========================================================================
-  app.delete('/api/v1/expenses/:id', async (req, reply) => {
-    const userId = await authenticate(req);
+  app.delete('/api/v1/expenses/:id', {
+    preHandler: [app.authenticate, app.resolveOrgContext, requireRole('ACCOUNTANT')],
+  }, async (req, reply) => {
+    const { userId } = req.user;
     const { id } = req.params as { id: string };
 
     try {
       await expenseService.delete(userId, id);
+      await invalidateDashboardCache(redis, userId);
       return reply.send({ success: true, data: { deleted: true } });
     } catch (err: any) {
       if (err.message?.includes('not found') || err.message?.includes('access denied')) {
@@ -307,12 +315,15 @@ export default async function expenseRoutes(
   // =========================================================================
   // POST /api/v1/expenses/:id/approve — Approve expense
   // =========================================================================
-  app.post('/api/v1/expenses/:id/approve', async (req, reply) => {
-    const userId = await authenticate(req);
+  app.post('/api/v1/expenses/:id/approve', {
+    preHandler: [app.authenticate, app.resolveOrgContext, requireRole('ACCOUNTANT')],
+  }, async (req, reply) => {
+    const { userId } = req.user;
     const { id } = req.params as { id: string };
 
     try {
       const expense = await expenseService.approve(userId, id);
+      await invalidateDashboardCache(redis, userId);
       return reply.send({
         success: true,
         data: { expense: formatExpense(expense) },
@@ -331,12 +342,15 @@ export default async function expenseRoutes(
   // =========================================================================
   // POST /api/v1/expenses/:id/reject — Reject expense
   // =========================================================================
-  app.post('/api/v1/expenses/:id/reject', async (req, reply) => {
-    const userId = await authenticate(req);
+  app.post('/api/v1/expenses/:id/reject', {
+    preHandler: [app.authenticate, app.resolveOrgContext, requireRole('ACCOUNTANT')],
+  }, async (req, reply) => {
+    const { userId } = req.user;
     const { id } = req.params as { id: string };
 
     try {
       const expense = await expenseService.reject(userId, id);
+      await invalidateDashboardCache(redis, userId);
       return reply.send({
         success: true,
         data: { expense: formatExpense(expense) },

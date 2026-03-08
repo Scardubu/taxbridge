@@ -24,6 +24,8 @@ Notifications.setNotificationHandler({
     shouldShowAlert: true,
     shouldPlaySound: true,
     shouldSetBadge: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
   }),
 });
 
@@ -38,7 +40,7 @@ Notifications.setNotificationHandler({
 export async function registerForPushNotifications(): Promise<string | null> {
   // Push notifications are only available on physical devices.
   if (!Device.isDevice) {
-    addBreadcrumb('push-notification', 'Skipping push registration — not a physical device', 'info');
+    addBreadcrumb({ category: 'push-notification', message: 'Skipping push registration — not a physical device', level: 'info' });
     return null;
   }
 
@@ -52,7 +54,7 @@ export async function registerForPushNotifications(): Promise<string | null> {
   }
 
   if (finalStatus !== 'granted') {
-    addBreadcrumb('push-notification', 'Push permission denied', 'warning');
+    addBreadcrumb({ category: 'push-notification', message: 'Push permission denied', level: 'warning' });
     return null;
   }
 
@@ -73,7 +75,7 @@ export async function registerForPushNotifications(): Promise<string | null> {
       projectId: process.env.EXPO_PUBLIC_PROJECT_ID,
     });
   } catch (err) {
-    addBreadcrumb('push-notification', `Failed to get Expo push token: ${String(err)}`, 'error');
+    addBreadcrumb({ category: 'push-notification', message: `Failed to get Expo push token: ${String(err)}`, level: 'error' });
     return null;
   }
 
@@ -85,10 +87,10 @@ export async function registerForPushNotifications(): Promise<string | null> {
       token,
       platform: Platform.OS,
     });
-    addBreadcrumb('push-notification', 'Push token registered with backend', 'info');
+    addBreadcrumb({ category: 'push-notification', message: 'Push token registered with backend', level: 'info' });
   } catch (err) {
     // Non-fatal — the app works without push notifications
-    addBreadcrumb('push-notification', `Backend registration failed: ${String(err)}`, 'warning');
+    addBreadcrumb({ category: 'push-notification', message: `Backend registration failed: ${String(err)}`, level: 'warning' });
   }
 
   return token;
@@ -104,19 +106,19 @@ interface UsePushNotificationOptions {
 }
 
 export function usePushNotification(opts: UsePushNotificationOptions = {}) {
-  const notificationListener  = useRef<Notifications.EventSubscription>();
-  const responseListener      = useRef<Notifications.EventSubscription>();
+  const notificationListener  = useRef<Notifications.EventSubscription>(null);
+  const responseListener      = useRef<Notifications.EventSubscription>(null);
 
   useEffect(() => {
     // Attempt registration on mount — non-blocking
-    registerForPushNotifications().catch((err) => {
-      addBreadcrumb('push-notification', `Registration error: ${String(err)}`, 'error');
+    registerForPushNotifications().catch((err: unknown) => {
+      addBreadcrumb({ category: 'push-notification', message: `Registration error: ${String(err)}`, level: 'error' });
     });
 
     // Foreground notification received
     notificationListener.current = Notifications.addNotificationReceivedListener(
       (notification) => {
-        addBreadcrumb('push-notification', `Notification received: ${notification.request.identifier}`, 'info');
+        addBreadcrumb({ category: 'push-notification', message: `Notification received: ${notification.request.identifier}`, level: 'info' });
         opts.onNotification?.(notification);
       },
     );
@@ -124,7 +126,7 @@ export function usePushNotification(opts: UsePushNotificationOptions = {}) {
     // User tapped a notification
     responseListener.current = Notifications.addNotificationResponseReceivedListener(
       (response) => {
-        addBreadcrumb('push-notification', `Notification response: ${response.notification.request.identifier}`, 'info');
+        addBreadcrumb({ category: 'push-notification', message: `Notification response: ${response.notification.request.identifier}`, level: 'info' });
         opts.onNotificationResponse?.(response);
       },
     );

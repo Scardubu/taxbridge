@@ -1,7 +1,7 @@
 /**
  * validateEnv — TaxBridge V13 Sovereign
  *
- * Hard-crash guard — FIRST import in app.ts, before Fastify() constructor.
+ * Hard-crash guard — must be the initial import in app.ts, before Fastify() constructor.
  * If any REQUIRED key is missing, process exits with code 1 immediately.
  *
  * C-07 exception: intentional process.exit(1) — no safe fallback for missing

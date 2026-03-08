@@ -63,7 +63,7 @@ export default async function citFilingRoutes(app: FastifyInstance) {
         });
       }
 
-      const result = calculateCIT({ turnover, profit, devLevyApplies, taxLossCarryforward });
+      const result = calculateCIT({ turnover, taxableProfit: profit, devLevyApplies, taxLossCarryforward });
 
       const warnings: string[] = [];
       if (turnover >= SMALL_CO_CIT_THRESHOLD * 0.9 && turnover < SMALL_CO_CIT_THRESHOLD) {

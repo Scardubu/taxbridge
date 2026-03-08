@@ -2,7 +2,7 @@
  * resolveOrgContext plugin — TaxBridge V13 Sovereign
  *
  * Fastify decorator: fastify.resolveOrgContext
- * Validates OrgMember.status === 'active' AND Organisation.status !== 'SUSPENDED'
+ * Validates OrgMember.status === 'active' AND Organisation.status !== 'suspended'
  * Sets request.orgContext
  */
 import fp                               from 'fastify-plugin';
@@ -25,7 +25,7 @@ export default fp(async function resolveOrgContextPlugin(fastify) {
     const { userId, orgId } = request.user;
 
     const member = await (prisma as any).orgMember.findFirst({
-      where: { userId, orgId, status: 'active', deletedAt: null },
+      where: { userId, orgId, removedAt: null, status: 'active' },
     });
     if (!member) {
       return reply.code(403).send({
@@ -34,11 +34,11 @@ export default fp(async function resolveOrgContextPlugin(fastify) {
       });
     }
 
-    const org = await (prisma as any).organisation.findUnique({ where: { id: orgId } });
-    if (!org || org.status === 'SUSPENDED') {
+    const org = await (prisma as any).org.findUnique({ where: { id: orgId } });
+    if (!org || org.status === 'suspended') {
       return reply.code(403).send({ error: 'ORG_SUSPENDED' });
     }
-    if (org.status === 'PENDING_VERIFICATION') {
+    if (org.status === 'pending_verification') {
       return reply.code(403).send({ error: 'ORG_PENDING_VERIFICATION' });
     }
 

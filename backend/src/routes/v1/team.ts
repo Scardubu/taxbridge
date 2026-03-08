@@ -15,15 +15,13 @@
 
 import { z } from 'zod';
 import type { FastifyInstance } from 'fastify';
-import { authenticate } from '../../middleware/authenticate';
-import { resolveOrgContext } from '../../middleware/tenant';
-import { requireRole } from '../../middleware/requireRole';
+import { requireRole } from '../../plugins/requireRole';
 import { writeAuditEvent } from '../../services/audit';
-import { createLogger } from '../../lib/logger';
-import { getPrismaClient } from '../../lib/prisma';
-import { getRedisConnection } from '../../queue/client';
+import { logger } from '../../lib/logger';
+import { prisma } from '../../lib/prisma';
+import { redis } from '../../lib/redis';
 
-const log = createLogger('team');
+const log = logger.child({ service: 'team' });
 
 // ─── Role hierarchy (§7.1) ────────────────────────────────────────────────
 
@@ -42,8 +40,6 @@ type AssignableRole = typeof ASSIGNABLE_ROLES[number];
 // ─── Session invalidation helper ──────────────────────────────────────────
 
 async function invalidateSession(userId: string) {
-  const redis = getRedisConnection();
-  if (!redis) return;
   await redis.del(`sessions:${userId}`);
   // C-44: role_version increment — covers role change (path 1) and account suspension (path 3)
   await redis.del(`role_version:${userId}`);
@@ -53,27 +49,51 @@ async function invalidateSession(userId: string) {
 // ─── Routes ──────────────────────────────────────────────────────────────
 
 export default async function teamRoutes(app: FastifyInstance) {
-  const prisma = getPrismaClient();
+  app.get<{ Params: { userId: string } }>(
+    '/api/v1/admin/role-version/:userId',
+    async (req, reply) => {
+      const internalKey = req.headers['x-internal-key'];
+      const expectedKey = process.env.INTERNAL_API_KEY;
+
+      if (!expectedKey || internalKey !== expectedKey) {
+        return reply.status(401).send({ error: 'UNAUTHORIZED' });
+      }
+
+      const roleVersion = parseInt(await redis.get(`role_version:${req.params.userId}`) ?? '0', 10);
+      return reply.send({ roleVersion });
+    },
+  );
 
   // ── List members ─────────────────────────────────────────────────────────
   app.get(
     '/api/v1/team',
-    { preHandler: [authenticate, resolveOrgContext] },
+    { preHandler: [app.authenticate, app.resolveOrgContext] },
     async (req, reply) => {
       const orgId = (req as any).orgContext.orgId;
-      const members = await (prisma as any).orgMember?.findMany({
-        where:   { orgId, status: 'active', deletedAt: null },
+      const members = await prisma.orgMember?.findMany({
+        where:   { orgId, removedAt: null },
         orderBy: { createdAt: 'asc' },
-        include: { user: { select: { id: true, name: true, email: true } } },
       }) ?? [];
-      return reply.send({ members });
+      const users = members.length > 0
+        ? await prisma.user.findMany({
+            where: { id: { in: members.map((member) => member.userId) } },
+            select: { id: true, name: true, email: true },
+          })
+        : [];
+      const usersById = new Map(users.map((user) => [user.id, user]));
+      return reply.send({
+        members: members.map((member) => ({
+          ...member,
+          user: usersById.get(member.userId) ?? null,
+        })),
+      });
     },
   );
 
   // ── Invite member ─────────────────────────────────────────────────────────
   app.post(
     '/api/v1/team/invite',
-    { preHandler: [authenticate, resolveOrgContext, requireRole('OWNER')] },
+    { preHandler: [app.authenticate, app.resolveOrgContext, requireRole('OWNER')] },
     async (req, reply) => {
       const parseResult = z.object({
         email: z.string().email(),
@@ -85,7 +105,7 @@ export default async function teamRoutes(app: FastifyInstance) {
 
       const { email, role } = parseResult.data;
       const orgId      = (req as any).orgContext.orgId;
-      const actorId    = (req as any).user.id;
+      const actorId    = (req as any).user.userId;
       const actorRole  = (req as any).user.role;
 
       // Enforce: actor cannot assign a role ≥ their own level (§7.1 ¹)
@@ -99,21 +119,21 @@ export default async function teamRoutes(app: FastifyInstance) {
       }
 
       // Find or create user by email
-      const user = await (prisma as any).user?.findUnique({ where: { email } });
+      const user = await prisma.user?.findUnique({ where: { email } });
       if (!user) {
         return reply.status(404).send({ error: 'USER_NOT_FOUND', message: `No user found with email ${email}.` });
       }
 
       // Check if already a member
-      const existing = await (prisma as any).orgMember?.findFirst({
-        where: { orgId, userId: user.id, status: 'active' },
+      const existing = await prisma.orgMember?.findFirst({
+        where: { orgId, userId: user.id, removedAt: null },
       });
       if (existing) {
         return reply.status(409).send({ error: 'ALREADY_MEMBER', message: 'User is already a member of this organisation.' });
       }
 
-      const member = await (prisma as any).orgMember?.create({
-        data: { orgId, userId: user.id, role, status: 'active' },
+      const member = await prisma.orgMember?.create({
+        data: { orgId, userId: user.id, role },
       });
 
       await writeAuditEvent({
@@ -133,7 +153,7 @@ export default async function teamRoutes(app: FastifyInstance) {
   // ── Update role ────────────────────────────────────────────────────────────
   app.patch<{ Params: { userId: string } }>(
     '/api/v1/team/:userId/role',
-    { preHandler: [authenticate, resolveOrgContext, requireRole('OWNER')] },
+    { preHandler: [app.authenticate, app.resolveOrgContext, requireRole('OWNER')] },
     async (req, reply) => {
       const parseResult = z.object({ role: z.enum(ASSIGNABLE_ROLES) }).safeParse(req.body);
       if (!parseResult.success) {
@@ -143,7 +163,7 @@ export default async function teamRoutes(app: FastifyInstance) {
       const { role: newRole }  = parseResult.data;
       const { userId }         = req.params;
       const orgId              = (req as any).orgContext.orgId;
-      const actorId            = (req as any).user.id;
+      const actorId            = (req as any).user.userId;
       const actorRole          = (req as any).user.role;
 
       const actorLevel  = ROLE_LEVEL[actorRole]  ?? 0;
@@ -155,13 +175,13 @@ export default async function teamRoutes(app: FastifyInstance) {
         });
       }
 
-      const member = await (prisma as any).orgMember?.findFirst({
-        where: { orgId, userId, status: 'active', deletedAt: null },
+      const member = await prisma.orgMember?.findFirst({
+        where: { orgId, userId, removedAt: null },
       });
       if (!member) return reply.status(404).send({ error: 'NOT_FOUND', message: 'Member not found.' });
 
       const before = { role: member.role };
-      await (prisma as any).orgMember?.update({ where: { id: member.id }, data: { role: newRole } });
+      await prisma.orgMember?.update({ where: { id: member.id }, data: { role: newRole } });
 
       // Session invalidation on role change (§7.4)
       await invalidateSession(userId);
@@ -182,22 +202,22 @@ export default async function teamRoutes(app: FastifyInstance) {
   // ── Remove member ─────────────────────────────────────────────────────────
   app.delete<{ Params: { userId: string } }>(
     '/api/v1/team/:userId',
-    { preHandler: [authenticate, resolveOrgContext, requireRole('OWNER')] },
+    { preHandler: [app.authenticate, app.resolveOrgContext, requireRole('OWNER')] },
     async (req, reply) => {
       const { userId }  = req.params;
       const orgId       = (req as any).orgContext.orgId;
-      const actorId     = (req as any).user.id;
+      const actorId     = (req as any).user.userId;
       const actorRole   = (req as any).user.role;
 
-      const member = await (prisma as any).orgMember?.findFirst({
-        where: { orgId, userId, status: 'active', deletedAt: null },
+      const member = await prisma.orgMember?.findFirst({
+        where: { orgId, userId, removedAt: null },
       });
       if (!member) return reply.status(404).send({ error: 'NOT_FOUND', message: 'Member not found.' });
 
       // 409 LAST_OWNER — cannot remove last OWNER
       if (member.role === 'OWNER') {
-        const ownerCount = await (prisma as any).orgMember?.count({
-          where: { orgId, role: 'OWNER', status: 'active', deletedAt: null },
+        const ownerCount = await prisma.orgMember?.count({
+          where: { orgId, role: 'OWNER', removedAt: null },
         });
         if (ownerCount <= 1) {
           return reply.status(409).send({
@@ -208,10 +228,10 @@ export default async function teamRoutes(app: FastifyInstance) {
         }
       }
 
-      // Soft delete (deletedAt = now, status = 'inactive')
-      await (prisma as any).orgMember?.update({
+      // Soft delete (removedAt = now)
+      await prisma.orgMember?.update({
         where: { id: member.id },
-        data:  { status: 'inactive', deletedAt: new Date() },
+        data:  { removedAt: new Date() },
       });
 
       await invalidateSession(userId);
@@ -232,7 +252,7 @@ export default async function teamRoutes(app: FastifyInstance) {
   // ── List accountant delegations ───────────────────────────────────────────
   app.get(
     '/api/v1/team/accountants',
-    { preHandler: [authenticate, resolveOrgContext] },
+    { preHandler: [app.authenticate, app.resolveOrgContext] },
     async (req, reply) => {
       const orgId = (req as any).orgContext.orgId;
       const delegations = await (prisma as any).accountantClient?.findMany({
@@ -245,7 +265,7 @@ export default async function teamRoutes(app: FastifyInstance) {
   // ── Grant accountant delegation ───────────────────────────────────────────
   app.post(
     '/api/v1/team/accountants',
-    { preHandler: [authenticate, resolveOrgContext, requireRole('OWNER')] },
+    { preHandler: [app.authenticate, app.resolveOrgContext, requireRole('OWNER')] },
     async (req, reply) => {
       const parseResult = z.object({
         accountantUserId: z.string().cuid(),
@@ -257,7 +277,7 @@ export default async function teamRoutes(app: FastifyInstance) {
 
       const { accountantUserId, permissions } = parseResult.data;
       const orgId   = (req as any).orgContext.orgId;
-      const actorId = (req as any).user.id;
+      const actorId = (req as any).user.userId;
       const role    = (req as any).user.role;
 
       const delegation = await (prisma as any).accountantClient?.create({
@@ -280,10 +300,10 @@ export default async function teamRoutes(app: FastifyInstance) {
   // ── Revoke accountant delegation ──────────────────────────────────────────
   app.delete<{ Params: { id: string } }>(
     '/api/v1/team/accountants/:id',
-    { preHandler: [authenticate, resolveOrgContext, requireRole('OWNER')] },
+    { preHandler: [app.authenticate, app.resolveOrgContext, requireRole('OWNER')] },
     async (req, reply) => {
       const orgId   = (req as any).orgContext.orgId;
-      const actorId = (req as any).user.id;
+      const actorId = (req as any).user.userId;
       const role    = (req as any).user.role;
 
       const delegation = await (prisma as any).accountantClient?.update({

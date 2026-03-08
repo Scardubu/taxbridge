@@ -17,6 +17,7 @@ import fastifyMultipart                  from '@fastify/multipart';
 import fastifySwagger                    from '@fastify/swagger';
 import fastifySwaggerUI                  from '@fastify/swagger-ui';
 import { redis }                         from './lib/redis';
+import { prisma }                        from './lib/prisma';
 
 // Plugin imports
 import authenticatePlugin    from './plugins/authenticate';
@@ -32,12 +33,25 @@ import complianceRoutes      from './routes/v1/compliance';
 import documentsRoutes       from './routes/v1/documents';
 import teamRoutes            from './routes/v1/team';
 import notifRoutes           from './routes/v1/notifications';
+import payrollRoutes         from './routes/payroll';
 
 // V2 Route imports
 import monitoringRoutes      from './routes/v2/monitoring';
+import v2DashboardRoute      from './routes/v2/dashboard';
 import analyticsRoutes       from './routes/v2/analytics';
 import dlqRoutes             from './routes/v2/dlq';
 import auditRoutes           from './routes/v2/audit';
+import v2IntelligenceRoute   from './routes/v2/intelligence';
+import v2OnboardingRoute2    from './routes/v2/onboarding';
+import v2NdpcExportRoute     from './routes/v2/ndpc-export';
+
+// Root-level Route imports
+import invoicesRoutes           from './routes/invoices';
+import invoiceManagementRoutes  from './routes/invoiceManagement';
+import paymentRoutes            from './routes/payments';
+import businessRoutes           from './routes/business';
+import cryptoRoutes             from './routes/crypto';
+import reconciliationRoutes     from './routes/reconciliation';
 
 // Webhook Route imports
 import flutterwaveWebhook    from './routes/webhooks/flutterwave';
@@ -45,6 +59,7 @@ import paystackWebhook       from './routes/webhooks/paystack';
 import remitaWebhook         from './routes/webhooks/remita';
 
 export async function buildApp(): Promise<FastifyInstance> {
+  const isDocsMode = process.env.TAXBRIDGE_DOCS_MODE === '1';
   const fastify = Fastify({
     trustProxy: true, // Required for Render.com + Vercel proxy headers
     logger: {
@@ -86,15 +101,17 @@ export async function buildApp(): Promise<FastifyInstance> {
   // ── Performance plugins ─────────────────────────────────────────────────────
   await fastify.register(fastifyCompress, { encodings: ['gzip', 'deflate'], threshold: 1024 });
 
-  await fastify.register(fastifyRateLimit, {
-    global:    false, // All limits are per-route via route config.rateLimit
-    redis,
-    nameSpace: 'rl:',
-    errorResponseBuilder: (_req: any, ctx: any) => ({
-      error:   'RATE_LIMITED',
-      message: `Rate limit exceeded. Retry after ${ctx.after}`,
-    }),
-  });
+  if (!isDocsMode && redis) {
+    await fastify.register(fastifyRateLimit, {
+      global:    false,
+      redis,
+      nameSpace: 'rl:',
+      errorResponseBuilder: (_req: any, ctx: any) => ({
+        error:   'RATE_LIMITED',
+        message: `Rate limit exceeded. Retry after ${ctx.after}`,
+      }),
+    });
+  }
 
   await fastify.register(fastifyMultipart, { limits: { fileSize: 10 * 1024 * 1024 } }); // 10MB
 
@@ -133,16 +150,56 @@ export async function buildApp(): Promise<FastifyInstance> {
   await fastify.register(onboardingRoutes,   { prefix: '/api/v1/onboarding' });
   await fastify.register(filingsRoutes,      { prefix: '/api/v1/filings' });
   await fastify.register(complianceRoutes,   { prefix: '/api/v1/compliance' });
+  await fastify.register(payrollRoutes,      { prisma });
   await fastify.register(documentsRoutes,    { prefix: '/api/v1' });
   await fastify.register(teamRoutes,         { prefix: '/api/v1' });
   await fastify.register(notifRoutes,        { prefix: '/api/v1' });
   await fastify.register(monitoringRoutes,   { prefix: '/api/v2/monitoring' });
+  await fastify.register(v2DashboardRoute);
   await fastify.register(analyticsRoutes,    { prefix: '/api/v2' });
   await fastify.register(dlqRoutes,          { prefix: '/api/v2' });
   await fastify.register(auditRoutes,        { prefix: '/api/v2' });
-  await fastify.register(flutterwaveWebhook, { prefix: '/webhooks' });
-  await fastify.register(paystackWebhook,    { prefix: '/webhooks' });
-  await fastify.register(remitaWebhook,      { prefix: '/webhooks' });
+  await fastify.register(v2IntelligenceRoute);
+  await fastify.register(v2OnboardingRoute2);
+  await fastify.register(v2NdpcExportRoute);
+  await fastify.register(invoicesRoutes,      { prisma });
+  await fastify.register(invoiceManagementRoutes, { prisma });
+  await fastify.register(paymentRoutes,       { prisma });
+  await fastify.register(businessRoutes,      { prisma });
+  await fastify.register(cryptoRoutes,        { prisma });
+  await fastify.register(reconciliationRoutes, { prisma });
+  await fastify.register(flutterwaveWebhook,  { prefix: '/webhooks' });
+  await fastify.register(paystackWebhook,     { prefix: '/webhooks' });
+  await fastify.register(remitaWebhook,       { prefix: '/webhooks' });
+
+  fastify.get('/health/live', async (_request, reply) => {
+    return reply.code(200).send({ status: 'ok' });
+  });
+
+  fastify.get('/health/ready', async (_request, reply) => {
+    const checks: Record<string, 'ok' | 'degraded'> = {};
+
+    try {
+      await (prisma as any).$queryRaw`SELECT 1`;
+      checks.db = 'ok';
+    } catch {
+      checks.db = 'degraded';
+    }
+
+    try {
+      if (isDocsMode) {
+        checks.redis = 'degraded';
+      } else {
+        await redis.ping();
+        checks.redis = 'ok';
+      }
+    } catch {
+      checks.redis = 'degraded';
+    }
+
+    const status = Object.values(checks).every((value) => value === 'ok') ? 'ready' : 'degraded';
+    return reply.code(200).send({ status, checks, timestamp: new Date().toISOString() });
+  });
 
   // ── Global catch-all error handler ─────────────────────────────────────────
   fastify.setErrorHandler((error: Error & { statusCode?: number; code?: string }, _request, reply) => {

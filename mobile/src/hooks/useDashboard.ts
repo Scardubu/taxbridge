@@ -12,6 +12,120 @@ import { useQuery, useQueryClient, type UseQueryResult } from '@tanstack/react-q
 import { useCurrentUser } from '@store/authStore';
 import type { DashboardComposite } from '@api/client';
 
+type RawDashboardComposite = {
+  orgId?: string;
+  userId?: string;
+  risk?: {
+    score?: number;
+    band?: 'low' | 'medium' | 'high' | 'critical';
+  };
+  anomalies?: Array<{
+    id?: string;
+    signal?: string;
+    severity?: 'low' | 'medium' | 'high' | 'critical';
+    title?: string;
+    description?: string;
+    message?: string;
+  }>;
+  nrsHealth?: {
+    status?: 'healthy' | 'degraded' | 'unknown';
+    latencyMs?: number | null;
+    pendingSubmissions?: number;
+    deadLetterCount?: number;
+    circuitBreakerOpen?: boolean;
+    lastChecked?: string;
+  };
+  filings?: {
+    upcoming?: Array<{
+      id?: string;
+      taxType?: string;
+      period?: string;
+      deadline?: string;
+      daysLeft?: number;
+    }>;
+    overdue?: Array<{
+      id?: string;
+      taxType?: string;
+      period?: string;
+      deadline?: string;
+      daysOverdue?: number;
+    }>;
+  };
+  summary?: {
+    totalRevenue?: number;
+    totalVatOwed?: number;
+    totalPaid?: number;
+    invoiceCount?: number;
+    unstampedCount?: number;
+  };
+  stats?: DashboardComposite['stats'];
+  forecast?: DashboardComposite['forecast'];
+  topAnomalies?: DashboardComposite['topAnomalies'];
+  upcomingDeadlines?: DashboardComposite['upcomingDeadlines'];
+  taxBreakdown?: DashboardComposite['taxBreakdown'];
+  sparkData?: DashboardComposite['sparkData'];
+  cachedAt?: string;
+  computedAt?: string;
+  cacheHit?: boolean;
+};
+
+function normalizeDashboard(raw: RawDashboardComposite): DashboardComposite {
+  const normalizedAnomalies = raw.topAnomalies ?? (raw.anomalies ?? []).map((anomaly, index) => ({
+    expenseId: anomaly.id ?? `${anomaly.signal ?? 'anomaly'}-${index}`,
+    amount: 0,
+    category: anomaly.signal ?? 'general',
+    anomalyReason: anomaly.description ?? anomaly.message ?? anomaly.title ?? 'Anomaly detected',
+    suggestedAction: anomaly.title ?? 'Review this issue',
+    anomalyReason_pidgin: anomaly.description ?? anomaly.message ?? anomaly.title,
+    severity: anomaly.severity === 'critical' ? 'high' : anomaly.severity ?? 'medium',
+  }));
+
+  const normalizedDeadlines = raw.upcomingDeadlines ?? [
+    ...(raw.filings?.overdue ?? []).map((filing, index) => ({
+      id: filing.id ?? `overdue-${filing.taxType ?? 'filing'}-${index}`,
+      type: filing.taxType ?? 'Filing',
+      dueDate: filing.deadline ?? new Date().toISOString(),
+      daysRemaining: -Math.abs(filing.daysOverdue ?? 0),
+      penaltyIfLate: undefined,
+      status: 'overdue' as const,
+    })),
+    ...(raw.filings?.upcoming ?? []).map((filing, index) => ({
+      id: filing.id ?? `upcoming-${filing.taxType ?? 'filing'}-${index}`,
+      type: filing.taxType ?? 'Filing',
+      dueDate: filing.deadline ?? new Date().toISOString(),
+      daysRemaining: filing.daysLeft ?? 0,
+      penaltyIfLate: undefined,
+      status: 'upcoming' as const,
+    })),
+  ].sort((left, right) => left.daysRemaining - right.daysRemaining);
+
+  return {
+    stats: raw.stats ?? {
+      totalInvoices: raw.summary?.invoiceCount ?? 0,
+      totalRevenue: raw.summary?.totalRevenue ?? 0,
+      pendingNrs: raw.summary?.unstampedCount ?? raw.nrsHealth?.pendingSubmissions ?? 0,
+      vatLiability: raw.summary?.totalVatOwed ?? 0,
+      taxHealthScore: raw.risk?.score != null ? Math.max(0, 100 - raw.risk.score) : 0,
+      recentAnomalies: normalizedAnomalies.length,
+    },
+    forecast: raw.forecast ?? null,
+    nrsHealth: {
+      circuitBreakerOpen: raw.nrsHealth?.circuitBreakerOpen ?? raw.nrsHealth?.status === 'degraded',
+      pendingSubmissions: raw.nrsHealth?.pendingSubmissions ?? raw.summary?.unstampedCount ?? 0,
+      deadLetterCount: raw.nrsHealth?.deadLetterCount ?? 0,
+      status: raw.nrsHealth?.status === 'unknown' ? 'degraded' : raw.nrsHealth?.status ?? 'degraded',
+    },
+    topAnomalies: normalizedAnomalies,
+    upcomingDeadlines: normalizedDeadlines,
+    cachedAt: raw.cachedAt ?? raw.computedAt ?? new Date().toISOString(),
+    taxBreakdown: raw.taxBreakdown ?? [
+      { key: 'vat', label: 'VAT', value: raw.summary?.totalVatOwed ?? 0 },
+      { key: 'paid', label: 'Paid', value: raw.summary?.totalPaid ?? 0 },
+    ],
+    sparkData: raw.sparkData ?? [],
+  };
+}
+
 // ── Query key factory ─────────────────────────────────────────────────
 export const dashboardQueryKey = (orgId: string, userId: string) =>
   ['dashboard', orgId, userId] as const;
@@ -22,7 +136,7 @@ const STALE_RESUME_MS = 120_000; // 2 minutes
 // ── Composite dashboard hook ──────────────────────────────────────────
 export function useDashboard(): UseQueryResult<DashboardComposite> {
   const user = useCurrentUser();
-  const orgId = user?.orgId ?? 'default';
+  const orgId = user?.tin ?? user?.businessName ?? 'default';
   const userId = user?.id ?? 'anonymous';
   const queryClient = useQueryClient();
   const lastFetchTimeRef = useRef(Date.now());
@@ -33,7 +147,7 @@ export function useDashboard(): UseQueryResult<DashboardComposite> {
       const { dashboardApi } = await import('@api/client');
       const res = await dashboardApi.composite();
       lastFetchTimeRef.current = Date.now();
-      return res.data;
+      return normalizeDashboard(res.data);
     },
     staleTime: 30 * 1000,
     gcTime: 5 * 60 * 1000,

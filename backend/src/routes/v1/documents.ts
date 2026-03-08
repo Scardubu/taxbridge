@@ -18,14 +18,12 @@ import type { FastifyInstance } from 'fastify';
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { authenticate } from '../../middleware/authenticate';
-import { resolveOrgContext } from '../../middleware/tenant';
-import { requireRole } from '../../middleware/requireRole';
+import { requireRole } from '../../plugins/requireRole';
 import { writeAuditEvent } from '../../services/audit';
-import { createLogger } from '../../lib/logger';
-import { getPrismaClient } from '../../lib/prisma';
+import { logger } from '../../lib/logger';
+import { prisma } from '../../lib/prisma';
 
-const log = createLogger('documents');
+const log = logger.child({ service: 'documents' });
 
 // ─── R2 / S3 client ──────────────────────────────────────────────────────
 
@@ -68,15 +66,13 @@ async function generateUploadUrl(key: string, contentType: string): Promise<stri
 // ─── Routes ──────────────────────────────────────────────────────────────
 
 export default async function documentRoutes(app: FastifyInstance) {
-  const prisma = getPrismaClient();
-
   // ── List documents for org ──────────────────────────────────────────────
   app.get(
     '/api/v1/documents',
-    { preHandler: [authenticate, resolveOrgContext] },
+    { preHandler: [app.authenticate, app.resolveOrgContext] },
     async (req, reply) => {
       const orgId = (req as any).orgContext.orgId;
-      const docs  = await (prisma as any).document?.findMany({
+      const docs  = await (prisma as any).document.findMany({
         where:   { orgId, deletedAt: null },
         orderBy: { createdAt: 'desc' },
         select: {
@@ -88,7 +84,7 @@ export default async function documentRoutes(app: FastifyInstance) {
           createdAt:   true,
           retainUntil: true,
         },
-      }) ?? [];
+      });
       return reply.send({ documents: docs });
     },
   );
@@ -96,7 +92,7 @@ export default async function documentRoutes(app: FastifyInstance) {
   // ── Get presigned upload URL ────────────────────────────────────────────
   app.post(
     '/api/v1/documents/upload',
-    { preHandler: [authenticate, resolveOrgContext] },
+    { preHandler: [app.authenticate, app.resolveOrgContext] },
     async (req, reply) => {
       const parseResult = z.object({
         name:         z.string().min(1).max(255),
@@ -111,11 +107,11 @@ export default async function documentRoutes(app: FastifyInstance) {
 
       const { name, mimeType, sizeBytes, documentType } = parseResult.data;
       const orgId   = (req as any).orgContext.orgId;
-      const actorId = (req as any).user.id;
+      const actorId = (req as any).user.userId;
       const role    = (req as any).user.role;
 
       // Create document record
-      const doc = await (prisma as any).document?.create({
+      const doc = await (prisma as any).document.create({
         data: {
           orgId,
           name,
@@ -128,16 +124,14 @@ export default async function documentRoutes(app: FastifyInstance) {
         },
       });
 
-      const key = documentKey(orgId, doc?.id ?? Date.now().toString(), name);
+      const key = documentKey(orgId, doc.id, name);
       const uploadUrl = await generateUploadUrl(key, mimeType);
 
       // Update storage key
-      if (doc) {
-        await (prisma as any).document?.update({
-          where: { id: doc.id },
-          data:  { storageKey: key },
-        });
-      }
+      await (prisma as any).document.update({
+        where: { id: doc.id },
+        data:  { storageKey: key },
+      });
 
       // Audit upload
       await writeAuditEvent({
@@ -145,17 +139,17 @@ export default async function documentRoutes(app: FastifyInstance) {
         actorId,
         actorRole:  role,
         targetType: 'Document',
-        targetId:   doc?.id ?? 'unknown',
+        targetId:   doc.id,
         action:     'UPLOAD' as any,
         after:      { name, documentType, sizeBytes },
         ip:         req.ip ?? '0.0.0.0',
         userAgent:  req.headers['user-agent'],
       });
 
-      log.info({ orgId, docId: doc?.id, name }, 'Document upload URL generated');
+      log.info({ orgId, docId: doc.id, name }, 'Document upload URL generated');
 
       return reply.send({
-        documentId: doc?.id,
+        documentId: doc.id,
         uploadUrl,
         expiresIn:  SIGN_TTL,
         key,
@@ -166,10 +160,10 @@ export default async function documentRoutes(app: FastifyInstance) {
   // ── Get document metadata ────────────────────────────────────────────────
   app.get<{ Params: { id: string } }>(
     '/api/v1/documents/:id',
-    { preHandler: [authenticate, resolveOrgContext] },
+    { preHandler: [app.authenticate, app.resolveOrgContext] },
     async (req, reply) => {
       const orgId = (req as any).orgContext.orgId;
-      const doc   = await (prisma as any).document?.findFirst({
+      const doc   = await (prisma as any).document.findFirst({
         where: { id: req.params.id, orgId, deletedAt: null },
       });
       if (!doc) return reply.status(404).send({ error: 'NOT_FOUND', message: 'Document not found' });
@@ -180,13 +174,13 @@ export default async function documentRoutes(app: FastifyInstance) {
   // ── Get presigned download URL (every access logged) ────────────────────
   app.get<{ Params: { id: string } }>(
     '/api/v1/documents/:id/url',
-    { preHandler: [authenticate, resolveOrgContext] },
+    { preHandler: [app.authenticate, app.resolveOrgContext] },
     async (req, reply) => {
       const orgId   = (req as any).orgContext.orgId;
-      const actorId = (req as any).user.id;
+      const actorId = (req as any).user.userId;
       const role    = (req as any).user.role;
 
-      const doc = await (prisma as any).document?.findFirst({
+      const doc = await (prisma as any).document.findFirst({
         where: { id: req.params.id, orgId, deletedAt: null },
       });
       if (!doc) return reply.status(404).send({ error: 'NOT_FOUND', message: 'Document not found' });
@@ -213,13 +207,13 @@ export default async function documentRoutes(app: FastifyInstance) {
   // ── Delete document (SUPER_ADMIN only, after 7 years) ───────────────────
   app.delete<{ Params: { id: string } }>(
     '/api/v1/documents/:id',
-    { preHandler: [authenticate, resolveOrgContext, requireRole('ADMIN')] },
+    { preHandler: [app.authenticate, app.resolveOrgContext, requireRole('ADMIN')] },
     async (req, reply) => {
       const orgId   = (req as any).orgContext.orgId;
-      const actorId = (req as any).user.id;
+      const actorId = (req as any).user.userId;
       const role    = (req as any).user.role;
 
-      const doc = await (prisma as any).document?.findFirst({
+      const doc = await (prisma as any).document.findFirst({
         where: { id: req.params.id, orgId },
       });
       if (!doc) return reply.status(404).send({ error: 'NOT_FOUND', message: 'Document not found' });

@@ -8,36 +8,10 @@
  */
 
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import jwt from 'jsonwebtoken';
 import { successResponse, errorResponse } from '../../lib/api-envelope';
-import { getPrismaClient } from '../../lib/prisma';
-import { createLogger } from '../../lib/logger';
-
-const log = createLogger('v2-onboarding');
-const prisma = getPrismaClient();
+import { prisma } from '../../lib/prisma';
 
 const STEPS_ORDER = ['welcome', 'profile', 'business', 'tin', 'first_invoice', 'complete'] as const;
-
-// ─── Auth ─────────────────────────────────────────────────────────────────────
-
-async function authenticate(req: FastifyRequest, reply: FastifyReply) {
-  const authHeader = typeof req.headers?.authorization === 'string'
-    ? req.headers.authorization : '';
-  if (!authHeader.startsWith('Bearer ')) {
-    return reply.code(401).send(errorResponse('Unauthorized', 'AUTH_REQUIRED'));
-  }
-  const token = authHeader.replace(/^Bearer\s+/i, '').trim();
-  const secrets = [process.env.JWT_SECRET, process.env.JWT_SECRET_PREVIOUS].filter(Boolean) as string[];
-  let userId: string | undefined;
-  for (const secret of secrets) {
-    try {
-      const decoded = jwt.verify(token, secret) as { userId?: string };
-      if (decoded?.userId) { userId = decoded.userId; break; }
-    } catch { /* try next */ }
-  }
-  if (!userId) return reply.code(401).send(errorResponse('Invalid or expired token', 'AUTH_INVALID'));
-  (req as any).user = { id: userId };
-}
 
 // ─── Routes ──────────────────────────────────────────────────────────────────
 
@@ -45,9 +19,9 @@ export default async function v2OnboardingRoute(fastify: FastifyInstance) {
 
   // Get onboarding progress
   fastify.get('/api/v2/onboarding/progress', {
-    preHandler: [authenticate],
+    preHandler: [fastify.authenticate],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    const userId = (request as any).user.id as string;
+    const userId = request.user.userId;
 
     try {
       let progress = await (prisma as any).onboardingProgress.findUnique({
@@ -75,7 +49,7 @@ export default async function v2OnboardingRoute(fastify: FastifyInstance) {
         stepsOrder:     STEPS_ORDER,
       }, { requestId: request.id }));
     } catch (error) {
-      log.error('Failed to get onboarding progress', { userId, error });
+      request.log.error({ userId, error }, 'Failed to get onboarding progress');
       // Graceful fallback — return default state (C-07)
       return reply.send(successResponse({
         currentStep:    'welcome',
@@ -90,9 +64,9 @@ export default async function v2OnboardingRoute(fastify: FastifyInstance) {
 
   // Complete a step
   fastify.post('/api/v2/onboarding/step', {
-    preHandler: [authenticate],
+    preHandler: [fastify.authenticate],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
-    const userId = (request as any).user.id as string;
+    const userId = request.user.userId;
     const body = request.body as { step: string; action?: 'complete' | 'skip' } | undefined;
 
     if (!body?.step) {
@@ -158,7 +132,7 @@ export default async function v2OnboardingRoute(fastify: FastifyInstance) {
         stepsOrder:     STEPS_ORDER,
       }, { requestId: request.id }));
     } catch (error) {
-      log.error('Failed to update onboarding step', { userId, step, error });
+      request.log.error({ userId, step, error }, 'Failed to update onboarding step');
       return reply.code(500).send(errorResponse('Failed to update onboarding progress', 'UPDATE_FAILED'));
     }
   });

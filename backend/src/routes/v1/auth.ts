@@ -10,7 +10,7 @@
 import { FastifyPluginAsync }   from 'fastify';
 import { z }                    from 'zod';
 import * as bcrypt              from 'bcryptjs';
-import { SignJWT, importPKCS8 } from 'jose';
+import { SignJWT, importPKCS8, importSPKI } from 'jose';
 import { prisma }               from '../../lib/prisma';
 import { redis }                from '../../lib/redis';
 import { writeAuditEvent }      from '../../services/audit';
@@ -45,6 +45,22 @@ async function signToken(
     return builder.sign(key);
   }
   return builder.sign(secret);
+}
+
+async function getRefreshVerifyKey(): Promise<Uint8Array | Awaited<ReturnType<typeof importSPKI>>> {
+  if (process.env.NODE_ENV === 'production') {
+    const publicKey = process.env.JWT_PUBLIC_KEY;
+    if (!publicKey) {
+      throw new Error('JWT_PUBLIC_KEY is required in production');
+    }
+
+    return importSPKI(
+      Buffer.from(publicKey, 'base64').toString('utf8'),
+      'RS256',
+    );
+  }
+
+  return new TextEncoder().encode(process.env.JWT_SECRET!);
 }
 
 export async function handleSuspiciousReuse(userId: string, ip: string): Promise<void> {
@@ -84,8 +100,13 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.code(401).send({ error: 'INVALID_CREDENTIALS' });
     }
 
-    if (user.status === 'SUSPENDED') {
-      return reply.code(403).send({ error: 'ACCOUNT_SUSPENDED' });
+    const primaryMembership = await (prisma as any).orgMember.findFirst({
+      where: { userId: user.id, removedAt: null },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    if (!primaryMembership) {
+      return reply.code(403).send({ error: 'ORG_ACCESS_DENIED' });
     }
 
     const secret = process.env.NODE_ENV === 'production'
@@ -96,7 +117,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     const roleVersion = parseInt(await redis.get(`role_version:${user.id}`) ?? '0', 10);
 
     const accessToken = await signToken(
-      { sub: user.id, orgId: user.defaultOrgId, role: user.role, role_version: roleVersion },
+      { sub: user.id, orgId: primaryMembership.orgId, role: primaryMembership.role ?? user.role, role_version: roleVersion },
       typeof secret === 'string' ? secret : secret,
       '15m',
     );
@@ -129,15 +150,9 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
   }, async (request, reply) => {
     const { refreshToken } = request.body as z.infer<typeof RefreshSchema>;
 
-    const secret = process.env.NODE_ENV === 'production'
-      ? process.env.JWT_PRIVATE_KEY!
-      : new TextEncoder().encode(process.env.JWT_SECRET!);
-
     try {
       const { jwtVerify } = await import('jose');
-      const verifyKey = typeof secret === 'string'
-        ? new TextEncoder().encode(secret) // fallback
-        : secret;
+      const verifyKey = await getRefreshVerifyKey();
       const { payload } = await jwtVerify(refreshToken, verifyKey);
 
       if ((payload as any).type !== 'refresh') {
@@ -162,14 +177,27 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       if (!user) return reply.code(401).send({ error: 'USER_NOT_FOUND' });
 
       const roleVersion  = parseInt(await redis.get(`role_version:${userId}`) ?? '0', 10);
+      const membership = await (prisma as any).orgMember.findFirst({
+        where: { userId, removedAt: null },
+        orderBy: { createdAt: 'asc' },
+      });
+
+      if (!membership) {
+        return reply.code(403).send({ error: 'ORG_ACCESS_DENIED' });
+      }
+
+      const signingSecret = process.env.NODE_ENV === 'production'
+        ? process.env.JWT_PRIVATE_KEY!
+        : new TextEncoder().encode(process.env.JWT_SECRET!);
+
       const newAccessToken = await signToken(
-        { sub: userId, orgId: user.defaultOrgId, role: user.role, role_version: roleVersion },
-        typeof secret === 'string' ? secret : secret,
+        { sub: userId, orgId: membership.orgId, role: membership.role ?? user.role, role_version: roleVersion },
+        signingSecret,
         '15m',
       );
       const newRefreshToken = await signToken(
         { sub: userId, type: 'refresh', family },
-        typeof secret === 'string' ? secret : secret,
+        signingSecret,
         '7d',
       );
 

@@ -18,11 +18,14 @@
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import type { FastifyInstance } from 'fastify';
-import jwt from 'jsonwebtoken';
 
 import { PayrollService } from '../services/payroll';
-import { AuthenticationError, NotFoundError } from '../lib/errors';
+import { calculatePAYE } from '../services/tax-engine';
+import { NotFoundError } from '../lib/errors';
 import { createLogger } from '../lib/logger';
+import { validate } from '../plugins/validate';
+import { cacheIdempotencyResponse, idempotency } from '../plugins/idempotency';
+import { requireRole } from '../plugins/requireRole';
 
 const log = createLogger('payroll-routes');
 
@@ -32,28 +35,6 @@ export default async function payrollRoutes(
 ) {
   const prisma = opts.prisma;
   const payrollService = new PayrollService(prisma);
-
-  // =========================================================================
-  // Auth helper
-  // =========================================================================
-  async function authenticate(req: any): Promise<string> {
-    const authHeader = req.headers.authorization;
-    if (!authHeader?.startsWith('Bearer ')) {
-      throw new AuthenticationError('Missing or invalid authorization header');
-    }
-    const token = authHeader.slice(7);
-    try {
-      const secret = process.env.JWT_SECRET;
-      if (!secret) throw new Error('JWT_SECRET not configured');
-      const payload = jwt.verify(token, secret) as { sub?: string; userId?: string };
-      const userId = payload.sub || payload.userId;
-      if (!userId) throw new Error('Invalid token payload');
-      return userId;
-    } catch (err: any) {
-      if (err instanceof AuthenticationError) throw err;
-      throw new AuthenticationError('Invalid or expired token');
-    }
-  }
 
   // =========================================================================
   // Validation Schemas
@@ -90,6 +71,16 @@ export default async function payrollRoutes(
     period: z.string().regex(/^\d{4}-\d{2}$/, 'Period must be YYYY-MM format'),
   });
 
+  const CalculatePayrollSchema = z.object({
+    period: z.string().regex(/^\d{4}-\d{2}$/, 'Period must be YYYY-MM format'),
+    employees: z.array(z.object({
+      name: z.string().min(1).max(200),
+      grossIncome: z.number().nonnegative(),
+      rentPaid: z.number().nonnegative().optional(),
+      pension: z.number().nonnegative().optional(),
+    })).min(1),
+  });
+
   // =========================================================================
   // Helper: format employee for response
   // =========================================================================
@@ -116,19 +107,22 @@ export default async function payrollRoutes(
   // =========================================================================
   // POST /api/v1/payroll/employees — Create employee
   // =========================================================================
-  app.post('/api/v1/payroll/employees', async (req, reply) => {
-    const userId = await authenticate(req);
-    const body = CreateEmployeeSchema.parse(req.body);
+  app.post('/api/v1/payroll/employees', {
+    preHandler: [app.authenticate, app.resolveOrgContext, requireRole('ACCOUNTANT'), validate(CreateEmployeeSchema)],
+  }, async (req, reply) => {
+    const { orgId } = req.orgContext;
+    const { userId } = req.user;
+    const body = req.body as z.infer<typeof CreateEmployeeSchema>;
 
     try {
-      const employee = await payrollService.createEmployee(userId, body);
+      const employee = await payrollService.createEmployee(userId, { ...body, businessId: orgId });
       return reply.status(201).send({
         success: true,
         data: { employee: formatEmployee(employee) },
       });
     } catch (err: any) {
       if (err.message?.includes('not found') || err.message?.includes('access denied')) {
-        throw new NotFoundError('Business', body.businessId);
+        throw new NotFoundError('Business', orgId);
       }
       throw err;
     }
@@ -137,11 +131,14 @@ export default async function payrollRoutes(
   // =========================================================================
   // GET /api/v1/payroll/employees — List employees
   // =========================================================================
-  app.get('/api/v1/payroll/employees', async (req, reply) => {
-    const userId = await authenticate(req);
+  app.get('/api/v1/payroll/employees', {
+    preHandler: [app.authenticate, app.resolveOrgContext, requireRole('VIEWER')],
+  }, async (req, reply) => {
+    const { orgId } = req.orgContext;
+    const { userId } = req.user;
     const query = req.query as Record<string, string>;
 
-    const businessId = query.businessId;
+    const businessId = query.businessId ?? orgId;
     if (!businessId) {
       return reply.status(400).send({ success: false, error: 'businessId query parameter required' });
     }
@@ -170,8 +167,10 @@ export default async function payrollRoutes(
   // =========================================================================
   // GET /api/v1/payroll/employees/:id — Get employee detail
   // =========================================================================
-  app.get('/api/v1/payroll/employees/:id', async (req, reply) => {
-    const userId = await authenticate(req);
+  app.get('/api/v1/payroll/employees/:id', {
+    preHandler: [app.authenticate, app.resolveOrgContext, requireRole('VIEWER')],
+  }, async (req, reply) => {
+    const { userId } = req.user;
     const { id } = req.params as { id: string };
 
     const employee = await payrollService.getEmployee(userId, id);
@@ -186,10 +185,12 @@ export default async function payrollRoutes(
   // =========================================================================
   // PUT /api/v1/payroll/employees/:id — Update employee
   // =========================================================================
-  app.put('/api/v1/payroll/employees/:id', async (req, reply) => {
-    const userId = await authenticate(req);
+  app.put('/api/v1/payroll/employees/:id', {
+    preHandler: [app.authenticate, app.resolveOrgContext, requireRole('ACCOUNTANT'), validate(UpdateEmployeeSchema)],
+  }, async (req, reply) => {
+    const { userId } = req.user;
     const { id } = req.params as { id: string };
-    const body = UpdateEmployeeSchema.parse(req.body);
+    const body = req.body as z.infer<typeof UpdateEmployeeSchema>;
 
     try {
       const employee = await payrollService.updateEmployee(userId, id, body);
@@ -206,8 +207,10 @@ export default async function payrollRoutes(
   // =========================================================================
   // DELETE /api/v1/payroll/employees/:id — Deactivate employee
   // =========================================================================
-  app.delete('/api/v1/payroll/employees/:id', async (req, reply) => {
-    const userId = await authenticate(req);
+  app.delete('/api/v1/payroll/employees/:id', {
+    preHandler: [app.authenticate, app.resolveOrgContext, requireRole('ACCOUNTANT')],
+  }, async (req, reply) => {
+    const { userId } = req.user;
     const { id } = req.params as { id: string };
 
     try {
@@ -220,20 +223,62 @@ export default async function payrollRoutes(
   });
 
   // =========================================================================
+  // POST /api/v1/payroll/calculate — Preview PAYE before processing payroll
+  // =========================================================================
+  app.post('/api/v1/payroll/calculate', {
+    preHandler: [app.authenticate, app.resolveOrgContext, requireRole('ACCOUNTANT'), validate(CalculatePayrollSchema)],
+  }, async (req, reply) => {
+    const { orgId } = req.orgContext;
+    const body = req.body as z.infer<typeof CalculatePayrollSchema>;
+
+    const results = body.employees.map((employee) => {
+      const paye = calculatePAYE({
+        grossSalary: employee.grossIncome,
+        annualRent: employee.rentPaid,
+        pension: employee.pension,
+      } as any);
+
+      return {
+        name: employee.name,
+        grossIncome: employee.grossIncome,
+        taxableIncome: paye.taxableIncome,
+        taxLiability: paye.taxDue,
+        pensionContribution: paye.pensionContribution,
+        nhfContribution: paye.nhfContribution,
+        netPay: paye.netPay,
+        breakdown: paye.breakdown,
+      };
+    });
+
+    return reply.send({
+      success: true,
+      data: {
+        period: body.period,
+        results,
+      },
+    });
+  });
+
+  // =========================================================================
   // POST /api/v1/payroll/process — Process payroll
   // =========================================================================
-  app.post('/api/v1/payroll/process', async (req, reply) => {
-    const userId = await authenticate(req);
-    const body = ProcessPayrollSchema.parse(req.body);
+  app.post('/api/v1/payroll/process', {
+    preHandler: [app.authenticate, app.resolveOrgContext, requireRole('ACCOUNTANT'), validate(ProcessPayrollSchema), idempotency],
+  }, async (req, reply) => {
+    const { orgId } = req.orgContext;
+    const { userId } = req.user;
+    const body = req.body as z.infer<typeof ProcessPayrollSchema>;
 
     try {
-      const result = await payrollService.processPayroll(userId, body.businessId, body.period);
-      return reply.send({
+      const result = await payrollService.processPayroll(userId, orgId, body.period);
+      const responseBody = {
         success: true,
         data: result,
-      });
+      };
+      await cacheIdempotencyResponse(req, 200, responseBody);
+      return reply.send(responseBody);
     } catch (err: any) {
-      if (err.message?.includes('not found')) throw new NotFoundError('Business', body.businessId);
+      if (err.message?.includes('not found')) throw new NotFoundError('Business', orgId);
       if (err.message?.includes('already been processed') || err.message?.includes('No active employees')) {
         return reply.status(400).send({ success: false, error: err.message });
       }
@@ -244,11 +289,14 @@ export default async function payrollRoutes(
   // =========================================================================
   // GET /api/v1/payroll — List payrolls
   // =========================================================================
-  app.get('/api/v1/payroll', async (req, reply) => {
-    const userId = await authenticate(req);
+  app.get('/api/v1/payroll', {
+    preHandler: [app.authenticate, app.resolveOrgContext, requireRole('VIEWER')],
+  }, async (req, reply) => {
+    const { orgId } = req.orgContext;
+    const { userId } = req.user;
     const query = req.query as Record<string, string>;
 
-    const businessId = query.businessId;
+    const businessId = query.businessId ?? orgId;
     if (!businessId) {
       return reply.status(400).send({ success: false, error: 'businessId query parameter required' });
     }
@@ -274,8 +322,10 @@ export default async function payrollRoutes(
   // =========================================================================
   // GET /api/v1/payroll/:id — Get payroll detail
   // =========================================================================
-  app.get('/api/v1/payroll/:id', async (req, reply) => {
-    const userId = await authenticate(req);
+  app.get('/api/v1/payroll/:id', {
+    preHandler: [app.authenticate, app.resolveOrgContext, requireRole('VIEWER')],
+  }, async (req, reply) => {
+    const { userId } = req.user;
     const { id } = req.params as { id: string };
 
     const detail = await payrollService.getPayrollDetail(userId, id);
@@ -290,8 +340,10 @@ export default async function payrollRoutes(
   // =========================================================================
   // GET /api/v1/payroll/:id/payslip/:employeeId — Get payslip
   // =========================================================================
-  app.get('/api/v1/payroll/:id/payslip/:employeeId', async (req, reply) => {
-    const userId = await authenticate(req);
+  app.get('/api/v1/payroll/:id/payslip/:employeeId', {
+    preHandler: [app.authenticate, app.resolveOrgContext, requireRole('VIEWER')],
+  }, async (req, reply) => {
+    const { userId } = req.user;
     const { id, employeeId } = req.params as { id: string; employeeId: string };
 
     const payslip = await payrollService.getPayslip(userId, id, employeeId);

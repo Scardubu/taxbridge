@@ -17,7 +17,13 @@
  * C-09: Tax math (thresholds) sourced from @taxbridge/contracts.
  */
 
-import type { PreFlightCheck, PreFlightResult } from '@taxbridge/contracts';
+import type { PrismaClient } from '@prisma/client';
+import {
+  SMALL_CO_CIT_THRESHOLD,
+  VAT_REGISTRATION_THRESHOLD,
+  type PreFlightCheck,
+  type PreFlightResult,
+} from '@taxbridge/contracts';
 import { createLogger } from '../lib/logger';
 import { prisma }       from '../lib/prisma';
 import { getNrsHealth } from './nrsService';
@@ -26,10 +32,10 @@ export type { PreFlightCheck, PreFlightResult };
 
 const log = createLogger('compliancePreFlight');
 
-const VAT_REGISTRATION_THRESHOLD  = 25_000_000;
-const CIT_SMALL_THRESHOLD         = 100_000_000;
 const CIT_APPROACH_WARNING_LOWER  = 80_000_000;
 const PRIOR_PERIOD_GAP_LIMIT_DAYS = 30;
+
+type PrismaLike = PrismaClient | typeof prisma;
 
 /**
  * normaliseSettled — converts PromiseSettledResult<T> → PreFlightCheck
@@ -48,7 +54,8 @@ function normaliseSettled<T>(
  *
  * @param orgId         Organisation identifier
  * @param taxType       Filing type: 'VAT' | 'WHT' | 'PAYE' | 'CIT' | 'NIL'
- * @param turnoverHint  Optional declared turnover figure (used for CIT/VAT threshold checks)
+ * @param period        Optional filing period (kept for V13 route compatibility)
+ * @param prismaClient  Optional prisma instance override for tests/canonical callers
  */
 /**
  * runPreFlight — V13 canonical export (C-07: never throws)
@@ -56,13 +63,18 @@ function normaliseSettled<T>(
  * Uses Promise.allSettled + normaliseSettled for structured fallback on every check.
  * Returns { pass, checks } where pass is true only if no check has status === 'fail'.
  */
-export async function runPreFlight(orgId: string, taxType: string): Promise<PreFlightResult> {
+export async function runPreFlight(
+  orgId: string,
+  taxType: string,
+  period?: string,
+  prismaClient: PrismaLike = prisma,
+): Promise<PreFlightResult> {
   try {
     const [tin, cac, vatReg, priorFiling] = await Promise.allSettled([
-      checkTINValid(orgId),
-      checkCACValid(orgId),
-      checkVATRegistration(orgId, taxType),
-      checkNoPriorPeriodGap(orgId, taxType),
+      checkTINValid(orgId, prismaClient),
+      checkCACValid(orgId, prismaClient),
+      checkVATRegistration(orgId, taxType, prismaClient),
+      checkNoPriorPeriodGap(orgId, taxType, prismaClient),
     ]);
     const checks: PreFlightCheck[] = [
       normaliseSettled(tin,         'tin_valid'),
@@ -72,7 +84,7 @@ export async function runPreFlight(orgId: string, taxType: string): Promise<PreF
     ];
     return { pass: checks.every(c => c.status !== 'fail'), checks };
   } catch (err) {
-    log.error('runPreFlight unexpected error', { err, orgId, taxType });
+    log.error('runPreFlight unexpected error', { err, orgId, taxType, period });
     return { pass: true, checks: [{ name: 'preflight_error', status: 'warn', message: 'Pre-flight checks could not complete' }] };
   }
 }
@@ -85,12 +97,14 @@ export async function runCompliancePreFlight(
   orgId: string,
   taxType: string,
   turnoverHint?: number,
+  period?: string,
+  prismaClient: PrismaLike = prisma,
 ): Promise<PreFlightResult> {
-  const v13Result = await runPreFlight(orgId, taxType);
+  const v13Result = await runPreFlight(orgId, taxType, period, prismaClient);
 
   // Additional CIT threshold warning
   if (taxType === 'CIT' && turnoverHint !== undefined) {
-    if (turnoverHint >= CIT_APPROACH_WARNING_LOWER && turnoverHint < CIT_SMALL_THRESHOLD) {
+    if (turnoverHint >= CIT_APPROACH_WARNING_LOWER && turnoverHint < SMALL_CO_CIT_THRESHOLD) {
       v13Result.checks.push({
         name:    'cit_threshold',
         status:  'warn',
@@ -113,47 +127,52 @@ export async function runCompliancePreFlight(
 
 // ─── Internal checkers (throw on failure → normaliseSettled catches) ─────────
 
-async function checkTINValid(orgId: string): Promise<void> {
-  const org = await (prisma as any).organisation?.findUnique({
-    where:  { id: orgId },
-    select: { tinVerified: true, tinSuspended: true, tin: true },
-  }) ?? await (prisma as any).organization?.findUnique({
-    where:  { id: orgId },
-    select: { tinVerified: true, tinSuspended: true, tin: true },
+async function getOrgRecord(orgId: string) {
+  return (prisma as any).org?.findUnique({
+    where: { id: orgId },
+    select: {
+      id: true,
+      tin: true,
+      cacNumber: true,
+      status: true,
+    },
   });
-  if (!org)             throw new Error('Organisation not found');
-  if (org.tinSuspended) throw new Error('TIN is suspended');
-  if (!org.tinVerified) throw new Error('TIN not verified');
 }
 
-async function checkCACValid(orgId: string): Promise<void> {
-  const org = await (prisma as any).organisation?.findUnique({
-    where:  { id: orgId },
-    select: { cacRcNumber: true },
-  }) ?? await (prisma as any).organization?.findUnique({
-    where:  { id: orgId },
-    select: { cacRcNumber: true },
+async function getOrgRecordWithClient(orgId: string, prismaClient: PrismaLike) {
+  return (prismaClient as any).org?.findUnique({
+    where: { id: orgId },
+    select: {
+      id: true,
+      tin: true,
+      cacNumber: true,
+      status: true,
+    },
   });
-  if (!org?.cacRcNumber) throw new Error('CAC/RC number not verified');
 }
 
-async function checkVATRegistration(orgId: string, taxType: string): Promise<void> {
+async function checkTINValid(orgId: string, prismaClient: PrismaLike): Promise<void> {
+  const org = await getOrgRecordWithClient(orgId, prismaClient);
+  if (!org) throw new Error('Organisation not found');
+  if (org.status === 'suspended') throw new Error('Organisation is suspended');
+  if (!org.tin) throw new Error('TIN missing');
+}
+
+async function checkCACValid(orgId: string, prismaClient: PrismaLike): Promise<void> {
+  const org = await getOrgRecordWithClient(orgId, prismaClient);
+  if (!org) throw new Error('Organisation not found');
+  if (!org.cacNumber) throw new Error('CAC number missing');
+}
+
+async function checkVATRegistration(orgId: string, taxType: string, prismaClient: PrismaLike): Promise<void> {
   if (taxType !== 'VAT') return;
-  const org = await (prisma as any).organisation?.findUnique({
-    where:  { id: orgId },
-    select: { annualTurnover: true, vatRegistrationNumber: true },
-  }) ?? await (prisma as any).organization?.findUnique({
-    where:  { id: orgId },
-    select: { annualTurnover: true, vatRegistrationNumber: true },
-  });
-  if (!org) return;
-  const turnover = Number(org.annualTurnover ?? 0);
-  if (turnover < VAT_REGISTRATION_THRESHOLD) throw new Error('Below VAT registration threshold');
-  if (!org.vatRegistrationNumber) throw new Error('VAT registration number missing');
+  const org = await getOrgRecordWithClient(orgId, prismaClient);
+  if (!org) throw new Error('Organisation not found');
+  if (!org.tin) throw new Error('VAT registration requires TIN');
 }
 
-async function checkNoPriorPeriodGap(orgId: string, taxType: string): Promise<void> {
-  const lastFiling = await (prisma as any).taxReturn?.findFirst({
+async function checkNoPriorPeriodGap(orgId: string, taxType: string, prismaClient: PrismaLike): Promise<void> {
+  const lastFiling = await (prismaClient as any).taxReturn?.findFirst({
     where:   { orgId, taxType },
     orderBy: { submittedAt: 'desc' },
     select:  { submittedAt: true },

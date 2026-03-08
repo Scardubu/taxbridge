@@ -1,3 +1,11 @@
+import {
+  CIT_LARGE_RATE,
+  CIT_SMALL_RATE,
+  DEV_LEVY_RATE,
+  SMALL_CO_CIT_THRESHOLD,
+  VAT_RATE,
+} from '@taxbridge/contracts';
+
 type Severity = 'LOW' | 'MEDIUM' | 'HIGH';
 
 type Anomaly = {
@@ -63,7 +71,7 @@ export class AIInsightsService {
       const amount = Number(expense.amount);
       const vatAmount = expense.vatAmount != null ? Number(expense.vatAmount) : null;
       if (vatAmount && amount > 0) {
-        const expectedVat = (amount / 1.075) * 0.075;
+        const expectedVat = (amount / (1 + VAT_RATE)) * VAT_RATE;
         const diff = Math.abs((vatAmount - expectedVat) / expectedVat);
         if (diff > 0.05) {
           anomalies.push({
@@ -111,11 +119,11 @@ export class AIInsightsService {
     const annualizedRevenue = quarterlyRevenue * 4;
     const taxableProfit = Math.max(0, quarterlyRevenue - quarterlyExpenses);
 
-    const citRate = annualizedRevenue > 100_000_000 ? 0.3 : annualizedRevenue > 25_000_000 ? 0.2 : 0;
+    const citRate = annualizedRevenue >= SMALL_CO_CIT_THRESHOLD ? CIT_LARGE_RATE : CIT_SMALL_RATE;
 
-    const vatOwed = quarterlyRevenue * 0.075;
+    const vatOwed = quarterlyRevenue * VAT_RATE;
     const citOwed = taxableProfit * citRate;
-    const devLevyOwed = quarterlyRevenue * 0.04;
+    const devLevyOwed = quarterlyRevenue * DEV_LEVY_RATE;
 
     const vatDue = new Date();
     vatDue.setDate(21);
@@ -142,9 +150,9 @@ export class AIInsightsService {
     return {
       revenue: quarterlyRevenue,
       predictions: {
-        vat: { amount: vatOwed, dueDate: vatDue.toISOString(), rate: 0.075 },
+        vat: { amount: vatOwed, dueDate: vatDue.toISOString(), rate: VAT_RATE },
         cit: { amount: citOwed, dueDate: citDue.toISOString(), rate: citRate },
-        devLevy: { amount: devLevyOwed, dueDate: citDue.toISOString(), rate: 0.04 },
+        devLevy: { amount: devLevyOwed, dueDate: citDue.toISOString(), rate: DEV_LEVY_RATE },
         total: vatOwed + citOwed + devLevyOwed,
       },
       recommendations,

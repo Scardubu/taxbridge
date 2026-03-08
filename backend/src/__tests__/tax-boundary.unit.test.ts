@@ -1,412 +1,271 @@
 /**
- * Tax Engine Boundary & Edge Case Tests
- * 
- * Comprehensive boundary coverage for:
- * - CIT tier boundaries (₦25M, ₦100M)
- * - Development Levy edge cases
- * - Minimum ETR threshold (₦1B)
- * - Digital tax threshold (₦25M)
- * - EDT employee threshold (10 employees)
- * - PIT minimum wage exemption
- * - VAT registration threshold
+ * Tax Engine Boundary & Edge Case Tests — V13 Canonical
+ *
+ * Tests aligned with actual @taxbridge/contracts API:
+ * - CIT: calculateCIT({ turnover, taxableProfit, devLevyApplies?, taxLossCarryforward? })
+ *        → { citLiability, band, rate, taxableProfit, devLevy, total, exempt }
+ * - PIT: calculatePIT({ grossIncome, rentPaid?, pension?, nhf? })
+ *        → { grossIncome, rra, pension, nhf, taxableIncome, taxLiability, effectiveRate, monthlyTax, bandBreakdown }
+ * - VAT: calculateVAT({ outputVAT, inputVAT, creditBalance? })
+ *        → { outputVAT, inputVAT, creditApplied, netPayable, creditCarryover }
+ * - VAT Transaction: calculateTransactionVAT(amount, inclusive?)
+ *        → { net, vatAmount, total }
+ * - PAYE: calculatePAYE({ grossSalary, ... })
  */
 
 import {
   calculateCIT,
   calculatePIT,
   calculateVAT,
+  calculateTransactionVAT,
   calculatePAYE,
-} from '../services/tax-engine';
-
-import {
-  MINIMUM_ETR_THRESHOLD,
-  DIGITAL_TAX_THRESHOLD,
-  EDT_EMPLOYEE_THRESHOLD,
-  MINIMUM_WAGE_ANNUAL,
-  VAT_REGISTRATION_THRESHOLD,
+  SMALL_CO_CIT_THRESHOLD,
+  VAT_RATE,
 } from '@taxbridge/contracts';
 
-describe('CIT Boundary Tests', () => {
+describe('CIT Boundary Tests (V13 2-tier system)', () => {
   describe('Tier boundaries', () => {
-    it('should apply 0% at exactly ₦25M revenue', () => {
-      const result = calculateCIT({ revenue: 25_000_000, expenses: 10_000_000 });
-      expect(result.taxRate).toBe(0);
-      expect(result.category).toContain('Small');
+    it('should apply 0% (small) below ₦100M turnover', () => {
+      const result = calculateCIT({ turnover: 99_999_999, taxableProfit: 10_000_000 });
+      expect(result.rate).toBe(0);
+      expect(result.band).toBe('small');
+      expect(result.exempt).toBe(true);
+      expect(result.citLiability).toBe(0);
     });
 
-    it('should apply 20% at ₦25M + ₦1 revenue', () => {
-      const result = calculateCIT({ revenue: 25_000_001, expenses: 10_000_000 });
-      expect(result.taxRate).toBe(0.20);
-      expect(result.category).toContain('Medium');
+    it('should apply 30% (large) at exactly ₦100M turnover', () => {
+      const result = calculateCIT({ turnover: 100_000_000, taxableProfit: 10_000_000 });
+      expect(result.rate).toBe(0.30);
+      expect(result.band).toBe('large');
+      expect(result.exempt).toBe(false);
+      expect(result.citLiability).toBe(3_000_000);
     });
 
-    it('should apply 20% at exactly ₦100M revenue', () => {
-      const result = calculateCIT({ revenue: 100_000_000, expenses: 40_000_000 });
-      expect(result.taxRate).toBe(0.20);
-      expect(result.category).toContain('Medium');
+    it('should apply 30% (large) above ₦100M turnover', () => {
+      const result = calculateCIT({ turnover: 150_000_000, taxableProfit: 15_000_000 });
+      expect(result.rate).toBe(0.30);
+      expect(result.band).toBe('large');
+      expect(result.citLiability).toBe(4_500_000);
     });
 
-    it('should apply 30% at ₦100M + ₦1 revenue', () => {
-      const result = calculateCIT({ revenue: 100_000_001, expenses: 40_000_000 });
-      expect(result.taxRate).toBe(0.30);
-      expect(result.category).toContain('Large');
+    it('should return zero CIT for small companies', () => {
+      const result = calculateCIT({ turnover: 80_000_000, taxableProfit: 5_000_000 });
+      expect(result.citLiability).toBe(0);
+      expect(result.band).toBe('small');
+      expect(result.total).toBe(0);
     });
   });
 
   describe('Development Levy (4%)', () => {
-    it('should apply to small companies (0% CIT)', () => {
-      const result = calculateCIT({ revenue: 10_000_000, expenses: 5_000_000 });
-      const profit = 5_000_000;
-      expect(result.developmentLevy).toBe(profit * 0.04);
-      expect(result.totalTax).toBe(result.developmentLevy); // Only dev levy, no CIT
+    it('should NOT apply dev levy when devLevyApplies is false (default)', () => {
+      const result = calculateCIT({ turnover: 150_000_000, taxableProfit: 10_000_000 });
+      expect(result.devLevy).toBe(0);
     });
 
-    it('should apply to medium companies (20% CIT)', () => {
-      const result = calculateCIT({ revenue: 50_000_000, expenses: 30_000_000 });
-      const profit = 20_000_000;
-      expect(result.developmentLevy).toBe(profit * 0.04);
-      expect(result.totalTax).toBeGreaterThan(result.developmentLevy);
+    it('should apply 4% dev levy when devLevyApplies is true', () => {
+      const result = calculateCIT({ turnover: 150_000_000, taxableProfit: 10_000_000, devLevyApplies: true });
+      expect(result.devLevy).toBe(400_000); // 4% of 10M
     });
 
-    it('should apply to large companies (30% CIT)', () => {
-      const result = calculateCIT({ revenue: 200_000_000, expenses: 100_000_000 });
-      const profit = 100_000_000;
-      expect(result.developmentLevy).toBe(profit * 0.04);
+    it('should include dev levy in total', () => {
+      const result = calculateCIT({ turnover: 150_000_000, taxableProfit: 10_000_000, devLevyApplies: true });
+      expect(result.total).toBe(result.citLiability + result.devLevy);
     });
 
-    it('should be zero when profit is zero', () => {
-      const result = calculateCIT({ revenue: 50_000_000, expenses: 50_000_000 });
-      expect(result.profit).toBe(0);
-      expect(result.developmentLevy).toBe(0);
-    });
-
-    it('should be zero when expenses exceed revenue', () => {
-      const result = calculateCIT({ revenue: 50_000_000, expenses: 60_000_000 });
-      expect(result.profit).toBe(0);
-      expect(result.developmentLevy).toBe(0);
+    it('should NOT apply dev levy for small companies', () => {
+      const result = calculateCIT({ turnover: 50_000_000, taxableProfit: 5_000_000, devLevyApplies: true });
+      expect(result.devLevy).toBe(0);
+      expect(result.exempt).toBe(true);
     });
   });
 
-  describe('Educational Development Tax (EDT)', () => {
-    it('should NOT apply with 9 employees', () => {
+  describe('Tax loss carryforward', () => {
+    it('should reduce taxable profit by loss carryforward', () => {
       const result = calculateCIT({
-        revenue: 50_000_000,
-        expenses: 30_000_000,
-        employeeCount: 9,
+        turnover: 150_000_000,
+        taxableProfit: 10_000_000,
+        taxLossCarryforward: 3_000_000,
       });
-      expect(result.edt).toBe(0);
+      expect(result.taxableProfit).toBe(7_000_000);
+      expect(result.citLiability).toBe(2_100_000); // 30% of 7M
     });
 
-    it('should apply with exactly 10 employees', () => {
+    it('should not produce negative taxable profit', () => {
       const result = calculateCIT({
-        revenue: 50_000_000,
-        expenses: 30_000_000,
-        employeeCount: 10,
+        turnover: 150_000_000,
+        taxableProfit: 5_000_000,
+        taxLossCarryforward: 10_000_000,
       });
-      const profit = 20_000_000;
-      expect(result.edt).toBe(profit * 0.02);
-    });
-
-    it('should apply with 11 employees', () => {
-      const result = calculateCIT({
-        revenue: 50_000_000,
-        expenses: 30_000_000,
-        employeeCount: 11,
-      });
-      const profit = 20_000_000;
-      expect(result.edt).toBe(profit * 0.02);
-    });
-
-    it('should apply with 100 employees', () => {
-      const result = calculateCIT({
-        revenue: 200_000_000,
-        expenses: 100_000_000,
-        employeeCount: 100,
-      });
-      const profit = 100_000_000;
-      expect(result.edt).toBe(profit * 0.02);
-    });
-
-    it('should be included in breakdown when applicable', () => {
-      const result = calculateCIT({
-        revenue: 50_000_000,
-        expenses: 30_000_000,
-        employeeCount: 10,
-      });
-      const edtBreakdown = result.breakdown.find(b => b.bracket.includes('Educational'));
-      expect(edtBreakdown).toBeDefined();
-      expect(edtBreakdown?.taxAmount).toBe(result.edt);
-    });
-  });
-
-  describe('Minimum Effective Tax Rate (15%)', () => {
-    it('should NOT apply below ₦1B threshold', () => {
-      const result = calculateCIT({
-        revenue: 999_999_999,
-        expenses: 900_000_000,
-        employeeCount: 5,
-      });
-      expect(result.minimumETRApplied).toBe(false);
-    });
-
-    it('should NOT apply at exactly ₦1B if regular tax exceeds 15%', () => {
-      const result = calculateCIT({
-        revenue: 1_000_000_000,
-        expenses: 500_000_000,
-        employeeCount: 5,
-      });
-      const profit = 500_000_000;
-      const regularTax = profit * 0.30 + profit * 0.04; // CIT + Dev Levy = 34%
-      expect(result.minimumETRApplied).toBe(false);
-      expect(result.totalTax).toBe(regularTax);
-    });
-
-    it('should apply at ₦1B + ₦1 when regular tax < 15%', () => {
-      const result = calculateCIT({
-        revenue: 1_000_000_001,
-        expenses: 950_000_000,
-        employeeCount: 5,
-      });
-      const profit = 50_000_001;
-      const regularCIT = profit * 0.30;
-      const devLevy = profit * 0.04;
-      const regularTotal = regularCIT + devLevy;
-      const minimumTax = profit * 0.15;
-
-      // Regular tax (34% of profit) should exceed minimum (15% of profit)
-      // So minimum ETR should NOT be applied
-      expect(regularTotal).toBeGreaterThan(minimumTax);
-      expect(result.minimumETRApplied).toBe(false);
-    });
-
-    it('should apply when revenue > ₦1B and effective rate < 15%', () => {
-      // Create scenario where regular tax < 15% of profit
-      const result = calculateCIT({
-        revenue: 2_000_000_000,
-        expenses: 1_900_000_000,
-        employeeCount: 5,
-      });
-      const profit = 100_000_000;
-      const regularCIT = profit * 0.30; // ₦30M
-      const devLevy = profit * 0.04; // ₦4M
-      const regularTotal = regularCIT + devLevy; // ₦34M = 34% of profit
-      const minimumTax = profit * 0.15; // ₦15M
-
-      // Regular total (₦34M) > minimum (₦15M), so minimum ETR should NOT apply
-      expect(regularTotal).toBeGreaterThan(minimumTax);
-      expect(result.minimumETRApplied).toBe(false);
-      expect(result.totalTax).toBe(regularTotal);
-    });
-
-    it('should include minimum ETR adjustment in breakdown when applied', () => {
-      // This test documents the expected behavior even though in practice
-      // the 34% combined rate (30% CIT + 4% Dev Levy) will usually exceed 15%
-      const result = calculateCIT({
-        revenue: 1_500_000_000,
-        expenses: 1_400_000_000,
-        employeeCount: 5,
-      });
-
-      if (result.minimumETRApplied) {
-        const minimumETRBreakdown = result.breakdown.find(b => b.bracket.includes('Minimum ETR'));
-        expect(minimumETRBreakdown).toBeDefined();
-      }
-    });
-  });
-
-  describe('Digital Tax Threshold', () => {
-    it('should NOT flag digital tax below ₦25M', () => {
-      const result = calculateCIT({
-        revenue: 50_000_000,
-        expenses: 30_000_000,
-        digitalIncome: 24_999_999,
-      });
-      expect(result.digitalTaxApplicable).toBe(false);
-    });
-
-    it('should flag digital tax at exactly ₦25M', () => {
-      const result = calculateCIT({
-        revenue: 50_000_000,
-        expenses: 30_000_000,
-        digitalIncome: 25_000_000,
-      });
-      expect(result.digitalTaxApplicable).toBe(true);
-    });
-
-    it('should flag digital tax above ₦25M', () => {
-      const result = calculateCIT({
-        revenue: 100_000_000,
-        expenses: 50_000_000,
-        digitalIncome: 30_000_000,
-      });
-      expect(result.digitalTaxApplicable).toBe(true);
-    });
-
-    it('should flag digital tax when digital income equals total revenue', () => {
-      const result = calculateCIT({
-        revenue: 50_000_000,
-        expenses: 30_000_000,
-        digitalIncome: 50_000_000,
-      });
-      expect(result.digitalTaxApplicable).toBe(true);
-    });
-  });
-
-  describe('Combined edge cases', () => {
-    it('should handle all components together (large company, ≥10 employees, >₦1B, digital)', () => {
-      const result = calculateCIT({
-        revenue: 1_500_000_000,
-        expenses: 500_000_000,
-        employeeCount: 50,
-        digitalIncome: 100_000_000,
-      });
-
-      const profit = 1_000_000_000;
-      expect(result.taxRate).toBe(0.30); // Large company
-      expect(result.developmentLevy).toBe(profit * 0.04);
-      expect(result.edt).toBe(profit * 0.02); // ≥10 employees
-      expect(result.digitalTaxApplicable).toBe(true);
-      
-      // Total tax = CIT + Dev Levy + EDT
-      const expectedTotal = profit * 0.30 + profit * 0.04 + profit * 0.02;
-      expect(result.totalTax).toBe(expectedTotal);
-    });
-
-    it('should handle boundary: exactly ₦25M revenue, exactly 10 employees, exactly ₦25M digital', () => {
-      const result = calculateCIT({
-        revenue: 25_000_000,
-        expenses: 10_000_000,
-        employeeCount: 10,
-        digitalIncome: 25_000_000,
-      });
-
-      const profit = 15_000_000;
-      expect(result.taxRate).toBe(0); // Small company
-      expect(result.developmentLevy).toBe(profit * 0.04);
-      expect(result.edt).toBe(profit * 0.02);
-      expect(result.digitalTaxApplicable).toBe(true);
+      expect(result.taxableProfit).toBe(0);
+      expect(result.citLiability).toBe(0);
     });
   });
 });
 
 describe('PIT Boundary Tests', () => {
-  it('should exempt exactly minimum wage (₦840,000)', () => {
-    const result = calculatePIT({ grossIncome: MINIMUM_WAGE_ANNUAL });
-    expect(result.isMinimumWageExempt).toBe(true);
-    expect(result.taxAmount).toBe(0);
+  it('should compute tax with default pension and NHF', () => {
+    const result = calculatePIT({ grossIncome: 5_000_000 });
+    expect(result.pension).toBe(400_000); // 8% of 5M
+    expect(result.nhf).toBe(125_000); // 2.5% of 5M
+    expect(result.taxableIncome).toBeLessThan(result.grossIncome);
   });
 
-  it('should NOT exempt ₦840,001 but CRA may reduce tax to zero', () => {
-    const result = calculatePIT({ grossIncome: MINIMUM_WAGE_ANNUAL + 1 });
-    expect(result.isMinimumWageExempt).toBe(false);
-    // CRA = max(1% of 840,001 = 8,400, 200,000 + 20% of 840,001 = 368,000) = 368,000
-    // Taxable = 840,001 - 368,000 = 472,001
-    // Tax on 472,001 should be > 0 (falls in 0% bracket up to 800k, then 15% on remainder)
-    expect(result.taxableIncome).toBeGreaterThan(0);
-    // Actually, taxable income is 472,001 which is below 800k, so still 0% tax
-    // This is correct behavior - need higher income to actually pay tax
+  it('should apply RRA when rent is paid', () => {
+    const result = calculatePIT({ grossIncome: 5_000_000, rentPaid: 600_000 });
+    expect(result.rra).toBe(120_000); // 20% of 600k, capped at 500k
   });
 
-  it('should handle exactly ₦800,000 taxable income (first bracket boundary)', () => {
-    const result = calculatePIT({ grossIncome: 2_000_000 });
-    // With CRA, taxable income will be less than gross
-    expect(result.breakdown.length).toBeGreaterThanOrEqual(1);
+  it('should cap RRA at ₦500,000', () => {
+    const result = calculatePIT({ grossIncome: 10_000_000, rentPaid: 5_000_000 });
+    expect(result.rra).toBe(500_000); // Capped
   });
 
-  it('should handle bracket transitions correctly', () => {
-    // Test income that spans multiple brackets
+  it('should produce band breakdown that sums to tax liability', () => {
     const result = calculatePIT({ grossIncome: 10_000_000 });
-    expect(result.breakdown.length).toBeGreaterThan(2);
-    
-    // Verify progressive taxation
-    const totalFromBreakdown = result.breakdown.reduce((sum, b) => sum + b.taxAmount, 0);
-    expect(totalFromBreakdown).toBe(result.taxAmount);
+    const totalFromBreakdown = result.bandBreakdown.reduce((sum, b) => sum + b.tax, 0);
+    expect(totalFromBreakdown).toBe(result.taxLiability);
+  });
+
+  it('should compute effective rate correctly', () => {
+    const result = calculatePIT({ grossIncome: 5_000_000 });
+    expect(result.effectiveRate).toBeCloseTo(result.taxLiability / result.grossIncome, 4);
+  });
+
+  it('should compute monthly tax as 1/12 of annual', () => {
+    const result = calculatePIT({ grossIncome: 6_000_000 });
+    expect(result.monthlyTax).toBe(Math.round(result.taxLiability / 12));
   });
 });
 
 describe('VAT Boundary Tests', () => {
-  it('should apply 7.5% VAT on any standard amount', () => {
-    const amounts = [100, 1_000, 10_000, 100_000, 1_000_000, 10_000_000];
-    
-    for (const amount of amounts) {
-      const result = calculateVAT({ amount });
-      expect(result.vatRate).toBe(0.075);
-      expect(result.vatAmount).toBe(amount * 0.075);
-    }
+  describe('VAT net payable calculation', () => {
+    it('should compute net payable as output - input', () => {
+      const result = calculateVAT({ outputVAT: 100_000, inputVAT: 30_000 });
+      expect(result.netPayable).toBe(70_000);
+    });
+
+    it('should apply credit balance to reduce net payable', () => {
+      const result = calculateVAT({ outputVAT: 100_000, inputVAT: 30_000, creditBalance: 20_000 });
+      expect(result.creditApplied).toBe(20_000);
+      expect(result.netPayable).toBe(50_000);
+    });
+
+    it('should carry over unused credit', () => {
+      const result = calculateVAT({ outputVAT: 50_000, inputVAT: 30_000, creditBalance: 50_000 });
+      // Gross = 50k - 30k = 20k, credit applied = 20k, carryover = 30k
+      expect(result.creditApplied).toBe(20_000);
+      expect(result.netPayable).toBe(0);
+      expect(result.creditCarryover).toBe(30_000);
+    });
+
+    it('should never produce negative net payable', () => {
+      const result = calculateVAT({ outputVAT: 30_000, inputVAT: 50_000 });
+      expect(result.netPayable).toBe(0);
+    });
   });
 
-  it('should handle very small amounts', () => {
-    const result = calculateVAT({ amount: 1 });
-    expect(result.vatAmount).toBe(0.08); // Rounded to 2 decimals
-  });
+  describe('Transaction VAT calculation', () => {
+    it('should apply 7.5% VAT on exclusive amount', () => {
+      const result = calculateTransactionVAT(100_000, false);
+      expect(result.vatAmount).toBe(7_500);
+      expect(result.total).toBe(107_500);
+      expect(result.net).toBe(100_000);
+    });
 
-  it('should handle very large amounts', () => {
-    const result = calculateVAT({ amount: 1_000_000_000 });
-    expect(result.vatAmount).toBe(75_000_000);
+    it('should extract VAT from inclusive amount', () => {
+      const result = calculateTransactionVAT(107_500, true);
+      expect(result.net).toBe(100_000);
+      expect(result.vatAmount).toBe(7_500);
+      expect(result.total).toBe(107_500);
+    });
+
+    it('should handle small amounts', () => {
+      const result = calculateTransactionVAT(100, false);
+      expect(result.vatAmount).toBe(8); // Rounded
+      expect(result.total).toBe(108);
+    });
+
+    it('should handle large amounts', () => {
+      const result = calculateTransactionVAT(1_000_000_000, false);
+      expect(result.vatAmount).toBe(75_000_000);
+      expect(result.total).toBe(1_075_000_000);
+    });
   });
 });
 
 describe('PAYE Boundary Tests', () => {
-  it('should calculate pension at exactly 8% of gross salary', () => {
-    const grossSalary = 1_000_000;
-    const result = calculatePAYE({ grossSalary });
-    expect(result.pensionContribution).toBe(grossSalary * 0.08);
+  it('should calculate pension at 8% of gross income', () => {
+    const result = calculatePAYE({ grossSalary: 1_000_000 });
+    // Pension is 8% of grossIncome (grossSalary + allowances)
+    expect(result.pensionContribution).toBe(80_000);
   });
 
-  it('should calculate NHF at exactly 2.5% of gross salary', () => {
-    const grossSalary = 1_000_000;
-    const result = calculatePAYE({ grossSalary });
-    expect(result.nhfContribution).toBe(grossSalary * 0.025);
+  it('should calculate NHF at 2.5% of gross income', () => {
+    const result = calculatePAYE({ grossSalary: 1_000_000 });
+    // NHF is 2.5% of grossIncome
+    expect(result.nhfContribution).toBe(25_000);
   });
 
-  it('should match PIT tax when reliefs are identical', () => {
-    const grossSalary = 2_000_000;
-    const payeResult = calculatePAYE({ grossSalary });
-    
-    const pitResult = calculatePIT({
-      grossIncome: grossSalary,
-      reliefs: {
-        pension: payeResult.pensionContribution,
-        nhf: payeResult.nhfContribution,
-      },
+  it('should compute taxable income after deductions', () => {
+    const result = calculatePAYE({ grossSalary: 1_000_000 });
+    expect(result.taxableIncome).toBe(result.grossIncome - result.totalDeductions);
+  });
+
+  it('should compute net pay correctly', () => {
+    const result = calculatePAYE({ grossSalary: 1_000_000 });
+    const expectedNet = result.grossIncome - result.totalDeductions - result.taxDue;
+    expect(result.netPay).toBe(expectedNet);
+  });
+
+  it('should include allowances in gross income', () => {
+    const result = calculatePAYE({
+      grossSalary: 500_000,
+      housingAllowance: 100_000,
+      transportAllowance: 50_000,
     });
-
-    expect(payeResult.taxableIncome).toBe(pitResult.taxableIncome);
-    expect(payeResult.taxDue).toBe(pitResult.taxAmount);
+    expect(result.totalAllowances).toBe(150_000);
+    expect(result.grossIncome).toBe(650_000);
   });
 });
 
 describe('Cross-boundary consistency', () => {
-  it('should maintain consistency across CIT tier boundaries', () => {
-    const testCases = [
-      { revenue: 24_999_999, expectedRate: 0 },
-      { revenue: 25_000_000, expectedRate: 0 },
-      { revenue: 25_000_001, expectedRate: 0.20 },
-      { revenue: 99_999_999, expectedRate: 0.20 },
-      { revenue: 100_000_000, expectedRate: 0.20 },
-      { revenue: 100_000_001, expectedRate: 0.30 },
+  it('should maintain consistency across CIT tier boundary', () => {
+    const belowThreshold = calculateCIT({ turnover: SMALL_CO_CIT_THRESHOLD - 1, taxableProfit: 10_000_000 });
+    const atThreshold = calculateCIT({ turnover: SMALL_CO_CIT_THRESHOLD, taxableProfit: 10_000_000 });
+
+    expect(belowThreshold.band).toBe('small');
+    expect(belowThreshold.exempt).toBe(true);
+    expect(atThreshold.band).toBe('large');
+    expect(atThreshold.exempt).toBe(false);
+  });
+
+  it('should never produce negative tax amounts in CIT', () => {
+    const edgeCases = [
+      { turnover: 0, taxableProfit: 0 },
+      { turnover: 1, taxableProfit: 0 },
+      { turnover: 150_000_000, taxableProfit: 0 },
+      { turnover: 150_000_000, taxableProfit: -1_000_000 }, // Negative profit handled
     ];
 
-    for (const { revenue, expectedRate } of testCases) {
-      const result = calculateCIT({ revenue, expenses: revenue * 0.5 });
-      expect(result.taxRate).toBe(expectedRate);
+    for (const input of edgeCases) {
+      const result = calculateCIT(input);
+      expect(result.citLiability).toBeGreaterThanOrEqual(0);
+      expect(result.devLevy).toBeGreaterThanOrEqual(0);
+      expect(result.total).toBeGreaterThanOrEqual(0);
     }
   });
 
-  it('should never produce negative tax amounts', () => {
+  it('should never produce negative tax amounts in PIT', () => {
     const edgeCases = [
-      { revenue: 0, expenses: 0 },
-      { revenue: 1, expenses: 0 },
-      { revenue: 1_000_000, expenses: 2_000_000 },
-      { revenue: 25_000_000, expenses: 25_000_000 },
+      { grossIncome: 0 },
+      { grossIncome: 1 },
+      { grossIncome: 100_000 },
     ];
 
-    for (const { revenue, expenses } of edgeCases) {
-      const result = calculateCIT({ revenue, expenses });
-      expect(result.taxAmount).toBeGreaterThanOrEqual(0);
-      expect(result.developmentLevy).toBeGreaterThanOrEqual(0);
-      expect(result.edt).toBeGreaterThanOrEqual(0);
-      expect(result.totalTax).toBeGreaterThanOrEqual(0);
+    for (const input of edgeCases) {
+      const result = calculatePIT(input);
+      expect(result.taxLiability).toBeGreaterThanOrEqual(0);
+      expect(result.taxableIncome).toBeGreaterThanOrEqual(0);
     }
   });
 });

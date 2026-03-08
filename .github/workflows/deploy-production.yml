@@ -7,7 +7,6 @@ on:
       - 'backend/**'
       - 'mobile/**'
       - 'admin-dashboard/**'
-      - 'admin/**'
       - 'packages/**'
       - 'ml/**'
       - 'infra/**'

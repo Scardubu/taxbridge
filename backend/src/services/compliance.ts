@@ -12,12 +12,19 @@
  * - Penalty estimation for late filing
  */
 
-import { PrismaClient, Prisma } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
 import {
   COMPLIANCE_CALENDAR,
   PENALTY_RATES,
+  VAT_REGISTRATION_THRESHOLD,
+  SMALL_CO_CIT_THRESHOLD,
 } from '@taxbridge/contracts';
+
 import { createLogger } from '../lib/logger';
+
+// C-04: All penalty rate literals sourced from @taxbridge/contracts
+const LATE_FILING_RATE_MONTHLY  = PENALTY_RATES.underDeduction.base;   // 0.10 — NTA §93
+const VAT_LATE_PENALTY_MONTHLY  = PENALTY_RATES.underDeduction.interest; // 0.05 — NTA §93
 
 const log = createLogger('compliance-service');
 
@@ -352,7 +359,7 @@ export class ComplianceService {
         dueDate,
         amount: input.amount ?? null,
         status: dueDate < now ? 'overdue' : 'pending',
-        priority,
+        priority: dueDate < now ? 'critical' : priority,
         description,
       },
     });
@@ -407,21 +414,21 @@ export class ComplianceService {
       frequency: 'monthly' as const,
       dueDay: 21,
       description: 'VAT Return & Remittance — NTA 2025 §34',
-      penaltyRate: 0.05,        // 5 % of tax due per month late
+      penaltyRate: VAT_LATE_PENALTY_MONTHLY,  // 5 % of tax due per month late — NTA §93
       graceDays: 0,
     },
     PAYE: {
       frequency: 'monthly' as const,
       dueDay: 10,
       description: 'PAYE Remittance (Employer) — NTA 2025 §81',
-      penaltyRate: 0.10,        // 10 % + CBN MPR per month (NTA §93)
+      penaltyRate: LATE_FILING_RATE_MONTHLY,   // 10 % per month — NTA §93
       graceDays: 0,
     },
     WHT: {
       frequency: 'monthly' as const,
       dueDay: 21,
       description: 'Withholding Tax Remittance — NTA 2025 §78',
-      penaltyRate: 0.05,
+      penaltyRate: VAT_LATE_PENALTY_MONTHLY,
       graceDays: 0,
     },
     CIT: {
@@ -429,7 +436,7 @@ export class ComplianceService {
       dueMonth: 6,              // June for Dec year-end companies
       dueDay: 30,
       description: 'Company Income Tax Return — NTA 2025 §55',
-      penaltyRate: 0.10,
+      penaltyRate: LATE_FILING_RATE_MONTHLY,
       graceDays: 0,
     },
     PIT: {
@@ -437,14 +444,14 @@ export class ComplianceService {
       dueMonth: 3,              // March 31 for personal income tax
       dueDay: 31,
       description: 'Personal Income Tax Return — NTA 2025 §41',
-      penaltyRate: 0.10,
+      penaltyRate: LATE_FILING_RATE_MONTHLY,
       graceDays: 0,
     },
     CGT: {
       frequency: 'transaction' as const,
       daysFromTransaction: 30,
-      description: 'Capital Gains Tax — NTA 2025 §4  (10 % of gain, due 30 days post-disposal)',
-      penaltyRate: 0.10,
+      description: 'Capital Gains Tax — NTA 2025 §4  (CGT_RATE % of gain, due 30 days post-disposal)',
+      penaltyRate: LATE_FILING_RATE_MONTHLY,
       graceDays: 0,
     },
   } as const;
@@ -541,26 +548,25 @@ export class ComplianceService {
     const windows: Array<{ type: string; explanation: { en: string; pidgin: string }; estimatedSaving: number | null }> = [];
     const revenue = Number((business as any).annualRevenue ?? 0);
 
-    // VAT threshold (NTA 2025) — if within 10 % of ₦25M threshold
-    const VAT_THRESHOLD = 25_000_000;
-    if (revenue > VAT_THRESHOLD * 0.9 && revenue < VAT_THRESHOLD * 1.1) {
+    // VAT threshold — if within 10 % of canonical registration threshold
+    if (revenue > VAT_REGISTRATION_THRESHOLD * 0.9 && revenue < VAT_REGISTRATION_THRESHOLD * 1.1) {
       windows.push({
         type: 'VAT_THRESHOLD_APPROACH',
         explanation: {
-          en: 'Your annual revenue is close to the ₦25M VAT registration threshold. Review your invoicing schedule to manage registration timing.',
-          pidgin: 'Your revenue dey near ₦25M VAT limit. Check how you dey bill customers so e no go cause wahala.',
+          en: `Your annual revenue is close to the ₦${(VAT_REGISTRATION_THRESHOLD / 1_000_000).toFixed(0)}M VAT registration threshold. Review your invoicing schedule to manage registration timing.`,
+          pidgin: `Your revenue dey near ₦${(VAT_REGISTRATION_THRESHOLD / 1_000_000).toFixed(0)}M VAT limit. Check how you dey bill customers so e no go cause wahala.`,
         },
         estimatedSaving: null,
       });
     }
 
-    // CIT small company rate (0 % for revenue < ₦25M — NTA 2025 §23)
-    if (revenue < 25_000_000) {
+    // CIT small company rate window from canonical threshold
+    if (revenue < SMALL_CO_CIT_THRESHOLD) {
       windows.push({
         type: 'CIT_SMALL_COMPANY_ZERO_RATE',
         explanation: {
-          en: 'Your business qualifies for the 0 % CIT rate for small companies under NTA 2025 (revenue < ₦25M).',
-          pidgin: 'As your revenue dey below ₦25M, you no go pay Company Income Tax. Make sure your filing dey in order.',
+          en: `Your business qualifies for the 0 % CIT rate for small companies under the current threshold (revenue below ₦${(SMALL_CO_CIT_THRESHOLD / 1_000_000).toFixed(0)}M).`,
+          pidgin: `As your revenue dey below ₦${(SMALL_CO_CIT_THRESHOLD / 1_000_000).toFixed(0)}M, you no go pay Company Income Tax. Make sure your filing dey in order.`,
         },
         estimatedSaving: null,
       });

@@ -5,7 +5,21 @@
  * Updated for Tax Act 2025 amendments and NRS/DigiTax requirements
  */
 
-import { PIT_BRACKETS, VAT_RATE, CIT_RATE_LARGE, CIT_RATE_MEDIUM, CIT_RATE_SMALL } from '../engine';
+import {
+  PIT_BRACKETS,
+  VAT_RATE,
+  VAT_EXEMPT_CATEGORIES as CANONICAL_VAT_EXEMPT_CATEGORIES,
+  VAT_REGISTRATION_THRESHOLD,
+  CIT_TIERS,
+  WHT_RATES as CANONICAL_WHT_RATES,
+  PENALTY_RATES as CANONICAL_PENALTY_RATES,
+  DIGITAL_TAX_THRESHOLD,
+  CGT_RATE,
+} from '../../../../../packages/contracts/src';
+import { CIT_RATE_MEDIUM, CIT_RATE_SMALL } from '../engine';
+
+/** Max deductible charitable donation: CGT_RATE (10%) of profit — NTA 2025 §38 */
+const DONATIONS_MAX_RATE = CGT_RATE;
 
 // ============================================================================
 // Tax Exemptions & Reliefs
@@ -14,15 +28,7 @@ import { PIT_BRACKETS, VAT_RATE, CIT_RATE_LARGE, CIT_RATE_MEDIUM, CIT_RATE_SMALL
 /**
  * VAT-Exempt Goods and Services (Nigeria Tax Act 2025)
  */
-export const VAT_EXEMPT_CATEGORIES = [
-  'medical-services',
-  'pharmaceuticals',
-  'basic-food-items',
-  'books-newspapers',
-  'educational-services',
-  'agricultural-products',
-  'exported-goods',
-] as const;
+export const VAT_EXEMPT_CATEGORIES = CANONICAL_VAT_EXEMPT_CATEGORIES;
 
 export type VATExemptCategory = typeof VAT_EXEMPT_CATEGORIES[number];
 
@@ -121,7 +127,7 @@ export const ALLOWABLE_DEDUCTIONS: AllowableDeduction[] = [
   {
     category: 'donations',
     description: 'Charitable donations (max 10% of profit)',
-    limit: 0.10,
+    limit: DONATIONS_MAX_RATE,
     requiresDocumentation: true,
   },
 ];
@@ -223,7 +229,7 @@ export const SME_RELIEFS: Record<'micro' | 'small' | 'medium', SMERelief> = {
       'Mandatory VAT registration',
     ],
     citRate: CIT_RATE_MEDIUM,
-    vatRegistrationMandatory: true,
+    vatRegistrationMandatory: VAT_REGISTRATION_THRESHOLD <= SME_THRESHOLDS.medium,
   },
 };
 
@@ -292,9 +298,9 @@ export function getNextDeadline(taxType: 'pit' | 'vat' | 'cit'): Date {
  * Late filing penalty rates
  */
 export const PENALTY_RATES = {
-  lateFiling: 0.05, // 5% of tax due per month
-  latePayment: 0.10, // 10% of tax due per month
-  underDeclaration: 0.25, // 25% of undeclared amount
+  lateFiling: CANONICAL_PENALTY_RATES.lateFiling, // 5% of tax due per month
+  latePayment: CANONICAL_PENALTY_RATES.latePayment, // 10% of tax due per month
+  underDeclaration: 0.25, // legacy UI helper only
   evasion: 3.0, // 300% of tax evaded + potential prosecution
 } as const;
 
@@ -316,14 +322,14 @@ export function calculateLatePenalty(
  * Withholding tax rates by transaction type
  */
 export const WHT_RATES = {
-  dividend: 0.10,
-  interest: 0.10,
-  rent: 0.10,
-  royalty: 0.10,
-  consultancy: 0.10,
-  construction: 0.05,
-  contractServices: 0.05,
-  professionalFees: 0.10,
+  dividend: CANONICAL_WHT_RATES.dividends,
+  interest: CANONICAL_WHT_RATES.interest,
+  rent: CANONICAL_WHT_RATES.rent,
+  royalty: CANONICAL_WHT_RATES.royalties,
+  consultancy: CANONICAL_WHT_RATES.consultancy,
+  construction: CANONICAL_WHT_RATES.construction,
+  contractServices: CANONICAL_WHT_RATES.contracts,
+  professionalFees: CANONICAL_WHT_RATES.professional,
 } as const;
 
 /**
@@ -362,8 +368,8 @@ export const E_INVOICE_REQUIREMENTS = {
  * Validates if business must use e-invoicing
  */
 export function requiresEInvoicing(annualTurnover: number): boolean {
-  // E-invoicing mandatory for businesses with turnover > ₦25M
-  return annualTurnover > 25000000;
+  // E-invoicing mandatory for businesses with turnover above canonical threshold
+  return annualTurnover > DIGITAL_TAX_THRESHOLD;
 }
 
 // ============================================================================
@@ -381,5 +387,6 @@ export const NIGERIA_TAX_RULES_2025 = {
   deadlines: TAX_DEADLINES,
   penalties: PENALTY_RATES,
   whtRates: WHT_RATES,
+  citTiers: CIT_TIERS,
   eInvoiceRequirements: E_INVOICE_REQUIREMENTS,
 } as const;

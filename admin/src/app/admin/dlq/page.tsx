@@ -25,7 +25,7 @@ interface DLQJob {
 interface DLQResponse {
   data:       DLQJob[];
   meta: {
-    total:       number;
+    hasNextPage?: boolean;
     nextCursor:  string | null;
   };
 }
@@ -62,22 +62,6 @@ async function resolveJob(id: string): Promise<void> {
   }
 }
 
-async function bulkRetry(ids: string[]): Promise<void> {
-  const res = await fetch(`${API_BASE}/api/v2/dlq/bulk-retry`, {
-    method:      'POST',
-    credentials: 'include',
-    headers:     { 'Content-Type': 'application/json' },
-    body:        JSON.stringify({ ids }),
-  });
-  if (res.status === 403) {
-    const body = await res.json().catch(() => ({})) as any;
-    throw new Error(body?.error === 'TOTP_REQUIRED'
-      ? '2FA verification required for bulk retry of > 10 jobs. Please verify your TOTP first.'
-      : `Forbidden: ${body?.error ?? res.status}`);
-  }
-  if (!res.ok) throw new Error(`Bulk retry failed: ${res.status}`);
-}
-
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleString('en-NG', {
     day: '2-digit', month: 'short', year: 'numeric',
@@ -95,7 +79,6 @@ export default function DLQPage() {
   const [jobs,      setJobs]      = useState<DLQJob[]>([]);
   const [loading,   setLoading]   = useState(true);
   const [error,     setError]     = useState<string | null>(null);
-  const [selected,  setSelected]  = useState<Set<string>>(new Set());
   const [working,   setWorking]   = useState<string | null>(null);
   const [toast,     setToast]     = useState<string | null>(null);
 
@@ -145,30 +128,6 @@ export default function DLQPage() {
     }
   }, [loadJobs, showToast]);
 
-  const handleBulkRetry = useCallback(async () => {
-    const ids = [...selected];
-    if (ids.length === 0) return;
-    setWorking('bulk');
-    try {
-      await bulkRetry(ids);
-      showToast(`${ids.length} job(s) queued for retry`);
-      setSelected(new Set());
-      await loadJobs();
-    } catch (err: any) {
-      showToast(`Error: ${err.message}`);
-    } finally {
-      setWorking(null);
-    }
-  }, [selected, loadJobs, showToast]);
-
-  const toggleSelect = useCallback((id: string) => {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
-  }, []);
-
   const failedJobs = jobs.filter((j) => j.status === 'FAILED');
 
   return (
@@ -201,32 +160,8 @@ export default function DLQPage() {
           <h1 style={{ fontSize: 24, fontWeight: 700, color: '#111827', margin: 0 }}>Dead Letter Queue</h1>
           <p style={{ color: '#6B7280', fontSize: 13, marginTop: 4 }}>
             {failedJobs.length} failed job{failedJobs.length !== 1 ? 's' : ''}
-            {failedJobs.length > 10 && (
-              <span style={{ color: '#DC2626', fontWeight: 700 }}> — ▲ Requires 2FA for bulk retry</span>
-            )}
           </p>
         </div>
-
-        {selected.size > 0 && (
-          <button
-            onClick={handleBulkRetry}
-            disabled={working === 'bulk'}
-            style={{
-              padding:         '8px 16px',
-              backgroundColor: selected.size > 10 ? '#DC2626' : '#1E3A5F',
-              color:           '#fff',
-              border:          'none',
-              borderRadius:    8,
-              fontWeight:      600,
-              fontSize:        13,
-              cursor:          working === 'bulk' ? 'wait' : 'pointer',
-              opacity:         working === 'bulk' ? 0.7 : 1,
-            }}
-            title={selected.size > 10 ? 'Requires 2FA — backend will enforce' : undefined}
-          >
-            {working === 'bulk' ? 'Retrying…' : `⟳ Retry ${selected.size} selected${selected.size > 10 ? ' (2FA required)' : ''}`}
-          </button>
-        )}
       </div>
 
       {error && (
@@ -242,9 +177,6 @@ export default function DLQPage() {
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }} aria-label="DLQ jobs">
           <thead>
             <tr style={{ background: '#F9FAFB', borderBottom: '1px solid #E5E7EB' }}>
-              <th scope="col" style={{ padding: '10px 16px', width: 36 }}>
-                <span className="sr-only">Select</span>
-              </th>
               {['Status', 'Queue', 'Job ID', 'Fail Reason', 'Attempts', 'Last Attempt', 'Actions'].map((h) => (
                 <th
                   key={h}
@@ -259,14 +191,14 @@ export default function DLQPage() {
           <tbody>
             {loading && (
               <tr>
-                <td colSpan={8} style={{ padding: 32, textAlign: 'center', color: '#6B7280' }} aria-live="polite">
+                <td colSpan={7} style={{ padding: 32, textAlign: 'center', color: '#6B7280' }} aria-live="polite">
                   Loading…
                 </td>
               </tr>
             )}
             {!loading && jobs.length === 0 && (
               <tr>
-                <td colSpan={8} style={{ padding: 32, textAlign: 'center', color: '#6B7280' }}>
+                <td colSpan={7} style={{ padding: 32, textAlign: 'center', color: '#6B7280' }}>
                   ✓ No jobs in the dead letter queue
                 </td>
               </tr>
@@ -277,18 +209,8 @@ export default function DLQPage() {
               return (
                 <tr
                   key={job.id}
-                  style={{ borderBottom: '1px solid #F3F4F6', background: selected.has(job.id) ? '#EFF6FF' : undefined }}
+                  style={{ borderBottom: '1px solid #F3F4F6' }}
                 >
-                  <td style={{ padding: '10px 16px' }}>
-                    {job.status === 'FAILED' && (
-                      <input
-                        type="checkbox"
-                        checked={selected.has(job.id)}
-                        onChange={() => toggleSelect(job.id)}
-                        aria-label={`Select job ${job.jobId}`}
-                      />
-                    )}
-                  </td>
                   <td style={{ padding: '10px 16px' }}>
                     <span style={{ background: badge.bg, color: badge.color, borderRadius: 6, padding: '2px 8px', fontSize: 11, fontWeight: 700 }}>
                       {badge.label}

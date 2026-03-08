@@ -16,7 +16,6 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   AccessibilityInfo,
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -33,22 +32,37 @@ import * as Haptics from 'expo-haptics';
 
 import { apiClient } from '../../services/apiClient';
 import { useTheme } from '../../hooks/useTheme';
-import { COLORS, TYPOGRAPHY, SPACING, RADIUS } from '../../design-system/tokens';
+import { colors, typography, spacing, radii } from '../../design-system/tokens';
 import { formatNGN } from '../../design-system/ngn';
 import { ConfettiAnimation } from '../../components/shared/ConfettiAnimation';
+import { generateUuid } from '../../utils/uuid';
+import { WHT_RATES } from '@taxbridge/contracts';
+import { enqueueFilingRequest } from '../../services/filingQueue';
+import { isOfflineError } from '../../services/apiClient';
 
 type WizardStep = 'category' | 'amount' | 'review' | 'confirm';
 
+type PreflightCheck = {
+  name: string;
+  status: 'pass' | 'warn' | 'fail';
+  message?: string;
+};
+
+type PreflightResult = {
+  pass: boolean;
+  checks: PreflightCheck[];
+};
+
 const CATEGORIES = [
-  { key: 'professional',  label: 'Professional / Consultancy', rate: 0.10 },
-  { key: 'management',    label: 'Management / Technical',     rate: 0.10 },
-  { key: 'dividends',     label: 'Dividends',                  rate: 0.10 },
-  { key: 'interest',      label: 'Interest',                   rate: 0.10 },
-  { key: 'royalties',     label: 'Royalties',                  rate: 0.10 },
-  { key: 'rent',          label: 'Rent',                       rate: 0.10 },
-  { key: 'construction',  label: 'Construction',               rate: 0.05 },
-  { key: 'survey',        label: 'Survey',                     rate: 0.05 },
-  { key: 'contracts',     label: 'Contracts',                  rate: 0.05 },
+  { key: 'professional',  label: 'Professional / Consultancy', rate: WHT_RATES.professional },
+  { key: 'management',    label: 'Management / Technical',     rate: WHT_RATES.management },
+  { key: 'dividends',     label: 'Dividends',                  rate: WHT_RATES.dividends },
+  { key: 'interest',      label: 'Interest',                   rate: WHT_RATES.interest },
+  { key: 'royalties',     label: 'Royalties',                  rate: WHT_RATES.royalties },
+  { key: 'rent',          label: 'Rent',                       rate: WHT_RATES.rent },
+  { key: 'construction',  label: 'Construction',               rate: WHT_RATES.construction },
+  { key: 'survey',        label: 'Survey',                     rate: WHT_RATES.survey },
+  { key: 'contracts',     label: 'Contracts',                  rate: WHT_RATES.contracts },
 ] as const;
 
 function currentPeriod(): string {
@@ -86,6 +100,9 @@ export default function WHTFilingScreen() {
   const [loading,          setLoading]  = useState(false);
   const [error,            setError]    = useState<string | null>(null);
   const [showConfetti,     setShowConfetti] = useState(false);
+  const [submitted,        setSubmitted] = useState(false);
+  const [preflight,        setPreflight] = useState<PreflightResult | null>(null);
+  const [preflightLoading, setPreflightLoading] = useState(false);
 
   const selectedRate = useMemo(
     () => CATEGORIES.find(c => c.key === selectedCategory)?.rate ?? 0,
@@ -94,6 +111,25 @@ export default function WHTFilingScreen() {
   const gross     = parseFloat(grossAmount) || 0;
   const whtAmount = gross * selectedRate;
   const isExempt  = recipientTIN.trim().length > 0 && gross <= 2_000_000;
+
+  const runPreflight = useCallback(async () => {
+    setPreflightLoading(true);
+    try {
+      const response = await apiClient.get('/filings/preflight', { params: { taxType: 'WHT', period } });
+      const result = response.data as PreflightResult;
+      setPreflight(result);
+      return result;
+    } catch {
+      const fallback = {
+        pass: false,
+        checks: [{ name: 'preflight', status: 'fail' as const, message: t('filing.preflight.error', 'Could not run preflight checks.') }],
+      };
+      setPreflight(fallback);
+      return fallback;
+    } finally {
+      setPreflightLoading(false);
+    }
+  }, [period, t]);
 
   const handleNext = useCallback(() => {
     Haptics.selectionAsync();
@@ -106,42 +142,69 @@ export default function WHTFilingScreen() {
         if (gross <= 0) return;
         setStep('review');
         break;
-      case 'review':
-        setStep('confirm');
+      case 'review': {
+        runPreflight().then((result) => {
+          if (result.pass) setStep('confirm');
+        }).catch(() => undefined);
         break;
+      }
       default: break;
     }
-  }, [step, selectedCategory, gross]);
+  }, [step, selectedCategory, gross, runPreflight]);
 
   const handleSubmit = useCallback(async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setError(null);
+    if (preflight?.pass !== true || !selectedCategory) {
+      setError(t('filing.preflight.blocked', 'Resolve the blocking preflight checks before submitting.'));
+      return;
+    }
     setLoading(true);
     try {
-      const idempotencyKey = `wht-${period}-${selectedCategory}-${Date.now()}`;
+      const idempotencyKey = generateUuid();
+      const payload = {
+        period,
+        category: selectedCategory,
+        amount: gross,
+        counterpartyTin: recipientTIN.trim() || undefined,
+        monthlyTotal: gross,
+      };
       await apiClient.post(
         '/filings/wht',
-        { period, category: selectedCategory, grossAmount: gross, recipientTIN: recipientTIN.trim() || undefined },
+        payload,
         { headers: { 'X-Idempotency-Key': idempotencyKey } },
       );
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setShowConfetti(true);
-      Alert.alert(
-        t('filing.wht.successTitle', 'WHT Remittance Filed'),
-        t('filing.wht.successBody', `WHT of ${formatNGN(whtAmount)} has been filed for ${period}.`),
-        [{ text: 'OK', onPress: () => navigation.goBack() }],
-      );
+      setSubmitted(true);
     } catch (err: any) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      setError(
-        err?.response?.status === 409
-          ? t('filing.wht.duplicate', 'WHT remittance already submitted for this period.')
-          : t('filing.wht.error', 'Could not submit WHT remittance. Try again.'),
-      );
+      if (isOfflineError(err)) {
+        const idempotencyKey = generateUuid();
+        await enqueueFilingRequest({
+          idempotencyKey,
+          endpoint: '/filings/wht',
+          payload: {
+            period,
+            category: selectedCategory,
+            amount: gross,
+            counterpartyTin: recipientTIN.trim() || undefined,
+            monthlyTotal: gross,
+          },
+          createdAt: new Date().toISOString(),
+        });
+        setError(t('filing.offlineQueued', 'You are offline. This filing has been queued and will retry when network returns.'));
+      } else {
+        setError(
+          err?.response?.status === 409
+            ? t('filing.wht.duplicate', 'WHT remittance already submitted for this period.')
+            : t('filing.wht.error', 'Could not submit WHT remittance. Try again.'),
+        );
+      }
     } finally {
       setLoading(false);
     }
-  }, [period, selectedCategory, gross, recipientTIN, whtAmount, t, navigation]);
+  }, [period, preflight, selectedCategory, gross, recipientTIN, t]);
 
   return (
     <KeyboardAvoidingView
@@ -149,7 +212,7 @@ export default function WHTFilingScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       {showConfetti && <ConfettiAnimation onFinish={() => setShowConfetti(false)} />}
-      <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <Animated.View entering={FadeInDown.duration(300)} style={s.header}>
           <Text style={[s.title, { color: colors.textPrimary }]}>
             {t('filing.wht.title', 'WHT Remittance')}
@@ -165,6 +228,19 @@ export default function WHTFilingScreen() {
           </View>
         </Animated.View>
 
+        {submitted && (
+          <View style={s.successBox}>
+            <Text style={s.successTitle}>{t('filing.wht.successTitle', 'WHT Remittance Filed')}</Text>
+            <Text style={s.successText}>{t('filing.wht.successBody', `WHT of ${formatNGN(whtAmount)} has been filed for ${period}.`)}</Text>
+          </View>
+        )}
+
+        {preflightLoading && (
+          <View style={s.infoBox}>
+            <Text style={s.infoText}>ℹ️ {t('filing.preflight.loading', 'Running compliance preflight checks...')}</Text>
+          </View>
+        )}
+
         {step === 'category' && (
           <Animated.View entering={FadeInRight.duration(300)} key="category">
             <Text style={[s.stepLabel, { color: colors.textSecondary }]}>
@@ -176,8 +252,8 @@ export default function WHTFilingScreen() {
                 onPress={() => { Haptics.selectionAsync(); setCategory(cat.key); }}
                 style={[
                   s.categoryCard,
-                  { borderColor: selectedCategory === cat.key ? COLORS.primary : colors.border },
-                  selectedCategory === cat.key && { backgroundColor: COLORS.primary + '10' },
+                  { borderColor: selectedCategory === cat.key ? colors.primary[500] : colors.border },
+                  selectedCategory === cat.key && { backgroundColor: colors.primary[500] + '10' },
                 ]}
                 accessibilityRole="radio"
                 accessibilityState={{ checked: selectedCategory === cat.key }}
@@ -206,7 +282,7 @@ export default function WHTFilingScreen() {
               placeholderTextColor={colors.textMuted}
               accessibilityLabel={t('filing.wht.grossLabel', 'Gross payment amount')}
             />
-            <Text style={[s.stepLabel, { color: colors.textSecondary, marginTop: SPACING[16] }]}>
+            <Text style={[s.stepLabel, { color: colors.textSecondary, marginTop: spacing[16] }]}>
               {t('filing.wht.tinLabel', 'Recipient TIN (optional)')}
             </Text>
             <TextInput
@@ -236,6 +312,11 @@ export default function WHTFilingScreen() {
               <View style={s.divider} />
               <SummaryRow label={t('filing.wht.whtDue', 'WHT Due')}    text={isExempt ? '₦0 (exempt)' : formatNGN(whtAmount)} bold />
             </View>
+            {preflight?.checks.filter((check) => check.status === 'warn').map((check) => (
+              <View key={check.name} style={s.warningBanner}>
+                <Text style={s.warningText}>⚠️ {check.message ?? check.name}</Text>
+              </View>
+            ))}
           </Animated.View>
         )}
 
@@ -259,7 +340,7 @@ export default function WHTFilingScreen() {
           {step !== 'confirm' ? (
             <Pressable
               onPress={handleNext}
-              disabled={loading || (step === 'category' && !selectedCategory) || (step === 'amount' && gross <= 0)}
+              disabled={loading || preflightLoading || (step === 'category' && !selectedCategory) || (step === 'amount' && gross <= 0)}
               style={({ pressed }) => [s.btn, pressed && s.btnPressed, loading && s.btnDisabled]}
               accessibilityRole="button"
               accessibilityLabel={t('common.continue', 'Continue')}
@@ -268,13 +349,13 @@ export default function WHTFilingScreen() {
             </Pressable>
           ) : (
             <Pressable
-              onPress={handleSubmit}
-              disabled={loading}
+              onPress={submitted ? () => navigation.goBack() : handleSubmit}
+              disabled={loading || (!submitted && preflight?.pass !== true)}
               style={({ pressed }) => [s.btn, pressed && s.btnPressed, loading && s.btnDisabled]}
               accessibilityRole="button"
-              accessibilityLabel={t('filing.wht.submit', 'Submit WHT Remittance')}
+              accessibilityLabel={submitted ? t('common.done', 'Done') : t('filing.wht.submit', 'Submit WHT Remittance')}
             >
-              {loading ? <ActivityIndicator color={COLORS.dark.text} /> : <Text style={s.btnText}>{t('filing.wht.submit', 'Submit WHT Remittance')}</Text>}
+              {loading ? <ActivityIndicator color="#FFFFFF" /> : <Text style={s.btnText}>{submitted ? t('common.done', 'Done') : t('filing.wht.submit', 'Submit WHT Remittance')}</Text>}
             </Pressable>
           )}
         </View>
@@ -294,44 +375,52 @@ function SummaryRow({ label, text, bold }: { label: string; text: string; bold?:
 }
 
 const srStyles = StyleSheet.create({
-  row:       { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: SPACING[8] },
-  label:     { fontSize: TYPOGRAPHY.sm },
-  value:     { fontSize: TYPOGRAPHY.sm, fontWeight: '600' },
-  boldValue: { fontWeight: '700', fontSize: TYPOGRAPHY.base },
+  row:       { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: spacing[8] },
+  label:     { fontSize: typography.sizes.sm },
+  value:     { fontSize: typography.sizes.sm, fontWeight: '600' },
+  boldValue: { fontWeight: '700', fontSize: typography.sizes.base },
 });
 
 const s = StyleSheet.create({
   root:   { flex: 1 },
-  scroll: { padding: SPACING[24], paddingBottom: SPACING[48] },
+  scroll: { padding: spacing[24], paddingBottom: spacing['2xl'] },
 
-  header:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: SPACING[24] },
-  title:       { fontSize: TYPOGRAPHY['2xl'], fontWeight: '700', flex: 1 },
-  progressRow: { flexDirection: 'row', gap: 6, alignItems: 'center', paddingTop: SPACING[8] },
-  dot:         { width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS.dark.border },
-  dotActive:   { backgroundColor: COLORS.primary },
+  header:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing[24] },
+  title:       { fontSize: typography.sizes['2xl'], fontWeight: '700', flex: 1 },
+  progressRow: { flexDirection: 'row', gap: 6, alignItems: 'center', paddingTop: spacing[8] },
+  dot:         { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.dark.border },
+  dotActive:   { backgroundColor: colors.primary[500] },
 
-  stepLabel:   { fontSize: TYPOGRAPHY.base, fontWeight: '600', marginBottom: SPACING[8] },
-  confirmText: { fontSize: TYPOGRAPHY.base, lineHeight: 24, marginBottom: SPACING[24] },
+  stepLabel:   { fontSize: typography.sizes.base, fontWeight: '600', marginBottom: spacing[8] },
+  confirmText: { fontSize: typography.sizes.base, lineHeight: 24, marginBottom: spacing[24] },
 
-  categoryCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderWidth: 1, borderRadius: RADIUS.md, padding: SPACING[12], marginBottom: SPACING[8] },
-  categoryLabel:{ fontSize: TYPOGRAPHY.sm, flex: 1 },
-  rateBadge:    { backgroundColor: COLORS.amber + '22', paddingHorizontal: SPACING[8], paddingVertical: 2, borderRadius: RADIUS.sm },
-  rateText:     { color: COLORS.amber, fontSize: TYPOGRAPHY.xs, fontWeight: '700' },
+  categoryCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderWidth: 1, borderRadius: radii.md, padding: spacing[12], marginBottom: spacing[8] },
+  categoryLabel:{ fontSize: typography.sizes.sm, flex: 1 },
+  rateBadge:    { backgroundColor: colors.accent[500] + '22', paddingHorizontal: spacing[8], paddingVertical: 2, borderRadius: radii.sm },
+  rateText:     { color: colors.accent[500], fontSize: typography.sizes.xs, fontWeight: '700' },
 
-  input: { fontSize: TYPOGRAPHY.base, borderWidth: 1, borderRadius: RADIUS.md, padding: SPACING[12], marginBottom: SPACING[8] },
+  input: { fontSize: typography.sizes.base, borderWidth: 1, borderRadius: radii.md, padding: spacing[12], marginBottom: spacing[8] },
 
-  exemptBanner: { backgroundColor: '#D1FAE5', borderRadius: RADIUS.md, padding: SPACING[12], marginTop: SPACING[8] },
-  exemptText:   { color: '#065F46', fontSize: TYPOGRAPHY.xs },
+  exemptBanner: { backgroundColor: '#D1FAE5', borderRadius: radii.md, padding: spacing[12], marginTop: spacing[8] },
+  exemptText:   { color: '#065F46', fontSize: typography.sizes.xs },
 
-  reviewCard:  { borderRadius: RADIUS.lg, borderWidth: 1, padding: SPACING[16], marginBottom: SPACING[16] },
-  divider:     { height: 1, backgroundColor: '#E5E7EB', marginVertical: SPACING[8] },
+  successBox:   { backgroundColor: '#ECFDF5', borderRadius: radii.md, padding: spacing[16], marginBottom: spacing[16], borderWidth: 1, borderColor: '#A7F3D0' },
+  successTitle: { color: '#065F46', fontSize: typography.sizes.base, fontWeight: '700', marginBottom: spacing[4] },
+  successText:  { color: '#047857', fontSize: typography.sizes.sm },
+  infoBox:      { backgroundColor: '#EFF6FF', borderRadius: radii.md, padding: spacing[12], marginBottom: spacing[12], borderWidth: 1, borderColor: '#BFDBFE' },
+  infoText:     { color: '#1D4ED8', fontSize: typography.sizes.xs },
+  warningBanner:{ backgroundColor: '#FEF3C7', borderRadius: radii.md, padding: spacing[12], marginBottom: spacing[12], borderWidth: 1, borderColor: '#FCD34D' },
+  warningText:  { color: '#92400E', fontSize: typography.sizes.sm },
 
-  errorBox:    { backgroundColor: '#FEF2F2', borderRadius: RADIUS.md, padding: SPACING[12], marginBottom: SPACING[16], borderWidth: 1, borderColor: '#FECACA' },
-  errorText:   { color: '#991B1B', fontSize: TYPOGRAPHY.sm },
+  reviewCard:  { borderRadius: radii.lg, borderWidth: 1, padding: spacing[16], marginBottom: spacing[16] },
+  divider:     { height: 1, backgroundColor: '#E5E7EB', marginVertical: spacing[8] },
 
-  actions:     { marginTop: SPACING[24] },
-  btn:         { height: 52, backgroundColor: COLORS.primary, borderRadius: RADIUS.md, justifyContent: 'center', alignItems: 'center' },
+  errorBox:    { backgroundColor: '#FEF2F2', borderRadius: radii.md, padding: spacing[12], marginBottom: spacing[16], borderWidth: 1, borderColor: '#FECACA' },
+  errorText:   { color: '#991B1B', fontSize: typography.sizes.sm },
+
+  actions:     { marginTop: spacing[24] },
+  btn:         { height: 52, backgroundColor: colors.primary[500], borderRadius: radii.md, justifyContent: 'center', alignItems: 'center' },
   btnPressed:  { opacity: 0.88, transform: [{ scale: 0.97 }] },
   btnDisabled: { opacity: 0.5 },
-  btnText:     { color: COLORS.dark.text, fontSize: TYPOGRAPHY.base, fontWeight: '700' },
+  btnText:     { color: '#FFFFFF', fontSize: typography.sizes.base, fontWeight: '700' },
 });

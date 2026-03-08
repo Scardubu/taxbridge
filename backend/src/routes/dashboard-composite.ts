@@ -18,20 +18,8 @@
  */
 
 import type { FastifyInstance } from 'fastify';
-import jwt from 'jsonwebtoken';
-import {
-  forecastQuarterlyTax,
-  detectExpenseAnomalies,
-  getDashboardStats,
-  getPillarScores,
-  getTaxBreakdownSlices,
-  getSparkData,
-} from '../services/tax-intelligence';
-import { getUpcomingDeadlines } from '../services/compliance-calendar';
-import { getPrismaClient } from '../lib/prisma';
-import { getRedisConnection } from '../queue/client';
-
-const prisma = getPrismaClient();
+import { requireRole } from '../plugins/requireRole';
+import { buildDashboardCompositeResponse } from './v1/dashboard';
 
 // ─── Response types ───────────────────────────────────────────────────────────
 
@@ -100,29 +88,10 @@ export interface DashboardComposite {
 
 export default async function dashboardCompositeRoute(fastify: FastifyInstance) {
 
-  // ── Inline JWT auth preHandler ────────────────────────────────────────────
-  async function authenticate(req: any, reply: any) {
-    const authHeader = typeof req.headers?.authorization === 'string' ? req.headers.authorization : '';
-    if (!authHeader.startsWith('Bearer ')) {
-      return reply.code(401).send({ success: false, error: 'Unauthorized' });
-    }
-    const token = authHeader.replace(/^Bearer\s+/i, '').trim();
-    const secrets = [process.env.JWT_SECRET, process.env.JWT_SECRET_PREVIOUS].filter(Boolean) as string[];
-    let userId: string | undefined;
-    for (const secret of secrets) {
-      try {
-        const decoded = jwt.verify(token, secret) as { userId?: string };
-        if (decoded?.userId) { userId = decoded.userId; break; }
-      } catch { /* try next */ }
-    }
-    if (!userId) return reply.code(401).send({ success: false, error: 'Invalid or expired token' });
-    req.user = { id: userId };
-  }
-
   // ── GET /api/v1/dashboard ──────────────────────────────────────────────────
 
   fastify.get('/api/v1/dashboard', {
-    preHandler: [authenticate],
+    preHandler: [fastify.authenticate, fastify.resolveOrgContext, requireRole('VIEWER')],
     config: { rateLimit: { max: 30, timeWindow: '1 minute' } },
     schema: {
       response: {
@@ -137,128 +106,14 @@ export default async function dashboardCompositeRoute(fastify: FastifyInstance) 
       },
     },
   }, async (request, reply) => {
-    const userId   = (request as any).user.id as string;
-    const cacheKey = `dashboard:composite:${userId}`;
+    const { orgId } = request.orgContext;
+    const { userId } = request.user;
+    const { response, meta } = await buildDashboardCompositeResponse(orgId, userId);
 
-    // ── Try cache first ──────────────────────────────────────────────────────
-    try {
-      const redis = getRedisConnection();
-      const cached = redis ? await redis.get(cacheKey) : null;
-      if (cached) {
-        reply.header('X-Cache', 'HIT');
-        reply.header('Cache-Control', 'private, max-age=120');
-        return reply.send({ success: true, data: JSON.parse(cached), fromCache: true });
-      }
-    } catch {
-      // Redis miss — proceed to compute (don't fail the request)
-    }
-
-    // ── Compute all data in parallel (C-07: partial failure is ok) ───────────
-
-    const [
-      statsResult,
-      forecastResult,
-      anomaliesResult,
-      nrsResult,
-      deadlinesResult,
-      pillarsResult,
-      taxBreakdownResult,
-      sparkDataResult,
-    ] = await Promise.allSettled([
-      getDashboardStats(userId, prisma),
-      forecastQuarterlyTax(userId, prisma),
-      detectExpenseAnomalies(userId, prisma, 30),
-      getNrsHealthInternal(),
-      getUpcomingDeadlines(userId, prisma, 30),
-      getPillarScores(userId, prisma),
-      getTaxBreakdownSlices(userId, prisma),
-      getSparkData(userId, prisma),
-    ]);
-
-    // ── Unwrap results with safe fallbacks ────────────────────────────────────
-
-    const stats = statsResult.status === 'fulfilled'
-      ? statsResult.value
-      : {
-          totalInvoices: 0, totalRevenue: 0, pendingNrs: 0,
-          vatLiability: 0, taxHealthScore: 0, recentAnomalies: 0,
-        };
-
-    const forecast = forecastResult.status === 'fulfilled'
-      ? forecastResult.value
-      : null;
-
-    const anomalies = anomaliesResult.status === 'fulfilled'
-      ? anomaliesResult.value
-      : [];
-
-    const nrsHealth = nrsResult.status === 'fulfilled'
-      ? nrsResult.value
-      : { circuitBreakerOpen: false, pendingSubmissions: 0, deadLetterCount: 0, status: 'healthy' as const };
-
-    const upcomingDeadlines = deadlinesResult.status === 'fulfilled'
-      ? deadlinesResult.value
-      : [];
-
-    // Top anomalies: severity ≥ medium, max 3, sorted by severity desc
-    const severityOrder: Record<string, number> = { high: 0, medium: 1, low: 2 };
-    const topAnomalies = anomalies
-      .filter((a: any) => a.severity !== 'low')
-      .sort((a: any, b: any) => severityOrder[a.severity] - severityOrder[b.severity])
-      .slice(0, 3);
-
-    // Update recentAnomalies count from live data
-    const enrichedStats = {
-      ...stats,
-      recentAnomalies: anomalies.filter((a: any) => a.severity !== 'low').length,
-    };
-
-    const pillars      = pillarsResult.status      === 'fulfilled' ? pillarsResult.value      : [];
-    const taxBreakdown = taxBreakdownResult.status  === 'fulfilled' ? taxBreakdownResult.value  : [];
-    const sparkData    = sparkDataResult.status     === 'fulfilled' ? sparkDataResult.value     : [];
-
-    const data: DashboardComposite = {
-      stats:             enrichedStats,
-      forecast,
-      nrsHealth,
-      topAnomalies,
-      upcomingDeadlines,
-      pillars,
-      taxBreakdown,
-      sparkData,
-      cachedAt:          new Date().toISOString(),
-    };
-
-    // ── Cache the composite response ─────────────────────────────────────────
-    try {
-      const redis = getRedisConnection();
-      if (redis) await redis.setex(cacheKey, 120, JSON.stringify(data));
-    } catch {
-      // Cache write failure is non-fatal — user still gets fresh data
-    }
-
-    reply.header('X-Cache', 'MISS');
+    reply.header('X-Cache', meta.cached ? 'HIT' : 'MISS');
     reply.header('Cache-Control', 'private, max-age=120');
-    return reply.send({ success: true, data, fromCache: false });
+    return reply.send({ success: true, data: response, fromCache: meta.cached });
   });
-}
-
-// ─── Internal helpers ─────────────────────────────────────────────────────────
-
-async function getNrsHealthInternal() {
-  const redis = getRedisConnection();
-  const CIRCUIT_KEY = 'nrs:circuit:open';
-  const [circuitOpen, pending, failed] = await Promise.all([
-    redis ? redis.exists(CIRCUIT_KEY).then(Boolean) : Promise.resolve(false),
-    (prisma as any).invoice.count({ where: { nrsStatus: 'PENDING' } }),
-    (prisma as any).invoice.count({ where: { nrsStatus: 'FAILED', retryCount: { gte: 3 } } }),
-  ]);
-  return {
-    circuitBreakerOpen: circuitOpen,
-    pendingSubmissions: pending,
-    deadLetterCount:    failed,
-    status:             circuitOpen ? 'degraded' as const : 'healthy' as const,
-  };
 }
 
 // ─── Exported cache invalidation helper ──────────────────────────────────────
@@ -277,7 +132,10 @@ export async function invalidateDashboardCache(
 ): Promise<void> {
   if (!redis) return;
   try {
-    await redis.del(`dashboard:composite:${userId}`);
+    await Promise.all([
+      redis.del(`dashboard:composite:${userId}`),
+      redis.del(`dashboard:composite:v1:${userId}`),
+    ]);
   } catch {
     // Non-fatal — stale cache will expire naturally in 120s
   }

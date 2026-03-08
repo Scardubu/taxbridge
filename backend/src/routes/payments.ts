@@ -15,6 +15,8 @@ import {
   formatErrorResponse
 } from '../lib/errors';
 import { metrics } from '../services/metrics';
+import { redis } from '../lib/redis';
+import { invalidateDashboardCache } from './dashboard-composite';
 
 export default async function paymentRoutes(app: FastifyInstance, opts: { prisma: PrismaClient }) {
   const prisma = opts.prisma;
@@ -230,7 +232,11 @@ export default async function paymentRoutes(app: FastifyInstance, opts: { prisma
   app.get('/api/v1/payments/:invoiceId/status', async (req, reply) => {
     const { invoiceId } = req.params as { invoiceId: string };
 
-    const payment = await prisma.payment.findFirst({ where: { invoiceId }, orderBy: { createdAt: 'desc' } });
+    const payment = await prisma.payment.findFirst({
+      where: { invoiceId },
+      orderBy: { createdAt: 'desc' },
+      include: { invoice: true },
+    });
     if (!payment) {
       const error = new NotFoundError('Payment', invoiceId);
       return reply.status(error.statusCode).send(formatErrorResponse(error));
@@ -255,6 +261,9 @@ export default async function paymentRoutes(app: FastifyInstance, opts: { prisma
           },
         });
         await prisma.invoice.update({ where: { id: invoiceId }, data: { status: 'paid' } });
+        if ((payment as any).invoice?.userId) {
+          await invalidateDashboardCache(redis, (payment as any).invoice.userId);
+        }
       }
 
       return reply.send({ status: verification.status, gateway, payment });

@@ -29,22 +29,28 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { TaxHealthGauge, computeGaugeMode } from '../components/dashboard/TaxHealthGauge';
 import { DashboardZone }    from '../components/dashboard/DashboardZone';
 import { DashboardSkeleton } from '../components/dashboard/DashboardSkeleton';
+import { OfflineSyncStatus } from '../components/dashboard/OfflineSyncStatus';
 import { useDashboard }     from '../hooks/useDashboard';
+import { useSync } from '../contexts/SyncContext';
+import { useNetwork } from '../contexts/NetworkContext';
+import { formatCurrency, formatDate } from '../utils/formatters';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface Anomaly {
-  id:          string;
-  severity:    'low' | 'medium' | 'high' | 'critical';
-  description: { en: string; pidgin?: string };
-  ctaRoute?:   string;
+  expenseId: string;
+  severity: 'low' | 'medium' | 'high';
+  anomalyReason: string;
+  anomalyReason_pidgin?: string;
+  suggestedAction?: string;
 }
 
 interface Deadline {
-  taxType:       string;
-  period:        string;
-  deadline:      string;
+  id:            string;
+  type:          string;
+  dueDate:       string;
   daysRemaining: number;
+  status:        'upcoming' | 'overdue' | 'filed';
 }
 
 interface QuickAction {
@@ -78,19 +84,20 @@ export default function DashboardScreen() {
   const insets         = useSafeAreaInsets();
   const { t }          = useTranslation();
   const { data, isLoading, isRefetching, refetch, isError } = useDashboard();
+  const { isOnline } = useNetwork();
+  const { lastSyncAt, conflictCount } = useSync();
 
   const [isManualRefresh, setIsManualRefresh] = useState(false);
 
   // C-20: computeGaugeMode imported from TaxHealthGauge — never inlined
   const gaugeMode = useMemo(
-    () => computeGaugeMode({ score: (data as any)?.stats?.riskScore, isLoading }),
+    () => computeGaugeMode({ score: data?.stats?.taxHealthScore, isLoading }),
     [data, isLoading],
   );
 
   // urgent = true when any high/critical anomaly exists (collapses context zone delay)
   const hasHighAnomaly = useMemo(
-    () => (data as any)?.topAnomalies?.some((a: Anomaly) =>
-      a.severity === 'high' || a.severity === 'critical') ?? false,
+    () => data?.topAnomalies?.some((a: Anomaly) => a.severity === 'high') ?? false,
     [data],
   );
 
@@ -100,10 +107,10 @@ export default function DashboardScreen() {
     setIsManualRefresh(false);
   }, [refetch]);
 
-  const anomalies: Anomaly[]  = (data as any)?.topAnomalies ?? [];
-  const deadlines: Deadline[] = (data as any)?.deadlines    ?? [];
-  const stats                 = (data as any)?.stats;
-  const nrsHealth             = (data as any)?.nrsHealth;
+  const anomalies: Anomaly[]  = data?.topAnomalies ?? [];
+  const deadlines: Deadline[] = data?.upcomingDeadlines ?? [];
+  const stats                 = data?.stats;
+  const nrsHealth             = data?.nrsHealth;
 
   if (isLoading && !data) {
     return <DashboardSkeleton />;
@@ -125,6 +132,9 @@ export default function DashboardScreen() {
       <DashboardZone zone="apex" visible={!isLoading}>
         <View style={styles.apexContainer}>
           <Text style={styles.screenTitle}>{t('dashboard.title', 'Tax Dashboard')}</Text>
+          <Text style={styles.screenSubtitle}>
+            {t('dashboard.subtitle', 'Track compliance health, filings, and NRS readiness in one place.')}
+          </Text>
           {nrsHealth?.circuitBreakerOpen && (
             <Animated.View entering={FadeIn} style={styles.nrsWarning}>
               <Text style={styles.nrsWarningText}>
@@ -134,9 +144,20 @@ export default function DashboardScreen() {
             </Animated.View>
           )}
           <TaxHealthGauge
-            score={stats?.riskScore ?? 0}
+            score={stats?.taxHealthScore ?? 0}
             isLoading={isLoading}
           />
+          <View style={styles.gaugeMetaRow}>
+            <Text style={styles.gaugeMetaText}>
+              {t('dashboard.totalRevenue', 'Revenue')} {formatCurrency(stats?.totalRevenue ?? 0)}
+            </Text>
+            <Text style={styles.gaugeMetaText}>
+              {t('dashboard.vatLiability', 'VAT')} {formatCurrency(stats?.vatLiability ?? 0)}
+            </Text>
+            <Text style={styles.gaugeMetaText}>
+              {t('dashboard.gaugeMode', 'Status')} {gaugeMode}
+            </Text>
+          </View>
           {isError && (
             <Text style={styles.errorHint}>
               {t('dashboard.staleData', 'Showing cached data')}
@@ -155,8 +176,7 @@ export default function DashboardScreen() {
             </Text>
             <FlashList
               data={anomalies}
-              estimatedItemSize={72}
-              keyExtractor={(a) => a.id}
+              keyExtractor={(a) => a.expenseId}
               renderItem={({ item: a }) => {
                 const cfg = SEVERITY[a.severity] ?? SEVERITY.low;
                 return (
@@ -164,9 +184,16 @@ export default function DashboardScreen() {
                     <Text style={[styles.anomalyGlyph, { color: cfg.color }]}>
                       {cfg.glyph}
                     </Text>
-                    <Text style={styles.anomalyText} numberOfLines={2}>
-                      {a.description.en}
-                    </Text>
+                    <View style={styles.anomalyBody}>
+                      <Text style={styles.anomalyText} numberOfLines={2}>
+                        {a.anomalyReason}
+                      </Text>
+                      {a.suggestedAction ? (
+                        <Text style={styles.anomalyHint} numberOfLines={1}>
+                          {a.suggestedAction}
+                        </Text>
+                      ) : null}
+                    </View>
                   </View>
                 );
               }}
@@ -179,6 +206,9 @@ export default function DashboardScreen() {
       <DashboardZone zone="action" visible={!isLoading}>
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{t('dashboard.quickActions', 'Quick Actions')}</Text>
+          <Text style={styles.sectionCaption}>
+            {t('dashboard.quickActionsHint', 'Jump into the most common filing and records tasks.')}
+          </Text>
           <View style={styles.actionsGrid}>
             {QUICK_ACTIONS.map((qa) => (
               <Pressable
@@ -212,13 +242,12 @@ export default function DashboardScreen() {
             </Text>
             <FlashList
               data={deadlines}
-              estimatedItemSize={56}
-              keyExtractor={(d) => `${d.taxType}-${d.period}`}
+              keyExtractor={(d) => d.id}
               renderItem={({ item: d }) => (
                 <View style={styles.deadlineRow}>
                   <View style={styles.deadlineLeft}>
-                    <Text style={styles.deadlineType}>{d.taxType}</Text>
-                    <Text style={styles.deadlinePeriod}>{d.period}</Text>
+                    <Text style={styles.deadlineType}>{d.type}</Text>
+                    <Text style={styles.deadlinePeriod}>{formatDate(d.dueDate)}</Text>
                   </View>
                   <View style={[
                     styles.deadlineBadge,
@@ -239,16 +268,43 @@ export default function DashboardScreen() {
 
       {/* ── ZONE 5 of 5: ambient — NRS health + sync status ──────────── */}
       <DashboardZone zone="ambient" visible={!isLoading}>
-        <View style={styles.ambientRow}>
-          <View style={styles.nrsStatusDot(
-            nrsHealth?.status === 'healthy' ? '#22C55E' :
-            nrsHealth?.status === 'degraded' ? '#F59E0B' : '#6B7280',
-          )} />
-          <Text style={styles.ambientText}>
-            {t('dashboard.nrsStatus', 'NRS')}{' '}
-            {nrsHealth?.status ?? t('common.unknown', 'unknown')}
-            {nrsHealth?.latencyMs != null && ` (${nrsHealth.latencyMs}ms)`}
-          </Text>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>{t('dashboard.systemStatus', 'System Status')}</Text>
+          <View style={styles.ambientRow}>
+            <View
+              style={[
+                styles.nrsStatusDot,
+                {
+                  backgroundColor:
+                    nrsHealth?.status === 'healthy' ? '#22C55E' :
+                    nrsHealth?.status === 'degraded' ? '#F59E0B' : '#6B7280',
+                },
+              ]}
+            />
+            <Text style={styles.ambientText}>
+              {t('dashboard.nrsStatus', 'NRS')}: {nrsHealth?.status ?? t('common.unknown', 'unknown')}
+            </Text>
+          </View>
+          <View style={styles.ambientRow}>
+            <Text style={styles.ambientText}>
+              {t('dashboard.pendingNrs', 'Pending NRS')} {nrsHealth?.pendingSubmissions ?? 0}
+            </Text>
+            <Text style={styles.ambientText}>
+              {t('dashboard.dlqDepth', 'DLQ')} {nrsHealth?.deadLetterCount ?? 0}
+            </Text>
+          </View>
+          <View style={styles.ambientRow}>
+            <Text style={styles.ambientText}>
+              {isOnline ? t('common.online', 'Online') : t('common.offlineMode', 'Offline')}
+            </Text>
+            <Text style={styles.ambientText}>
+              {t('dashboard.conflicts', 'Conflicts')} {conflictCount}
+            </Text>
+            <Text style={styles.ambientText}>
+              {t('sync.lastSync', 'Last sync')} {lastSyncAt ? formatDate(new Date(lastSyncAt).toISOString()) : t('common.never', 'Never')}
+            </Text>
+          </View>
+          <OfflineSyncStatus />
         </View>
       </DashboardZone>
     </ScrollView>
@@ -276,6 +332,21 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#111827',
     marginBottom: 8,
+  },
+  screenSubtitle: {
+    fontSize: 13,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  gaugeMetaRow: {
+    marginTop: 12,
+    gap: 4,
+    alignItems: 'center',
+  },
+  gaugeMetaText: {
+    fontSize: 12,
+    color: '#4B5563',
   },
   errorHint: {
     fontSize: 12,
@@ -311,6 +382,11 @@ const styles = StyleSheet.create({
     color: '#111827',
     marginBottom: 12,
   },
+  sectionCaption: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginBottom: 12,
+  },
   anomalyRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -324,10 +400,17 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   anomalyText: {
-    flex: 1,
     fontSize: 13,
     color: '#374151',
     lineHeight: 18,
+  },
+  anomalyBody: {
+    flex: 1,
+    gap: 4,
+  },
+  anomalyHint: {
+    fontSize: 12,
+    color: '#6B7280',
   },
   actionsGrid: {
     flexDirection: 'row',
@@ -404,10 +487,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#6B7280',
   },
-  nrsStatusDot: (color: string) => ({
+  nrsStatusDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: color,
-  }),
+  },
 } as any);

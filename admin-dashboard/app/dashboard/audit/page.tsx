@@ -14,15 +14,20 @@ interface AuditEvent {
   orgId: string | null;
   userId: string | null;
   action: string;
-  resource: string | null;
-  resourceId: string | null;
-  metadata: Record<string, unknown>;
+  targetType?: string | null;
+  targetId?: string | null;
+  resource?: string | null;
+  resourceId?: string | null;
+  details?: Record<string, unknown> | null;
+  metadata?: Record<string, unknown> | null;
   createdAt: string;
 }
 
 interface AuditResponse {
-  data: AuditEvent[];
-  meta: { nextCursor: string | null; hasNextPage: boolean; total: number | null; pageSize: number };
+  success: boolean;
+  logs: AuditEvent[];
+  pagination: { page: number; limit: number; total: number; pages: number };
+  fallback?: boolean;
 }
 
 const ACTIONS = [
@@ -33,24 +38,24 @@ const ACTIONS = [
 
 export default function AuditPage() {
   const [actionFilter, setActionFilter] = useState<string[]>([]);
-  const [cursor, setCursor] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
 
   const params = new URLSearchParams();
   if (actionFilter.length > 0) params.set('action', actionFilter.join(','));
-  if (cursor) params.set('cursor', cursor);
-  params.set('pageSize', '50');
+  params.set('page', String(page));
+  params.set('limit', '50');
 
-  const queryKey = `/api/v2/admin/audit?${params.toString()}`;
+  const queryKey = `/api/admin/audit?${params.toString()}`;
   const { data, error, isLoading } = useSWR<AuditResponse>(queryKey, fetchJson);
 
-  const events = data?.data ?? [];
+  const events = data?.logs ?? [];
 
   const handleExport = useCallback(async () => {
     try {
-      const res = await fetch('/api/v2/admin/audit/export', {
-        headers: { 'Authorization': `Bearer ${document.cookie.match(/token=([^;]+)/)?.[1] ?? ''}` },
-      });
-      const blob = await res.blob();
+      const blob = new Blob(
+        [events.map((event) => JSON.stringify(event)).join('\n')],
+        { type: 'application/x-ndjson' }
+      );
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -58,14 +63,16 @@ export default function AuditPage() {
       a.click();
       URL.revokeObjectURL(url);
     } catch { /* handled */ }
-  }, []);
+  }, [events]);
 
   const toggleAction = useCallback((action: string) => {
     setActionFilter(prev =>
       prev.includes(action) ? prev.filter(a => a !== action) : [...prev, action]
     );
-    setCursor(null);
+    setPage(1);
   }, []);
+
+  const pagination = data?.pagination;
 
   return (
     <DashboardLayout>
@@ -107,9 +114,15 @@ export default function AuditPage() {
           </Alert>
         )}
 
+        {data?.fallback && (
+          <Alert>
+            <AlertDescription>Audit data is currently in fallback mode while backend admin services warm up or remain unavailable.</AlertDescription>
+          </Alert>
+        )}
+
         <Card>
           <CardHeader>
-            <CardTitle>Events</CardTitle>
+            <CardTitle>Events {pagination ? `(${pagination.total})` : ''}</CardTitle>
           </CardHeader>
           <CardContent>
             {isLoading ? (
@@ -124,7 +137,7 @@ export default function AuditPage() {
                       <th className="text-left p-2">Time</th>
                       <th className="text-left p-2">Action</th>
                       <th className="text-left p-2">User</th>
-                      <th className="text-left p-2">Resource</th>
+                      <th className="text-left p-2">Target</th>
                       <th className="text-left p-2">Details</th>
                     </tr>
                   </thead>
@@ -142,9 +155,16 @@ export default function AuditPage() {
                           </span>
                         </td>
                         <td className="p-2 font-mono text-xs">{event.userId?.slice(0, 8) ?? '—'}</td>
-                        <td className="p-2">{event.resource ?? '—'}</td>
+                        <td className="p-2">
+                          {event.targetType ?? event.resource ?? '—'}
+                          {(event.targetId ?? event.resourceId) ? (
+                            <span className="ml-2 font-mono text-xs text-slate-500">
+                              {(event.targetId ?? event.resourceId)?.slice(0, 8)}
+                            </span>
+                          ) : null}
+                        </td>
                         <td className="p-2 max-w-[300px] truncate font-mono text-xs">
-                          {JSON.stringify(event.metadata).slice(0, 100)}
+                          {JSON.stringify(event.metadata ?? event.details ?? {}).slice(0, 100)}
                         </td>
                       </tr>
                     ))}
@@ -153,11 +173,19 @@ export default function AuditPage() {
               </div>
             )}
 
-            {data?.meta?.hasNextPage && (
-              <div className="mt-4 flex justify-center">
-                <Button variant="outline" onClick={() => setCursor(data.meta.nextCursor)}>
-                  Load More
-                </Button>
+            {pagination && pagination.pages > 1 && (
+              <div className="mt-4 flex items-center justify-between gap-3">
+                <p className="text-xs text-slate-500">
+                  Page {pagination.page} of {pagination.pages}
+                </p>
+                <div className="flex gap-2">
+                  <Button variant="outline" disabled={pagination.page <= 1} onClick={() => setPage((current) => Math.max(1, current - 1))}>
+                    Previous
+                  </Button>
+                  <Button variant="outline" disabled={pagination.page >= pagination.pages} onClick={() => setPage((current) => current + 1)}>
+                    Next
+                  </Button>
+                </div>
               </div>
             )}
           </CardContent>

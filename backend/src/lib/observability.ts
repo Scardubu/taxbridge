@@ -42,7 +42,7 @@ export function initialiseSentry(): void {
     profilesSampleRate: isProd ? 0.1 : 0,
     integrations: [
       // Strip authorization header + cookies from events (PII / security)
-      new Sentry.Integrations.Http({ tracing: true }),
+      Sentry.httpIntegration(),
     ],
     beforeSend(event) {
       // Strip PII from breadcrumbs

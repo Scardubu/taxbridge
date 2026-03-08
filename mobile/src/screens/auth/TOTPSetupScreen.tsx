@@ -27,7 +27,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 
-import { useAuthStore, useCurrentUser } from '../../store/authStore';
+import { useCurrentUser } from '../../store/authStore';
+import { authApi } from '../../api/client';
 import {
   Button,
   TextInputField,
@@ -48,34 +49,16 @@ interface TOTPVerifyResponse {
 
 type SetupStep = 'init' | 'scan' | 'verify' | 'backup' | 'done';
 
-// ── API helpers (keep thin — logic lives in backend) ──────────────────────────
+// ── API helpers (use authApi which handles token management) ──────────────────
 
-async function requestSetup(token: string): Promise<TOTPSetupResponse> {
-  const res = await fetch('/api/v1/auth/totp/setup', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-    },
-  });
-  if (!res.ok) throw new Error(`Setup failed: ${res.status}`);
-  return res.json();
+async function requestSetup(): Promise<TOTPSetupResponse> {
+  const res = await authApi.totpSetup();
+  return res.data as unknown as TOTPSetupResponse;
 }
 
-async function verifyToken(
-  token: string,
-  totpCode: string,
-): Promise<TOTPVerifyResponse> {
-  const res = await fetch('/api/v1/auth/totp/verify', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify({ token: totpCode }),
-  });
-  if (!res.ok) throw new Error(`Verify failed: ${res.status}`);
-  return res.json();
+async function verifyTotpCode(totpCode: string): Promise<TOTPVerifyResponse> {
+  const res = await authApi.totpVerify(totpCode);
+  return res.data as unknown as TOTPVerifyResponse;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -84,7 +67,6 @@ export function TOTPSetupScreen() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const user = useCurrentUser();
-  const { token } = useAuthStore();
 
   const [step, setStep] = useState<SetupStep>('init');
   const [setup, setSetup] = useState<TOTPSetupResponse | null>(null);
@@ -95,35 +77,36 @@ export function TOTPSetupScreen() {
 
   // ── Step 1: Request TOTP secret ──────────────────────────────────────
   const handleStartSetup = useCallback(async () => {
-    if (!token) return;
     setLoading(true);
     setError(null);
     try {
-      const data = await requestSetup(token);
+      const data = await requestSetup();
       setSetup(data);
       setStep('scan');
-    } catch (err: any) {
-      setError(err.message ?? t('common.unknownError', 'Something went wrong'));
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : t('common.unknownError', 'Something went wrong');
+      setError(message);
     } finally {
       setLoading(false);
     }
-  }, [token, t]);
+  }, [t]);
 
   // ── Step 2: Verify TOTP code ─────────────────────────────────────────
   const handleVerify = useCallback(async () => {
-    if (!token || code.length < 6) return;
+    if (code.length < 6) return;
     setLoading(true);
     setError(null);
     try {
-      const data = await verifyToken(token, code);
+      const data = await verifyTotpCode(code);
       setBackupCodes(data.backupCodes);
       setStep('backup');
-    } catch (err: any) {
-      setError(err.message ?? t('common.unknownError', 'Something went wrong'));
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : t('common.unknownError', 'Something went wrong');
+      setError(message);
     } finally {
       setLoading(false);
     }
-  }, [token, code, t]);
+  }, [code, t]);
 
   // ── Copy secret to clipboard ─────────────────────────────────────────
   const handleCopySecret = useCallback(() => {
@@ -248,7 +231,7 @@ export function TOTPSetupScreen() {
                 placeholder="000000"
               />
               <Button
-                title={t('totp.verifyButton', 'Verify & Activate')}
+                label={t('totp.verifyButton', 'Verify & Activate')}
                 onPress={handleVerify}
                 disabled={code.length < 6 || loading}
                 loading={loading}
@@ -279,7 +262,7 @@ export function TOTPSetupScreen() {
             </View>
 
             <Button
-              title={t('totp.copyBackup', 'Copy All Codes')}
+              label={t('totp.copyBackup', 'Copy All Codes')}
               onPress={handleCopyBackupCodes}
               variant="outline"
             />
@@ -287,7 +270,7 @@ export function TOTPSetupScreen() {
             <View style={{ height: spacing[4] }} />
 
             <Button
-              title={t('totp.doneButton', 'Done')}
+              label={t('totp.doneButton', 'Done')}
               onPress={handleDone}
             />
           </Animated.View>
@@ -300,28 +283,32 @@ export function TOTPSetupScreen() {
 // ── Styles ────────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: colors.background },
+  flex: { flex: 1, backgroundColor: colors.surface },
   container: {
     paddingHorizontal: spacing[5],
     gap: spacing[4],
   },
   title: {
-    ...typography.h1,
-    color: colors.text,
+    fontSize: typography.sizes['2xl'],
+    fontWeight: typography.weights.bold,
+    color: colors.textPrimary,
     marginBottom: spacing[1],
   },
   subtitle: {
-    ...typography.body,
+    fontSize: typography.sizes.base,
+    fontWeight: typography.weights.regular,
     color: colors.textSecondary,
   },
   sectionTitle: {
-    ...typography.h3,
-    color: colors.text,
+    fontSize: typography.sizes.lg,
+    fontWeight: typography.weights.semibold,
+    color: colors.textPrimary,
     marginTop: spacing[4],
     marginBottom: spacing[2],
   },
   body: {
-    ...typography.body,
+    fontSize: typography.sizes.base,
+    fontWeight: typography.weights.regular,
     color: colors.textSecondary,
     lineHeight: 22,
   },
@@ -337,7 +324,8 @@ const styles = StyleSheet.create({
     borderLeftColor: colors.error,
   },
   errorText: {
-    ...typography.bodySmall,
+    fontSize: typography.sizes.sm,
+    fontWeight: typography.weights.regular,
     color: colors.error,
   },
   qrContainer: {
@@ -353,7 +341,8 @@ const styles = StyleSheet.create({
     height: 220,
   },
   orText: {
-    ...typography.bodySmall,
+    fontSize: typography.sizes.sm,
+    fontWeight: typography.weights.regular,
     color: colors.textSecondary,
     textAlign: 'center',
     marginVertical: spacing[2],
@@ -369,10 +358,11 @@ const styles = StyleSheet.create({
     fontFamily: Platform.select({ ios: 'Courier', android: 'monospace' }),
     fontSize: 16,
     letterSpacing: 2,
-    color: colors.text,
+    color: colors.textPrimary,
   },
   copyHint: {
-    ...typography.caption,
+    fontSize: typography.sizes.xs,
+    fontWeight: typography.weights.regular,
     color: colors.primary[500],
     marginTop: spacing[1],
   },
@@ -396,7 +386,7 @@ const styles = StyleSheet.create({
   codeText: {
     fontFamily: Platform.select({ ios: 'Courier', android: 'monospace' }),
     fontSize: 14,
-    color: colors.text,
+    color: colors.textPrimary,
     letterSpacing: 1,
   },
 });

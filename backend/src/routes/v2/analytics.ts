@@ -14,10 +14,7 @@ const FALLBACK_EMPTY = { data: [], meta: { total: 0 } };
 const analyticsRoutes: FastifyPluginAsync = async (fastify) => {
   const adminMiddleware = [fastify.authenticate, requireRole('ADMIN')];
 
-  // 1. Revenue trends
-  fastify.get('/analytics/revenue-trends', {
-    preHandler: adminMiddleware,
-  }, async (_request, reply) => {
+  const sendRevenue = async (_request: Parameters<typeof fastify.get>[1] extends never ? never : any, reply: any) => {
     const data = await (prisma as any).invoice.groupBy({
       by:      ['createdAt'],
       _sum:    { totalAmount: true, vatAmount: true },
@@ -26,7 +23,16 @@ const analyticsRoutes: FastifyPluginAsync = async (fastify) => {
     }).catch(() => []);
 
     return reply.send({ data });
-  });
+  };
+
+  // 1. Revenue trends
+  fastify.get('/analytics/revenue', {
+    preHandler: adminMiddleware,
+  }, sendRevenue);
+
+  fastify.get('/analytics/revenue-trends', {
+    preHandler: adminMiddleware,
+  }, sendRevenue);
 
   // 2. Compliance rate
   fastify.get('/analytics/compliance-rate', {

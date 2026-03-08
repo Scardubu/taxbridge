@@ -16,7 +16,7 @@ import { useEffect, useState } from 'react';
 
 import {
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend,
+  XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, LabelList,
 } from 'recharts';
 
@@ -35,11 +35,11 @@ const NRS_COLORS: Record<string, string> = {
 };
 
 // ─── Fallback data ────────────────────────────────────────────────────────────
-const FALLBACK_REVENUE    = { trend: [] as any[], totalRevenue: 0, period: '' };
-const FALLBACK_COMPLIANCE = { rate: 0, breakdown: {} as Record<string, number> };
-const FALLBACK_RISK       = { distribution: [] as any[] };
-const FALLBACK_NRS        = { trend: [] as any[], successRate: 0 };
-const FALLBACK_GROWTH     = { trend: [] as any[], totalUsers: 0, totalOrgs: 0 };
+const FALLBACK_REVENUE    = { data: [] as any[] };
+const FALLBACK_COMPLIANCE = { rate: 0, total: 0, onTime: 0, period: '' };
+const FALLBACK_RISK       = { data: [] as any[] };
+const FALLBACK_NRS        = { data: [] as any[] };
+const FALLBACK_GROWTH     = { newOrgs: 0, newUsers: 0, period: '30days' };
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? '';
 
@@ -113,11 +113,11 @@ export default function AnalyticsPage() {
   useEffect(() => {
     setLoading(true);
     Promise.all([
-      fetchJson('/api/v2/analytics/revenue',    FALLBACK_REVENUE),
-      fetchJson('/api/v2/analytics/compliance', FALLBACK_COMPLIANCE),
-      fetchJson('/api/v2/analytics/risk',       FALLBACK_RISK),
+      fetchJson('/api/v2/analytics/revenue',           FALLBACK_REVENUE),
+      fetchJson('/api/v2/analytics/compliance-rate', FALLBACK_COMPLIANCE),
+      fetchJson('/api/v2/analytics/risk-distribution',       FALLBACK_RISK),
       fetchJson('/api/v2/analytics/nrs-health', FALLBACK_NRS),
-      fetchJson('/api/v2/analytics/growth',     FALLBACK_GROWTH),
+      fetchJson('/api/v2/analytics/platform-growth',     FALLBACK_GROWTH),
     ]).then(([rev, comp, rsk, n, g]) => {
       setRevenue(rev);
       setCompliance(comp);
@@ -142,10 +142,28 @@ export default function AnalyticsPage() {
     );
   }
 
-  const riskItems = (risk?.distribution ?? []).map((d: any) => ({
+  const riskItems = (risk?.data ?? []).map((d: any) => ({
     ...d,
-    ...(RISK_COLORS[d.band] ?? { fill: '#6B7280', glyph: '●', label: d.band }),
+    count: d._count?._all ?? d.count ?? 0,
+    band: d.riskBand ?? d.band ?? 'unknown',
+    ...(RISK_COLORS[d.riskBand ?? d.band] ?? { fill: '#6B7280', glyph: '●', label: d.riskBand ?? d.band ?? 'Unknown' }),
   }));
+
+  const revenueTrend = (revenue?.data ?? []).map((entry: any, index: number) => ({
+    period: new Date(entry.createdAt ?? Date.now() - index * 30 * 86_400_000).toLocaleDateString('en-NG', { month: 'short', year: '2-digit' }),
+    totalRevenue: entry._sum?.totalAmount ?? 0,
+  }));
+
+  const nrsTrend = (nrs?.data ?? []).slice(0, 12).map((entry: any, index: number) => ({
+    date: new Date(entry.createdAt ?? Date.now() - index * 86_400_000).toLocaleDateString('en-NG', { month: 'short', day: 'numeric' }),
+    success: entry.status === 'success' ? 1 : 0,
+    failed: entry.status === 'failed' ? 1 : 0,
+    pending: entry.status === 'pending' ? 1 : 0,
+  })).reverse();
+
+  const growthTrend = [
+    { period: growth?.period ?? '30days', users: growth?.newUsers ?? 0, orgs: growth?.newOrgs ?? 0 },
+  ];
 
   return (
     <div>
@@ -157,12 +175,12 @@ export default function AnalyticsPage() {
 
         {/* Panel 1: Revenue Trends — line chart */}
         <Panel title="Revenue Trends">
-          {(revenue?.trend?.length ?? 0) === 0 ? (
+          {revenueTrend.length === 0 ? (
             <p style={{ color: '#6B7280', textAlign: 'center', padding: 40 }}>No revenue data</p>
           ) : (
             <>
               <ResponsiveContainer width="100%" height={220}>
-                <LineChart data={revenue!.trend} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                <LineChart data={revenueTrend} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
                   <XAxis dataKey="period" tick={{ fontSize: 12 }} />
                   <YAxis tick={{ fontSize: 12 }} tickFormatter={(v) => `₦${(v / 1e6).toFixed(1)}M`} />
@@ -184,13 +202,13 @@ export default function AnalyticsPage() {
 
         {/* Panel 2: Compliance Rate — bar chart by tax type */}
         <Panel title="Compliance Rate">
-          {Object.keys(compliance?.breakdown ?? {}).length === 0 ? (
+          {(compliance?.total ?? 0) === 0 ? (
             <p style={{ color: '#6B7280', textAlign: 'center', padding: 40 }}>No compliance data</p>
           ) : (
             <>
               <ResponsiveContainer width="100%" height={220}>
                 <BarChart
-                  data={Object.entries(compliance!.breakdown).map(([k, v]) => ({ name: k, rate: v }))}
+                  data={[{ name: 'On Time', rate: compliance!.rate * 100 }]}
                   margin={{ top: 4, right: 8, left: 0, bottom: 0 }}
                 >
                   <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
@@ -202,9 +220,9 @@ export default function AnalyticsPage() {
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
-              <ThreeChannelLegend items={[{ fill: '#16A34A', glyph: '■', label: 'Compliance Rate by Tax Type' }]} />
+              <ThreeChannelLegend items={[{ fill: '#16A34A', glyph: '■', label: 'On-time filing rate (last 6 months)' }]} />
               <p style={{ fontSize: 13, color: '#374151', marginTop: 8 }}>
-                Overall: <strong>{compliance!.rate.toFixed(1)}%</strong>
+                Overall: <strong>{(compliance!.rate * 100).toFixed(1)}%</strong> · {compliance!.onTime} on-time of {compliance!.total} total
               </p>
             </>
           )}
@@ -244,12 +262,12 @@ export default function AnalyticsPage() {
 
         {/* Panel 4: NRS Stamp Health — stacked bar */}
         <Panel title="NRS Stamp Health">
-          {(nrs?.trend?.length ?? 0) === 0 ? (
+          {nrsTrend.length === 0 ? (
             <p style={{ color: '#6B7280', textAlign: 'center', padding: 40 }}>No NRS data</p>
           ) : (
             <>
               <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={nrs!.trend} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                <BarChart data={nrsTrend} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
                   <XAxis dataKey="date" tick={{ fontSize: 11 }} />
                   <YAxis tick={{ fontSize: 12 }} />
@@ -265,7 +283,7 @@ export default function AnalyticsPage() {
                 { fill: NRS_COLORS.pending, glyph: '■', label: 'Pending'  },
               ]} />
               <p style={{ fontSize: 13, color: '#374151', marginTop: 8 }}>
-                Success rate: <strong>{nrs!.successRate.toFixed(1)}%</strong>
+                Recent events: <strong>{nrsTrend.length}</strong>
               </p>
             </>
           )}
@@ -273,12 +291,12 @@ export default function AnalyticsPage() {
 
         {/* Panel 5: Platform Growth — line chart (users + orgs) */}
         <Panel title="Platform Growth">
-          {(growth?.trend?.length ?? 0) === 0 ? (
+          {growthTrend.length === 0 ? (
             <p style={{ color: '#6B7280', textAlign: 'center', padding: 40 }}>No growth data</p>
           ) : (
             <>
               <ResponsiveContainer width="100%" height={220}>
-                <LineChart data={growth!.trend} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                <LineChart data={growthTrend} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#F3F4F6" />
                   <XAxis dataKey="period" tick={{ fontSize: 12 }} />
                   <YAxis tick={{ fontSize: 12 }} />
@@ -288,8 +306,8 @@ export default function AnalyticsPage() {
                 </LineChart>
               </ResponsiveContainer>
               <ThreeChannelLegend items={[
-                { fill: '#7C3AED', glyph: '●', label: `Users (total: ${growth!.totalUsers.toLocaleString()})` },
-                { fill: '#0EA5E9', glyph: '■', label: `Orgs  (total: ${growth!.totalOrgs.toLocaleString()})`  },
+                { fill: '#7C3AED', glyph: '●', label: `New Users (${(growth?.newUsers ?? 0).toLocaleString()})` },
+                { fill: '#0EA5E9', glyph: '■', label: `New Orgs (${(growth?.newOrgs ?? 0).toLocaleString()})`  },
               ]} />
             </>
           )}

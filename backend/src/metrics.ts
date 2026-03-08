@@ -6,7 +6,7 @@
  *
  * 7 mandated metrics:
  *   http_request_duration_seconds | http_errors_total | nrs_circuit_state
- *   dlq_depth | filing_submissions_total | active_users_total | penalty_total_ngn
+ *   dlq_depth | filing_submissions_total | active_users_total | penalty_estimate_ngn_total
  */
 import { Registry, Histogram, Counter, Gauge } from 'prom-client';
 
@@ -61,7 +61,7 @@ if (!globalThis.__taxbridge_prom_registry) {
   });
 
   new Counter({
-    name:       'penalty_total_ngn',
+    name:       'penalty_estimate_ngn_total',
     help:       'Total penalty amounts estimated in NGN',
     labelNames: ['tax_type'] as const,
     registers:  [reg],

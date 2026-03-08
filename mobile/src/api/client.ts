@@ -470,6 +470,17 @@ export const authApi = {
   me: () =>
     apiFetch<ApiResponse<User>>('/api/v1/auth/me'),
 
+  totpSetup: () =>
+    apiFetch<ApiResponse<{ secret: string; otpauth_url: string; qr_data_url: string }>>('/api/v1/auth/totp/setup', {
+      method: 'POST',
+    }),
+
+  totpVerify: (token: string) =>
+    apiFetch<ApiResponse<{ backupCodes: string[] }>>('/api/v1/auth/totp/verify', {
+      method: 'POST',
+      body: JSON.stringify({ token }),
+    }),
+
   storeTokens,
   clearTokens,
 };

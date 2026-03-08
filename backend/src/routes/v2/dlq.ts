@@ -50,7 +50,7 @@ const dlqRoutes: FastifyPluginAsync = async (fastify) => {
 
     const job = await (prisma as any).dLQJob?.update({
       where:  { id: jobId },
-      update: { status: 'RETRYING', retryAt: new Date() },
+      data: { status: 'RETRYING', retryAt: new Date() },
     }).catch(() => null);
 
     if (!job) return reply.code(404).send({ error: 'JOB_NOT_FOUND' });
@@ -75,7 +75,7 @@ const dlqRoutes: FastifyPluginAsync = async (fastify) => {
 
     const job = await (prisma as any).dLQJob?.update({
       where:  { id: jobId },
-      update: { status: 'RESOLVED', resolvedAt: new Date(), resolvedBy: request.user.userId },
+      data: { status: 'RESOLVED', resolvedAt: new Date(), resolvedBy: request.user.userId },
     }).catch(() => null);
 
     if (!job) return reply.code(404).send({ error: 'JOB_NOT_FOUND' });

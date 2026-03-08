@@ -30,7 +30,6 @@ import * as Haptics from 'expo-haptics';
 import { apiClient } from '../../services/apiClient';
 import { useTheme } from '../../hooks/useTheme';
 import { COLORS, TYPOGRAPHY, SPACING, RADIUS } from '../../design-system/tokens';
-import { SectionState } from '../../components/shared/SectionState';
 
 interface VaultDocument {
   id:          string;
@@ -60,6 +59,8 @@ const TYPE_ICONS: Record<string, string> = {
   OTHER:      '📋',
 };
 
+const TYPE_SCALE = TYPOGRAPHY.sizes;
+
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -77,7 +78,6 @@ function formatDate(iso: string): string {
 export default function DocumentVaultScreen() {
   const { t }        = useTranslation();
   const { colors }   = useTheme();
-  const navigation   = useNavigation<any>();
 
   const [documents,  setDocuments]  = useState<VaultDocument[]>([]);
   const [loading,    setLoading]    = useState(true);
@@ -164,24 +164,38 @@ export default function DocumentVaultScreen() {
         </Text>
       </Animated.View>
 
-      <SectionState
-        loading={loading}
-        error={error ? new Error(error) : null}
-        empty={documents.length === 0 ? undefined : null}
-        onRetry={() => fetchDocuments()}
-      >
+      {loading ? (
+        <View style={s.loadingState}>
+          <ActivityIndicator color={COLORS.primary[500]} size="large" />
+        </View>
+      ) : error ? (
+        <View style={s.emptyState}>
+          <Text style={s.emptyIcon}>⚠️</Text>
+          <Text style={[s.emptyTitle, { color: colors.textPrimary }]}>
+            {t('vault.fetchErrorTitle', 'Could not load documents')}
+          </Text>
+          <Text style={[s.emptyBody, { color: colors.textSecondary }]}>
+            {error}
+          </Text>
+          <Pressable
+            onPress={() => fetchDocuments()}
+            style={({ pressed }) => [s.retryButton, pressed && { opacity: 0.85 }]}
+          >
+            <Text style={s.retryButtonText}>{t('common.tryAgain', 'Try Again')}</Text>
+          </Pressable>
+        </View>
+      ) : (
         <FlashList
           data={documents}
           renderItem={renderItem}
           keyExtractor={(item) => item.id}
-          estimatedItemSize={80}
           contentContainerStyle={s.list}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={() => fetchDocuments(true)} />
           }
-          ListEmptyComponent={
+          ListEmptyComponent={() => (
             <View style={s.emptyState}>
-              <Text style={[s.emptyIcon]}>📂</Text>
+              <Text style={s.emptyIcon}>📂</Text>
               <Text style={[s.emptyTitle, { color: colors.textPrimary }]}>
                 {t('vault.emptyTitle', 'No Documents Yet')}
               </Text>
@@ -189,9 +203,9 @@ export default function DocumentVaultScreen() {
                 {t('vault.emptyBody', 'Filed tax returns and uploaded documents will appear here.')}
               </Text>
             </View>
-          }
+          )}
         />
-      </SectionState>
+      )}
     </View>
   );
 }
@@ -199,10 +213,11 @@ export default function DocumentVaultScreen() {
 const s = StyleSheet.create({
   root:     { flex: 1 },
   header:   { padding: SPACING[24], paddingBottom: SPACING[16] },
-  title:    { fontSize: TYPOGRAPHY['2xl'], fontWeight: '700', marginBottom: SPACING[4] },
-  subtitle: { fontSize: TYPOGRAPHY.sm, lineHeight: 20 },
+  title:    { fontSize: TYPE_SCALE['2xl'], fontWeight: '700', marginBottom: SPACING[4] },
+  subtitle: { fontSize: TYPE_SCALE.sm, lineHeight: 20 },
 
   list: { paddingHorizontal: SPACING[16], paddingBottom: SPACING[32] },
+  loadingState: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: SPACING[32] },
 
   docCard: {
     flexDirection: 'row',
@@ -213,16 +228,24 @@ const s = StyleSheet.create({
     marginBottom:  SPACING[8],
     gap:           SPACING[12],
   },
-  docIcon: { fontSize: TYPOGRAPHY.xl },
+  docIcon: { fontSize: TYPE_SCALE.xl },
   docInfo: { flex: 1 },
-  docName: { fontSize: TYPOGRAPHY.base, fontWeight: '600', marginBottom: SPACING[2] },
-  docMeta: { fontSize: TYPOGRAPHY.xs },
+  docName: { fontSize: TYPE_SCALE.base, fontWeight: '600', marginBottom: SPACING[2] },
+  docMeta: { fontSize: TYPE_SCALE.xs },
 
   encBadge:     { paddingHorizontal: SPACING[6], paddingVertical: SPACING[2], borderRadius: RADIUS.sm, backgroundColor: '#D1FAE5' },
-  encBadgeText: { fontSize: TYPOGRAPHY.xs },
+  encBadgeText: { fontSize: TYPE_SCALE.xs },
 
-  emptyState: { alignItems: 'center', paddingVertical: SPACING[48] },
+  emptyState: { alignItems: 'center', paddingVertical: SPACING[12] * 4 },
   emptyIcon:  { fontSize: 48, marginBottom: SPACING[16] },
-  emptyTitle: { fontSize: TYPOGRAPHY.lg, fontWeight: '600', marginBottom: SPACING[8] },
-  emptyBody:  { fontSize: TYPOGRAPHY.sm, textAlign: 'center', paddingHorizontal: SPACING[32], lineHeight: 20 },
+  emptyTitle: { fontSize: TYPE_SCALE.lg, fontWeight: '600', marginBottom: SPACING[8] },
+  emptyBody:  { fontSize: TYPE_SCALE.sm, textAlign: 'center', paddingHorizontal: SPACING[32], lineHeight: 20 },
+  retryButton: {
+    marginTop: SPACING[16],
+    backgroundColor: COLORS.primary[500],
+    borderRadius: RADIUS.md,
+    paddingHorizontal: SPACING[16],
+    paddingVertical: SPACING[10],
+  },
+  retryButtonText: { color: '#fff', fontSize: TYPE_SCALE.sm, fontWeight: '600' },
 });

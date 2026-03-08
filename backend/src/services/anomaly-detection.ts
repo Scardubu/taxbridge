@@ -9,6 +9,7 @@
  * Reference: DEPLOYMENT_v1.0.3_COMPLETE.md, commit 218972e.
  */
 
+import { VAT_RATE, VAT_REGISTRATION_THRESHOLD } from '@taxbridge/contracts';
 import { createLogger } from '../lib/logger';
 import { getRedisConnection } from '../queue/client';
 
@@ -250,7 +251,6 @@ export class AnomalyDetectionService {
 
   private detectVATMismatches(expenses: any[]): AnomalyResult[] {
     const results: AnomalyResult[] = [];
-    const VAT_RATE = 0.075;
 
     for (const e of expenses) {
       const amount    = Number(e.amount);
@@ -441,7 +441,6 @@ export class AnomalyDetectionService {
       });
 
       const annualRevenue = Number(ytd._sum?.totalAmount ?? 0);
-      const VAT_THRESHOLD = 100_000_000;
 
       if (annualRevenue < 75_000_000) return []; // Not near threshold
 
@@ -462,8 +461,8 @@ export class AnomalyDetectionService {
         detectedAt:         new Date(),
         dismissed:          false,
         metadata:           {
-          ytdRevenue: annualRevenue, thresholdGap: VAT_THRESHOLD - annualRevenue,
-          pctOfThreshold: +((annualRevenue / VAT_THRESHOLD) * 100).toFixed(1),
+          ytdRevenue: annualRevenue, thresholdGap: VAT_REGISTRATION_THRESHOLD - annualRevenue,
+          pctOfThreshold: +((annualRevenue / VAT_REGISTRATION_THRESHOLD) * 100).toFixed(1),
         },
       }];
     } catch (err: any) {

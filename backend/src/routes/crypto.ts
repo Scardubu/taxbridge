@@ -15,10 +15,9 @@
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import type { FastifyInstance } from 'fastify';
-import jwt from 'jsonwebtoken';
 
 import { CryptoTaxService } from '../services/crypto-tax';
-import { AuthenticationError, NotFoundError } from '../lib/errors';
+import { NotFoundError } from '../lib/errors';
 import { createLogger } from '../lib/logger';
 
 const log = createLogger('crypto-routes');
@@ -29,28 +28,6 @@ export default async function cryptoRoutes(
 ) {
   const prisma = opts.prisma;
   const cryptoService = new CryptoTaxService(prisma);
-
-  // =========================================================================
-  // Auth helper
-  // =========================================================================
-  async function authenticate(req: any): Promise<string> {
-    const authHeader = req.headers.authorization;
-    if (!authHeader?.startsWith('Bearer ')) {
-      throw new AuthenticationError('Missing or invalid authorization header');
-    }
-    const token = authHeader.slice(7);
-    try {
-      const secret = process.env.JWT_SECRET;
-      if (!secret) throw new Error('JWT_SECRET not configured');
-      const payload = jwt.verify(token, secret) as { sub?: string; userId?: string };
-      const userId = payload.sub || payload.userId;
-      if (!userId) throw new Error('Invalid token payload');
-      return userId;
-    } catch (err: any) {
-      if (err instanceof AuthenticationError) throw err;
-      throw new AuthenticationError('Invalid or expired token');
-    }
-  }
 
   // =========================================================================
   // Validation Schemas
@@ -71,8 +48,8 @@ export default async function cryptoRoutes(
   // =========================================================================
   // POST /api/v1/crypto/transactions — Record transaction
   // =========================================================================
-  app.post('/api/v1/crypto/transactions', async (req, reply) => {
-    const userId = await authenticate(req);
+  app.post('/api/v1/crypto/transactions', { preHandler: [app.authenticate, app.resolveOrgContext] }, async (req, reply) => {
+    const userId = req.user.userId;
     const body = CreateTxSchema.parse(req.body);
 
     try {
@@ -103,8 +80,8 @@ export default async function cryptoRoutes(
   // =========================================================================
   // GET /api/v1/crypto/transactions — List transactions
   // =========================================================================
-  app.get('/api/v1/crypto/transactions', async (req, reply) => {
-    const userId = await authenticate(req);
+  app.get('/api/v1/crypto/transactions', { preHandler: [app.authenticate, app.resolveOrgContext] }, async (req, reply) => {
+    const userId = req.user.userId;
     const query = req.query as Record<string, string>;
 
     const businessId = query.businessId;
@@ -131,8 +108,8 @@ export default async function cryptoRoutes(
   // =========================================================================
   // GET /api/v1/crypto/transactions/:id — Get transaction detail
   // =========================================================================
-  app.get('/api/v1/crypto/transactions/:id', async (req, reply) => {
-    const userId = await authenticate(req);
+  app.get('/api/v1/crypto/transactions/:id', { preHandler: [app.authenticate, app.resolveOrgContext] }, async (req, reply) => {
+    const userId = req.user.userId;
     const { id } = req.params as { id: string };
 
     const tx = await cryptoService.getTransaction(userId, id);
@@ -144,8 +121,8 @@ export default async function cryptoRoutes(
   // =========================================================================
   // DELETE /api/v1/crypto/transactions/:id — Delete transaction
   // =========================================================================
-  app.delete('/api/v1/crypto/transactions/:id', async (req, reply) => {
-    const userId = await authenticate(req);
+  app.delete('/api/v1/crypto/transactions/:id', { preHandler: [app.authenticate, app.resolveOrgContext] }, async (req, reply) => {
+    const userId = req.user.userId;
     const { id } = req.params as { id: string };
 
     try {
@@ -160,8 +137,8 @@ export default async function cryptoRoutes(
   // =========================================================================
   // GET /api/v1/crypto/tax-report — Generate CGT tax report
   // =========================================================================
-  app.get('/api/v1/crypto/tax-report', async (req, reply) => {
-    const userId = await authenticate(req);
+  app.get('/api/v1/crypto/tax-report', { preHandler: [app.authenticate, app.resolveOrgContext] }, async (req, reply) => {
+    const userId = req.user.userId;
     const query = req.query as Record<string, string>;
 
     const businessId = query.businessId;
@@ -183,8 +160,8 @@ export default async function cryptoRoutes(
   // =========================================================================
   // GET /api/v1/crypto/portfolio — Get portfolio summary
   // =========================================================================
-  app.get('/api/v1/crypto/portfolio', async (req, reply) => {
-    const userId = await authenticate(req);
+  app.get('/api/v1/crypto/portfolio', { preHandler: [app.authenticate, app.resolveOrgContext] }, async (req, reply) => {
+    const userId = req.user.userId;
     const query = req.query as Record<string, string>;
 
     const businessId = query.businessId;

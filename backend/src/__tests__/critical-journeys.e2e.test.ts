@@ -296,17 +296,17 @@ describe('Critical User Journeys', () => {
 
       // Owner's personal income tax
       const pitResult = calculatePIT({ grossIncome: 8_000_000 });
-      expect(pitResult.taxAmount).toBeGreaterThan(0);
+      expect(pitResult.taxLiability).toBeGreaterThan(0);
       expect(pitResult.effectiveRate).toBeLessThan(0.25);
 
-      // Company VAT on services
-      const vatResult = calculateVAT({ amount: 2_000_000, category: 'standard' });
-      expect(vatResult.vatAmount).toBe(150_000);
+      // Company VAT payable position
+      const vatResult = calculateVAT({ outputVAT: 150_000, inputVAT: 0 });
+      expect(vatResult.netPayable).toBe(150_000);
 
       // Company income tax
-      const citResult = calculateCIT({ revenue: 80_000_000, expenses: 50_000_000 });
-      expect(citResult.taxRate).toBe(0.20); // Medium company
-      expect(citResult.taxAmount).toBe(6_000_000);
+      const citResult = calculateCIT({ turnover: 80_000_000, taxableProfit: 30_000_000 });
+      expect(citResult.rate).toBe(0); // Small company in V13 canonical 2-tier model
+      expect(citResult.citLiability).toBe(0);
 
       // Capital gains on property sale
       const cgtResult = calculateCGT({
@@ -314,10 +314,10 @@ describe('Critical User Journeys', () => {
         costBasis: 30_000_000,
         assetType: 'property',
       });
-      expect(cgtResult.taxAmount).toBe(2_000_000); // 10% of 20M gain
+      expect(cgtResult.cgtLiability).toBe(2_000_000); // 10% of 20M gain
 
       // WHT on consultant payment
-      const whtResult = calculateWHT({ amount: 5_000_000, type: 'consultancy' });
+      const whtResult = calculateWHT({ amount: 5_000_000, category: 'consultancy' });
       expect(whtResult.whtAmount).toBe(500_000);
 
       // PAYE for employee
@@ -326,8 +326,8 @@ describe('Critical User Journeys', () => {
         allowances: { housing: 100_000, transport: 50_000, meal: 30_000 },
       });
       expect(payeResult.netPay).toBeLessThan(680_000);
-      expect(payeResult.pensionContribution).toBe(40_000);
-      expect(payeResult.nhfContribution).toBe(12_500);
+      expect(payeResult.pensionContribution).toBe(54_400);
+      expect(payeResult.nhfContribution).toBe(17_000);
 
       // Verify all calculations are internally consistent
       expect(payeResult.netPay).toBeCloseTo(

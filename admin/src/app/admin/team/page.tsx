@@ -14,6 +14,18 @@ import { ROLE_HIERARCHY } from '@taxbridge/contracts';
 
 type UserRole = keyof typeof ROLE_HIERARCHY;
 
+interface TeamMemberApiRecord {
+  id: string;
+  role: UserRole;
+  status: 'active' | 'inactive' | 'pending';
+  createdAt?: string;
+  user?: {
+    id: string;
+    email?: string;
+    name?: string;
+  };
+}
+
 interface OrgMember {
   id:        string;
   userId:    string;
@@ -26,19 +38,18 @@ interface OrgMember {
 
 interface TeamResponse {
   members:  OrgMember[];
-  orgId:    string;
-  orgName:  string;
+  orgId?:   string;
+  orgName?: string;
 }
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? '';
 
-const ASSIGNABLE_ROLES: UserRole[] = ['VIEWER', 'ACCOUNTANT', 'MANAGER', 'ADMIN', 'OWNER'];
+const ASSIGNABLE_ROLES: UserRole[] = ['OWNER', 'ACCOUNTANT', 'EMPLOYEE', 'VIEWER'];
 
 const ROLE_COLORS: Record<string, { bg: string; color: string }> = {
   OWNER:      { bg: '#FEF3C7', color: '#92400E' },
-  ADMIN:      { bg: '#EDE9FE', color: '#6D28D9' },
-  MANAGER:    { bg: '#DBEAFE', color: '#1D4ED8' },
   ACCOUNTANT: { bg: '#DCFCE7', color: '#15803D' },
+  EMPLOYEE:   { bg: '#DBEAFE', color: '#1D4ED8' },
   VIEWER:     { bg: '#F3F4F6', color: '#374151' },
 };
 
@@ -51,11 +62,24 @@ const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
 async function fetchTeam(): Promise<TeamResponse> {
   const res = await fetch(`${API_BASE}/api/v1/team`, { credentials: 'include' });
   if (!res.ok) throw new Error(`Team fetch failed: ${res.status}`);
-  return res.json() as Promise<TeamResponse>;
+
+  const payload = await res.json() as { members?: TeamMemberApiRecord[] };
+
+  return {
+    members: (payload.members ?? []).map((member) => ({
+      id: member.id,
+      userId: member.user?.id ?? '',
+      email: member.user?.email ?? 'Unknown email',
+      name: member.user?.name ?? 'Unnamed member',
+      role: member.role,
+      status: member.status,
+      joinedAt: member.createdAt ?? new Date().toISOString(),
+    })),
+  };
 }
 
-async function updateRole(memberId: string, newRole: UserRole): Promise<void> {
-  const res = await fetch(`${API_BASE}/api/v1/team/${memberId}/role`, {
+async function updateRole(userId: string, newRole: UserRole): Promise<void> {
+  const res = await fetch(`${API_BASE}/api/v1/team/${userId}/role`, {
     method:      'PATCH',
     credentials: 'include',
     headers:     { 'Content-Type': 'application/json' },
@@ -129,7 +153,7 @@ export default function TeamPage() {
 
     setWorking(member.id);
     try {
-      await updateRole(member.id, newRole);
+      await updateRole(member.userId, newRole);
       showToast(`${member.name}'s role updated to ${newRole}`);
       await loadTeam();
     } catch (err: any) {
@@ -148,7 +172,7 @@ export default function TeamPage() {
 
     setWorking(member.id);
     try {
-      await removeMember(member.id);
+      await removeMember(member.userId);
       showToast(`${member.name} removed`);
       await loadTeam();
     } catch (err: any) {
@@ -189,7 +213,7 @@ export default function TeamPage() {
           <h1 style={{ fontSize: 24, fontWeight: 700, color: '#111827', margin: 0 }}>Team Management</h1>
           {team && (
             <p style={{ color: '#6B7280', fontSize: 13, marginTop: 4 }}>
-              {team.orgName} · {team.members.length} member{team.members.length !== 1 ? 's' : ''}
+              {team.members.length} member{team.members.length !== 1 ? 's' : ''}
               {ownerCount === 1 && (
                 <span style={{ color: '#D97706', fontWeight: 600 }}> · ⚠ Only 1 OWNER</span>
               )}

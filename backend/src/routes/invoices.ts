@@ -1,6 +1,6 @@
 import { Prisma, PrismaClient } from '@prisma/client';
 import { z } from 'zod';
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyRequest } from 'fastify';
 import jwt from 'jsonwebtoken';
 
 import { computeRequestHash, isIdempotencyExpired } from '../lib/idempotency';
@@ -19,7 +19,11 @@ export default async function invoicesRoutes(app: FastifyInstance, opts: { prism
     return String(process.env.ALLOW_DEV_USER_FALLBACK || 'false').toLowerCase() === 'true';
   }
 
-  function resolveUserIdFromRequest(req: any): string | null {
+  function resolveUserIdFromRequest(req: FastifyRequest): string | null {
+    if (typeof req.user?.userId === 'string' && req.user.userId.trim()) {
+      return req.user.userId;
+    }
+
     const authHeader = typeof req.headers?.authorization === 'string' ? req.headers.authorization : undefined;
     const token = authHeader?.replace(/^Bearer\s+/i, '').trim();
     if (token) {
@@ -45,6 +49,17 @@ export default async function invoicesRoutes(app: FastifyInstance, opts: { prism
     }
 
     return null;
+  }
+
+  async function requireResolvedUserId(req: FastifyRequest): Promise<string> {
+    const resolvedUserId = resolveUserIdFromRequest(req);
+    const userId = resolvedUserId ?? (shouldAllowDevUserFallback() ? await getOrCreateDevUserId() : null);
+
+    if (!userId) {
+      throw new AuthenticationError();
+    }
+
+    return userId;
   }
 
   async function getOrCreateDevUserId(): Promise<string> {
@@ -136,18 +151,12 @@ export default async function invoicesRoutes(app: FastifyInstance, opts: { prism
 
   app.post(
     '/api/v1/invoices',
-    {
-      schema: {
-        body: InvoiceBodySchema,
-        response: {
-          200: InvoiceResponseSchema,
-          409: z.object({ error: z.string() }),
-          500: z.object({ error: z.string() }),
-          201: InvoiceResponseSchema
-        }
-      }
-    },
+    {},
     async (req, reply) => {
+      const bodyParse = InvoiceBodySchema.safeParse(req.body);
+      if (!bodyParse.success) {
+        return reply.status(400).send({ error: 'VALIDATION_ERROR', issues: bodyParse.error.issues });
+      }
       const idempotencyKeyHeader = req.headers['idempotency-key'];
       const idempotencyKey = Array.isArray(idempotencyKeyHeader) ? idempotencyKeyHeader[0] : idempotencyKeyHeader;
 
@@ -174,15 +183,8 @@ export default async function invoicesRoutes(app: FastifyInstance, opts: { prism
         }
       }
 
-      const { customerName, customerTIN, customerEndpointId, items } = req.body as z.infer<typeof InvoiceBodySchema>;
-
-      const resolvedUserId = resolveUserIdFromRequest(req);
-      const userId =
-        resolvedUserId ?? (shouldAllowDevUserFallback() ? await getOrCreateDevUserId() : null);
-
-      if (!userId) {
-        throw new AuthenticationError();
-      }
+      const { customerName, customerTIN, customerEndpointId, items } = bodyParse.data;
+      const userId = await requireResolvedUserId(req);
 
       const totals = calculateInvoiceTotals(items);
 
@@ -242,16 +244,13 @@ export default async function invoicesRoutes(app: FastifyInstance, opts: { prism
 
   app.post(
     '/api/v1/invoices/validate-ubl',
-    {
-      schema: {
-        body: UblValidationRequestSchema,
-        response: {
-          200: UblValidationResponseSchema
-        }
-      }
-    },
+    {},
     async (req, reply) => {
-      const { ublXml } = req.body as z.infer<typeof UblValidationRequestSchema>;
+      const bodyParse = UblValidationRequestSchema.safeParse(req.body);
+      if (!bodyParse.success) {
+        return reply.status(400).send({ error: 'VALIDATION_ERROR', issues: bodyParse.error.issues });
+      }
+      const { ublXml } = bodyParse.data;
       const validation = validateUblXml(ublXml);
 
       return reply.status(200).send({
@@ -264,24 +263,12 @@ export default async function invoicesRoutes(app: FastifyInstance, opts: { prism
 
   app.get(
     '/api/v1/invoices',
-    {
-      schema: {
-        querystring: InvoiceListQuerySchema,
-        response: {
-          200: InvoiceListResponseSchema
-        }
-      }
-    },
+    {},
     async (req, reply) => {
-      const resolvedUserId = resolveUserIdFromRequest(req);
-      const userId =
-        resolvedUserId ?? (shouldAllowDevUserFallback() ? await getOrCreateDevUserId() : null);
+      const userId = await requireResolvedUserId(req);
 
-      if (!userId) {
-        throw new AuthenticationError();
-      }
-
-      const query = req.query as z.infer<typeof InvoiceListQuerySchema>;
+      const queryParse = InvoiceListQuerySchema.safeParse(req.query);
+      const query = queryParse.success ? queryParse.data : { status: undefined, cursor: undefined, take: undefined };
       const take = query.take ?? 50;
 
       const invoices = await prisma.invoice.findMany({
@@ -311,25 +298,14 @@ export default async function invoicesRoutes(app: FastifyInstance, opts: { prism
 
   app.get(
     '/api/v1/invoices/:id',
-    {
-      schema: {
-        params: InvoiceParamsSchema,
-        response: {
-          200: InvoiceDetailResponseSchema,
-          404: z.object({ error: z.string() })
-        }
-      }
-    },
+    {},
     async (req, reply) => {
-      const { id } = req.params as z.infer<typeof InvoiceParamsSchema>;
-
-      const resolvedUserId = resolveUserIdFromRequest(req);
-      const userId =
-        resolvedUserId ?? (shouldAllowDevUserFallback() ? await getOrCreateDevUserId() : null);
-
-      if (!userId) {
-        throw new AuthenticationError();
+      const paramsParse = InvoiceParamsSchema.safeParse(req.params);
+      if (!paramsParse.success) {
+        return reply.status(400).send({ error: 'VALIDATION_ERROR', issues: paramsParse.error.issues });
       }
+      const { id } = paramsParse.data;
+      const userId = await requireResolvedUserId(req);
 
       const invoice = await prisma.invoice.findFirst({ where: { id, userId } });
       if (!invoice) {
@@ -360,20 +336,22 @@ export default async function invoicesRoutes(app: FastifyInstance, opts: { prism
 
   app.put(
     '/api/v1/invoices/:id',
-    {
-      schema: {
-        params: InvoiceParamsSchema,
-        body: InvoiceBodySchema,
-        response: {
-          200: InvoiceResponseSchema,
-          409: z.object({ error: z.string() }),
-          404: z.object({ error: z.string() })
-        }
-      }
-    },
+    {},
     async (req, reply) => {
-      const { id } = req.params as z.infer<typeof InvoiceParamsSchema>;
-      const existing = await prisma.invoice.findUnique({ where: { id } });
+      const paramsParse = InvoiceParamsSchema.safeParse(req.params);
+      if (!paramsParse.success) {
+        return reply.status(400).send({ error: 'VALIDATION_ERROR', issues: paramsParse.error.issues });
+      }
+      const { id } = paramsParse.data;
+
+      const bodyParse = InvoiceBodySchema.safeParse(req.body);
+      if (!bodyParse.success) {
+        return reply.status(400).send({ error: 'VALIDATION_ERROR', issues: bodyParse.error.issues });
+      }
+
+      const userId = await requireResolvedUserId(req);
+
+      const existing = await prisma.invoice.findFirst({ where: { id, userId } });
       if (!existing) {
         return reply.status(404).send({ error: `Invoice with ID '${id}' not found` });
       }
@@ -382,7 +360,7 @@ export default async function invoicesRoutes(app: FastifyInstance, opts: { prism
         return reply.status(409).send({ error: `Cannot edit invoice in status '${existing.status}'` });
       }
 
-      const { customerName, items } = req.body as z.infer<typeof InvoiceBodySchema>;
+      const { customerName, items } = bodyParse.data;
 
       const totals = calculateInvoiceTotals(items);
 

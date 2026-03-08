@@ -12,19 +12,20 @@
  */
 
 import {
-  PIT_BRACKETS,
   VAT_RATE,
+} from '../../../../packages/contracts/src/constants';
+import {
+  PIT_BRACKETS,
   CIT_TIERS,
   MINIMUM_WAGE_ANNUAL,
-  CRA_FIXED,
-  CRA_PERCENTAGE,
-  CRA_MIN_PERCENTAGE,
+  RENT_RELIEF_CAP,
+  RENT_RELIEF_RATE,
   DEVELOPMENT_LEVY_RATE,
   MINIMUM_ETR,
   MINIMUM_ETR_THRESHOLD,
   DIGITAL_TAX_THRESHOLD,
   EDT_RATE,
-} from '@taxbridge/contracts';
+} from '../../../../packages/contracts/src/tax-rules';
 
 // ============================================================================
 // Types
@@ -40,7 +41,7 @@ export interface TaxBracket {
 export interface PITCalculation {
   income: number;
   taxableIncome: number;
-  cra: number; // Consolidated Relief Allowance
+  rentRelief: number;
   breakdown: {
     bracket: string;
     amount: number;
@@ -104,6 +105,11 @@ export const CIT_RATE_LARGE = CIT_TIERS[2].rate;  // 30%
 // Re-export canonical tax constants so rule modules can import directly from this file
 export { PIT_BRACKETS, VAT_RATE };
 
+function calculateRentRelief(income: number): number {
+  if (income <= 0) return 0;
+  return Math.min(income * RENT_RELIEF_RATE, RENT_RELIEF_CAP);
+}
+
 // ============================================================================
 // VAT Calculation Engine
 // ============================================================================
@@ -135,9 +141,8 @@ export function calculateVAT(amount: number): VATCalculation {
  * @returns Detailed PIT calculation with breakdown
  */
 export function calculatePIT(income: number): PITCalculation {
-  // Calculate CRA per Section 33(1): higher of (1% of gross) OR (₦200,000 + 20% of gross)
-  const cra = Math.max(income * CRA_MIN_PERCENTAGE, CRA_FIXED + income * CRA_PERCENTAGE);
-  const taxableIncome = Math.max(0, income - cra);
+  const rentRelief = calculateRentRelief(income);
+  const taxableIncome = Math.max(0, income - rentRelief);
 
   const breakdown: PITCalculation['breakdown'] = [];
   let totalTax = 0;
@@ -170,7 +175,7 @@ export function calculatePIT(income: number): PITCalculation {
   return {
     income,
     taxableIncome,
-    cra,
+    rentRelief,
     breakdown,
     totalTax,
     effectiveRate,
@@ -266,7 +271,7 @@ export function getTaxOptimization(
   const currentPIT = calculatePIT(annualIncome);
   const recommendations: TaxOptimization['recommendations'] = [];
   
-  // Recommendation 1: Maximize CRA allowances
+  // Recommendation 1: Maximize available reliefs
   if (annualIncome > 2000000) {
     recommendations.push({
       title: 'Maximize Pension Contributions',

@@ -25,10 +25,10 @@ import { writeAuditEvent } from '../../services/audit';
 import { createLogger } from '../../lib/logger';
 import { getPrismaClient } from '../../lib/prisma';
 
-const log = createLogger('filings:wht');
-
 // C-04 / C-10: All rates from packages/contracts/src/constants.ts — never inline
-import { WHT_RATES, WHT_EXEMPTION_MONTHLY_THRESHOLD } from '@taxbridge/contracts';
+import { WHT_RATES, WHT_EXEMPTION_MONTHLY_THRESHOLD, WHT_PROFESSIONAL_RATE } from '@taxbridge/contracts';
+
+const log = createLogger('filings:wht');
 
 const CATEGORY_TO_RATE: Record<string, number> = {
   professional_fee:  WHT_RATES.professional,
@@ -105,8 +105,8 @@ export default async function whtFilingRoutes(app: FastifyInstance) {
       const processedTransactions = transactions.map((txn) => {
         const rate = txn.rateOverride ?? (CATEGORY_TO_RATE[txn.category] ?? WHT_RATES.professional);
 
-        // Warn if professional_fee charged at rate < 10%
-        if (txn.category === 'professional_fee' && rate < 0.10) {
+        // Warn if professional_fee charged at rate < WHT_PROFESSIONAL_RATE (10%)
+        if (txn.category === 'professional_fee' && rate < WHT_PROFESSIONAL_RATE) {
           warnings.push(`${txn.recipientName}: Professional fees should be 10%, not ${(rate * 100).toFixed(0)}%.`);
         }
 

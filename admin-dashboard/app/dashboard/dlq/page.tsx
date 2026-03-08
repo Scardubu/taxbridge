@@ -1,66 +1,57 @@
 'use client';
 
-import { useState, useCallback } from 'react';
-import useSWR, { mutate } from 'swr';
+import useSWR from 'swr';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { fetchJson } from '@/lib/fetcher';
-import { AlertTriangle, RefreshCw, Trash2 } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 
-interface DLQJob {
-  id: string;
-  queue: string;
-  jobId: string;
-  failReason: string;
-  attempts: number;
-  lastAttempt: string;
-  payload: Record<string, unknown>;
+interface QueueStats {
+  name: string;
+  waiting: number;
+  active: number;
+  delayed: number;
+  failed: number;
+  completed: number;
+  dlqDepth?: number;
 }
 
 interface DLQResponse {
-  data: DLQJob[];
-  meta: { nextCursor: string | null; hasNextPage: boolean; total: number | null; pageSize: number };
+  fallback?: boolean;
+  status?: string;
+  error?: string;
+  timestamp?: string;
+  nrs: {
+    waiting: number;
+    active: number;
+    failed: number;
+    completed: number;
+    delayed: number;
+    successRate: number | null;
+    healthy: boolean;
+  };
+  queues: QueueStats[];
 }
 
-const DLQ_KEY = '/api/v2/admin/dlq';
+const DLQ_KEY = '/api/admin/health/queues';
 
 export default function DLQPage() {
-  const [retrying, setRetrying] = useState<string | null>(null);
-  const [resolving, setResolving] = useState<string | null>(null);
   const { data, error, isLoading } = useSWR<DLQResponse>(DLQ_KEY, fetchJson, { refreshInterval: 30_000 });
 
-  const handleRetry = useCallback(async (id: string) => {
-    setRetrying(id);
-    try {
-      await fetchJson(`/api/v2/admin/dlq/${id}/retry`, { method: 'POST' });
-      mutate(DLQ_KEY);
-    } catch { /* toast handled by fetcher */ }
-    setRetrying(null);
-  }, []);
-
-  const handleResolve = useCallback(async (id: string) => {
-    setResolving(id);
-    try {
-      await fetchJson(`/api/v2/admin/dlq/${id}/resolve`, { method: 'POST' });
-      mutate(DLQ_KEY);
-    } catch { /* toast handled by fetcher */ }
-    setResolving(null);
-  }, []);
-
-  const jobs = data?.data ?? [];
-  const depth = jobs.length;
+  const queues = data?.queues ?? [];
+  const nrs = data?.nrs;
+  const derivedDepth = queues.reduce((sum, queue) => sum + (queue.dlqDepth ?? queue.failed), 0);
 
   return (
     <DashboardLayout>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold">Dead Letter Queue</h1>
-          {depth > 10 && (
+          {derivedDepth > 10 && (
             <Alert variant="destructive" className="w-auto">
               <AlertTriangle className="h-4 w-4" />
-              <AlertDescription>DLQ depth {depth} — 2FA required for bulk retry</AlertDescription>
+              <AlertDescription>Queue depth {derivedDepth} — incident review recommended</AlertDescription>
             </Alert>
           )}
         </div>
@@ -71,62 +62,101 @@ export default function DLQPage() {
           </Alert>
         )}
 
+        {data?.fallback && (
+          <Alert>
+            <AlertDescription>
+              Queue telemetry is running in fallback mode while backend health services warm up or remain unavailable.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        <div className="grid gap-4 md:grid-cols-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">Derived DLQ Depth</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{derivedDepth}</div>
+              <p className="text-xs text-slate-500 mt-1">Failed or dead-lettered queue items across monitored queues.</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">NRS Failed</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-rose-600">{nrs?.failed ?? 0}</div>
+              <p className="text-xs text-slate-500 mt-1">Submission failures currently recorded in the NRS queue.</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">NRS Delayed</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-amber-600">{nrs?.delayed ?? 0}</div>
+              <p className="text-xs text-slate-500 mt-1">Jobs delayed but not yet terminally failed.</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">Success Rate</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-emerald-600">
+                {typeof nrs?.successRate === 'number' ? `${Math.round(nrs.successRate * 100)}%` : '—'}
+              </div>
+              <p className="text-xs text-slate-500 mt-1">Based on completed versus failed NRS jobs.</p>
+            </CardContent>
+          </Card>
+        </div>
+
         <Card>
           <CardHeader>
-            <CardTitle>Failed Jobs ({depth})</CardTitle>
+            <CardTitle>Queue Failure Surface ({queues.length})</CardTitle>
           </CardHeader>
           <CardContent>
             {isLoading ? (
               <p className="text-muted-foreground">Loading…</p>
-            ) : jobs.length === 0 ? (
-              <p className="text-muted-foreground">No failed jobs</p>
+            ) : queues.length === 0 ? (
+              <p className="text-muted-foreground">No queue telemetry available</p>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b">
                       <th className="text-left p-2">Queue</th>
-                      <th className="text-left p-2">Job ID</th>
-                      <th className="text-left p-2">Fail Reason</th>
-                      <th className="text-left p-2">Attempts</th>
-                      <th className="text-left p-2">Last Attempt</th>
-                      <th className="text-left p-2">Actions</th>
+                      <th className="text-left p-2">Waiting</th>
+                      <th className="text-left p-2">Active</th>
+                      <th className="text-left p-2">Delayed</th>
+                      <th className="text-left p-2">Failed</th>
+                      <th className="text-left p-2">Completed</th>
+                      <th className="text-left p-2">DLQ</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {jobs.map((job) => (
-                      <tr key={job.id} className="border-b hover:bg-muted/50">
-                        <td className="p-2 font-mono text-xs">{job.queue}</td>
-                        <td className="p-2 font-mono text-xs">{job.jobId}</td>
-                        <td className="p-2 max-w-[300px] truncate" title={job.failReason}>{job.failReason}</td>
-                        <td className="p-2">{job.attempts}</td>
-                        <td className="p-2">{new Date(job.lastAttempt).toLocaleString()}</td>
-                        <td className="p-2 space-x-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={retrying === job.id}
-                            onClick={() => handleRetry(job.id)}
-                          >
-                            <RefreshCw className="h-3 w-3 mr-1" />
-                            Retry
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            disabled={resolving === job.id}
-                            onClick={() => handleResolve(job.id)}
-                          >
-                            <Trash2 className="h-3 w-3 mr-1" />
-                            Resolve
-                          </Button>
-                        </td>
+                    {queues.map((queue) => (
+                      <tr key={queue.name} className="border-b hover:bg-muted/50">
+                        <td className="p-2 font-mono text-xs">{queue.name}</td>
+                        <td className="p-2">{queue.waiting}</td>
+                        <td className="p-2">{queue.active}</td>
+                        <td className="p-2 text-amber-700">{queue.delayed}</td>
+                        <td className="p-2 text-rose-700 font-medium">{queue.failed}</td>
+                        <td className="p-2 text-emerald-700">{queue.completed}</td>
+                        <td className="p-2 font-medium">{queue.dlqDepth ?? queue.failed}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
             )}
+
+            <p className="text-xs text-slate-500 mt-4">
+              Last updated: {data?.timestamp ? new Date(data.timestamp).toLocaleString() : 'n/a'}
+            </p>
           </CardContent>
         </Card>
       </div>
