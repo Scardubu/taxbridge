@@ -138,6 +138,11 @@ async function deadlineCron(): Promise<void> {
 // ─── Job 5: queueHealthCron — Every 5 min (MONITOR ONLY) ─────────────────────
 // CRITICAL: NEVER calls queue.add() or job.retry() — BullMQ handles retries.
 async function queueHealthCron(): Promise<void> {
+  if (!nrsStampQueue) {
+    logger.debug('queueHealthCron: nrsStampQueue not available (docs mode or Redis unavailable)');
+    return;
+  }
+
   const nrsDepth = await nrsStampQueue.getWaitingCount().catch(() => 0);
 
   if (nrsDepth > 50) {
