@@ -2,7 +2,7 @@
 
 ## [13.4.0] - 2026-03-10
 
-### Fixed
+### Fixed (13.4.0)
 
 - `package.json` (root) — Added `"packageManager": "npm@10.9.2"` for deterministic installs on Render and Vercel
 - `admin-dashboard/vercel.json` — Changed `buildCommand` from `next build` to `npm run build` to align with canonical package script
@@ -11,14 +11,14 @@
 - `render.yaml` — Fixed region values from invalid `fra` to `frankfurt` (valid Render blueprint value); removed invalid `logDrain` field; aligned worker region to `frankfurt` (matches API service); removed `--prefer-offline=false` flag from worker `buildCommand`
 - `.github/workflows/ci.yml` — Fixed `admin-v13` job: changed `cache-dependency-path` from `admin/package-lock.json` to root `package-lock.json` (admin depends on `@taxbridge/contracts` workspace package); switched to root `npm ci` + `npm install --legacy-peer-deps` for admin workspace install
 
-### Added
+### Added (13.4.0)
 
 - `backend/package-lock.json` — Generated workspace-level lockfile for CI npm cache correctness
 - `mobile/package-lock.json` — Generated workspace-level lockfile for CI npm cache correctness
 - `admin-dashboard/package-lock.json` — Generated workspace-level lockfile for CI npm cache correctness
 - `packages/contracts/package-lock.json` — Generated workspace-level lockfile for CI npm cache correctness
 
-### Verified
+### Verified (13.4.0)
 
 - `npx tsc --noEmit` (backend): **PASS** — zero errors
 - All 8 session-opening checks pass (contamination, console.log, inline rates, Redis/Prisma singletons)
@@ -66,13 +66,13 @@
 
 ## [13.1.0] - 2026-03-08
 
-### Added
+### Added (13.1.0)
 
 - `docs/ADMIN_ARCHITECTURE.md` — Architecture decision record documenting canonical admin surface
 - `admin-dashboard/lib/backendHealth.ts` — Shared utility for public health endpoint fetching
 - `admin-dashboard/app/api/admin/audit/route.ts` — Server-side audit API proxy
 
-### Changed
+### Changed (13.1.0)
 
 - Root workspace `type-check:admin` and `build` scripts now target the canonical `admin-dashboard/` production surface instead of building the legacy `admin/` app as part of production-oriented root flows
 - `deploy-production.yml` no longer triggers production admin deploy logic from legacy `admin/**` changes
@@ -83,7 +83,7 @@
 - Refactored `dlq` page to use `/api/admin/health/queues` for queue telemetry
 - Backend v2 routes normalized to canonical singletons (`prisma`, `redis`, `request.log`)
 
-### Fixed
+### Fixed (13.1.0)
 
 - Broken direct `/api/v2/admin/*` browser calls in deployed admin dashboard
 - Inconsistent backend URL resolution across health routes
@@ -93,7 +93,7 @@
 
 ## [13.0.0-sovereign] - 2026-03-08
 
-### Added
+### Added (13.0.0-sovereign)
 
 - Canonical backend bootstrap via `backend/src/server.ts`
 - OpenAPI generation script at `scripts/dump-swagger.ts`
@@ -102,14 +102,14 @@
 - V13 prompt marker verification in `scripts/verify-prompts.ts`
 - V13 pipeline skeleton in `.github/workflows/pipeline.yml`
 
-### Changed
+### Changed (13.0.0-sovereign)
 
 - Aligned org context resolution with lowercase organisation status handling
 - Aligned dashboard response shape to use `upcomingDeadlines`
 - Updated auth token org resolution to derive membership from `OrgMember`
 - Updated TOTP route to use canonical Redis singleton and stronger backup-code hashing
 
-### Resolved
+### Resolved (13.0.0-sovereign)
 
 - Backend route/schema reconciliation against full v13 contract
 - Admin API health surface completion
