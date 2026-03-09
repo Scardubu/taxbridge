@@ -17,14 +17,17 @@ const paystackWebhook: FastifyPluginAsync = async (fastify) => {
     if (!rawBody) return reply.code(400).send({ error: 'MISSING_BODY' });
 
     const payload  = rawBody.toString('utf8');
-    const expected = createHmac('sha256', process.env.PAYSTACK_SECRET!)
+    const webhookSecret = process.env.PAYSTACK_WEBHOOK_SECRET;
+    if (!webhookSecret) return reply.code(500).send({ error: 'WEBHOOK_SECRET_NOT_CONFIGURED' });
+
+    const expected = createHmac('sha256', webhookSecret)
       .update(payload).digest('hex');
 
     // Paystack uses x-paystack-signature (hex string, NOT hex-decoded buffer)
     const received = request.headers['x-paystack-signature'] as string | undefined;
     if (!received) return reply.code(403).send({ error: 'MISSING_SIGNATURE' });
 
-    if (!timingSafeEqual(Buffer.from(expected), Buffer.from(received))) {
+    if (expected.length !== received.length || !timingSafeEqual(Buffer.from(expected), Buffer.from(received))) {
       return reply.code(403).send({ error: 'INVALID_SIGNATURE' });
     }
 

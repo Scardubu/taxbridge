@@ -93,8 +93,8 @@ Write-Host "`n[2/10] Security & Encryption" -ForegroundColor Cyan
 Write-Host "─────────────────────────────────────────`n" -ForegroundColor Gray
 
 Test-EnvVar "JWT_SECRET" "JWT signing secret (64+ chars)" -Required $true -Pattern ".{64,}"
-Test-EnvVar "ENCRYPTION_KEY" "AES-256 encryption key (64 hex chars)" -Required $true -Pattern "^[0-9a-fA-F]{64}$"
 Test-EnvVar "TAX_ID_ENCRYPTION_KEY" "Tax ID encryption key (64 hex chars)" -Required $true -Pattern "^[0-9a-fA-F]{64}$"
+Test-EnvVar "ENCRYPTION_KEY" "AES-256 encryption key (64 hex chars)" -Required $true -Pattern "^[0-9a-fA-F]{64}$"
 Test-EnvVar "SESSION_SECRET" "Session secret" -Required $true
 Test-EnvVar "WEBHOOK_SECRET" "Webhook signature secret" -Required $true
 
@@ -143,7 +143,7 @@ Write-Host "`n[6/10] FIRS/DigiTax (NRS)" -ForegroundColor Cyan
 Write-Host "─────────────────────────────────────────`n" -ForegroundColor Gray
 
 Test-EnvVar "DIGITAX_API_KEY" "DigiTax API key" -Required $true
-Test-EnvVar "DIGITAX_BASE_URL" "DigiTax base URL" -Required $true -Example "https://api.digitax.ng"
+Test-EnvVar "DIGITAX_API_URL" "DigiTax API URL" -Required $true -Example "https://api.digitax.ng"
 Test-EnvVar "DIGITAX_HMAC_SECRET" "DigiTax HMAC secret" -Required $true
 $digitaxMock = [Environment]::GetEnvironmentVariable("DIGITAX_MOCK_MODE")
 if ($digitaxMock -eq "true") {

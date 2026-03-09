@@ -10,6 +10,7 @@ import PDFDocument                       from 'pdfkit';
 import { S3Client, PutObjectCommand }    from '@aws-sdk/client-s3';
 import { createWorkerConnection }        from '../services/eventBus';
 import { logger }                        from '../lib/logger';
+import { toBullMQConnection }           from '../queue/client';
 
 const s3 = new S3Client({
   region:      'auto',
@@ -72,7 +73,7 @@ export function startPDFWorker(): Worker<PDFJobData> {
   const workerConnection = createWorkerConnection();
 
   const worker = new Worker<PDFJobData>('pdf-generation', processPDFJob, {
-    connection: workerConnection,
+    connection: toBullMQConnection(workerConnection),
     concurrency: 3,
   });
 

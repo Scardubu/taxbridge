@@ -60,6 +60,10 @@ import remitaWebhook         from './routes/webhooks/remita';
 
 export async function buildApp(): Promise<FastifyInstance> {
   const isDocsMode = process.env.TAXBRIDGE_DOCS_MODE === '1';
+  const corsOrigins = (process.env.ALLOWED_ORIGINS ?? process.env.CORS_ORIGIN ?? '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
   const fastify = Fastify({
     trustProxy: true, // Required for Render.com + Vercel proxy headers
     logger: {
@@ -94,7 +98,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   });
 
   await fastify.register(fastifyCors, {
-    origin:      (process.env.CORS_ORIGIN ?? '').split(',').map(s => s.trim()),
+    origin:      corsOrigins,
     credentials: true,
   });
 

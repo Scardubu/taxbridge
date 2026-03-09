@@ -5,7 +5,7 @@ import { prisma } from '../lib/prisma';
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
-import { getRedisConnection } from './client';
+import { getRedisConnection, toBullMQConnection } from './client';
 import { remitaAdapter } from '../integrations/remita/adapter';
 import { createLogger } from '../lib/logger';
 import { notifyPaymentConfirmed } from '../services/notifications';
@@ -74,7 +74,7 @@ export const paymentWebhookWorker = new Worker(
       throw err;
     }
   },
-  { connection: getRedisConnection() as any }
+  { connection: toBullMQConnection(getRedisConnection()) }
 );
 
 paymentWebhookWorker.on('completed', (job, result) => {

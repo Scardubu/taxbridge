@@ -6,7 +6,7 @@
  */
 
 import { Queue } from 'bullmq';
-import { getRedisConnection } from '../queue/client';
+import { getRedisConnection, toBullMQConnection } from '../queue/client';
 import { createLogger } from '../lib/logger';
 import * as Sentry from '@sentry/node';
 
@@ -47,7 +47,7 @@ export class DLQMonitor {
     }
     
     for (const name of queueNames) {
-      this.queues.set(name, new Queue(name, { connection: redis as any }));
+      this.queues.set(name, new Queue(name, { connection: toBullMQConnection(redis) }));
     }
   }
 

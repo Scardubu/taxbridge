@@ -27,12 +27,20 @@ const PUBLIC_PATHS = new Set([
 // Role-version cache (30s in-memory — avoids Vercel Edge Config on every request)
 const roleVersionCache = new Map<string, { version: number; cachedAt: number }>();
 const ROLE_VERSION_CACHE_TTL_MS = 30_000;
+const BACKEND_URL = (
+  process.env.BACKEND_API_URL ||
+  process.env.BACKEND_URL ||
+  process.env.NEXT_PUBLIC_BACKEND_URL ||
+  process.env.NEXT_PUBLIC_API_URL ||
+  'https://taxbridge-api-ker8.onrender.com'
+).replace(/\/$/, '');
 
 interface AdminJWTPayload extends JWTPayload {
   sub:          string;   // userId
   role:         string;
   orgId?:       string;
   roleVersion?: number;
+  role_version?: number;
 }
 
 /**
@@ -61,15 +69,15 @@ async function getRoleVersion(userId: string, token: string): Promise<number | n
     return cached.version;
   }
   try {
-    const apiUrl  = process.env.BACKEND_API_URL ?? process.env.NEXT_PUBLIC_API_URL;
-    const res     = await fetch(`${apiUrl}/api/v2/rbac/role-version/${userId}`, {
-      headers: { Authorization: `Bearer ${token}` },
+    const res = await fetch(`${BACKEND_URL}/api/v1/admin/role-version/${userId}`, {
+      headers: { 'X-Internal-Key': process.env.INTERNAL_API_KEY ?? '' },
       signal: AbortSignal.timeout(3000),
+      cache: 'no-store',
     });
     if (!res.ok) return null;
-    const data    = await res.json() as { version: number };
-    roleVersionCache.set(userId, { version: data.version, cachedAt: Date.now() });
-    return data.version;
+    const data = await res.json() as { roleVersion: number };
+    roleVersionCache.set(userId, { version: data.roleVersion, cachedAt: Date.now() });
+    return data.roleVersion;
   } catch {
     // Non-fatal — allow request through if role-version endpoint is unavailable
     return null;
@@ -113,9 +121,10 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
   }
 
   // ── Step 2: role_version check (30s cache) ───────────────────────────────
-  if (payload.roleVersion !== undefined) {
+  const tokenRoleVersion = payload.role_version ?? payload.roleVersion;
+  if (tokenRoleVersion !== undefined) {
     const currentVersion = await getRoleVersion(payload.sub, rawToken);
-    if (currentVersion !== null && currentVersion > payload.roleVersion) {
+    if (currentVersion !== null && currentVersion > tokenRoleVersion) {
       // Role has changed since token was issued — force re-auth
       const loginUrl = new URL('/login', request.url);
       loginUrl.searchParams.set('reason', 'session_expired');

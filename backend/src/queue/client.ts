@@ -1,4 +1,5 @@
 import { Queue } from 'bullmq';
+import type { ConnectionOptions } from 'bullmq';
 import { createLogger } from '../lib/logger';
 
 const log = createLogger('redis');
@@ -40,12 +41,16 @@ export function getRedisConnection() {
   }
 }
 
+export function toBullMQConnection(connection: unknown): ConnectionOptions {
+  return connection as ConnectionOptions;
+}
+
 export function getInvoiceSyncQueue(): Queue | null {
   const redis = getRedisConnection();
   if (!redis) return null;
 
   if (!invoiceSyncQueue) {
-    invoiceSyncQueue = new Queue('invoice-sync', { connection: redis as any });
+    invoiceSyncQueue = new Queue('invoice-sync', { connection: toBullMQConnection(redis) });
   }
 
   return invoiceSyncQueue;
@@ -56,7 +61,7 @@ export function getPaymentQueue(): Queue | null {
   if (!redis) return null;
 
   if (!paymentQueue) {
-    paymentQueue = new Queue('payment-webhook', { connection: redis as any });
+    paymentQueue = new Queue('payment-webhook', { connection: toBullMQConnection(redis) });
   }
 
   return paymentQueue;
@@ -67,7 +72,7 @@ export function getDeviceSyncQueue(): Queue | null {
   if (!redis) return null;
 
   if (!deviceSyncQueue) {
-    deviceSyncQueue = new Queue('device-sync', { connection: redis as any });
+    deviceSyncQueue = new Queue('device-sync', { connection: toBullMQConnection(redis) });
   }
 
   return deviceSyncQueue;

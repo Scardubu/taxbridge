@@ -11,6 +11,7 @@ import { EventEmitter } from 'events';
 import IORedis from 'ioredis';
 import { Queue }        from 'bullmq';
 import { redis } from '../lib/redis';
+import { toBullMQConnection } from '../queue/client';
 
 export const eventBus = new EventEmitter();
 eventBus.setMaxListeners(30);
@@ -26,7 +27,7 @@ export function getPdfQueue(): Queue | null {
   if (isDocsMode || !redis) return null;
   if (!_pdfQueue) {
     _pdfQueue = new Queue('pdf-generation', {
-      connection:        redis,
+      connection:        toBullMQConnection(redis),
       defaultJobOptions: { attempts: 3, backoff: { type: 'exponential', delay: 2000 } },
     });
   }
@@ -37,7 +38,7 @@ export function getNrsStampQueue(): Queue | null {
   if (isDocsMode || !redis) return null;
   if (!_nrsStampQueue) {
     _nrsStampQueue = new Queue('nrs-stamp', {
-      connection:        redis,
+      connection:        toBullMQConnection(redis),
       defaultJobOptions: { attempts: 5, backoff: { type: 'exponential', delay: 3000 } },
     });
   }
@@ -48,7 +49,7 @@ export function getNotificationQueue(): Queue | null {
   if (isDocsMode || !redis) return null;
   if (!_notificationQueue) {
     _notificationQueue = new Queue('notifications', {
-      connection:        redis,
+      connection:        toBullMQConnection(redis),
       defaultJobOptions: { attempts: 3, backoff: { type: 'fixed', delay: 1000 } },
     });
   }

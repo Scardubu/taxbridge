@@ -128,7 +128,8 @@ if ($envFile) {
         "JWT_SECRET",
         "ENCRYPTION_KEY",
         "TAX_ID_ENCRYPTION_KEY",
-        "ALLOWED_ORIGINS"
+        "ALLOWED_ORIGINS",
+        "DIGITAX_API_URL"
     )
 
     foreach ($var in $requiredVars) {

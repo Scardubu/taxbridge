@@ -1,11 +1,15 @@
+import { dirname, resolve } from 'path';
+import { fileURLToPath } from 'url';
 import { createRequire } from 'module';
 import type { NextConfig } from "next";
 
 const require = createRequire(import.meta.url);
+const currentDirectory = dirname(fileURLToPath(import.meta.url));
 
 const nextConfig: NextConfig = {
   // Use default output for Vercel compatibility
   // Ensure proper handling of environment variables
+  outputFileTracingRoot: resolve(currentDirectory, '..'),
   env: {
     BACKEND_URL: process.env.BACKEND_URL || process.env.BACKEND_API_URL || 'https://taxbridge-api-ker8.onrender.com',
     BACKEND_API_URL: process.env.BACKEND_API_URL || process.env.BACKEND_URL || 'https://taxbridge-api-ker8.onrender.com',

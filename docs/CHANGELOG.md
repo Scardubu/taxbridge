@@ -28,7 +28,7 @@
 
 ## [13.3.0] - 2026-03-09
 
-### Fixed
+### Fixed (13.3.0)
 
 - `scripts/session-checks.sh` — Check 3: tightened `FIRS` pattern to `\bFIRS\b` (word-boundary) to eliminate false positives on `firstName` field names
 - `scripts/session-checks.sh` — Check 4: narrowed `ProgressBar` pattern to `import.*ProgressBar` so only import statements are flagged
@@ -42,7 +42,7 @@
 - `mobile/src/services/tax/rules/nigeria-2025.ts` — Replaced inline `0.10` charitable-donation cap with `DONATIONS_MAX_RATE = CGT_RATE` from `@taxbridge/contracts` (C-04/C-10)
 - `backend/src/routes/invoices.ts` — Removed Zod schemas from Fastify `schema:` blocks (invalid in Fastify 5); migrated to manual `.safeParse()` pattern matching canonical v13 route style; resolves `FastifyError: schema is invalid: data/required must be array` that blocked OpenAPI generation
 
-### Verified
+### Verified (13.3.0)
 
 - All 8 session-opening checks pass (Checks 3–7 code gates: 0 hits each)
 - `npx tsc --noEmit` (backend): **PASS** — zero errors
@@ -52,12 +52,12 @@
 
 ## [13.2.0] - 2026-03-09
 
-### Added
+### Added (13.2.0)
 
 - `backend/src/app.ts` — Registered missing route plugins: `invoicesRoutes`, `invoiceManagementRoutes`, `paymentRoutes`, `businessRoutes`, `cryptoRoutes`, `reconciliationRoutes`, `v2IntelligenceRoute`, `v2OnboardingRoute`, `v2NdpcExportRoute`
 - `scripts/smoke-test.sh` — Extended from 5 to 7 smoke checks covering health, preflight, OpenAPI spec, V2 dashboard, and V2 analytics revenue; auth-gated routes now assert `< 500` instead of `--fail`
 
-### Fixed
+### Fixed (13.2.0)
 
 - `backend/src/cron/orchestrator.ts` — Corrected `SMERiskRecord` field mapping (`taxHealthScore` → `score`, `riskBand` → `band`, `anomalyCount` → `anomalyScore`); replaced invalid upsert-by-non-unique-`orgId` with `findFirst` + `create`/`update` pattern
 - `.github/workflows/ci.yml` — Removed invalid empty `needs: []`, aligned blue-green checklist paths to `docs/CHANGELOG.md` and `docs/PRODUCTION_READY.md`, and stopped canonical production gating jobs from depending on the legacy `admin-v13` job

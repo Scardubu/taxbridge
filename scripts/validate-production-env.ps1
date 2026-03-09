@@ -95,6 +95,7 @@ function Test-SecurityConfig {
     Write-Host "`n--- Security Configuration ---" -ForegroundColor Yellow
     
     Test-EnvVar -Name "JWT_SECRET" -Description "JWT signing secret" -Required -MinLength 32
+    Test-EnvVar -Name "ENCRYPTION_KEY" -Description "Application encryption key" -Required -MinLength 64 -Pattern "^[0-9a-fA-F]{64}$"
     Test-EnvVar -Name "TAX_ID_ENCRYPTION_KEY" -Description "Tax ID encryption key" -Required -MinLength 64 -Pattern "^[0-9a-fA-F]{64}$"
     
     $allowedOrigins = [System.Environment]::GetEnvironmentVariable("ALLOWED_ORIGINS")
@@ -141,7 +142,7 @@ function Test-NRSConfiguration {
     Write-Host "`n--- NRS E-Invoicing (DigiTax/FIRS) ---" -ForegroundColor Yellow
     
     Test-EnvVar -Name "DIGITAX_API_KEY" -Description "DigiTax API key" -Required
-    Test-EnvVar -Name "DIGITAX_BASE_URL" -Description "DigiTax base URL" -Required -Pattern "^https://"
+    Test-EnvVar -Name "DIGITAX_API_URL" -Description "DigiTax API URL" -Required -Pattern "^https://"
     Test-EnvVar -Name "DIGITAX_HMAC_SECRET" -Description "DigiTax HMAC secret"
     
     $mockMode = [System.Environment]::GetEnvironmentVariable("DIGITAX_MOCK_MODE")

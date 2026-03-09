@@ -6,7 +6,7 @@
  * Redis NX idempotency: webhook:flw:${txRef} 48h TTL
  */
 import { FastifyPluginAsync }              from 'fastify';
-import { timingSafeEqual, createHmac }    from 'crypto';
+import { timingSafeEqual }                from 'crypto';
 import { redis }                           from '../../lib/redis';
 import { writeAuditEvent }                 from '../../services/audit';
 import { logger }                          from '../../lib/logger';
@@ -16,13 +16,14 @@ const flutterwaveWebhook: FastifyPluginAsync = async (fastify) => {
     const rawBody = (request as any).rawBody as Buffer | undefined;
     if (!rawBody) return reply.code(400).send({ error: 'MISSING_BODY' });
 
-    const payload  = rawBody.toString('utf8'); // C-37: toString('utf8') only
-    const expected = createHmac('sha256', process.env.FLUTTERWAVE_SECRET!)
-      .update(payload).digest();
     const hashHeader = request.headers['verif-hash'] as string | undefined;
     if (!hashHeader) return reply.code(403).send({ error: 'MISSING_SIGNATURE' });
 
-    const received = Buffer.from(hashHeader, 'hex');
+    const secretHash = process.env.FLW_SECRET_HASH;
+    if (!secretHash) return reply.code(500).send({ error: 'WEBHOOK_SECRET_NOT_CONFIGURED' });
+
+    const expected = Buffer.from(secretHash, 'utf8');
+    const received = Buffer.from(hashHeader, 'utf8');
 
     if (expected.length !== received.length || !timingSafeEqual(expected, received)) {
       return reply.code(403).send({ error: 'INVALID_SIGNATURE' });

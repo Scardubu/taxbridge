@@ -4,7 +4,7 @@ import dotenv from 'dotenv';
 import { Worker } from 'bullmq';
 import { getPrismaClient } from '../lib/prisma';
 import { createLogger } from '../lib/logger';
-import { getRedisConnection } from '../queue/client';
+import { getRedisConnection, toBullMQConnection } from '../queue/client';
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
@@ -350,6 +350,6 @@ export function createDeviceSyncWorker(): Worker {
         throw err;
       }
     },
-    { connection: getRedisConnection() as any }
+    { connection: toBullMQConnection(getRedisConnection()) }
   );
 }

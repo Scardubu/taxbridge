@@ -2,13 +2,14 @@ import { Queue, Worker, type Job } from 'bullmq';
 import { createLogger } from '../lib/logger';
 import { submitToNRS } from '../services/nrs-submission';
 import { getRedis } from '../lib/redis';
+import { toBullMQConnection } from './client';
 
 const log = createLogger('nrs-queue');
 
 const connection = getRedis();
 
 export const nrsQueue = new Queue('nrs-submissions', {
-  connection: connection as any,
+  connection: toBullMQConnection(connection),
   defaultJobOptions: {
     attempts: 5,
     backoff: { type: 'exponential', delay: 10000 },
@@ -24,7 +25,7 @@ export const nrsWorker = new Worker(
     await submitToNRS(invoiceId);
   },
   {
-    connection: connection as any,
+    connection: toBullMQConnection(connection),
     concurrency: 3,
   }
 );

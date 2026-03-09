@@ -6,7 +6,7 @@ import { prisma } from '../lib/prisma';
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
-import { closeRedisConnection, getRedisConnection } from './client';
+import { closeRedisConnection, getRedisConnection, toBullMQConnection } from './client';
 import { submitToDigiTax } from '../../integrations/digitax/adapter';
 import { DigiTaxError } from '../../integrations/digitax/adapter';
 import { generateUBL } from '../lib/ubl/generator';
@@ -190,7 +190,7 @@ export const invoiceSyncWorker = new Worker(
     }
   },
   {
-    connection: getRedisConnection() as any,
+    connection: toBullMQConnection(getRedisConnection()),
     concurrency: Number.isFinite(invoiceSyncConcurrency) && invoiceSyncConcurrency > 0 ? invoiceSyncConcurrency : 5,
     limiter: {
       max: Number.isFinite(invoiceSyncRateLimit) && invoiceSyncRateLimit > 0 ? invoiceSyncRateLimit : 8,
