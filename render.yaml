@@ -18,6 +18,54 @@ services:
         value: production
       - key: PORT
         value: 3000
+      # ALLOWED_ORIGINS: comma-separated list of allowed CORS origins
+      # Set full value in Render Dashboard for production
+      - key: ALLOWED_ORIGINS
+        value: https://admin.taxbridge.ng,https://taxbridge.ng
+      # Integration mock modes — disable when live credentials are set in Dashboard
+      - key: DIGITAX_MOCK_MODE
+        value: "true"
+      - key: REMITA_MOCK_MODE
+        value: "true"
+      - key: FLW_MOCK_MODE
+        value: "true"
+      - key: PAYSTACK_MOCK_MODE
+        value: "true"
+      # DigiTax API URL (non-secret)
+      - key: DIGITAX_API_URL
+        value: https://api.digitax.ng
+      # Secrets — SET IN RENDER DASHBOARD
+      - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_URL
+        sync: false
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: taxbridge-redis
+          property: connectionString
+      - key: JWT_SECRET
+        sync: false
+      - key: JWT_REFRESH_SECRET
+        sync: false
+      - key: ENCRYPTION_KEY
+        sync: false
+      - key: WEBHOOK_SECRET
+        sync: false
+      - key: REMITA_WEBHOOK_SECRET
+        sync: false
+      - key: ADMIN_API_KEYS
+        sync: false
+      - key: REMITA_MERCHANT_ID
+        sync: false
+      - key: REMITA_API_KEY
+        sync: false
+      - key: REMITA_SERVICE_TYPE_ID
+        sync: false
+      - key: DUPLO_CLIENT_ID
+        sync: false
+      - key: DUPLO_CLIENT_SECRET
+        sync: false
   # ============================================
   # WORKER SERVICE (BullMQ Job Processor)
   # ============================================
