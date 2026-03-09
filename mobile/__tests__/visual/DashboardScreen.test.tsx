@@ -7,16 +7,105 @@ const mockNavigation = {
   goBack: jest.fn(),
 };
 
+jest.mock('@shopify/flash-list', () => ({
+  FlashList: ({ data = [], renderItem }: { data?: any[]; renderItem: ({ item }: { item: any }) => React.ReactNode }) => {
+    const React = require('react');
+    const { View } = require('react-native');
+
+    return React.createElement(
+      View,
+      null,
+      data.map((item, index) =>
+        React.createElement(
+          React.Fragment,
+          { key: item?.id ?? item?.expenseId ?? index },
+          renderItem({ item }),
+        ),
+      ),
+    );
+  },
+}));
+
+jest.mock('../../src/components/dashboard/TaxHealthGauge', () => {
+  const React = require('react');
+  const { Text, View } = require('react-native');
+
+  return {
+    TaxHealthGauge: ({ score }: { score: number }) => React.createElement(
+      View,
+      null,
+      React.createElement(Text, null, `TaxHealthGauge:${score}`),
+    ),
+    computeGaugeMode: () => 'healthy',
+  };
+});
+
+jest.mock('../../src/components/dashboard/OfflineSyncStatus', () => {
+  const React = require('react');
+  const { View } = require('react-native');
+
+  return {
+    OfflineSyncStatus: () => React.createElement(View, null, null),
+  };
+});
+
 jest.mock('../../src/contexts/NetworkContext', () => ({
   useNetwork: () => ({ isOnline: true }),
 }));
 
 jest.mock('../../src/contexts/SyncContext', () => ({
   useSyncContext: () => ({ manualSync: jest.fn(), lastSyncAt: null }),
+  useSync: () => ({ lastSyncAt: null, conflictCount: 0 }),
 }));
 
 jest.mock('../../src/contexts/FeatureFlagContext', () => ({
   useFeatureFlag: () => false,
+}));
+
+jest.mock('../../src/hooks/useDashboard', () => ({
+  useDashboard: () => ({
+    data: {
+      stats: {
+        totalInvoices: 3,
+        totalRevenue: 150000,
+        pendingNrs: 1,
+        vatLiability: 11250,
+        taxHealthScore: 82,
+        recentAnomalies: 1,
+      },
+      forecast: null,
+      nrsHealth: {
+        circuitBreakerOpen: false,
+        pendingSubmissions: 1,
+        deadLetterCount: 0,
+        status: 'healthy',
+      },
+      topAnomalies: [
+        {
+          expenseId: 'exp-1',
+          severity: 'medium',
+          anomalyReason: 'Possible duplicate expense',
+          suggestedAction: 'Review expense record',
+        },
+      ],
+      upcomingDeadlines: [
+        {
+          id: 'deadline-1',
+          type: 'VAT',
+          dueDate: '2026-03-31T00:00:00.000Z',
+          daysRemaining: 12,
+          status: 'upcoming',
+        },
+      ],
+      cachedAt: '2026-03-09T00:00:00.000Z',
+      taxBreakdown: [],
+      sparkData: [],
+    },
+    isLoading: false,
+    isRefetching: false,
+    refetch: jest.fn().mockResolvedValue(undefined),
+    isError: false,
+  }),
 }));
 
 jest.mock('../../src/services/database', () => ({

@@ -68,7 +68,7 @@ async function generateUploadUrl(key: string, contentType: string): Promise<stri
 export default async function documentRoutes(app: FastifyInstance) {
   // ── List documents for org ──────────────────────────────────────────────
   app.get(
-    '/api/v1/documents',
+    '/documents',
     { preHandler: [app.authenticate, app.resolveOrgContext] },
     async (req, reply) => {
       const orgId = (req as any).orgContext.orgId;
@@ -91,7 +91,7 @@ export default async function documentRoutes(app: FastifyInstance) {
 
   // ── Get presigned upload URL ────────────────────────────────────────────
   app.post(
-    '/api/v1/documents/upload',
+    '/documents/upload',
     { preHandler: [app.authenticate, app.resolveOrgContext] },
     async (req, reply) => {
       const parseResult = z.object({
@@ -159,7 +159,7 @@ export default async function documentRoutes(app: FastifyInstance) {
 
   // ── Get document metadata ────────────────────────────────────────────────
   app.get<{ Params: { id: string } }>(
-    '/api/v1/documents/:id',
+    '/documents/:id',
     { preHandler: [app.authenticate, app.resolveOrgContext] },
     async (req, reply) => {
       const orgId = (req as any).orgContext.orgId;
@@ -173,7 +173,7 @@ export default async function documentRoutes(app: FastifyInstance) {
 
   // ── Get presigned download URL (every access logged) ────────────────────
   app.get<{ Params: { id: string } }>(
-    '/api/v1/documents/:id/url',
+    '/documents/:id/url',
     { preHandler: [app.authenticate, app.resolveOrgContext] },
     async (req, reply) => {
       const orgId   = (req as any).orgContext.orgId;
@@ -206,7 +206,7 @@ export default async function documentRoutes(app: FastifyInstance) {
 
   // ── Delete document (SUPER_ADMIN only, after 7 years) ───────────────────
   app.delete<{ Params: { id: string } }>(
-    '/api/v1/documents/:id',
+    '/documents/:id',
     { preHandler: [app.authenticate, app.resolveOrgContext, requireRole('ADMIN')] },
     async (req, reply) => {
       const orgId   = (req as any).orgContext.orgId;

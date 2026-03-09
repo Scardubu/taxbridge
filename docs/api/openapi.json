@@ -338,7 +338,7 @@
         }
       }
     },
-    "/api/v1/api/v1/documents": {
+    "/api/v1/documents": {
       "get": {
         "responses": {
           "200": {
@@ -347,7 +347,7 @@
         }
       }
     },
-    "/api/v1/api/v1/documents/upload": {
+    "/api/v1/documents/upload": {
       "post": {
         "responses": {
           "200": {
@@ -356,7 +356,7 @@
         }
       }
     },
-    "/api/v1/api/v1/documents/{id}": {
+    "/api/v1/documents/{id}": {
       "get": {
         "parameters": [
           {
@@ -392,7 +392,7 @@
         }
       }
     },
-    "/api/v1/api/v1/documents/{id}/url": {
+    "/api/v1/documents/{id}/url": {
       "get": {
         "parameters": [
           {
@@ -411,7 +411,7 @@
         }
       }
     },
-    "/api/v1/api/v1/admin/role-version/{userId}": {
+    "/api/v1/admin/role-version/{userId}": {
       "get": {
         "parameters": [
           {
@@ -430,7 +430,7 @@
         }
       }
     },
-    "/api/v1/api/v1/team": {
+    "/api/v1/team": {
       "get": {
         "responses": {
           "200": {
@@ -439,7 +439,7 @@
         }
       }
     },
-    "/api/v1/api/v1/team/invite": {
+    "/api/v1/team/invite": {
       "post": {
         "responses": {
           "200": {
@@ -448,7 +448,7 @@
         }
       }
     },
-    "/api/v1/api/v1/team/{userId}/role": {
+    "/api/v1/team/{userId}/role": {
       "patch": {
         "parameters": [
           {
@@ -467,7 +467,7 @@
         }
       }
     },
-    "/api/v1/api/v1/team/{userId}": {
+    "/api/v1/team/{userId}": {
       "delete": {
         "parameters": [
           {
@@ -486,7 +486,7 @@
         }
       }
     },
-    "/api/v1/api/v1/team/accountants": {
+    "/api/v1/team/accountants": {
       "get": {
         "responses": {
           "200": {
@@ -502,7 +502,7 @@
         }
       }
     },
-    "/api/v1/api/v1/team/accountants/{id}": {
+    "/api/v1/team/accountants/{id}": {
       "delete": {
         "parameters": [
           {

@@ -6,10 +6,10 @@
 
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
+import { getApiBaseUrl } from '../services/config';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL ?? 'https://taxbridge-api-ker8.onrender.com';
 const REQUEST_TIMEOUT_MS = 30_000;
 const MAX_RETRIES        = 3;
 const RETRY_DELAY_BASE   = 1_000;
@@ -287,11 +287,12 @@ async function refreshAccessToken(): Promise<string | null> {
   if (refreshPromise) return refreshPromise;
 
   refreshPromise = (async () => {
+    const apiBaseUrl = await getApiBaseUrl();
     const refreshToken = await getRefreshToken();
     if (!refreshToken) return null;
 
     try {
-      const res = await fetch(`${API_URL}/api/v1/auth/refresh`, {
+      const res = await fetch(`${apiBaseUrl}/api/v1/auth/refresh`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ refreshToken }),
@@ -361,6 +362,8 @@ async function apiFetch<T>(
     }
   }
 
+  const apiBaseUrl = await getApiBaseUrl();
+
   let lastError: Error | null = null;
 
   for (let attempt = 0; attempt <= retries; attempt++) {
@@ -375,7 +378,7 @@ async function apiFetch<T>(
       const controller = new AbortController();
       const timeoutId  = setTimeout(() => controller.abort(), timeout);
 
-      const res = await fetch(`${API_URL}${path}`, {
+      const res = await fetch(`${apiBaseUrl}${path}`, {
         ...fetchOptions,
         headers,
         signal: controller.signal,
@@ -387,7 +390,7 @@ async function apiFetch<T>(
         if (newToken) {
           headers['Authorization'] = `Bearer ${newToken}`;
           // Retry immediately with new token (don't count as retry)
-          const retryRes = await fetch(`${API_URL}${path}`, {
+          const retryRes = await fetch(`${apiBaseUrl}${path}`, {
             ...fetchOptions,
             headers,
             signal: AbortSignal.timeout(timeout),

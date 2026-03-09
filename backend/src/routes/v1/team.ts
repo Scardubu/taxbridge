@@ -50,7 +50,7 @@ async function invalidateSession(userId: string) {
 
 export default async function teamRoutes(app: FastifyInstance) {
   app.get<{ Params: { userId: string } }>(
-    '/api/v1/admin/role-version/:userId',
+    '/admin/role-version/:userId',
     async (req, reply) => {
       const internalKey = req.headers['x-internal-key'];
       const expectedKey = process.env.INTERNAL_API_KEY;
@@ -66,7 +66,7 @@ export default async function teamRoutes(app: FastifyInstance) {
 
   // ── List members ─────────────────────────────────────────────────────────
   app.get(
-    '/api/v1/team',
+    '/team',
     { preHandler: [app.authenticate, app.resolveOrgContext] },
     async (req, reply) => {
       const orgId = (req as any).orgContext.orgId;
@@ -92,7 +92,7 @@ export default async function teamRoutes(app: FastifyInstance) {
 
   // ── Invite member ─────────────────────────────────────────────────────────
   app.post(
-    '/api/v1/team/invite',
+    '/team/invite',
     { preHandler: [app.authenticate, app.resolveOrgContext, requireRole('OWNER')] },
     async (req, reply) => {
       const parseResult = z.object({
@@ -152,7 +152,7 @@ export default async function teamRoutes(app: FastifyInstance) {
 
   // ── Update role ────────────────────────────────────────────────────────────
   app.patch<{ Params: { userId: string } }>(
-    '/api/v1/team/:userId/role',
+    '/team/:userId/role',
     { preHandler: [app.authenticate, app.resolveOrgContext, requireRole('OWNER')] },
     async (req, reply) => {
       const parseResult = z.object({ role: z.enum(ASSIGNABLE_ROLES) }).safeParse(req.body);
@@ -201,7 +201,7 @@ export default async function teamRoutes(app: FastifyInstance) {
 
   // ── Remove member ─────────────────────────────────────────────────────────
   app.delete<{ Params: { userId: string } }>(
-    '/api/v1/team/:userId',
+    '/team/:userId',
     { preHandler: [app.authenticate, app.resolveOrgContext, requireRole('OWNER')] },
     async (req, reply) => {
       const { userId }  = req.params;
@@ -251,7 +251,7 @@ export default async function teamRoutes(app: FastifyInstance) {
 
   // ── List accountant delegations ───────────────────────────────────────────
   app.get(
-    '/api/v1/team/accountants',
+    '/team/accountants',
     { preHandler: [app.authenticate, app.resolveOrgContext] },
     async (req, reply) => {
       const orgId = (req as any).orgContext.orgId;
@@ -264,7 +264,7 @@ export default async function teamRoutes(app: FastifyInstance) {
 
   // ── Grant accountant delegation ───────────────────────────────────────────
   app.post(
-    '/api/v1/team/accountants',
+    '/team/accountants',
     { preHandler: [app.authenticate, app.resolveOrgContext, requireRole('OWNER')] },
     async (req, reply) => {
       const parseResult = z.object({
@@ -299,7 +299,7 @@ export default async function teamRoutes(app: FastifyInstance) {
 
   // ── Revoke accountant delegation ──────────────────────────────────────────
   app.delete<{ Params: { id: string } }>(
-    '/api/v1/team/accountants/:id',
+    '/team/accountants/:id',
     { preHandler: [app.authenticate, app.resolveOrgContext, requireRole('OWNER')] },
     async (req, reply) => {
       const orgId   = (req as any).orgContext.orgId;

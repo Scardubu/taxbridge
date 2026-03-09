@@ -15,7 +15,7 @@ export interface PITInput {
   rentPaid?:   number;
   /** Employee pension contribution (default: 8% of gross) */
   pension?:    number;
-  /** NHF contribution (default: 2.5% of gross) */
+  /** NHF contribution */
   nhf?:        number;
 }
 
@@ -44,7 +44,7 @@ export function calculatePIT(input: PITInput): PITResult {
     grossIncome,
     rentPaid  = 0,
     pension   = Math.round(grossIncome * 0.08),  // default 8% employee pension
-    nhf       = Math.round(grossIncome * 0.025), // default 2.5% NHF
+    nhf       = 0,
   } = input;
 
   const rra           = calculateRRA(rentPaid);

@@ -1,5 +1,24 @@
 # Changelog
 
+## [13.5.0] - 2026-03-09
+
+### Fixed (13.5.0)
+
+- `backend/src/validateEnv.ts` — Demoted integration credentials (`DIGITAX_API_KEY`, R2, payment, Youverify, AT) from hard startup failures to production warnings so the API can boot in mock/degraded mode when optional integrations are unset
+- `backend/src/cron/orchestrator.ts` — Added a null guard around `nrsStampQueue` usage in `queueHealthCron()` to resolve `TS18047` and unblock Render backend builds
+- `render.yaml` — Added missing web-service env declarations for `ALLOWED_ORIGINS`, `REDIS_URL`, integration mock flags, and non-secret DigiTax URL so Render web deploys have a complete startup contract
+- `backend/.env.example` — Corrected stale comments around `ALLOWED_ORIGINS`, Africa's Talking aliases, DigiTax, and R2 startup requirements to match the actual runtime contract
+- `docs/CHANGELOG.md` — Disambiguated repeated subsection headings to satisfy `MD024/no-duplicate-heading`
+
+### Verified (13.5.0)
+
+- `npm run build --workspace=@taxbridge/backend`: **PASS**
+- `npx tsc --noEmit --project backend/tsconfig.json`: **PASS**
+- `npm run type-check --workspace=admin-dashboard`: **PASS**
+- `npm run build --workspace=admin-dashboard`: **PASS**
+
+---
+
 ## [13.4.0] - 2026-03-10
 
 ### Fixed (13.4.0)

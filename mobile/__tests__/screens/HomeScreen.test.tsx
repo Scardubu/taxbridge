@@ -2,6 +2,52 @@
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
 import HomeScreen from '../../src/screens/HomeScreen';
 
+jest.mock('../../src/components/ui/SkeletonLoader', () => ({
+  SkeletonLoader: () => {
+    const React = require('react');
+    const { Text } = require('react-native');
+    return React.createElement(Text, null, 'SkeletonLoader');
+  },
+}));
+
+jest.mock('../../src/components/SyncStatusBar', () => () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return React.createElement(View, null, null);
+});
+jest.mock('../../src/components/QuickActionRail', () => () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return React.createElement(View, null, null);
+});
+jest.mock('../../src/components/InsightsCarousel', () => () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return React.createElement(View, null, null);
+});
+jest.mock('../../src/components/header', () => ({
+  LivingBridgeHeader: () => {
+    const React = require('react');
+    const { View } = require('react-native');
+    return React.createElement(View, null, null);
+  },
+}));
+jest.mock('../../src/components/FloatingActionButton', () => () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return React.createElement(View, null, null);
+});
+jest.mock('../../src/components/GlobalSearch', () => () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return React.createElement(View, null, null);
+});
+jest.mock('../../src/components/SyncQueueViewer', () => () => {
+  const React = require('react');
+  const { View } = require('react-native');
+  return React.createElement(View, null, null);
+});
+
 jest.mock('../../src/contexts/SyncContext', () => ({
   useSyncContext: () => ({
     manualSync: jest.fn(),
@@ -53,10 +99,11 @@ describe('HomeScreen', () => {
       },
     ]);
 
-    const { getByText } = render(<HomeScreen navigation={mockNavigation} />);
+    const { getByText, queryByText } = render(<HomeScreen navigation={mockNavigation} />);
     
     await waitFor(() => {
-      expect(getByText('home.monthlySales')).toBeTruthy();
+      expect(getByText('home.invoicesLabel')).toBeTruthy();
+      expect(queryByText('home.noInvoicesTitle')).toBeNull();
     });
   });
 

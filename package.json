@@ -28,7 +28,7 @@
     "docs:api": "tsx scripts/dump-swagger.ts",
     "backfill:v13": "tsx scripts/backfill-v13.ts",
     "session:checks": "bash scripts/session-checks.sh",
-    "accuracy:gates": "bash scripts/run-accuracy-gates.sh",
+    "accuracy:gates": "tsx scripts/run-accuracy-gates.ts",
     "validate:phase": "npm run type-check && npm run accuracy:gates && npm test",
     "integrate:new-files": "powershell -ExecutionPolicy Bypass -File scripts/integrate-new-files.ps1"
   },

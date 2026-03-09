@@ -16,9 +16,8 @@ import { useTranslation } from 'react-i18next';
 import { extractReceiptData, validateOCRResult, type OCRResult } from '../services/ocr';
 import { useAuth } from '../contexts/AuthContext';
 import { createExpense, type ExpenseCategory } from '../services/expenseApi';
+import { getApiBaseUrl } from '../services/config';
 import { colors, radii, spacing, typography } from '../theme/tokens';
-
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://taxbridge-api-ker8.onrender.com';
 
 export default function ScanReceiptScreen({ navigation }: any) {
   const { t } = useTranslation();
@@ -81,7 +80,9 @@ export default function ScanReceiptScreen({ navigation }: any) {
     setValidationWarnings([]);
 
     try {
-      const result = await extractReceiptData(uri, API_BASE_URL, {
+      const apiBaseUrl = await getApiBaseUrl();
+
+      const result = await extractReceiptData(uri, apiBaseUrl, {
         timeoutMs: 30000,
         maxRetries: 2,
       });

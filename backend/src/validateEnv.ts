@@ -13,11 +13,14 @@
  * without live credentials.
  */
 
+function hasAnyEnv(...keys: string[]): boolean {
+  return keys.some((key) => Boolean(process.env[key]));
+}
+
 const REQUIRED = [
   'DATABASE_URL',
   'REDIS_URL',
   'JWT_SECRET',
-  'ALLOWED_ORIGINS',
   'PORT',
 ] as const;
 
@@ -28,15 +31,20 @@ for (const key of REQUIRED) {
   }
 }
 
+if (!hasAnyEnv('ALLOWED_ORIGINS', 'CORS_ORIGIN')) {
+  process.stderr.write('FATAL: env ALLOWED_ORIGINS or CORS_ORIGIN missing\n');
+  process.exit(1);
+}
+
+if (!hasAnyEnv('NRS_API_KEY', 'DIGITAX_API_KEY')) {
+  process.stderr.write('WARN: env NRS_API_KEY or DIGITAX_API_KEY not set — NRS integration will run in mock/degraded mode\n');
+}
+
 // Warn-only in production — these enable integrations but have mock/degraded fallbacks:
 const WARN_IF_MISSING_IN_PROD = [
-  'DIGITAX_API_KEY',
   'CLOUDFLARE_R2_BUCKET',
   'CLOUDFLARE_R2_ENDPOINT',
   'YOUVERIFY_API_KEY',
-  'FLW_SECRET_KEY',
-  'PAYSTACK_SECRET_KEY',
-  'AT_API_KEY',
 ] as const;
 
 if (process.env.NODE_ENV === 'production') {
@@ -44,6 +52,18 @@ if (process.env.NODE_ENV === 'production') {
     if (!process.env[key]) {
       process.stderr.write(`WARN: env ${key} not set — integration will run in mock/degraded mode\n`);
     }
+  }
+
+  if (!hasAnyEnv('FLW_SECRET_KEY', 'FLUTTERWAVE_SECRET')) {
+    process.stderr.write('WARN: env FLW_SECRET_KEY or FLUTTERWAVE_SECRET not set — Flutterwave will run in mock/degraded mode\n');
+  }
+
+  if (!hasAnyEnv('PAYSTACK_SECRET_KEY', 'PAYSTACK_SECRET')) {
+    process.stderr.write('WARN: env PAYSTACK_SECRET_KEY or PAYSTACK_SECRET not set — Paystack will run in mock/degraded mode\n');
+  }
+
+  if (!hasAnyEnv('AT_API_KEY', 'AFRICA_TALKING_API_KEY')) {
+    process.stderr.write('WARN: env AT_API_KEY or AFRICA_TALKING_API_KEY not set — SMS integration will run in mock/degraded mode\n');
   }
 }
 

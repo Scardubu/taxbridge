@@ -12,6 +12,7 @@ import {
 import * as Haptics from 'expo-haptics';
 import { useTranslation } from 'react-i18next';
 import { DURATION } from '../../design-system/animation';
+import { getApiBaseUrl } from '../../services/config';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -230,17 +231,17 @@ export default function InsightsScreen() {
   const [cashflow, setCashflow] = useState<CashFlowRisk | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
-  const API = process.env.EXPO_PUBLIC_API_URL ?? 'https://taxbridge-api-ker8.onrender.com';
-
   const load = async (isRefresh = false) => {
     try {
       isRefresh ? setRefreshing(true) : setLoading(true);
       setError(null);
 
+      const apiBaseUrl = await getApiBaseUrl();
+
       const [predRes, anomRes, cashRes] = await Promise.allSettled([
-        fetch(`${API}/api/v1/insights/tax-prediction`).then((r) => r.json()),
-        fetch(`${API}/api/v1/insights/anomalies`).then((r) => r.json()),
-        fetch(`${API}/api/v1/insights/cashflow-risk`).then((r) => r.json()),
+        fetch(`${apiBaseUrl}/api/v1/insights/tax-prediction`).then((r) => r.json()),
+        fetch(`${apiBaseUrl}/api/v1/insights/anomalies`).then((r) => r.json()),
+        fetch(`${apiBaseUrl}/api/v1/insights/cashflow-risk`).then((r) => r.json()),
       ]);
 
       if (predRes.status === 'fulfilled') setPrediction(predRes.value);

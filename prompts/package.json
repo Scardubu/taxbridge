@@ -4,17 +4,17 @@
   "description": "TaxBridge AI Operating Context System — modular prompt library for AI-assisted development",
   "private": true,
   "scripts": {
-    "prompts:load": "npx ts-node --project tsconfig.json loaders/prompt-loader.ts",
-    "prompts:bootstrap": "npx ts-node --project tsconfig.json loaders/bootstrap.ts",
-    "prompts:verify": "npx ts-node --project tsconfig.json -e \"require('./loaders/prompt-loader').verifyAllModules()\"",
+    "prompts:load": "tsx loaders/prompt-loader.ts",
+    "prompts:bootstrap": "tsx loaders/bootstrap.ts",
+    "prompts:verify": "tsx -e \"require('./loaders/prompt-loader').verifyAllModules()\"",
     "prompts:build": "npm run prompts:verify",
-    "prompts:query": "npx ts-node --project tsconfig.json loaders/embedding-pipeline.ts query",
-    "prompts:embeddings:build": "npx ts-node --project tsconfig.json loaders/embedding-pipeline.ts build",
-    "prompts:embeddings:verify": "npx ts-node --project tsconfig.json loaders/embedding-pipeline.ts verify",
+    "prompts:query": "tsx loaders/embedding-pipeline.ts query",
+    "prompts:embeddings:build": "tsx loaders/embedding-pipeline.ts build",
+    "prompts:embeddings:verify": "tsx loaders/embedding-pipeline.ts verify",
     "prompts:lint": "node loaders/prompt-linter.js",
-    "prompts:test": "npx ts-node --project tsconfig.json loaders/prompt-loader.test.ts",
+    "prompts:test": "tsx loaders/prompt-loader.test.ts",
     "prompts:stats": "node -e \"const fs=require('fs'); const files=fs.readdirSync('.', {recursive:true}).filter(f=>f.endsWith('.md')); console.log('Module files:', files.length); files.forEach(f=>{ const lines=fs.readFileSync(f,'utf-8').split('\\n').length; console.log(f+': '+lines+' lines'); });\"",
-    "test": "npx ts-node --project tsconfig.json loaders/embedding-pipeline.ts verify"
+    "test": "tsx loaders/embedding-pipeline.ts verify"
   },
   "devDependencies": {
     "ts-node": "^10.9.2",

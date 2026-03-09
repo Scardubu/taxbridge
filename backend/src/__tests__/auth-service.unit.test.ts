@@ -59,13 +59,14 @@ import { AuthService } from '../services/auth';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret-test-jwt-secret-123456';
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'test-refresh-secret-test-refresh-secret-123456';
+const TEST_PASSWORD_HASH = bcrypt.hashSync('Password1!', 4);
 
 function makeUser(overrides: Record<string, any> = {}) {
   return {
     id: 'user-1',
     phone: '+2348012345678',
     name: 'Test User',
-    passwordHash: bcrypt.hashSync('Password1!', 12),
+    passwordHash: TEST_PASSWORD_HASH,
     verified: true,
     verificationToken: null,
     verificationTokenExpiry: null,

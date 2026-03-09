@@ -11,7 +11,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { jwtVerify, type JWTPayload } from 'jose';
+import { importSPKI, jwtVerify, type JWTPayload } from 'jose';
 
 export const config = {
   matcher: ['/admin/:path*'],
@@ -25,6 +25,8 @@ const JWT_PUBLIC_KEY = process.env.JWT_PUBLIC_KEY;          // RS256 PEM in prod
 // Simple in-memory map; Edge Runtime restarts clear it automatically.
 const roleVersionCache = new Map<string, { version: number; expiresAt: number }>();
 const ROLE_VERSION_TTL_MS = 30_000;
+
+let jwtPublicKeyPromise: ReturnType<typeof importSPKI> | null = null;
 
 async function getCachedRoleVersion(userId: string): Promise<number | null> {
   const entry = roleVersionCache.get(userId);
@@ -53,9 +55,9 @@ async function getCachedRoleVersion(userId: string): Promise<number | null> {
 async function verifyToken(token: string): Promise<JWTPayload | null> {
   try {
     if (JWT_PUBLIC_KEY) {
-      // RS256 — production
-      const { createPublicKey } = await import('crypto');
-      const key = createPublicKey(JWT_PUBLIC_KEY);
+      // RS256 — production / Edge-safe via jose
+      jwtPublicKeyPromise ??= importSPKI(JWT_PUBLIC_KEY, 'RS256');
+      const key = await jwtPublicKeyPromise;
       const { payload } = await jwtVerify(token, key, { algorithms: ['RS256'] });
       return payload;
     } else {
