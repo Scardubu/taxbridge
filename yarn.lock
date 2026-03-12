@@ -4660,7 +4660,7 @@
   dependencies:
     "@taxbridge/contracts" "*"
     jose "^5.9.6"
-    next "15.1.6"
+    next "15.1.12"
     react "^19.0.0"
     react-dom "^19.0.0"
     recharts "^2.13.3"

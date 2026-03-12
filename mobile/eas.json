@@ -30,10 +30,7 @@
         "SENTRY_DSN": "SET_VIA_EAS_SECRET"
       },
       "android": {
-        "buildType": "apk",
-        "compileSdkVersion": 36,
-        "targetSdkVersion": 35,
-        "gradleCommand": ":app:assembleDebug --no-daemon --no-build-cache --stacktrace"
+        "buildType": "apk"
       },
       "ios": {
         "buildConfiguration": "Debug",
@@ -48,10 +45,7 @@
       "channel": "preview",
       "distribution": "internal",
       "android": {
-        "buildType": "apk",
-        "compileSdkVersion": 36,
-        "targetSdkVersion": 35,
-        "gradleCommand": ":app:assembleRelease --no-daemon --no-build-cache --rerun-tasks --refresh-dependencies --stacktrace"
+        "buildType": "apk"
       },
       "ios": {
         "buildConfiguration": "Release"
@@ -70,10 +64,7 @@
       },
       "distribution": "internal",
       "android": {
-        "buildType": "apk",
-        "compileSdkVersion": 36,
-        "targetSdkVersion": 35,
-        "gradleCommand": ":app:assembleRelease --no-daemon --no-build-cache --rerun-tasks --refresh-dependencies --stacktrace"
+        "buildType": "apk"
       },
       "env": {
         "EXPO_PUBLIC_ENV": "production",
@@ -90,10 +81,7 @@
       },
       "distribution": "store",
       "android": {
-        "buildType": "app-bundle",
-        "compileSdkVersion": 36,
-        "targetSdkVersion": 35,
-        "gradleCommand": ":app:bundleRelease --no-daemon --no-build-cache --rerun-tasks --refresh-dependencies --stacktrace --warning-mode all"
+        "buildType": "app-bundle"
       },
       "ios": {
         "buildConfiguration": "Release",
