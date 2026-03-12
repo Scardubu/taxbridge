@@ -1,9 +1,8 @@
 const { getDefaultConfig } = require('expo/metro-config');
 const path = require('path');
 
-// Use file:// URL for Windows compatibility
-const projectRoot = path.resolve(__dirname);
-const config = getDefaultConfig(projectRoot);
+/** @type {import('expo/metro-config').MetroConfig} */
+const config = getDefaultConfig(__dirname);
 
 config.cacheStores = [];
 config.resetCache = true;
