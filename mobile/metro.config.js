@@ -1,34 +1,12 @@
 const { getDefaultConfig } = require('expo/metro-config');
-const path = require('path');
 
-/** @type {import('expo/metro-config').MetroConfig} */
 const config = getDefaultConfig(__dirname);
 
+// Disable cache for build
 config.cacheStores = [];
 config.resetCache = true;
 
-config.watchFolders = [
-  ...(config.watchFolders || []),
-  path.resolve(__dirname, '../packages'),
-];
-
-config.resolver.unstable_enablePackageExports = true;
-
-config.transformer.assetPlugins = ['expo-asset/tools/hashAssetFiles'];
-
-config.transformer.minifierConfig = {
-  compress: {
-    drop_console:  process.env.NODE_ENV === 'production',
-    drop_debugger: true,
-    pure_funcs:    process.env.NODE_ENV === 'production'
-      ? ['console.log', 'console.debug', 'console.info']
-      : [],
-  },
-  mangle: {
-    keep_fnames: false,
-  },
-};
-
+// Add asset extensions
 config.resolver.assetExts = [
   ...config.resolver.assetExts,
   'db',
@@ -40,20 +18,14 @@ config.resolver.assetExts = [
   'lottie',
 ];
 
-// Reanimated 4.x worklet runtime — required for condition-based package resolution
-config.resolver.unstable_conditionNames = ['react-native', 'browser', 'require'];
-
+// Add source extensions
 config.resolver.sourceExts = [
   ...config.resolver.sourceExts,
   'mjs',
   'cjs',
 ];
 
-config.resolver.nodeModulesPaths = [
-  path.resolve(__dirname, 'node_modules'),
-  path.resolve(__dirname, '../node_modules'),
-];
-
+// Block test files
 config.resolver.blockList = /(.*\/__tests__\/.*|.*\/\..*)/;
 
 module.exports = config;
