@@ -35,7 +35,6 @@
 - `backend/package-lock.json` — Generated workspace-level lockfile for CI npm cache correctness
 - `mobile/package-lock.json` — Generated workspace-level lockfile for CI npm cache correctness
 - `admin-dashboard/package-lock.json` — Generated workspace-level lockfile for CI npm cache correctness
-- `packages/contracts/package-lock.json` — Generated workspace-level lockfile for CI npm cache correctness
 
 ### Verified (13.4.0)
 
