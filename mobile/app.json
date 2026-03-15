@@ -160,9 +160,7 @@
     "experiments": {
       "typedRoutes": true
     },
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
+    "runtimeVersion": "1.0.3",
     "updates": {
       "enabled": true,
       "fallbackToCacheTimeout": 0,
