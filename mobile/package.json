@@ -4,7 +4,6 @@
   "main": "index.ts",
   "packageManager": "npm@10.9.2",
   "scripts": {
-    "postinstall": "node scripts/ensure-expo-bin.js",
     "start": "cross-env EXPO_NO_DOCTOR=1 EXPO_OFFLINE=1 expo start --offline",
     "start:online": "cross-env EXPO_NO_DOCTOR=1 expo start",
     "start:no-doctor": "cross-env EXPO_NO_DOCTOR=1 expo start",
