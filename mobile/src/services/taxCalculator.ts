@@ -11,7 +11,7 @@ import {
   MINIMUM_WAGE_ANNUAL,
   CIT_TIERS,
   VAT_REGISTRATION_THRESHOLD,
-} from '../../../packages/contracts/src/tax-rules';
+} from '@taxbridge/contracts';
 
 export interface PITInputs {
   annualGrossIncome: number;

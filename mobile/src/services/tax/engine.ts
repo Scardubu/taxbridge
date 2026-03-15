@@ -13,8 +13,6 @@
 
 import {
   VAT_RATE,
-} from '../../../../packages/contracts/src/constants';
-import {
   PIT_BRACKETS,
   CIT_TIERS,
   MINIMUM_WAGE_ANNUAL,
@@ -25,7 +23,7 @@ import {
   MINIMUM_ETR_THRESHOLD,
   DIGITAL_TAX_THRESHOLD,
   EDT_RATE,
-} from '../../../../packages/contracts/src/tax-rules';
+} from '@taxbridge/contracts';
 
 // ============================================================================
 // Types

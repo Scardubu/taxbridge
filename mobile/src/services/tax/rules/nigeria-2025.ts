@@ -15,7 +15,7 @@ import {
   PENALTY_RATES as CANONICAL_PENALTY_RATES,
   DIGITAL_TAX_THRESHOLD,
   CGT_RATE,
-} from '../../../../../packages/contracts/src';
+} from '@taxbridge/contracts';
 import { CIT_RATE_MEDIUM, CIT_RATE_SMALL } from '../engine';
 
 /** Max deductible charitable donation: CGT_RATE (10%) of profit — NTA 2025 §38 */

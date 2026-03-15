@@ -2,8 +2,16 @@
 // Nigeria Tax Act 2025 - Personal Income Tax Bands
 // Now using canonical rules from @taxbridge/contracts
 
-import { VAT_RATE } from '../../../packages/contracts/src/constants';
-import { PIT_BRACKETS, RENT_RELIEF_CAP, RENT_RELIEF_RATE, PENSION_RATE, NHF_RATE, CIT_TIERS, VAT_REGISTRATION_THRESHOLD } from '../../../packages/contracts/src/tax-rules';
+import {
+  VAT_RATE,
+  PIT_BRACKETS,
+  RENT_RELIEF_CAP,
+  RENT_RELIEF_RATE,
+  PENSION_RATE,
+  NHF_RATE,
+  CIT_TIERS,
+  VAT_REGISTRATION_THRESHOLD,
+} from '@taxbridge/contracts';
 
 export interface PITBand {
   limit: number;
