@@ -2,7 +2,7 @@
   "name": "taxbridge",
   "version": "1.0.0",
   "private": true,
-  "packageManager": "npm@10.9.2",
+  "packageManager": "yarn@10.9.2",
   "engines": {
     "node": "20.x"
   },
