@@ -2,14 +2,13 @@
   "name": "taxbridge",
   "version": "1.0.0",
   "private": true,
-  "packageManager": "yarn@10.9.2",
+  "packageManager": "npm@10.9.2",
   "engines": {
     "node": "20.x"
   },
   "workspaces": [
     "admin",
     "admin-dashboard",
-    "mobile",
     "backend",
     "ml/ocr_service",
     "packages/*",
@@ -19,7 +18,7 @@
     "lint": "npm run lint --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "type-check": "npx tsc --noEmit",
-    "type-check:mobile": "npm run type-check --workspace=mobile",
+    "type-check:mobile": "npm --prefix mobile run type-check",
     "type-check:admin": "npm run type-check --workspace=admin-dashboard --if-present",
     "type-check:admin-dashboard": "npm run type-check --workspace=admin-dashboard --if-present",
     "type-check:backend": "npm run type-check --workspace=@taxbridge/backend",

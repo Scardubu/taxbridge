@@ -2,8 +2,9 @@
   "name": "mobile",
   "version": "1.0.0",
   "main": "index.ts",
-  "packageManager": "yarn@10.9.2",
+  "packageManager": "npm@10.9.2",
   "scripts": {
+    "postinstall": "node scripts/ensure-expo-bin.js",
     "start": "cross-env EXPO_NO_DOCTOR=1 EXPO_OFFLINE=1 expo start --offline",
     "start:online": "cross-env EXPO_NO_DOCTOR=1 expo start",
     "start:no-doctor": "cross-env EXPO_NO_DOCTOR=1 expo start",
@@ -15,7 +16,8 @@
     "build": "echo 'Mobile: No build needed (Expo builds via EAS)' && exit 0",
     "android": "expo run:android",
     "ios": "expo run:ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "eas:build:apk": "node scripts/ensure-expo-bin.js && npx eas build --platform android --profile production-apk --non-interactive"
   },
   "dependencies": {
     "@babel/core": "^7.22.0",
