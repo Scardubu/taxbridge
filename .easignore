@@ -4,13 +4,11 @@ backend/
 admin/
 admin-dashboard/
 ml/
-docs/
 infra/
 packages/
 prompts/
 landing/
 public/
-assets/
 
 # Logs and generated files
 *.log
