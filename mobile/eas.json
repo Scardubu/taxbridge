@@ -58,7 +58,7 @@
     },
     "production-apk": {
       "extends": "base",
-      "channel": "production",
+      "channel": "production-apk",
       "credentialsSource": "local",
       "cache": {
         "disabled": true

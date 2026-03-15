@@ -16,7 +16,7 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
-    "eas:build:apk": "node scripts/ensure-expo-bin.js && cross-env EAS_NO_VCS=1 EAS_SKIP_AUTO_FINGERPRINT=1 npx eas build --platform android --profile production-apk --non-interactive"
+    "eas:build:apk": "node scripts/ensure-expo-bin.js && npx expo prebuild --platform android --clean --non-interactive && cross-env EAS_NO_VCS=1 EAS_SKIP_AUTO_FINGERPRINT=1 npx eas build --platform android --profile production-apk --clear-cache --non-interactive"
   },
   "dependencies": {
     "@babel/core": "^7.22.0",
