@@ -5,7 +5,6 @@ admin/
 admin-dashboard/
 ml/
 infra/
-packages/
 prompts/
 landing/
 public/
