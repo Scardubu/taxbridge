@@ -1,0 +1,30 @@
+# EAS Build only needs the mobile project source.
+# Exclude all other monorepo directories to avoid a massive archive upload.
+backend/
+admin/
+admin-dashboard/
+ml/
+docs/
+infra/
+packages/
+prompts/
+scripts/
+landing/
+public/
+assets/
+
+# Logs and generated files
+*.log
+*.log.*
+node_modules/
+.git/
+
+# CI/deployment configs not needed at build time
+.github/
+.vercel/
+.secrets/
+infra/
+render.yaml
+render.staging.yaml
+docker-compose*.yml
+Dockerfile*
