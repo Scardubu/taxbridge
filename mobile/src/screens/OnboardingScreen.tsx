@@ -693,7 +693,7 @@ function OnboardingScreen(props: OnboardingScreenProps = {}) {
 
       {/* Trust Footer */}
       <View style={styles.trustFooter}>
-        <Text style={styles.trustText}>{t('onboarding.trustLocalFirst')}</Text>
+        <Text style={styles.trustText}>{t('onboarding.trustLocalNRS')}</Text>
         <Text style={styles.trustText}>•</Text>
         <Text style={styles.trustText}>{t('onboarding.trustOffline')}</Text>
       </View>
