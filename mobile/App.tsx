@@ -69,7 +69,8 @@ import CreateInvoiceScreen from './src/screens/CreateInvoiceScreen';
 import InvoicesScreen from './src/screens/InvoicesScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import PaymentScreen from './src/screens/PaymentScreen';
-import OnboardingScreen from './src/screens/OnboardingScreen';
+import OnboardingWizard from './src/screens/OnboardingWizard';
+import { LoginScreen, RegisterScreen } from './src/screens/auth/AuthScreens';
 import TaxGuideScreen from './src/screens/TaxGuideScreen';
 import PayrollListScreen from './src/screens/Payroll/PayrollListScreen';
 import ComplianceRemindersScreen from './src/screens/Compliance/ComplianceRemindersScreen';
@@ -106,6 +107,7 @@ function BootRouter() {
 }
 
 function AppNavigator() {
+  const { isAuthenticated } = useAuth();
   const { isOnboardingComplete, isLoading } = useOnboarding();
   const [loadingTimeout, setLoadingTimeout] = useState(false);
 
@@ -124,10 +126,19 @@ function AppNavigator() {
     return <BrandedLoading />;
   }
 
-  if (!isOnboardingComplete) {
+  if (!isAuthenticated && !isOnboardingComplete) {
     return (
       <Stack.Navigator screenOptions={{ headerShown: false, ...screenTransitions.slideFromRight }}>
-        <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+        <Stack.Screen name="Onboarding" component={OnboardingWizard} />
+      </Stack.Navigator>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <Stack.Navigator screenOptions={{ headerShown: false, ...screenTransitions.slideFromRight }}>
+        <Stack.Screen name="Login" component={LoginScreen} />
+        <Stack.Screen name="Register" component={RegisterScreen} />
       </Stack.Navigator>
     );
   }
@@ -135,6 +146,8 @@ function AppNavigator() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false, ...screenTransitions.slideFromRight }}>
       <Stack.Screen name="MainTabs" component={TabNavigator} />
+      <Stack.Screen name="Login" component={LoginScreen} />
+      <Stack.Screen name="Register" component={RegisterScreen} />
       <Stack.Screen
         name="Payment"
         component={PaymentScreen}

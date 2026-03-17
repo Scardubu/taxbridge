@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { useAuthStore } from '../../store/authStore';
 import {
@@ -35,6 +35,7 @@ function validateName(v: string) {
 export function LoginScreen() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
+  const navigation = useNavigation<any>();
   const { login, status, error, clearError } = useAuthStore();
 
   const [email, setEmail]       = useState('');
@@ -53,7 +54,7 @@ export function LoginScreen() {
     clearError();
     try {
       await login(email.trim().toLowerCase(), password);
-      router.replace('/(tabs)');
+      navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
     } catch {
       // Error displayed via store.error
     }
@@ -139,7 +140,7 @@ export function LoginScreen() {
           </Pressable>
 
           <Pressable
-            onPress={() => router.push('/auth/forgot-password')}
+            onPress={() => {}}
             style={styles.forgotLink}
             accessibilityRole="link"
           >
@@ -160,7 +161,7 @@ export function LoginScreen() {
           <DividerWithLabel label={t('common.or')} />
 
           <Pressable
-            onPress={() => router.push('/auth/register')}
+            onPress={() => navigation.navigate('Register' as never)}
             style={styles.switchLink}
             accessibilityRole="link"
           >
@@ -193,6 +194,7 @@ const BUSINESS_TYPES = [
 export function RegisterScreen() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
+  const navigation = useNavigation<any>();
   const { register, status, error, clearError } = useAuthStore();
 
   const [form, setForm] = useState({
@@ -231,7 +233,7 @@ export function RegisterScreen() {
         businessType: form.businessType || undefined,
         tin:          form.tin.trim() || undefined,
       });
-      router.replace('/(tabs)');
+      navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
     } catch {}
   }, [isValid, form, register, clearError]);
 
@@ -366,7 +368,7 @@ export function RegisterScreen() {
           />
 
           <Pressable
-            onPress={() => router.back()}
+            onPress={() => navigation.goBack()}
             style={styles.switchLink}
             accessibilityRole="link"
           >

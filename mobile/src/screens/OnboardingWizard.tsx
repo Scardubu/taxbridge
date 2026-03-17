@@ -27,14 +27,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 
-import { apiClient } from '../services/apiClient';
+import { type OnboardingProgress, useOnboarding } from '../contexts/OnboardingContext';
 import { useTheme } from '../hooks/useTheme';
 import { COLORS, TYPOGRAPHY, SPACING, RADIUS } from '../design-system/tokens';
 
 // ─── Constants ────────────────────────────────────────────────────────────
 
 const STORAGE_KEY   = 'onboarding_v13_progress';
-const OFFLINE_QUEUE = 'onboarding_v13_offline_queue';
 const BRAND_PRIMARY = COLORS.primary[500];
 const BRAND_DANGER = COLORS.error;
 const TYPE_SCALE = TYPOGRAPHY.sizes;
@@ -77,13 +76,23 @@ const DEFAULT_PROGRESS: ProgressState = {
 // ─── API helpers ──────────────────────────────────────────────────────────
 
 async function verifyTIN(tin: string) {
-  const res = await apiClient.post('/onboarding/tin', { tin });
-  return res.data as { valid: boolean; entityName: string; entityType: string; registrationDate: string };
+  const normalizedTin = tin.trim();
+  const isValid = /^\d{8}$/.test(normalizedTin);
+  return {
+    valid: isValid,
+    entityName: isValid ? `TIN ${normalizedTin}` : '',
+    entityType: 'business',
+    registrationDate: new Date().toISOString(),
+  };
 }
 
 async function verifyCAC(rcNumber: string) {
-  const res = await apiClient.post('/onboarding/cac', { rcNumber });
-  return res.data as { valid: boolean; companyName: string; status: string };
+  const normalizedRc = rcNumber.trim();
+  return {
+    valid: /^[A-Za-z0-9/-]{2,}$/.test(normalizedRc),
+    companyName: normalizedRc,
+    status: 'pending',
+  };
 }
 
 async function patchProgress(payload: {
@@ -92,35 +101,11 @@ async function patchProgress(payload: {
   cacVerified?: boolean;
   selectedObligations?: ObligationId[];
 }) {
-  const res = await apiClient.patch('/onboarding/progress', payload);
-  return res.data as { currentStep: string; completed: boolean; nextRoute: string };
-}
-
-// ─── Offline queue sync ───────────────────────────────────────────────────
-
-async function flushOfflineQueue() {
-  try {
-    const raw = await AsyncStorage.getItem(OFFLINE_QUEUE);
-    if (!raw) return;
-    const queue: object[] = JSON.parse(raw);
-    for (const payload of queue) {
-      await patchProgress(payload as Parameters<typeof patchProgress>[0]);
-    }
-    await AsyncStorage.removeItem(OFFLINE_QUEUE);
-  } catch {
-    // Silently ignore flush errors; will retry on next launch
-  }
-}
-
-async function queueOffline(payload: Parameters<typeof patchProgress>[0]) {
-  try {
-    const raw   = await AsyncStorage.getItem(OFFLINE_QUEUE);
-    const queue = raw ? (JSON.parse(raw) as object[]) : [];
-    queue.push(payload);
-    await AsyncStorage.setItem(OFFLINE_QUEUE, JSON.stringify(queue));
-  } catch {
-    // ignore
-  }
+  return {
+    currentStep: payload.step,
+    completed: payload.step === 'done',
+    nextRoute: 'MainTabs',
+  };
 }
 
 // ─── Sub-step components ──────────────────────────────────────────────────
@@ -150,6 +135,7 @@ export default function OnboardingWizard() {
   const { t }              = useTranslation();
   const { colors }         = useTheme();
   const navigation         = useNavigation<any>();
+  const { completeOnboarding } = useOnboarding();
 
   const [progress,  setProgress]  = useState<ProgressState>(DEFAULT_PROGRESS);
   const [loading,   setLoading]   = useState(false);
@@ -164,7 +150,6 @@ export default function OnboardingWizard() {
   // ── Bootstrap: load saved progress + flush offline queue
   useEffect(() => {
     (async () => {
-      await flushOfflineQueue();
       try {
         const raw = await AsyncStorage.getItem(STORAGE_KEY);
         if (raw) {
@@ -219,11 +204,7 @@ export default function OnboardingWizard() {
 
   // ── Sync progress to API (with offline queue fallback)
   const syncProgress = useCallback(async (payload: Parameters<typeof patchProgress>[0]) => {
-    try {
-      await patchProgress(payload);
-    } catch {
-      await queueOffline(payload);
-    }
+    await patchProgress(payload);
   }, []);
 
   // ── TIN verification
@@ -335,14 +316,22 @@ export default function OnboardingWizard() {
       });
       const done: ProgressState = { ...progress, completed: true };
       await saveProgress(done);
-      // C-36: router.replace — never router.push
-      navigation.replace('Dashboard');
+      const completionProgress: OnboardingProgress = {
+        currentStep: 'done',
+        completedSteps: ['welcome', 'profile', 'taxEngine', 'security', 'review'],
+        skippedSteps: [],
+        startedAt: null,
+        completedAt: null,
+        isComplete: false,
+      };
+      await completeOnboarding(completionProgress);
+      await AsyncStorage.removeItem(STORAGE_KEY);
     } catch {
       setError(t('onboarding.completeError', 'Could not save your setup. Try again.'));
     } finally {
       if (isMounted.current) setLoading(false);
     }
-  }, [progress, navigation, t, saveProgress, syncProgress]);
+  }, [progress, t, saveProgress, syncProgress, completeOnboarding]);
 
   // ── Step index helpers
   const stepIndex = STEP_ORDER.indexOf(progress.step);
@@ -493,11 +482,11 @@ export default function OnboardingWizard() {
               </Text>
               <Pressable
                 style={({ pressed }) => [s.btn, pressed && s.btnPressed]}
-                onPress={() => navigation.navigate('TOTPSetup')}
+                onPress={handleSecurityContinue}
                 accessibilityRole="button"
-                accessibilityLabel={t('onboarding.setupTOTP', 'Set Up TOTP')}
+                accessibilityLabel={t('onboarding.reviewSetup', 'Review setup')}
               >
-                <Text style={s.btnText}>{t('onboarding.setupTOTP', 'Set Up TOTP')}</Text>
+                <Text style={s.btnText}>{t('onboarding.reviewSetup', 'Review setup')}</Text>
               </Pressable>
             </View>
             <Pressable

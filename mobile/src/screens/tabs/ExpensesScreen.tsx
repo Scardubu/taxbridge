@@ -11,7 +11,6 @@ import {
 import { FlashList } from '@shopify/flash-list';
 import Animated, { FadeInDown, FadeIn, SlideInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
@@ -183,7 +182,7 @@ function ExpenseItem({ expense }: { expense: Expense }) {
   }, [expense.id, deleteExpense, t]);
 
   return (
-    <Card style={styles.expenseCard} onPress={() => router.push(`/expenses/${expense.id}`)}>
+    <Card style={styles.expenseCard} onPress={() => {}}>
       <View style={styles.expenseRow}>
         <View style={styles.expenseIconWrap}>
           <Text style={styles.expenseEmoji}>{emoji}</Text>

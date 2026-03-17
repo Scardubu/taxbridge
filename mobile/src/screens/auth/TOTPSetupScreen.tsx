@@ -24,7 +24,7 @@ import {
 } from 'react-native';
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 
 import { useCurrentUser } from '../../store/authStore';
@@ -129,9 +129,10 @@ export function TOTPSetupScreen() {
   }, [backupCodes, t]);
 
   // ── Done — navigate back ─────────────────────────────────────────────
+  const navigation = useNavigation<any>();
   const handleDone = useCallback(() => {
-    router.back();
-  }, []);
+    navigation.goBack();
+  }, [navigation]);
 
   // ── Auto-start setup on mount ────────────────────────────────────────
   useEffect(() => {

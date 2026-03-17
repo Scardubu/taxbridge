@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import * as Haptics from 'expo-haptics';
 import * as LocalAuthentication from 'expo-local-authentication';
@@ -24,6 +24,7 @@ import { DURATION } from '../../design-system/animation';
 export default function ProfileScreen() {
   const { t, i18n } = useTranslation();
   const insets   = useSafeAreaInsets();
+  const navigation = useNavigation<any>();
   const user     = useCurrentUser();
   const { logout } = useAuthStore();
 
@@ -67,7 +68,7 @@ export default function ProfileScreen() {
           onPress: async () => {
             setLoggingOut(true);
             await logout();
-            router.replace('/auth/login' as any);
+            navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
           },
         },
       ]
@@ -213,7 +214,7 @@ export default function ProfileScreen() {
           <Card style={styles.settingsCard}>
             <SettingRow
               label={t('profile.changePassword')}
-              onPress={() => router.push('/auth/change-password' as any)}
+              onPress={() => Alert.alert(t('profile.changePassword'), 'This feature is coming soon.')}
               pressable
               showChevron
             />
@@ -232,13 +233,13 @@ export default function ProfileScreen() {
             <SettingDivider />
             <SettingRow
               label={t('profile.privacyPolicy')}
-              onPress={() => router.push('/privacy' as any)}
+              onPress={() => {}}
               pressable showChevron
             />
             <SettingDivider />
             <SettingRow
               label={t('profile.terms')}
-              onPress={() => router.push('/terms' as any)}
+              onPress={() => {}}
               pressable showChevron
             />
           </Card>

@@ -9,7 +9,7 @@ import {
   ScrollView, Pressable,
 } from 'react-native';
 import Animated, { FadeIn, FadeOut, SlideInDown } from 'react-native-reanimated';
-import { router } from 'expo-router';
+import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import { colors, typography, spacing, radii, shadows } from '../../design-system/tokens';
 import { DURATION } from '../../design-system/animation';
@@ -220,7 +220,7 @@ export function TaxTooltip({ tooltipKey, children }: TaxTooltipProps) {
                   style={styles.learnMoreBtn}
                   onPress={() => {
                     close();
-                    router.push(`/(tabs)/learn/${content.learnMoreScreen}` as any);
+                    /* learn detail screen not yet registered */
                   }}
                   accessibilityRole="link"
                 >
@@ -332,7 +332,7 @@ function LessonCard({ lesson, completed }: { lesson: Lesson; completed: boolean 
   return (
     <Card
       style={[styles.lessonCard, completed && styles.lessonCardDone]}
-      onPress={() => router.push(`/(tabs)/learn/${lesson.route}` as any)}
+      onPress={() => { /* learn detail screen not yet registered */ }}
     >
       <View style={styles.lessonRow}>
         <Text style={styles.lessonEmoji}>{completed ? '✅' : lesson.emoji}</Text>

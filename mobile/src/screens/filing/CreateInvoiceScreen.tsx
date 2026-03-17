@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import Animated, { FadeInDown, FadeIn, SlideInRight } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import * as Haptics from 'expo-haptics';
 import { useCreateInvoice } from '../../store/queries';
@@ -50,6 +50,7 @@ interface ClientForm {
 export default function CreateInvoiceScreen() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
+  const navigation = useNavigation<any>();
   const { mutateAsync: createInvoice, isPending } = useCreateInvoice();
 
   const [step, setStep]     = useState<Step>('client');
@@ -81,7 +82,7 @@ export default function CreateInvoiceScreen() {
   const goBack = useCallback(() => {
     if (step === 'items') setStep('client');
     else if (step === 'review') setStep('items');
-    else router.back();
+    else navigation.goBack();
   }, [step]);
 
   // ─── Submit ─────────────────────────────────────────────────────────────────
@@ -103,7 +104,7 @@ export default function CreateInvoiceScreen() {
       };
       const invoice = await createInvoice(payload);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-      router.replace(`/invoices/${invoice.id}`);
+      navigation.navigate('Invoices' as never);
     } catch (err: any) {
       Alert.alert(t('common.error'), err?.message ?? t('invoice.createFailed'));
     }

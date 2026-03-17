@@ -17,7 +17,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { DURATION, EASE } from '../../design-system/animation';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
 import * as Haptics from 'expo-haptics';
 import { useScanReceipt, useCreateExpense } from '../../store/queries';
@@ -45,6 +45,7 @@ type ScanStep = 'camera' | 'processing' | 'review' | 'saved';
 export default function ScanReceiptScreen() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
+  const navigation = useNavigation<any>();
   const [permission, requestPermission] = useCameraPermissions();
   const cameraRef = useRef<any>(null);
 
@@ -146,7 +147,7 @@ export default function ScanReceiptScreen() {
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
       setStep('saved');
-      setTimeout(() => router.back(), 1800);
+      setTimeout(() => navigation.goBack(), 1800);
     } catch (err: any) {
       Alert.alert(t('common.error'), err?.message ?? 'Failed to save expense');
     }
@@ -174,7 +175,7 @@ export default function ScanReceiptScreen() {
             onPress: requestPermission,
           }}
         />
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
+        <Pressable onPress={() => navigation.goBack()} style={styles.backBtn}>
           <Text style={styles.backBtnText}>← {t('common.back')}</Text>
         </Pressable>
       </View>
@@ -362,7 +363,7 @@ export default function ScanReceiptScreen() {
       >
         {/* Top overlay */}
         <View style={[styles.cameraTop, { paddingTop: insets.top + 8 }]}>
-          <Pressable onPress={() => router.back()} style={styles.closeCamera}>
+          <Pressable onPress={() => navigation.goBack()} style={styles.closeCamera}>
             <Text style={styles.closeCameraText}>✕</Text>
           </Pressable>
           <Text style={styles.cameraTitle}>{t('scan.scanReceipt')}</Text>
