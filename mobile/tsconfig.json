@@ -17,15 +17,22 @@
     "allowImportingTsExtensions": true,
     "noEmit": true,
     "jsx": "react-native",
+    "baseUrl": ".",
     "paths": {
-      "@/*":            ["./src/*"],
-      "@components/*": ["./src/components/*"],
-      "@screens/*":    ["./src/screens/*"],
-      "@store/*":      ["./src/store/*"],
-      "@hooks/*":      ["./src/hooks/*"],
-      "@api/*":        ["./src/api/*"],
-      "@ds/*":         ["./src/design-system/*"],
-      "@i18n/*":       ["./src/i18n/*"]
+      "@/*": ["./*"],
+      "@src/*": ["./src/*"],
+      "@api/*": ["./src/api/*"],
+      "@components/*": ["./components/*", "./src/components/*"],
+      "@ds/*": ["./src/design-system/*"],
+      "@screens/*": ["./src/screens/*"],
+      "@services/*": ["./services/*", "./src/services/*"],
+      "@store/*": ["./src/store/*"],
+      "@stores/*": ["./stores/*", "./src/stores/*"],
+      "@hooks/*": ["./src/hooks/*"],
+      "@utils/*": ["./src/utils/*"],
+      "@types/*": ["./src/types/*"],
+      "@storage/*": ["./storage/*", "./src/storage/*"],
+      "@i18n/*": ["./i18n/*", "./src/i18n/*"]
     },
     "types": ["jest", "node"]
   },
@@ -34,7 +41,8 @@
     "**/*.tsx",
     "App.tsx",
     ".expo/types/**/*.d.ts",
-    "expo-env.d.ts"
+    "expo-env.d.ts",
+    "global.css"
   ],
   "exclude": [
     "node_modules",

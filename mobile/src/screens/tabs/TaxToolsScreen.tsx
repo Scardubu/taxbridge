@@ -11,6 +11,7 @@ import {
 import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
+import ActiveTaxGuideScreen from '../TaxGuideScreen';
 import { colors, typography, spacing, radii, shadows } from '../../design-system/tokens';
 import { DURATION, STAGGER } from '../../design-system/animation';
 import { Card, NairaInput, Button, Badge, ProgressBar } from '../../design-system/components';
@@ -119,57 +120,7 @@ const CALC_TABS: { id: CalcType; label: string; emoji: string }[] = [
 ];
 
 export default function TaxToolsScreen() {
-  const { t } = useTranslation();
-  const insets = useSafeAreaInsets();
-  const [activeCalc, setActiveCalc] = useState<CalcType>('pit');
-
-  return (
-    <View style={[styles.root, { paddingTop: insets.top }]}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>🧮 {t('tools.tools')}</Text>
-      </View>
-
-      {/* Calculator type tabs */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.tabsRow}
-        style={styles.tabsScroll}
-      >
-        {CALC_TABS.map(tab => (
-          <Pressable
-            key={tab.id}
-            onPress={() => setActiveCalc(tab.id)}
-            style={[styles.tab, activeCalc === tab.id && styles.tabActive]}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: activeCalc === tab.id }}
-          >
-            <Text style={styles.tabEmoji}>{tab.emoji}</Text>
-            <Text style={[styles.tabLabel, activeCalc === tab.id && styles.tabLabelActive]}>
-              {tab.label}
-            </Text>
-          </Pressable>
-        ))}
-      </ScrollView>
-
-      {/* Calculator body */}
-      <ScrollView
-        contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + 80 }]}
-        showsVerticalScrollIndicator={false}
-      >
-        {activeCalc === 'pit'  && <PITCalc />}
-        {activeCalc === 'vat'  && <VATCalc />}
-        {activeCalc === 'cit'  && <CITCalc />}
-        {activeCalc === 'paye' && <PAYECalc />}
-        {activeCalc === 'wht'  && <WHTCalc />}
-        {activeCalc === 'cgt'  && <CGTCalc />}
-
-        {/* Compliance Calendar */}
-        <ComplianceCalendar />
-      </ScrollView>
-    </View>
-  );
+  return <ActiveTaxGuideScreen />;
 }
 
 // ─── PIT Calculator ───────────────────────────────────────────────────────────

@@ -40,10 +40,10 @@ export interface QuickActionDef {
 const BASE_ACTIONS: Omit<QuickActionDef, 'urgent'>[] = [
   { id: 'new-invoice',     emoji: '🧾', labelKey: 'dashboard.newInvoice',    route: 'Create',     accentColorKey: 'primary'            },
   { id: 'scan-receipt',    emoji: '📷', labelKey: 'dashboard.scanReceipt',   route: 'Create',     accentColorKey: 'actionOrangeAccent' },
-  { id: 'tax-calculator',  emoji: '🧮', labelKey: 'dashboard.taxCalculator', route: 'Invoices',   accentColorKey: 'info'               },
+  { id: 'tax-calculator',  emoji: '🧮', labelKey: 'dashboard.taxCalculator', route: 'TaxGuide',   accentColorKey: 'info'               },
   { id: 'pay-tax',         emoji: '💳', labelKey: 'dashboard.payTax',        route: 'Payment',    accentColorKey: 'primaryDark'        },
   { id: 'expenses',        emoji: '📊', labelKey: 'dashboard.expenses',      route: 'Invoices',   accentColorKey: 'error'              },
-  { id: 'learn',           emoji: '🎓', labelKey: 'dashboard.learn',         route: 'Invoices',   accentColorKey: '#8B5CF6'            },
+  { id: 'learn',           emoji: '🎓', labelKey: 'dashboard.learn',         route: 'TaxGuide',   accentColorKey: '#8B5CF6'            },
 ];
 
 // ─── computeQuickActions ──────────────────────────────────────────────────────

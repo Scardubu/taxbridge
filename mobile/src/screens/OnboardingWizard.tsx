@@ -317,12 +317,12 @@ export default function OnboardingWizard() {
       const done: ProgressState = { ...progress, completed: true };
       await saveProgress(done);
       const completionProgress: OnboardingProgress = {
-        currentStep: 'done',
-        completedSteps: ['welcome', 'profile', 'taxEngine', 'security', 'review'],
+        currentStep: null,
+        completedSteps: ['welcome', 'profile', 'taxEngine', 'scanner'],
         skippedSteps: [],
         startedAt: null,
-        completedAt: null,
-        isComplete: false,
+        completedAt: new Date().toISOString(),
+        isComplete: true,
       };
       await completeOnboarding(completionProgress);
       await AsyncStorage.removeItem(STORAGE_KEY);

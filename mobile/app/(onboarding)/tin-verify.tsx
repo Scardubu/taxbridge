@@ -1,0 +1,61 @@
+import React, { useState } from 'react';
+import { Alert, Pressable, Text, TextInput, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
+import { OnboardingFrame, advanceToNext } from './shared';
+import { palette, radius, spacing, typography, useTokens } from '../../components/design-system/tokens';
+import { useBusinessProfileStore } from '../../stores/businessProfileStore';
+import { logComplianceEvent } from '../../services/complianceEventService';
+
+export default function TinVerifyScreen() {
+  const { t } = useTranslation();
+  const tokens = useTokens();
+  const savedTin = useBusinessProfileStore((state) => state.tin);
+  const updateField = useBusinessProfileStore((state) => state.updateField);
+  const [tin, setTin] = useState(savedTin);
+
+  const handleVerify = async () => {
+    const valid = tin.trim().length >= 8;
+    updateField('tin', tin.trim());
+    updateField('hasValidTIN', valid);
+
+    if (valid) {
+      await logComplianceEvent('tin_verified', 'TIN captured during onboarding', 'info', { tin: tin.trim() }).catch(() => undefined);
+      await advanceToNext('tin-verify');
+      return;
+    }
+
+    await logComplianceEvent('tin_failed', 'TIN validation failed during onboarding', 'warning', { tin: tin.trim() }).catch(() => undefined);
+    Alert.alert('TIN required', 'Enter a valid TIN to continue.');
+  };
+
+  return (
+    <OnboardingFrame
+      stepId="tin-verify"
+      title={t('onboarding.tinVerify.title')}
+      body={t('onboarding.tinVerify.body')}
+      onPrimary={() => void handleVerify()}
+    >
+      <View style={{ gap: spacing.sm }}>
+        <TextInput
+          value={tin}
+          onChangeText={setTin}
+          placeholder="12345678-0001"
+          placeholderTextColor={tokens.textMuted}
+          autoCapitalize="characters"
+          style={{
+            backgroundColor: tokens.bgInput,
+            borderWidth: 1,
+            borderColor: tokens.border,
+            borderRadius: radius.xl,
+            paddingHorizontal: spacing.md,
+            paddingVertical: spacing.md,
+            color: tokens.textPrimary,
+          }}
+        />
+        <Pressable style={{ backgroundColor: palette.gray50, borderRadius: radius.xl, padding: spacing.lg }}>
+          <Text style={{ ...typography.body, color: palette.gray600 }}>{t('onboarding.tinVerify.pendingNote')}</Text>
+        </Pressable>
+      </View>
+    </OnboardingFrame>
+  );
+}

@@ -1,0 +1,89 @@
+{
+  "onboarding": {
+    "stepCount": "Step {{current}} of {{total}}",
+    "skipAll": "Skip the rest",
+    "finish": "Finish Setup",
+    "welcome": {
+      "title": "Welcome",
+      "headline": "Your Tax Paddy,\nBuilt for Nigeria",
+      "subheadline": "We go help you do VAT, CIT, TIN and e-invoice. No wahala!",
+      "cta": "Make We Start"
+    },
+    "businessType": {
+      "title": "Tell Us About\nYour Business",
+      "subtitle": "We go arrange your tax obligations based on your business type."
+    },
+    "tinVerify": {
+      "title": "Enter Your TIN",
+      "body": "Without TIN, dem fit cut 10% from all the money wey you collect. Enter am quick quick.",
+      "pendingNote": "Verification fit take small time. We go notify you when e done."
+    },
+    "vatSetup": {
+      "title": "VAT Setup",
+      "exemptTitle": "Good news — you no need file VAT return!",
+      "exemptBody": "If your business dey below 100 million naira, you no need submit VAT return. But you still need collect 7.5% VAT for invoice.",
+      "requiredBody": "Your business must file VAT return before 21st of every month.",
+      "rate": "VAT Rate: 7.5%"
+    },
+    "einvoice": {
+      "title": "E-Invoice — New Law",
+      "phaseSmall": "This one no dey compulsory for your business size until 2027. But if you start now, bank fit trust your records more.",
+      "phaseMedium": "Pilot phase don start. E go compulsory by July 1 2026. Apply for FIRSMBS integration now.",
+      "phaseLarge": "⚠️ E-INVOICE DON BECOME LAW. If you no comply, NRS fit fine you.",
+      "platform": "Na FIRSMBS (NRS Merchant-Buyer Solution) dem dey use"
+    },
+    "community": {
+      "title": "Join Our Community",
+      "body": "Join plenty Nigerian business owners. Share your badge and collect referral reward."
+      ,"shareLabel": "Share Compliance Badge"
+    },
+    "tinRequiredTitle": "TIN need to dey",
+    "tinRequiredBody": "Put correct TIN before you continue."
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "greeting": "How far",
+    "yourBusiness": "Your Business",
+    "shield": {
+      "excellent": "🛡️ Your shield dey strong! Keep am up!",
+      "good": "Your compliance dey okay",
+      "needsWork": "You need do some things to protect your business"
+    },
+    "nudges": { "title": "Action Needed" },
+    "obligations": { "title": "Your Tax Waka" },
+    "quickAction": { "invoice": "Make Invoice", "payTax": "Pay Tax", "simulate": "Tax Calculator" }
+  },
+  "tabs": {
+    "dashboard": "Dashboard",
+    "invoices": "Invoices",
+    "calendar": "Calendar",
+    "compliance": "Compliance",
+    "settings": "Settings"
+  },
+  "tax": {
+    "cit": { "label": "Company Income Tax", "exempt": "0% — Small Company Relief" },
+    "vat": { "filing": "VAT Return Filing", "exempt": "You no need file VAT (below ₦100M)", "required": "You must file every month" },
+    "einvoice": { "label": "E-Invoice" }
+  },
+  "einvoice": { "status": { "small": "No compulsory yet — prepare for 2027", "medium": "Pilot active — compulsory July 2026", "large": "⚠️ E-Invoice don dey compulsory now" } },
+  "nrs": { "name": "Nigeria Revenue Service", "shortName": "NRS", "formerly": "Before dem call am FIRS" },
+  "nudge": {
+    "tin": { "missing": "No TIN → dem go cut 10% from ALL your income" },
+    "cit": { "zeroRate": "You qualify for 0% Company Tax" },
+    "vat": { "exemption": "You fit be exempt from filing VAT return" }
+  },
+  "common": {
+    "back": "Go Back",
+    "continue": "Continue",
+    "skip": "Skip",
+    "loading": "E dey load...",
+    "error": "Something break",
+    "retry": "Try Again",
+    "offline": "You dey offline — we don save your work",
+    "language": "Language",
+    "english": "English",
+    "pidgin": "Pidgin",
+    "voiceGuidance": "Pidgin voice guidance",
+    "darkMode": "Dark mode preference"
+  }
+}

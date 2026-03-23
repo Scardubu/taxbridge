@@ -76,6 +76,7 @@ jest.mock('react-native', () => {
     TouchableWithoutFeedback: mockComponent('TouchableWithoutFeedback'),
     Pressable: mockComponent('Pressable'),
     ScrollView: mockComponent('ScrollView'),
+    RefreshControl: mockComponent('RefreshControl'),
     KeyboardAvoidingView: mockComponent('KeyboardAvoidingView'),
     FlatList: mockComponent('FlatList'),
     SectionList: mockComponent('SectionList'),
@@ -152,6 +153,13 @@ jest.mock('react-native', () => {
       addEventListener: jest.fn(() => ({ remove: jest.fn() })),
       removeEventListener: jest.fn(),
     },
+    Appearance: {
+      getColorScheme: jest.fn(() => 'light'),
+      setColorScheme: jest.fn(),
+      addChangeListener: jest.fn(() => ({ remove: jest.fn() })),
+      removeChangeListener: jest.fn(),
+    },
+    useColorScheme: jest.fn(() => 'light'),
     I18nManager: {
       isRTL: false,
       allowRTL: jest.fn(),
@@ -159,7 +167,11 @@ jest.mock('react-native', () => {
     },
     AccessibilityInfo: {
       isScreenReaderEnabled: jest.fn(() => Promise.resolve(false)),
-      addEventListener: jest.fn(() => ({ remove: jest.fn() })),
+      isReduceMotionEnabled: jest.fn(() => Promise.resolve(false)),
+      addEventListener: jest.fn((eventName, handler) => ({ remove: jest.fn() })),
+      removeEventListener: jest.fn(),
+      announceForAccessibility: jest.fn(),
+      setAccessibilityFocus: jest.fn(),
     },
   };
 });

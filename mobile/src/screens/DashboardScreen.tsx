@@ -22,9 +22,11 @@ import {
   AccessibilityInfo,
 } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import ActiveDashboardScreen from './tabs/DashboardScreen';
 
 import { TaxHealthGauge, computeGaugeMode } from '../components/dashboard/TaxHealthGauge';
 import { DashboardZone }    from '../components/dashboard/DashboardZone';
@@ -80,234 +82,13 @@ const QUICK_ACTIONS: QuickAction[] = [
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
+const legacyDashboardQueryClient = new QueryClient();
+
 export default function DashboardScreen() {
-  const insets         = useSafeAreaInsets();
-  const { t }          = useTranslation();
-  const { data, isLoading, isRefetching, refetch, isError } = useDashboard();
-  const { isOnline } = useNetwork();
-  const { lastSyncAt, conflictCount } = useSync();
-
-  const [isManualRefresh, setIsManualRefresh] = useState(false);
-
-  // C-20: computeGaugeMode imported from TaxHealthGauge — never inlined
-  const gaugeMode = useMemo(
-    () => computeGaugeMode({ score: data?.stats?.taxHealthScore, isLoading }),
-    [data, isLoading],
-  );
-
-  // urgent = true when any high/critical anomaly exists (collapses context zone delay)
-  const hasHighAnomaly = useMemo(
-    () => data?.topAnomalies?.some((a: Anomaly) => a.severity === 'high') ?? false,
-    [data],
-  );
-
-  const onRefresh = useCallback(async () => {
-    setIsManualRefresh(true);
-    await refetch();
-    setIsManualRefresh(false);
-  }, [refetch]);
-
-  const anomalies: Anomaly[]  = data?.topAnomalies ?? [];
-  const deadlines: Deadline[] = data?.upcomingDeadlines ?? [];
-  const stats                 = data?.stats;
-  const nrsHealth             = data?.nrsHealth;
-
-  if (isLoading && !data) {
-    return <DashboardSkeleton />;
-  }
-
   return (
-    <ScrollView
-      style={[styles.scroll, { paddingTop: insets.top }]}
-      contentContainerStyle={styles.content}
-      refreshControl={
-        <RefreshControl
-          refreshing={isRefetching || isManualRefresh}
-          onRefresh={onRefresh}
-          tintColor="#2563EB"
-        />
-      }
-    >
-      {/* ── ZONE 1 of 5: apex — Tax Health Gauge ─────────────────────── */}
-      <DashboardZone zone="apex" visible={!isLoading}>
-        <View style={styles.apexContainer}>
-          <Text style={styles.screenTitle}>{t('dashboard.title', 'Tax Dashboard')}</Text>
-          <Text style={styles.screenSubtitle}>
-            {t('dashboard.subtitle', 'Track compliance health, filings, and NRS readiness in one place.')}
-          </Text>
-          {nrsHealth?.circuitBreakerOpen && (
-            <Animated.View entering={FadeIn} style={styles.nrsWarning}>
-              <Text style={styles.nrsWarningText}>
-                {'▲ '}
-                {t('dashboard.nrsCircuitOpen', 'NRS service degraded — invoices queued')}
-              </Text>
-            </Animated.View>
-          )}
-          <TaxHealthGauge
-            score={stats?.taxHealthScore ?? 0}
-            isLoading={isLoading}
-          />
-          <View style={styles.gaugeMetaRow}>
-            <Text style={styles.gaugeMetaText}>
-              {t('dashboard.totalRevenue', 'Revenue')} {formatCurrency(stats?.totalRevenue ?? 0)}
-            </Text>
-            <Text style={styles.gaugeMetaText}>
-              {t('dashboard.vatLiability', 'VAT')} {formatCurrency(stats?.vatLiability ?? 0)}
-            </Text>
-            <Text style={styles.gaugeMetaText}>
-              {t('dashboard.gaugeMode', 'Status')} {gaugeMode}
-            </Text>
-          </View>
-          {isError && (
-            <Text style={styles.errorHint}>
-              {t('dashboard.staleData', 'Showing cached data')}
-            </Text>
-          )}
-        </View>
-      </DashboardZone>
-
-      {/* ── ZONE 2 of 5: signal — Anomaly alerts ─────────────────────── */}
-      <DashboardZone zone="signal" visible={!isLoading}>
-        {/* C-19: null when empty — never "No anomalies" text */}
-        {anomalies.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>
-              {t('dashboard.alerts', 'Alerts')}
-            </Text>
-            <FlashList
-              data={anomalies}
-              keyExtractor={(a) => a.expenseId}
-              renderItem={({ item: a }) => {
-                const cfg = SEVERITY[a.severity] ?? SEVERITY.low;
-                return (
-                  <View style={styles.anomalyRow}>
-                    <Text style={[styles.anomalyGlyph, { color: cfg.color }]}>
-                      {cfg.glyph}
-                    </Text>
-                    <View style={styles.anomalyBody}>
-                      <Text style={styles.anomalyText} numberOfLines={2}>
-                        {a.anomalyReason}
-                      </Text>
-                      {a.suggestedAction ? (
-                        <Text style={styles.anomalyHint} numberOfLines={1}>
-                          {a.suggestedAction}
-                        </Text>
-                      ) : null}
-                    </View>
-                  </View>
-                );
-              }}
-            />
-          </View>
-        )}
-      </DashboardZone>
-
-      {/* ── ZONE 3 of 5: action — Quick Actions ──────────────────────── */}
-      <DashboardZone zone="action" visible={!isLoading}>
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{t('dashboard.quickActions', 'Quick Actions')}</Text>
-          <Text style={styles.sectionCaption}>
-            {t('dashboard.quickActionsHint', 'Jump into the most common filing and records tasks.')}
-          </Text>
-          <View style={styles.actionsGrid}>
-            {QUICK_ACTIONS.map((qa) => (
-              <Pressable
-                key={qa.id}
-                style={({ pressed }) => [
-                  styles.actionButton,
-                  pressed && styles.actionButtonPressed,
-                ]}
-                accessibilityRole="button"
-                accessibilityLabel={t(qa.label)}
-                onPress={() =>
-                  AccessibilityInfo.announceForAccessibility(t(qa.label))
-                }
-              >
-                <Text style={styles.actionEmoji}>{qa.emoji}</Text>
-                <Text style={styles.actionLabel} numberOfLines={1}>
-                  {t(qa.label)}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-        </View>
-      </DashboardZone>
-
-      {/* ── ZONE 4 of 5: context — Compliance deadlines ──────────────── */}
-      <DashboardZone zone="context" visible={!isLoading} urgent={hasHighAnomaly}>
-        {deadlines.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>
-              {t('dashboard.upcomingDeadlines', 'Upcoming Deadlines')}
-            </Text>
-            <FlashList
-              data={deadlines}
-              keyExtractor={(d) => d.id}
-              renderItem={({ item: d }) => (
-                <View style={styles.deadlineRow}>
-                  <View style={styles.deadlineLeft}>
-                    <Text style={styles.deadlineType}>{d.type}</Text>
-                    <Text style={styles.deadlinePeriod}>{formatDate(d.dueDate)}</Text>
-                  </View>
-                  <View style={[
-                    styles.deadlineBadge,
-                    d.daysRemaining <= 7 ? styles.deadlineBadgeUrgent : styles.deadlineBadgeNormal,
-                  ]}>
-                    <Text style={styles.deadlineDays}>
-                      {d.daysRemaining <= 0
-                        ? t('deadline.overdue', 'Overdue')
-                        : t('deadline.daysLeft', '{{n}} days', { n: d.daysRemaining })}
-                    </Text>
-                  </View>
-                </View>
-              )}
-            />
-          </View>
-        )}
-      </DashboardZone>
-
-      {/* ── ZONE 5 of 5: ambient — NRS health + sync status ──────────── */}
-      <DashboardZone zone="ambient" visible={!isLoading}>
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>{t('dashboard.systemStatus', 'System Status')}</Text>
-          <View style={styles.ambientRow}>
-            <View
-              style={[
-                styles.nrsStatusDot,
-                {
-                  backgroundColor:
-                    nrsHealth?.status === 'healthy' ? '#22C55E' :
-                    nrsHealth?.status === 'degraded' ? '#F59E0B' : '#6B7280',
-                },
-              ]}
-            />
-            <Text style={styles.ambientText}>
-              {t('dashboard.nrsStatus', 'NRS')}: {nrsHealth?.status ?? t('common.unknown', 'unknown')}
-            </Text>
-          </View>
-          <View style={styles.ambientRow}>
-            <Text style={styles.ambientText}>
-              {t('dashboard.pendingNrs', 'Pending NRS')} {nrsHealth?.pendingSubmissions ?? 0}
-            </Text>
-            <Text style={styles.ambientText}>
-              {t('dashboard.dlqDepth', 'DLQ')} {nrsHealth?.deadLetterCount ?? 0}
-            </Text>
-          </View>
-          <View style={styles.ambientRow}>
-            <Text style={styles.ambientText}>
-              {isOnline ? t('common.online', 'Online') : t('common.offlineMode', 'Offline')}
-            </Text>
-            <Text style={styles.ambientText}>
-              {t('dashboard.conflicts', 'Conflicts')} {conflictCount}
-            </Text>
-            <Text style={styles.ambientText}>
-              {t('sync.lastSync', 'Last sync')} {lastSyncAt ? formatDate(new Date(lastSyncAt).toISOString()) : t('common.never', 'Never')}
-            </Text>
-          </View>
-          <OfflineSyncStatus />
-        </View>
-      </DashboardZone>
-    </ScrollView>
+    <QueryClientProvider client={legacyDashboardQueryClient}>
+      <ActiveDashboardScreen />
+    </QueryClientProvider>
   );
 }
 

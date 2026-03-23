@@ -2,7 +2,7 @@
  * useDeepLink — TaxBridge V12
  *
  * Intercepts incoming deep links (expo-linking) and routes them to
- * the correct screen via expo-router.
+ * the correct screen via the active React Navigation shell.
  *
  * C-36 / GAP-07: SAFE_ROUTES allowlist prevents malicious external URLs
  * from being followed. Unknown routes are dropped silently
@@ -11,10 +11,11 @@
  * C-07: All failures are logged; none bubble up as unhandled exceptions.
  */
 
-import { useEffect } from 'react';
+import { useEffect, useRef, type RefObject } from 'react';
 import { Linking } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import type { NavigationContainerRef } from '@react-navigation/native';
 import { addBreadcrumb } from '../services/sentry';
+import type { RootStackParamList } from '../navigation/types';
 
 // ─── Allowlist (C-36) ─────────────────────────────────────────────────────────
 // Only routes in this set will be followed. All others are silently dropped.
@@ -22,22 +23,19 @@ import { addBreadcrumb } from '../services/sentry';
 
 const SAFE_ROUTES = new Set<string>([
   '/dashboard',
-  '/filings/vat',
-  '/filings/wht',
-  '/filings/paye',
-  '/filings/nil',
-  '/filings/cit',
   '/documents',
   '/team',
   '/profile',
   '/profile/security',
   '/invoices',
   '/invoices/new',
-  '/expenses',
-  '/receipts',
   '/payroll',
   '/compliance',
   '/settings',
+  '/payment',
+  '/tax-guide',
+  '/crypto',
+  '/reconciliation',
 ]);
 
 // ─── Path normalisation ───────────────────────────────────────────────────────
@@ -75,19 +73,37 @@ function isAllowed(path: string): boolean {
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
-export function useDeepLink() {
-  const navigation = useNavigation<any>();
+type DeepLinkTarget =
+  | { name: 'MainTabs'; params: { screen: 'Home' | 'Create' | 'Invoices' | 'Settings' } }
+  | { name: 'Documents' }
+  | { name: 'Payroll' }
+  | { name: 'Compliance' }
+  | { name: 'Payment' }
+  | { name: 'TaxGuide' }
+  | { name: 'Crypto' }
+  | { name: 'Reconciliation' }
+  | { name: 'Team' };
 
-  const routeMap: Record<string, string> = {
-    '/dashboard': 'Dashboard',
-    '/documents': 'Documents',
-    '/team': 'TeamManagement',
-    '/settings': 'Settings',
-    '/payroll': 'Payroll',
-    '/compliance': 'Compliance',
-    '/expenses': 'Expenses',
-    '/invoices': 'Invoices',
-  };
+function resolveTarget(path: string): DeepLinkTarget | null {
+  if (path === '/dashboard') return { name: 'MainTabs', params: { screen: 'Home' } };
+  if (path === '/documents') return { name: 'Documents' };
+  if (path === '/invoices') return { name: 'MainTabs', params: { screen: 'Invoices' } };
+  if (path === '/invoices/new') return { name: 'MainTabs', params: { screen: 'Create' } };
+  if (path === '/settings' || path === '/profile' || path === '/profile/security') {
+    return { name: 'MainTabs', params: { screen: 'Settings' } };
+  }
+  if (path === '/payroll') return { name: 'Payroll' };
+  if (path === '/compliance') return { name: 'Compliance' };
+  if (path === '/payment') return { name: 'Payment' };
+  if (path === '/tax-guide') return { name: 'TaxGuide' };
+  if (path === '/crypto') return { name: 'Crypto' };
+  if (path === '/reconciliation') return { name: 'Reconciliation' };
+  if (path === '/team') return { name: 'Team' };
+  return null;
+}
+
+export function useDeepLink(navigationRef: RefObject<NavigationContainerRef<RootStackParamList> | null>) {
+  const pendingUrlRef = useRef<string | null>(null);
 
   useEffect(() => {
     // Handle the URL that opened the app from a cold start
@@ -100,8 +116,26 @@ export function useDeepLink() {
     // Handle URLs received while the app is already running
     const subscription = Linking.addEventListener('url', ({ url }: { url: string }) => handleLink(url));
 
-    return () => subscription.remove();
-  }, [navigation]); // eslint-disable-line react-hooks/exhaustive-deps
+    const readyPoll = setInterval(() => {
+      if (!pendingUrlRef.current) {
+        return;
+      }
+
+      const navigation = navigationRef.current;
+      if (!navigation?.isReady()) {
+        return;
+      }
+
+      const queuedUrl = pendingUrlRef.current;
+      pendingUrlRef.current = null;
+      handleLink(queuedUrl);
+    }, 250);
+
+    return () => {
+      subscription.remove();
+      clearInterval(readyPoll);
+    };
+  }, [navigationRef]);
 
   function handleLink(rawUrl: string) {
     try {
@@ -113,9 +147,45 @@ export function useDeepLink() {
       }
 
       addBreadcrumb({ category: 'deep-link', message: `Following safe deep link: ${path}`, level: 'info' });
-      const target = routeMap[path] ?? routeMap[Object.keys(routeMap).find((safe) => path.startsWith(`${safe}/`)) ?? ''];
+      const target = resolveTarget(path);
       if (target) {
-        navigation.navigate(target);
+        const navigation = navigationRef.current;
+
+        if (!navigation?.isReady()) {
+          pendingUrlRef.current = rawUrl;
+          addBreadcrumb({ category: 'deep-link', message: `Queued deep link until navigation ready: ${path}`, level: 'info' });
+          return;
+        }
+
+        switch (target.name) {
+          case 'MainTabs':
+            navigation.navigate('MainTabs', target.params);
+            break;
+          case 'Documents':
+            navigation.navigate('Documents');
+            break;
+          case 'Payroll':
+            navigation.navigate('Payroll');
+            break;
+          case 'Compliance':
+            navigation.navigate('Compliance');
+            break;
+          case 'Payment':
+            navigation.navigate('Payment');
+            break;
+          case 'TaxGuide':
+            navigation.navigate('TaxGuide');
+            break;
+          case 'Crypto':
+            navigation.navigate('Crypto');
+            break;
+          case 'Reconciliation':
+            navigation.navigate('Reconciliation');
+            break;
+          case 'Team':
+            navigation.navigate('Team');
+            break;
+        }
       }
     } catch (err: unknown) {
       addBreadcrumb({ category: 'deep-link', message: `Deep link handling error: ${String(err)}`, level: 'error' });

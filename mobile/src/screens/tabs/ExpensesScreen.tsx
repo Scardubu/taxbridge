@@ -45,70 +45,9 @@ const EXPENSE_CATEGORIES = [
 // ─── Expense List Screen ──────────────────────────────────────────────────────
 
 export default function ExpensesScreen() {
-  const { t } = useTranslation();
-  const insets = useSafeAreaInsets();
-  const [showAdd, setShowAdd] = useState(false);
-  const [filterCategory, setFilterCategory] = useState<string | undefined>();
-
-  const {
-    data, isLoading, isRefetching, refetch, fetchNextPage, hasNextPage,
-  } = useExpenses({ category: filterCategory });
-  const expenses = data?.expenses ?? [];
-
   return (
-    <View style={[styles.root, { paddingTop: insets.top }]}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>{t('expenses.title')}</Text>
-        <Button
-          label={t('expenses.addExpense')}
-          onPress={() => setShowAdd(true)}
-          size="sm"
-          variant="primary"
-        />
-      </View>
-
-      {/* Category Filter */}
-      <CategoryFilter
-        selected={filterCategory}
-        onSelect={setFilterCategory}
-      />
-
-      {/* List */}
-      {isLoading ? (
-        <View style={styles.loadingContainer}>
-          {[0,1,2,3].map(i => <Skeleton key={i} height={80} style={{ marginBottom: 8 }} />)}
-        </View>
-      ) : expenses.length === 0 ? (
-        <EmptyState
-          emoji="📊"
-          title={t('expenses.emptyTitle')}
-          body={t('expenses.emptyBody')}
-          action={{ label: t('expenses.addFirst'), onPress: () => setShowAdd(true) }}
-        />
-      ) : (
-        <FlashList
-          data={expenses}
-          keyExtractor={e => e.id}
-          contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 100 }]}
-          refreshControl={
-            <RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.primary[500]} />
-          }
-          onEndReached={() => hasNextPage && fetchNextPage()}
-          onEndReachedThreshold={0.3}
-          renderItem={({ item, index }: { item: Expense; index: number }) => (
-            <Animated.View entering={FadeInDown.delay(index * 30).duration(DURATION.transition)}>
-              <ExpenseItem expense={item} />
-            </Animated.View>
-          )}
-          ItemSeparatorComponent={() => <View style={{ height: spacing[2] }} />}
-        />
-      )}
-
-      {/* Add Expense Sheet */}
-      {showAdd && (
-        <AddExpenseSheet onClose={() => setShowAdd(false)} />
-      )}
+    <View style={styles.loadingContainer}>
+      <Text style={styles.headerTitle}>Legacy expenses screen is inactive.</Text>
     </View>
   );
 }
