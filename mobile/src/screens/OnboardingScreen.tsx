@@ -22,6 +22,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useNavigation } from '@react-navigation/native';
 import { useTranslation } from 'react-i18next';
+import OnboardingWizard from './OnboardingWizard';
 import { useOnboarding, OnboardingStepId, UserProfile } from '../contexts/OnboardingContext';
 import { useNetwork } from '../contexts/NetworkContext';
 import { addBreadcrumb, captureException } from '../services/sentry';
@@ -116,6 +117,8 @@ interface OnboardingScreenProps {
  * 10. Progress persistence optimization
  */
 function OnboardingScreen(props: OnboardingScreenProps = {}) {
+  return <OnboardingWizard />;
+
   const navigationFromHook = useNavigation<any>();
   const navigation = props.navigation ?? navigationFromHook;
   const { t } = useTranslation();

@@ -1,0 +1,103 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom TaxBridge theme */
+:root {
+  --color-primary: #16A34A;
+  --color-primary-light: #22C55E;
+  --color-primary-dark: #15803D;
+  --color-secondary: #0EA5E9;
+  --color-secondary-light: #38BDF8;
+  --color-secondary-dark: #0284C7;
+  --color-danger: #DC2626;
+  --color-warning: #F59E0B;
+  --color-success: #10B981;
+}
+
+/* NativeWind preset classes */
+.text-primary {
+  color: var(--color-primary);
+}
+
+.text-secondary {
+  color: var(--color-secondary);
+}
+
+.text-danger {
+  color: var(--color-danger);
+}
+
+.text-warning {
+  color: var(--color-warning);
+}
+
+.text-success {
+  color: var(--color-success);
+}
+
+.bg-primary {
+  background-color: var(--color-primary);
+}
+
+.bg-secondary {
+  background-color: var(--color-secondary);
+}
+
+.bg-danger {
+  background-color: var(--color-danger);
+}
+
+.bg-warning {
+  background-color: var(--color-warning);
+}
+
+.bg-success {
+  background-color: var(--color-success);
+}
+
+/* TaxBridge specific utilities */
+.font-taxbridge {
+  font-family: 'Inter', sans-serif;
+}
+
+.shadow-taxbridge {
+  shadow-color: #000;
+  shadow-offset: { width: 0, height: 2 };
+  shadow-opacity: 0.1;
+  shadow-radius: 4;
+  elevation: 3;
+}
+
+.border-taxbridge {
+  border-color: #E5E7EB;
+}
+
+/* Animation utilities */
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+.animate-slide-up {
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}

@@ -9,7 +9,13 @@ import {
 } from '@expo-google-fonts/inter';
 import { StatusBar } from 'expo-status-bar';
 import * as ExpoSplashScreen from 'expo-splash-screen';
-import { NavigationContainer, type NavigationContainerRef, DefaultTheme } from '@react-navigation/native';
+import {
+  NavigationContainer,
+  type NavigationContainerRef,
+  type NavigationState,
+  type PartialState,
+  DefaultTheme,
+} from '@react-navigation/native';
 
 // Prevent the native splash from auto-hiding until we're ready
 ExpoSplashScreen.preventAutoHideAsync().catch(() => {
@@ -73,17 +79,53 @@ import OnboardingWizard from './src/screens/OnboardingWizard';
 import { LoginScreen, RegisterScreen } from './src/screens/auth/AuthScreens';
 import TaxGuideScreen from './src/screens/TaxGuideScreen';
 import PayrollListScreen from './src/screens/Payroll/PayrollListScreen';
+import CreatePayrollScreen from './src/screens/Payroll/CreatePayrollScreen';
+import PayrollDetailScreen from './src/screens/Payroll/PayrollDetailScreen';
 import ComplianceRemindersScreen from './src/screens/Compliance/ComplianceRemindersScreen';
 import CryptoTaxScreen from './src/screens/Crypto/CryptoTaxScreen';
 import ReconciliationScreen from './src/screens/Reconciliation/ReconciliationScreen';
+import DocumentVaultScreen from './src/screens/documents/DocumentVaultScreen';
+import TeamManagementScreen from './src/screens/team/TeamManagementScreen';
 import { colors, spacing, typography } from './src/theme/tokens';
 import { screenTransitions } from './src/navigation/transitions';
+import type { MainTabParamList, RootStackParamList } from './src/navigation/types';
+import { useDeepLink } from './src/hooks/useDeepLink';
 
 // Initialize Sentry early
 initSentry();
 
-const Tab = createBottomTabNavigator();
-const Stack = createNativeStackNavigator();
+const Tab = createBottomTabNavigator<MainTabParamList>();
+const Stack = createNativeStackNavigator<RootStackParamList>();
+
+function getActiveRouteNameFromState(
+  state: NavigationState | PartialState<NavigationState> | undefined,
+): string | null {
+  if (!state?.routes?.length) {
+    return null;
+  }
+
+  const route = state.routes[state.index ?? 0] as {
+    name: string;
+    state?: NavigationState | PartialState<NavigationState>;
+  };
+
+  if (route.state) {
+    return getActiveRouteNameFromState(route.state);
+  }
+
+  return route.name;
+}
+
+function getCurrentRouteName(
+  navigation: NavigationContainerRef<RootStackParamList> | null,
+): string | null {
+  return getActiveRouteNameFromState(navigation?.getRootState());
+}
+
+function DeepLinkBridge({ navigationRef }: { navigationRef: React.RefObject<NavigationContainerRef<RootStackParamList> | null> }) {
+  useDeepLink(navigationRef);
+  return null;
+}
 
 function BootRouter() {
   const { isHydrated } = useAuth();
@@ -164,6 +206,16 @@ function AppNavigator() {
         options={screenTransitions.slideFromRight}
       />
       <Stack.Screen
+        name="CreatePayroll"
+        component={CreatePayrollScreen}
+        options={screenTransitions.slideFromRight}
+      />
+      <Stack.Screen
+        name="PayrollDetail"
+        component={PayrollDetailScreen}
+        options={screenTransitions.slideFromRight}
+      />
+      <Stack.Screen
         name="Compliance"
         component={ComplianceRemindersScreen}
         options={screenTransitions.slideFromRight}
@@ -176,6 +228,16 @@ function AppNavigator() {
       <Stack.Screen
         name="Reconciliation"
         component={ReconciliationScreen}
+        options={screenTransitions.slideFromRight}
+      />
+      <Stack.Screen
+        name="Documents"
+        component={DocumentVaultScreen}
+        options={screenTransitions.slideFromRight}
+      />
+      <Stack.Screen
+        name="Team"
+        component={TeamManagementScreen}
         options={screenTransitions.slideFromRight}
       />
     </Stack.Navigator>
@@ -268,7 +330,7 @@ export default function App() {
   const [bootData, setBootData] = useState<{ deviceInfo: any; persistedState: any } | null>(null);
   const [bootTimeoutReached, setBootTimeoutReached] = useState(false);
   const routeNameRef = useRef<string | null>(null);
-  const navigationRef = useRef<NavigationContainerRef<any> | null>(null);
+  const navigationRef = useRef<NavigationContainerRef<RootStackParamList> | null>(null);
 
   // Safety timeout: force boot completion after 10 seconds max
   useEffect(() => {
@@ -353,14 +415,14 @@ export default function App() {
                           ref={navigationRef}
                           theme={LightTheme}
                           onReady={() => {
-                            const currentRoute = navigationRef.current?.getCurrentRoute()?.name || null;
+                            const currentRoute = getCurrentRouteName(navigationRef.current);
                             routeNameRef.current = currentRoute;
                             if (currentRoute) {
                               void trackScreenView(currentRoute);
                             }
                           }}
                           onStateChange={(state) => {
-                            const currentRoute = state?.routes[state.index]?.name;
+                            const currentRoute = getActiveRouteNameFromState(state);
                             if (!currentRoute || currentRoute === routeNameRef.current) {
                               return;
                             }
@@ -381,6 +443,7 @@ export default function App() {
                           <StatusBar style="dark" />
                           <NetworkStatus />
                           <LoadingOverlay />
+                          <DeepLinkBridge navigationRef={navigationRef} />
                           <BootRouter />
                         </NavigationContainer>
                       </ToastProvider>

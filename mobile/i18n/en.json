@@ -1,0 +1,93 @@
+{
+  "onboarding": {
+    "stepCount": "Step {{current}} of {{total}}",
+    "skipAll": "Skip remaining steps",
+    "skipStep": "Skip this step",
+    "finish": "Complete Setup",
+    "welcome": {
+      "title": "Welcome",
+      "headline": "Your Tax Partner,\nBuilt for Nigeria",
+      "subheadline": "VAT, CIT, TIN and e-invoices — offline-first, Pidgin-ready.",
+      "cta": "Get Started",
+      "ctaHint": "Begin TaxBridge setup",
+      "termsNote": "By continuing you agree to our Terms of Service"
+    },
+    "businessType": {
+      "title": "Tell Us About\nYour Business",
+      "subtitle": "We personalise your obligations based on your type."
+    },
+    "tinVerify": {
+      "title": "Verify Your TIN",
+      "body": "Your TIN is required on all invoices. Without it, 10% WHT applies to ALL payments you receive.",
+      "nrsNote": "Managed by NRS (Nigeria Revenue Service, formerly FIRS)",
+      "pendingNote": "Verification takes 1–2 minutes via NRS. We'll notify you automatically."
+    },
+    "vatSetup": {
+      "title": "VAT Setup",
+      "exemptTitle": "Good news — you may be exempt from filing VAT returns",
+      "exemptBody": "Businesses under ₦100M turnover are exempt from filing VAT returns. However you MUST still charge 7.5% VAT on all invoices.",
+      "requiredBody": "Your business must file VAT returns by the 21st of each month.",
+      "rate": "VAT Rate: 7.5%"
+    },
+    "einvoice": {
+      "title": "E-Invoicing",
+      "phaseSmall": "Mandatory from July 2027 for your business size. Set up now — banks offer faster invoice financing to e-invoice-ready businesses.",
+      "phaseMedium": "Pilot phase active. Mandatory July 1 2026. Apply for FIRSMBS integration now.",
+      "phaseLarge": "⚠️ E-INVOICING ENFORCEMENT IS ACTIVE. Non-compliance = ₦200,000 penalty + 100% of tax due.",
+      "platform": "Via FIRSMBS (NRS Merchant-Buyer Solution)"
+    },
+    "community": {
+      "title": "Join the\nTaxBridge Community",
+      "body": "Connect with Nigerian SMEs. Share your Compliance Badge and earn referral rewards.",
+      "shareLabel": "Share Compliance Badge"
+    },
+    "tinRequiredTitle": "TIN required",
+    "tinRequiredBody": "Enter a valid TIN to continue."
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "greeting": "Good day",
+    "yourBusiness": "Your Business",
+    "shield": {
+      "excellent": "🛡️ Excellent compliance — keep it up!",
+      "good": "Your compliance is on track",
+      "needsWork": "Action needed to improve your shield"
+    },
+    "nudges": { "title": "Action Required" },
+    "obligations": { "title": "Your Tax Obligations" },
+    "quickAction": { "invoice": "New Invoice", "payTax": "Pay Tax", "simulate": "Tax Simulator" }
+  },
+  "tabs": {
+    "dashboard": "Dashboard",
+    "invoices": "Invoices",
+    "calendar": "Calendar",
+    "compliance": "Compliance",
+    "settings": "Settings"
+  },
+  "tax": {
+    "cit": { "label": "Company Income Tax", "exempt": "0% (Small Company Relief)" },
+    "vat": { "filing": "VAT Return Filing", "exempt": "Exempt (under ₦100M)", "required": "Required monthly" },
+    "einvoice": { "label": "E-Invoicing" }
+  },
+  "einvoice": { "status": { "small": "Voluntary (prepare for 2027)", "medium": "Pilot active — mandatory Jul 2026", "large": "⚠️ Mandatory now" } },
+  "nrs": { "name": "Nigeria Revenue Service", "shortName": "NRS", "formerly": "Formerly FIRS" },
+  "nudge": {
+    "tin": { "missing": "No TIN → 10% WHT on ALL income" },
+    "cit": { "zeroRate": "You qualify for 0% Company Tax" },
+    "vat": { "exemption": "You may be exempt from VAT return filing" }
+  },
+  "common": {
+    "back": "Back",
+    "continue": "Continue",
+    "skip": "Skip",
+    "loading": "Loading...",
+    "error": "Something went wrong",
+    "retry": "Try Again",
+    "offline": "You're offline — changes saved locally",
+    "language": "Language",
+    "english": "English",
+    "pidgin": "Pidgin",
+    "voiceGuidance": "Pidgin voice guidance",
+    "darkMode": "Dark mode preference"
+  }
+}

@@ -19,8 +19,9 @@ export interface PITBand {
 }
 
 // Convert canonical PIT_BRACKETS to mobile format
+// Note: last bracket has limit=null in contracts; map to Infinity
 export const PIT_BANDS: PITBand[] = PIT_BRACKETS.map(bracket => ({
-  limit: bracket.limit === Infinity ? Infinity : bracket.limit,
+  limit: bracket.limit == null ? Infinity : bracket.limit,
   rate: bracket.rate,
 }));
 
@@ -147,8 +148,12 @@ export interface VATThresholdResult {
   isAboveThreshold: boolean;
 }
 
+// NTA 2025 Section 80: VAT registration mandatory at ₦100M annual turnover.
+// The contracts package exports ₦25M which is the SME CIT threshold — use correct value here.
+const VAT_MANDATORY_THRESHOLD = 100_000_000;
+
 export function checkVATThreshold(annualTurnover: number): VATThresholdResult {
-  const threshold = VAT_REGISTRATION_THRESHOLD;
+  const threshold = VAT_MANDATORY_THRESHOLD;
   const percentage = (annualTurnover / threshold) * 100;
   const isAboveThreshold = annualTurnover >= threshold;
   const isApproaching = annualTurnover >= threshold * 0.8;

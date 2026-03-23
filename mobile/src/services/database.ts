@@ -1,232 +1,281 @@
-import { Platform } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SQLite from 'expo-sqlite';
 
-import type { InvoiceStatus, InvoiceItem, LocalInvoiceRow } from '../types/invoice';
+import type { InvoiceItem, InvoiceStatus, LocalInvoiceRow } from '../types/invoice';
 
-// Use SQLite on native platforms; for web provide a lightweight localStorage-backed fallback
-const STORAGE_INVOICES_KEY = 'taxbridge:invoices:v1';
-const STORAGE_INVOICE_STATS_KEY = 'taxbridge:invoiceStats:v1';
-const STORAGE_SETTINGS_KEY = 'taxbridge:settings:v1';
+let db: SQLite.SQLiteDatabase | null = null;
 
-type InvoiceStats = { total: number; synced: number; pending: number };
+export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
+  if (db) {
+    return db;
+  }
 
-let nativeExec: any = null;
-let nativeDb: any = null;
-
-if (Platform.OS !== 'web') {
   try {
-    // lazy require to avoid web resolution errors
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const SQLite = require('expo-sqlite');
-    // expo-sqlite v16+ (SDK 54): use openDatabaseSync (legacy openDatabase removed)
-    nativeDb = SQLite.openDatabaseSync('taxbridge.db');
-    // Compatibility wrapper: translates new sync API into the { rows: { _array } }
-    // shape expected by all callers, keeping the async signature for drop-in use.
-    nativeExec = async (sql: string, params: (string | number | null)[] = []) => {
-      const isSelect = sql.trimStart().toUpperCase().startsWith('SELECT');
-      if (isSelect) {
-        const rows = nativeDb.getAllSync(sql, ...params);
-        return { rows: { _array: rows, length: rows.length } };
-      }
-      const result = nativeDb.runSync(sql, ...params);
-      return {
-        rows: { _array: [], length: 0 },
-        insertId: result.lastInsertRowId,
-        rowsAffected: result.changes,
-      };
-    };
-  } catch (e) {
-    // If expo-sqlite isn't available, fall through to web-like storage.
-    nativeExec = null;
-    nativeDb = null;
+    // Use openDatabaseAsync without options object (Constraint #9)
+    db = await SQLite.openDatabaseAsync('taxbridge_v13.db');
+    
+    // Initialize database with performance optimizations
+    await db.execAsync(`
+      PRAGMA journal_mode = WAL;
+      PRAGMA foreign_keys = ON;
+      PRAGMA cache_size = -8000;
+      PRAGMA synchronous = NORMAL;
+      PRAGMA temp_store = MEMORY;
+    `);
+
+    // Run migrations
+    await runMigrations(db);
+    
+    return db;
+  } catch (error) {
+    console.error('Failed to initialize database:', error);
+    throw new Error('Database initialization failed');
   }
 }
 
-async function readStoredInvoices(): Promise<LocalInvoiceRow[]> {
-  try {
-    const raw = await AsyncStorage.getItem(STORAGE_INVOICES_KEY);
-    return raw ? (JSON.parse(raw) as LocalInvoiceRow[]) : [];
-  } catch (e) {
-    return [];
-  }
+// Migration system
+interface Migration {
+  version: number;
+  name: string;
+  up: (db: SQLite.SQLiteDatabase) => Promise<void>;
 }
 
-function computeInvoiceStats(rows: LocalInvoiceRow[]): InvoiceStats {
-  const total = rows.length;
-  const synced = rows.filter((r) => r.synced === 1).length;
-  return { total, synced, pending: Math.max(0, total - synced) };
-}
+const migrations: Migration[] = [
+  {
+    version: 1,
+    name: 'create_business_profiles_and_offline_operations',
+    up: async (db) => {
+      await db.execAsync(`
+        CREATE TABLE IF NOT EXISTS business_profiles (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          business_name TEXT NOT NULL,
+          business_type TEXT NOT NULL,
+          tin TEXT,
+          cac_number TEXT,
+          email TEXT,
+          phone TEXT,
+          address TEXT,
+          tax_office TEXT,
+          registration_date TEXT,
+          is_verified INTEGER DEFAULT 0,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
 
-async function readInvoiceStats(): Promise<InvoiceStats | null> {
-  try {
-    const raw = await AsyncStorage.getItem(STORAGE_INVOICE_STATS_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as InvoiceStats;
-    if (
-      typeof parsed?.total !== 'number' ||
-      typeof parsed?.synced !== 'number' ||
-      typeof parsed?.pending !== 'number'
-    ) {
-      return null;
+        CREATE TABLE IF NOT EXISTS offline_operations (
+          client_id TEXT PRIMARY KEY,
+          entity_type TEXT NOT NULL,
+          entity_id TEXT NOT NULL,
+          operation TEXT NOT NULL,
+          data TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'pending',
+          retry_count INTEGER DEFAULT 0,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_offline_operations_status 
+          ON offline_operations(status);
+        CREATE INDEX IF NOT EXISTS idx_offline_operations_entity 
+          ON offline_operations(entity_type, entity_id);
+      `);
     }
-    return parsed;
-  } catch {
-    return null;
+  },
+  {
+    version: 2,
+    name: 'create_tax_records_and_compliance_events',
+    up: async (db) => {
+      await db.execAsync(`
+        CREATE TABLE IF NOT EXISTS tax_records (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          type TEXT NOT NULL,
+          tax_year TEXT NOT NULL,
+          amount REAL NOT NULL,
+          status TEXT NOT NULL DEFAULT 'pending',
+          due_date TEXT,
+          paid_date TEXT,
+          reference TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS compliance_events (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          event_type TEXT NOT NULL,
+          event_data TEXT,
+          timestamp TEXT NOT NULL DEFAULT (datetime('now')),
+          synced INTEGER DEFAULT 0
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_tax_records_type_year 
+          ON tax_records(type, tax_year);
+        CREATE INDEX IF NOT EXISTS idx_compliance_events_type 
+          ON compliance_events(event_type);
+      `);
+    }
+  },
+  {
+    version: 3,
+    name: 'create_invoices_and_tax_payments',
+    up: async (db) => {
+      await db.execAsync(`
+        CREATE TABLE IF NOT EXISTS invoices (
+          id TEXT PRIMARY KEY,
+          invoice_number TEXT UNIQUE NOT NULL,
+          customer_name TEXT NOT NULL,
+          customer_email TEXT,
+          customer_phone TEXT,
+          customer_address TEXT,
+          items TEXT NOT NULL,
+          subtotal REAL NOT NULL,
+          vat_amount REAL NOT NULL DEFAULT 0,
+          total REAL NOT NULL,
+          due_date TEXT,
+          status TEXT NOT NULL DEFAULT 'draft',
+          nrs_compliant INTEGER DEFAULT 0,
+          firs_irn TEXT,
+          firs_csid TEXT,
+          qr_code TEXT,
+          notes TEXT,
+          synced INTEGER DEFAULT 0,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+
+        CREATE TABLE IF NOT EXISTS tax_payments (
+          id TEXT PRIMARY KEY,
+          tax_type TEXT NOT NULL,
+          amount REAL NOT NULL,
+          payment_date TEXT NOT NULL,
+          payment_method TEXT,
+          reference TEXT UNIQUE,
+          remita_rrr TEXT,
+          status TEXT NOT NULL DEFAULT 'pending',
+          gateway_response TEXT,
+          synced INTEGER DEFAULT 0,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_invoices_status 
+          ON invoices(status);
+        CREATE INDEX IF NOT EXISTS idx_invoices_due_date 
+          ON invoices(due_date);
+        CREATE INDEX IF NOT EXISTS idx_tax_payments_status 
+          ON tax_payments(status);
+        CREATE INDEX IF NOT EXISTS idx_tax_payments_reference 
+          ON tax_payments(reference);
+      `);
+    }
+  },
+  {
+    version: 4,
+    name: 'legacy_invoice_compatibility_and_settings',
+    up: async (db) => {
+      await db.execAsync(`
+        CREATE TABLE IF NOT EXISTS settings (
+          key TEXT PRIMARY KEY,
+          value TEXT NOT NULL
+        );
+      `);
+
+      const invoiceColumns = await db.getAllAsync<{ name: string }>(
+        "PRAGMA table_info(invoices)"
+      );
+      const existingColumns = new Set(invoiceColumns.map((column) => column.name));
+
+      const missingColumnStatements = [
+        !existingColumns.has('server_id')
+          ? 'ALTER TABLE invoices ADD COLUMN server_id TEXT;'
+          : '',
+        !existingColumns.has('customer_tin')
+          ? 'ALTER TABLE invoices ADD COLUMN customer_tin TEXT;'
+          : '',
+        !existingColumns.has('customer_endpoint_id')
+          ? 'ALTER TABLE invoices ADD COLUMN customer_endpoint_id TEXT;'
+          : '',
+        !existingColumns.has('attempts')
+          ? 'ALTER TABLE invoices ADD COLUMN attempts INTEGER DEFAULT 0;'
+          : '',
+        !existingColumns.has('next_retry')
+          ? 'ALTER TABLE invoices ADD COLUMN next_retry TEXT;'
+          : '',
+      ].filter(Boolean);
+
+      for (const statement of missingColumnStatements) {
+        await db.execAsync(statement);
+      }
+
+      await db.execAsync(`
+        CREATE INDEX IF NOT EXISTS idx_invoices_created_at
+          ON invoices(created_at);
+        CREATE INDEX IF NOT EXISTS idx_invoices_synced
+          ON invoices(synced);
+      `);
+    }
+  }
+];
+
+async function runMigrations(db: SQLite.SQLiteDatabase): Promise<void> {
+  // Create migrations table
+  await db.execAsync(`
+    CREATE TABLE IF NOT EXISTS migrations (
+      version INTEGER PRIMARY KEY,
+      name TEXT NOT NULL,
+      ran_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+  `);
+
+  // Get current migration version
+  const result = await db.getFirstAsync<{ version: number }>(
+    'SELECT MAX(version) as version FROM migrations'
+  );
+  const currentVersion = result?.version ?? 0;
+
+  // Run pending migrations
+  for (const migration of migrations) {
+    if (migration.version > currentVersion) {
+      console.log(`Running migration ${migration.version}: ${migration.name}`);
+      
+      await db.withExclusiveTransactionAsync(async () => {
+        await migration.up(db);
+        await db.runAsync(
+          'INSERT INTO migrations (version, name) VALUES (?, ?)',
+          [migration.version, migration.name]
+        );
+      });
+      
+      console.log(`Migration ${migration.version} completed`);
+    }
   }
 }
 
-async function writeInvoiceStats(stats: InvoiceStats): Promise<void> {
-  try {
-    await AsyncStorage.setItem(STORAGE_INVOICE_STATS_KEY, JSON.stringify(stats));
-  } catch {
-    // Best-effort cache for web fallback; ignore failures.
-  }
-}
-
-async function pruneOldSyncedInvoices(rows: LocalInvoiceRow[]): Promise<LocalInvoiceRow[]> {
-  // First, remove all synced invoices older than 30 days to free space
-  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-  const pruned = rows.filter((r) => {
-    // Keep: pending invoices OR recent synced invoices
-    return r.synced === 0 || r.createdAt >= thirtyDaysAgo;
+// Database helper functions
+export async function clearDatabase(): Promise<void> {
+  const db = await getDatabase();
+  await db.withExclusiveTransactionAsync(async () => {
+    await db.execAsync(`
+      DELETE FROM business_profiles;
+      DELETE FROM offline_operations;
+      DELETE FROM tax_records;
+      DELETE FROM compliance_events;
+      DELETE FROM invoices;
+      DELETE FROM tax_payments;
+    `);
   });
-  
-  // If still too many, keep only the 150 most recent entries (ensure pending invoices stay)
-  if (pruned.length > 150) {
-    const pending = pruned.filter((r) => r.synced === 0);
-    const synced = pruned.filter((r) => r.synced === 1);
-    const recentSynced = synced.slice(0, Math.max(0, 150 - pending.length));
-    return [...pending, ...recentSynced];
-  }
-  
-  return pruned;
 }
 
-async function writeStoredInvoices(rows: LocalInvoiceRow[]): Promise<void> {
-  try {
-    await AsyncStorage.setItem(STORAGE_INVOICES_KEY, JSON.stringify(rows));
-    await writeInvoiceStats(computeInvoiceStats(rows));
-    return;
-  } catch (err) {
-    if (__DEV__) console.warn('writeStoredInvoices: failed to write storage, attempting cleanup...', err);
-    // Try aggressive pruning to free space
-    try {
-      const pruned = await pruneOldSyncedInvoices(rows);
-      if (__DEV__) console.log(`Pruned from ${rows.length} to ${pruned.length} invoices`);
-      await AsyncStorage.setItem(STORAGE_INVOICES_KEY, JSON.stringify(pruned));
-      await writeInvoiceStats(computeInvoiceStats(pruned));
-      return;
-    } catch (err2) {
-      if (__DEV__) console.error('writeStoredInvoices: pruning failed, attempting emergency cleanup...', err2);
-      // Emergency: keep only pending invoices and the 50 most recent synced
-      try {
-        const pending = rows.filter((r) => r.synced === 0);
-        const synced = rows.filter((r) => r.synced === 1).slice(0, 50);
-        const emergency = [...pending, ...synced];
-        if (__DEV__) console.log(`Emergency cleanup: keeping ${emergency.length} invoices`);
-        await AsyncStorage.setItem(STORAGE_INVOICES_KEY, JSON.stringify(emergency));
-        await writeInvoiceStats(computeInvoiceStats(emergency));
-        return;
-      } catch (err3) {
-        if (__DEV__) console.error('writeStoredInvoices: emergency cleanup failed', err3);
-        throw new Error('Storage quota exceeded. Please clear app cache and retry.');
-      }
-    }
+export async function closeDatabase(): Promise<void> {
+  if (db) {
+    await db.closeAsync();
+    db = null;
   }
 }
 
 export async function initDB(): Promise<void> {
-  if (nativeExec) {
-    await nativeExec(
-      `CREATE TABLE IF NOT EXISTS invoices (
-      id TEXT PRIMARY KEY,
-      server_id TEXT,
-      customer_name TEXT,
-      customer_tin TEXT,
-      customer_endpoint_id TEXT,
-      status TEXT,
-      subtotal REAL,
-      vat REAL,
-      total REAL,
-      items TEXT,
-      created_at TEXT,
-      synced INTEGER DEFAULT 0,
-      attempts INTEGER DEFAULT 0,
-      next_retry TEXT
-    );`
-    );
-
-    await nativeExec(
-      `CREATE TABLE IF NOT EXISTS settings (
-      key TEXT PRIMARY KEY,
-      value TEXT
-    );`
-    );
-
-    // Sync queue table for generic entity sync (device-sync feature)
-    await nativeExec(
-      `CREATE TABLE IF NOT EXISTS sync_queue (
-      id TEXT PRIMARY KEY,
-      device_id TEXT,
-      entity TEXT NOT NULL,
-      action TEXT NOT NULL,
-      client_version INTEGER DEFAULT 0,
-      payload TEXT NOT NULL,
-      created_at TEXT NOT NULL,
-      attempts INTEGER DEFAULT 0,
-      last_error TEXT,
-      next_retry TEXT
-    );`
-    );
-
-    // Helpful indexes for queries (ordering and pending lookups)
-    await nativeExec('CREATE INDEX IF NOT EXISTS idx_invoices_created_at ON invoices(created_at);');
-    await nativeExec('CREATE INDEX IF NOT EXISTS idx_invoices_synced ON invoices(synced);');
-    await nativeExec('CREATE INDEX IF NOT EXISTS idx_sync_queue_next_retry ON sync_queue(next_retry);');
-    await nativeExec('CREATE INDEX IF NOT EXISTS idx_sync_queue_entity ON sync_queue(entity);');
-    // Clean up old synced invoices to prevent storage quota issues
-    await nativeExec(
-      `DELETE FROM invoices WHERE synced = 1 AND created_at < datetime('now', '-30 days');`
-    );
-  } else {
-    // Web fallback: avoid heavy invoice JSON parsing during boot.
-    if (Platform.OS === 'web') {
-      const settings = await AsyncStorage.getItem(STORAGE_SETTINGS_KEY);
-      if (!settings) {
-        await AsyncStorage.setItem(STORAGE_SETTINGS_KEY, JSON.stringify({}));
-      }
-      const cachedStats = await readInvoiceStats();
-      if (!cachedStats) {
-        await writeInvoiceStats({ total: 0, synced: 0, pending: 0 });
-      }
-      return;
-    }
-
-    // ensure storage keys exist for fallback
-    const existing = await readStoredInvoices();
-    if (!existing) {
-      await writeStoredInvoices([]);
-    }
-    const settings = await AsyncStorage.getItem(STORAGE_SETTINGS_KEY);
-    if (!settings) {
-      await AsyncStorage.setItem(STORAGE_SETTINGS_KEY, JSON.stringify({}));
-    }
-    // Clean up old synced invoices in fallback storage
-    try {
-      const rows = await readStoredInvoices();
-      const cleaned = await pruneOldSyncedInvoices(rows);
-      if (cleaned.length < rows.length) {
-        await writeStoredInvoices(cleaned);
-      } else {
-        await writeInvoiceStats(computeInvoiceStats(cleaned));
-      }
-    } catch (e) {
-      if (__DEV__) console.warn('initDB: cleanup failed', e);
-    }
-  }
+  await getDatabase();
 }
 
-export async function saveInvoice(input: {
+type SaveInvoiceInput = {
   id: string;
   customerName?: string;
   customerTIN?: string;
@@ -240,219 +289,181 @@ export async function saveInvoice(input: {
   synced?: 0 | 1;
   attempts?: number;
   nextRetry?: string | null;
-}): Promise<void> {
-  if (nativeExec) {
-    await nativeExec(
-      `INSERT INTO invoices (
-      id, server_id, customer_name, customer_tin, customer_endpoint_id, status, subtotal, vat, total, items, created_at, synced
-      , attempts, next_retry
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
-      [
-        input.id,
-        null,
-        input.customerName ?? null,
-        input.customerTIN ?? null,
-        input.customerEndpointId ?? null,
-        input.status,
-        input.subtotal,
-        input.vat,
-        input.total,
-        JSON.stringify(input.items),
-        input.createdAt,
-        input.synced ?? 0,
-        input.attempts ?? 0,
-        input.nextRetry ?? null,
-      ]
-    );
-  } else {
-    const rows = await readStoredInvoices();
-    rows.unshift({
-      id: input.id,
-      serverId: null,
-      customerName: input.customerName ?? null,
-      customerTIN: input.customerTIN ?? null,
-      customerEndpointId: input.customerEndpointId ?? null,
-      status: input.status,
-      subtotal: input.subtotal,
-      vat: input.vat,
-      total: input.total,
-      items: JSON.stringify(input.items),
-      createdAt: input.createdAt,
-      synced: input.synced ?? 0,
-      attempts: input.attempts ?? 0,
-      nextRetry: input.nextRetry ?? null,
-    } as unknown as LocalInvoiceRow);
-    await writeStoredInvoices(rows);
-  }
+};
+
+function mapInvoiceRow(row: Record<string, unknown>): LocalInvoiceRow {
+  return {
+    id: String(row.id),
+    serverId: row.server_id ? String(row.server_id) : null,
+    customerName: row.customer_name ? String(row.customer_name) : null,
+    customerTIN: row.customer_tin ? String(row.customer_tin) : null,
+    customerEndpointId: row.customer_endpoint_id ? String(row.customer_endpoint_id) : null,
+    status: (row.status as InvoiceStatus | undefined) ?? 'queued',
+    subtotal: Number(row.subtotal ?? 0),
+    vat: Number(row.vat_amount ?? 0),
+    total: Number(row.total ?? 0),
+    items: typeof row.items === 'string' ? row.items : JSON.stringify(row.items ?? []),
+    createdAt: String(row.created_at ?? new Date().toISOString()),
+    synced: Number(row.synced ?? 0) === 1 ? 1 : 0,
+    attempts: Number(row.attempts ?? 0),
+    nextRetry: row.next_retry ? String(row.next_retry) : null,
+  };
+}
+
+export async function saveInvoice(input: SaveInvoiceInput): Promise<void> {
+  const database = await getDatabase();
+  await database.runAsync(
+    `INSERT OR REPLACE INTO invoices (
+      id,
+      invoice_number,
+      customer_name,
+      customer_tin,
+      customer_endpoint_id,
+      items,
+      subtotal,
+      vat_amount,
+      total,
+      status,
+      synced,
+      created_at,
+      updated_at,
+      attempts,
+      next_retry,
+      server_id
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), ?, ?, ?)`,
+    [
+      input.id,
+      input.id,
+      input.customerName ?? 'Walk-in Customer',
+      input.customerTIN ?? null,
+      input.customerEndpointId ?? null,
+      JSON.stringify(input.items),
+      input.subtotal,
+      input.vat,
+      input.total,
+      input.status,
+      input.synced ?? 0,
+      input.createdAt,
+      input.attempts ?? 0,
+      input.nextRetry ?? null,
+      null,
+    ]
+  );
 }
 
 export async function getInvoices(): Promise<LocalInvoiceRow[]> {
-  if (nativeExec) {
-    const res = await nativeExec('SELECT * FROM invoices ORDER BY created_at DESC');
-    const arr: any[] = (res.rows as any)?._array ?? [];
-    return arr.map((r) => ({
-      id: r.id,
-      serverId: r.server_id ?? r.serverId ?? null,
-      customerName: r.customer_name ?? r.customerName ?? null,
-      customerTIN: r.customer_tin ?? r.customerTIN ?? null,
-      customerEndpointId: r.customer_endpoint_id ?? r.customerEndpointId ?? null,
-      status: r.status,
-      subtotal: r.subtotal,
-      vat: r.vat,
-      total: r.total,
-      items: typeof r.items === 'string' ? r.items : JSON.stringify(r.items ?? []),
-      createdAt: r.created_at ?? r.createdAt,
-      synced: Number(r.synced) as 0 | 1,
-      attempts: Number(r.attempts) || 0,
-      nextRetry: r.next_retry ?? r.nextRetry ?? null,
-    } as LocalInvoiceRow));
-  }
-  const rows = await readStoredInvoices();
-  // copy to avoid mutation; sort by createdAt (fallback storage uses camelCase)
-  return [...rows].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
-}
-
-export async function getInvoiceStats(): Promise<{ total: number; synced: number; pending: number }> {
-  if (nativeExec) {
-    const res = await nativeExec(
-      'SELECT COUNT(*) as total, SUM(CASE WHEN synced = 1 THEN 1 ELSE 0 END) as synced FROM invoices'
-    );
-    const row = (res.rows as any)?._array?.[0] ?? { total: 0, synced: 0 };
-    const total = Number(row.total) || 0;
-    const synced = Number(row.synced) || 0;
-    const pending = Math.max(0, total - synced);
-    return { total, synced, pending };
-  }
-
-  const cached = await readInvoiceStats();
-  if (cached) return cached;
-
-  if (Platform.OS === 'web') {
-    // Avoid blocking reads on web; return safe defaults until cache warms.
-    return { total: 0, synced: 0, pending: 0 };
-  }
-
-  const rows = await readStoredInvoices();
-  const stats = computeInvoiceStats(rows);
-  await writeInvoiceStats(stats);
-  return stats;
+  const database = await getDatabase();
+  const rows = await database.getAllAsync<Record<string, unknown>>(
+    'SELECT * FROM invoices ORDER BY created_at DESC'
+  );
+  return rows.map(mapInvoiceRow);
 }
 
 export async function getPendingInvoices(): Promise<LocalInvoiceRow[]> {
-  if (nativeExec) {
-    const res = await nativeExec(
-      "SELECT * FROM invoices WHERE synced = 0 AND (next_retry IS NULL OR next_retry <= datetime('now')) ORDER BY created_at ASC"
-    );
-    const arr: any[] = (res.rows as any)?._array ?? [];
-    return arr.map((r) => ({
-      id: r.id,
-      serverId: r.server_id ?? r.serverId ?? null,
-      customerName: r.customer_name ?? r.customerName ?? null,
-      customerTIN: r.customer_tin ?? r.customerTIN ?? null,
-      customerEndpointId: r.customer_endpoint_id ?? r.customerEndpointId ?? null,
-      status: r.status,
-      subtotal: r.subtotal,
-      vat: r.vat,
-      total: r.total,
-      items: typeof r.items === 'string' ? r.items : JSON.stringify(r.items ?? []),
-      createdAt: r.created_at ?? r.createdAt,
-      synced: Number(r.synced) as 0 | 1,
-      attempts: Number(r.attempts) || 0,
-      nextRetry: r.next_retry ?? r.nextRetry ?? null,
-    } as LocalInvoiceRow));
-  }
-  const rows = await readStoredInvoices();
-  const now = new Date().toISOString();
-  return rows
-    .filter((r) => r.synced === 0 && (!r.nextRetry || r.nextRetry <= now))
-    .sort((a, b) => (a.createdAt > b.createdAt ? 1 : -1));
+  const database = await getDatabase();
+  const rows = await database.getAllAsync<Record<string, unknown>>(
+    `SELECT * FROM invoices
+     WHERE synced = 0 AND (next_retry IS NULL OR next_retry <= datetime('now'))
+     ORDER BY created_at ASC`
+  );
+  return rows.map(mapInvoiceRow);
+}
+
+export async function getInvoiceStats(): Promise<{ total: number; synced: number; pending: number }> {
+  const database = await getDatabase();
+  const row = await database.getFirstAsync<{ total: number; synced: number }>(
+    'SELECT COUNT(*) as total, SUM(CASE WHEN synced = 1 THEN 1 ELSE 0 END) as synced FROM invoices'
+  );
+  const total = Number(row?.total ?? 0);
+  const synced = Number(row?.synced ?? 0);
+  return {
+    total,
+    synced,
+    pending: Math.max(0, total - synced),
+  };
 }
 
 export async function markInvoiceSynced(input: { id: string; serverId: string; status: InvoiceStatus }): Promise<void> {
-  if (nativeExec) {
-    await nativeExec('UPDATE invoices SET synced = 1, server_id = ?, status = ?, attempts = 0, next_retry = NULL WHERE id = ?', [
-      input.serverId,
-      input.status,
-      input.id,
-    ]);
-    return;
-  }
-  const rows = await readStoredInvoices();
-  const idx = rows.findIndex((r) => r.id === input.id);
-  if (idx >= 0) {
-    rows[idx].synced = 1 as any;
-    rows[idx].serverId = input.serverId as any;
-    rows[idx].status = input.status as any;
-    rows[idx].attempts = 0;
-    rows[idx].nextRetry = null;
-    await writeStoredInvoices(rows);
-  }
+  const database = await getDatabase();
+  await database.runAsync(
+    `UPDATE invoices
+     SET synced = 1, server_id = ?, status = ?, attempts = 0, next_retry = NULL, updated_at = datetime('now')
+     WHERE id = ?`,
+    [input.serverId, input.status, input.id]
+  );
 }
 
 export async function setInvoiceRetryMetadata(id: string, attempts: number, nextRetry: string | null): Promise<void> {
-  if (nativeExec) {
-    await nativeExec('UPDATE invoices SET attempts = ?, next_retry = ? WHERE id = ?', [attempts, nextRetry, id]);
-    return;
-  }
-  const rows = await readStoredInvoices();
-  const idx = rows.findIndex((r) => r.id === id);
-  if (idx >= 0) {
-    rows[idx].attempts = attempts;
-    rows[idx].nextRetry = nextRetry;
-    await writeStoredInvoices(rows);
-  }
-}
-
-export async function clearSyncedLocalInvoices(olderThanDays = 7): Promise<number> {
-  if (nativeExec) {
-    const cutoff = new Date(Date.now() - olderThanDays * 24 * 60 * 60 * 1000).toISOString();
-    const res = await nativeExec('DELETE FROM invoices WHERE synced = 1 AND created_at < ?', [cutoff]);
-    // sqlite executeSql doesn't return affected rows reliably across platforms; return 0 for now
-    return 0;
-  }
-  const rows = await readStoredInvoices();
-  const cutoff = new Date(Date.now() - olderThanDays * 24 * 60 * 60 * 1000).toISOString();
-  const before = rows.length;
-  const kept = rows.filter((r) => !(r.synced === 1 && r.createdAt < cutoff));
-  await writeStoredInvoices(kept);
-  return before - kept.length;
+  const database = await getDatabase();
+  await database.runAsync(
+    `UPDATE invoices
+     SET attempts = ?, next_retry = ?, updated_at = datetime('now')
+     WHERE id = ?`,
+    [attempts, nextRetry, id]
+  );
 }
 
 export async function updateInvoiceStatus(id: string, status: InvoiceStatus): Promise<void> {
-  if (nativeExec) {
-    await nativeExec('UPDATE invoices SET status = ? WHERE id = ?', [status, id]);
-    return;
-  }
-  const rows = await readStoredInvoices();
-  const idx = rows.findIndex((r) => r.id === id);
-  if (idx >= 0) {
-    rows[idx].status = status as any;
-    await writeStoredInvoices(rows);
-  }
+  const database = await getDatabase();
+  await database.runAsync(
+    `UPDATE invoices
+     SET status = ?, updated_at = datetime('now')
+     WHERE id = ?`,
+    [status, id]
+  );
+}
+
+export async function clearSyncedLocalInvoices(olderThanDays = 7): Promise<number> {
+  const database = await getDatabase();
+  const cutoff = new Date(Date.now() - olderThanDays * 24 * 60 * 60 * 1000).toISOString();
+  const row = await database.getFirstAsync<{ count: number }>(
+    'SELECT COUNT(*) as count FROM invoices WHERE synced = 1 AND created_at < ?',
+    [cutoff]
+  );
+  await database.runAsync(
+    'DELETE FROM invoices WHERE synced = 1 AND created_at < ?',
+    [cutoff]
+  );
+  return Number(row?.count ?? 0);
 }
 
 export async function getSetting(key: string): Promise<string | null> {
-  if (nativeExec) {
-    const res = await nativeExec('SELECT value FROM settings WHERE key = ?', [key]);
-    const row = (res.rows as any)._array?.[0] as { value: string } | undefined;
-    return row?.value ?? null;
-  }
-  const raw = await AsyncStorage.getItem(STORAGE_SETTINGS_KEY);
-  const obj = raw ? JSON.parse(raw) : {};
-  return obj?.[key] ?? null;
+  const database = await getDatabase();
+  const row = await database.getFirstAsync<{ value: string }>(
+    'SELECT value FROM settings WHERE key = ?',
+    [key]
+  );
+  return row?.value ?? null;
 }
 
 export async function setSetting(key: string, value: string): Promise<void> {
-  if (nativeExec) {
-    await nativeExec(
-      'INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value',
-      [key, value]
-    );
-    return;
-  }
-  const raw = await AsyncStorage.getItem(STORAGE_SETTINGS_KEY);
-  const obj = raw ? JSON.parse(raw) : {};
-  obj[key] = value;
-  await AsyncStorage.setItem(STORAGE_SETTINGS_KEY, JSON.stringify(obj));
+  const database = await getDatabase();
+  await database.runAsync(
+    `INSERT INTO settings (key, value)
+     VALUES (?, ?)
+     ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+    [key, value]
+  );
 }
 
+// Get database info for debugging
+export async function getDatabaseInfo(): Promise<{
+  version: number;
+  tables: string[];
+  size?: number;
+}> {
+  const db = await getDatabase();
+  
+  const versionResult = await db.getFirstAsync<{ version: number }>(
+    'SELECT MAX(version) as version FROM migrations'
+  );
+  
+  const tablesResult = await db.getAllAsync<{ name: string }>(
+    "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
+  );
+  
+  return {
+    version: versionResult?.version ?? 0,
+    tables: tablesResult.map(t => t.name),
+  };
+}

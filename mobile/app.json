@@ -2,13 +2,15 @@
   "expo": {
     "name": "TaxBridge",
     "slug": "taxbridge",
-    "version": "1.0.4",
+    "version": "1.3.0",
+    "sdkVersion": "54.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "jsEngine": "hermes",
     "scheme": "taxbridge",
+    "enableMinifyInReleaseBuilds": true,
     "splash": {
       "image": "./assets/icon-square.png",
       "resizeMode": "contain",
@@ -56,7 +58,7 @@
         "backgroundColor": "#FFFFFF"
       },
       "package": "ng.taxbridge.app",
-      "versionCode": 4,
+      "versionCode": 13,
       "permissions": [
         "CAMERA",
         "READ_EXTERNAL_STORAGE",
@@ -107,13 +109,15 @@
             "compileSdkVersion": 36,
             "targetSdkVersion": 35,
             "buildToolsVersion": "35.0.0",
-            "enableProguardInReleaseBuilds": true,
+            "enableMinifyInReleaseBuilds": true,
             "enableShrinkResourcesInReleaseBuilds": true,
-            "usesCleartextTraffic": false
+            "usesCleartextTraffic": false,
+            "kotlinVersion": "2.1.20"
           },
           "ios": {
             "deploymentTarget": "15.1",
-            "useFrameworks": "static"
+            "useFrameworks": "static",
+            "buildReactNativeFromSource": false
           }
         }
       ],
@@ -161,13 +165,14 @@
     "experiments": {
       "typedRoutes": true
     },
-    "runtimeVersion": "1.0.4",
+    "runtimeVersion": { "policy": "sdkVersion" },
     "updates": {
       "enabled": true,
       "fallbackToCacheTimeout": 0,
       "checkAutomatically": "ON_LOAD"
     },
     "extra": {
+      "router": { "origin": false },
       "eas": {
         "projectId": "292108c3-5c50-4a57-a79d-1648ef5e2e03"
       },
