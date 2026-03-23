@@ -165,7 +165,7 @@
     "experiments": {
       "typedRoutes": true
     },
-    "runtimeVersion": { "policy": "sdkVersion" },
+    "runtimeVersion": "6.0.0",
     "updates": {
       "enabled": true,
       "fallbackToCacheTimeout": 0,
