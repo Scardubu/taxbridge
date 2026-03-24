@@ -341,8 +341,8 @@ jobs:
 
       - name: expo-doctor check
         working-directory: mobile
-        run: npx expo-doctor --non-interactive 2>&1 || true
-        # Non-fatal in CI — doctor requires full native environment
+        run: npx expo-doctor --non-interactive
+        # Hard gate — all 4 categories must pass after SDK 54 alignment
 
       # ── P11: Animation token guard (C-16) ────────────────────────────────────
       - name: P11 — Animation token guard (no raw numeric durations)

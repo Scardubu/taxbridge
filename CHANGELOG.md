@@ -7,6 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [13.1.0] - 2026-03-24 - AI-Orchestrated Build Infrastructure & Expo SDK 54 Alignment
+
+### Expo Doctor Fixes (0 errors target)
+- **app.json schema** — Removed invalid top-level `expo.enableMinifyInReleaseBuilds` field that failed expo doctor schema check; `enableMinifyInReleaseBuilds` correctly lives inside `expo.plugins[expo-build-properties].android` only
+- **expo-linking** — Added `~8.0.11` as direct dependency (required peer of `expo-router`, was missing causing APK crash risk)
+- **SDK 54 package alignment** — All 11 major-version mismatches resolved against `bundledNativeModules.json`:
+  - `expo-sqlite` 15→16, `expo-secure-store` 14→15, `expo-haptics` 14→15
+  - `expo-speech` 13→14, `expo-sharing` 13→14, `expo-file-system` 18→19
+  - `expo-crypto` 14→15, `expo-device` 7→8, `expo-localization` 16→17
+  - `react-native-view-shot` 3.8→4.0, `@sentry/react-native` 6→7
+- **Duplicate native module** — `expo-file-system` duplicate (18.0.12 vs 19.0.21) resolved by aligning top-level declaration to `~19.0.21`
+- **Minor version drift** — `@shopify/flash-list` 2.2→2.0, `react-native-screens` 4.23→4.16, `react-native-svg` 15.11→15.12, `lottie-react-native` 7.2→7.3, `expo-router` 6.0.4→6.0.23, `react-native-reanimated` 4.1.0→4.1.1
+- **Navigation alignment** — `@react-navigation/bottom-tabs`, `native`, `native-stack` pinned to expo-router declared peer ranges
+- **typescript** devDep upgraded from `~5.8.3` to `~5.9.2` to match SDK 54 expected version
+- **expo.install.exclude** — Added `@react-navigation/*` packages to prevent `expo install --check` from overwriting intentional pins
+- **jest-expo** — Updated to `~54.0.17` (SDK 54 bundled)
+
+### Phase 0 — AI-Orchestrated Monorepo Automation
+- **`mobile/scripts/fix-expo-sdk.js`** — Self-healing pre-build script: validates app.json schema, ensures SDK 54 required versions, detects duplicate native modules, emits fix report to CI logs
+- **`scripts/ai-fix.ts`** — Root automation: runs SDK healer → clean install → dedupe → expo doctor validation
+- **`scripts/ai-build.ts`** — Root automation: 8-step autonomous APK build (fix → clean → install → dedupe → expo install --check → doctor → prebuild → EAS build cache-free)
+- **Root `package.json`** — Added `fix:expo`, `fix:ai`, `fix:apk` scripts for one-command execution
+- **Mobile `package.json`** — Added `fix:expo` script; `eas:build:apk` now runs `fix-expo-sdk.js` as first step before prebuild
+
+### Phase 5 — CI/CD Automation
+- **`.github/workflows/eas-build-production.yml`** — Updated: `master` branch added as trigger (was `main` only), `fix-expo-sdk.js` self-healer step added before expo doctor, `production-apk` as default profile, `platform` defaults to `android`, `profile` input added with `production-apk`/`production`/`preview` options
+- **`.github/workflows/ci.yml`** — `expo-doctor` step upgraded from non-fatal (`|| true`) to hard gate — all 4 checks must pass for CI to succeed
+
+### Files Created
+- `mobile/scripts/fix-expo-sdk.js`
+- `scripts/ai-fix.ts`
+- `scripts/ai-build.ts`
+
+### Files Modified
+- `mobile/app.json`
+- `mobile/package.json`
+- `package.json`
+- `.github/workflows/eas-build-production.yml`
+- `.github/workflows/ci.yml`
+
+---
+
 ## [12.0.0] - 2026-03-07 - V12 Apex Execution Directive — Full Rollout
 
 ### Phase 0 — Foundation

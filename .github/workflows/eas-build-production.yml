@@ -3,6 +3,7 @@ name: EAS Production Build (Zero-Cache)
 on:
   push:
     branches:
+      - master
       - main
     paths:
       - 'mobile/**'
@@ -12,12 +13,21 @@ on:
       platform:
         description: 'Platform to build'
         required: true
-        default: 'all'
+        default: 'android'
         type: choice
         options:
-          - all
           - android
           - ios
+          - all
+      profile:
+        description: 'EAS build profile'
+        required: true
+        default: 'production-apk'
+        type: choice
+        options:
+          - production-apk
+          - production
+          - preview
 
 jobs:
   build:
@@ -51,7 +61,7 @@ jobs:
           echo "🧹 Clearing all caches..."
           rm -rf node_modules
           rm -rf .metro
-          rm -rf $TMPDIR/metro-*
+          rm -rf $TMPDIR/metro-* 2>/dev/null || true
           rm -rf android/build android/app/build android/.gradle
           rm -rf ios/build ios/Pods
           npm cache clean --force
@@ -61,6 +71,10 @@ jobs:
         working-directory: mobile
         run: npm ci --prefer-offline=false --no-audit --loglevel=error
 
+      - name: 🔧 AI SDK Self-Healer (fix-expo-sdk)
+        working-directory: mobile
+        run: node scripts/fix-expo-sdk.js
+
       - name: 🔍 Run Expo Doctor
         working-directory: mobile
         run: npx expo-doctor
@@ -69,14 +83,15 @@ jobs:
         working-directory: mobile
         run: npx expo prebuild --clean --no-install
 
-      - name: 🚀 EAS Build (Production)
+      - name: 🚀 EAS Build (Cache-Free APK)
         working-directory: mobile
         env:
           EXPO_PUBLIC_API_URL: https://taxbridge-api-ker8.onrender.com
+          EAS_NO_VCS: '0'
         run: |
           eas build \
-            --platform ${{ github.event.inputs.platform || 'all' }} \
-            --profile production \
+            --platform ${{ github.event.inputs.platform || 'android' }} \
+            --profile ${{ github.event.inputs.profile || 'production-apk' }} \
             --clear-cache \
             --no-wait \
             --non-interactive

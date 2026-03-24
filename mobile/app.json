@@ -10,7 +10,6 @@
     "newArchEnabled": true,
     "jsEngine": "hermes",
     "scheme": "taxbridge",
-    "enableMinifyInReleaseBuilds": true,
     "splash": {
       "image": "./assets/icon-square.png",
       "resizeMode": "contain",
