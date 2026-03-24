@@ -74,7 +74,7 @@ run(
 // ── 8. EAS Build — cache-free APK ─────────────────────────────────────────
 step(8, TOTAL, 'EAS build: production-apk (cache-free)');
 run(
-  'cross-env EAS_NO_VCS=1 EAS_SKIP_AUTO_FINGERPRINT=1 npx eas build --platform android --profile production-apk --clear-cache --non-interactive',
+  'cross-env EAS_NO_VCS=1 EAS_SKIP_AUTO_FINGERPRINT=1 eas build --platform android --profile production-apk --clear-cache --non-interactive',
   MOBILE_ROOT,
 );
 
