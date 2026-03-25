@@ -4,58 +4,83 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* ── Surface & text ── */
+    --background: 210 33% 98%;
+    --foreground: 222 47% 11%;
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 222 47% 11%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
-    --primary: 222.2 47.4% 11.2%;
+    --popover-foreground: 222 47% 11%;
+
+    /* ── Brand ── */
+    --primary: 221 83% 53%;
     --primary-foreground: 210 40% 98%;
-    --secondary: 210 40% 96%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
-    --muted: 210 40% 96%;
-    --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 210 40% 96%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+
+    /* ── Neutral ── */
+    --secondary: 210 36% 96%;
+    --secondary-foreground: 222 47% 11%;
+    --muted: 210 24% 95%;
+    --muted-foreground: 215 16% 40%;
+    --accent: 214 32% 95%;
+    --accent-foreground: 222 47% 11%;
+
+    /* ── Semantic ── */
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --success: 160 64% 42%;
+    --warning: 38 92% 50%;
+
+    /* ── Chrome ── */
+    --border: 214 24% 89%;
+    --input: 214 24% 89%;
+    --ring: 221 83% 53%;
     --radius: 0.75rem;
-    --chart-1: 12 76% 61%;
-    --chart-2: 173 58% 39%;
-    --chart-3: 197 37% 24%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
+
+    /* ── Charts ── */
+    --chart-1: 220 79% 56%;
+    --chart-2: 160 64% 42%;
+    --chart-3: 30 84% 56%;
+    --chart-4: 352 78% 56%;
+    --chart-5: 262 70% 62%;
+
+    /* ── Enterprise shell ── */
+    --sidebar-bg: 222 47% 11%;
+    --sidebar-fg: 210 36% 92%;
+    --sidebar-active: 221 83% 53%;
+    --sidebar-hover: 220 30% 20%;
+    --header-h: 60px;
+    --sidebar-w: 240px;
+    --sidebar-collapsed-w: 64px;
   }
 
   .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
+    --background: 222 47% 6%;
+    --foreground: 210 40% 96%;
+    --card: 222 47% 8%;
+    --card-foreground: 210 40% 96%;
+    --popover: 222 47% 8%;
+    --popover-foreground: 210 40% 96%;
+    --primary: 217 91% 62%;
+    --primary-foreground: 222 47% 8%;
+    --secondary: 217 32% 16%;
+    --secondary-foreground: 210 40% 96%;
+    --muted: 217 32% 16%;
+    --muted-foreground: 215 20% 58%;
+    --accent: 217 32% 16%;
+    --accent-foreground: 210 40% 96%;
+    --destructive: 0 72% 51%;
     --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
+    --border: 217 32% 20%;
+    --input: 217 32% 20%;
+    --ring: 217 91% 62%;
+    --chart-1: 220 70% 55%;
+    --chart-2: 160 60% 48%;
     --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
+    --chart-4: 280 65% 62%;
+    --chart-5: 340 75% 56%;
+    --sidebar-bg: 222 47% 5%;
+    --sidebar-fg: 210 36% 80%;
+    --sidebar-hover: 220 30% 14%;
   }
 }
 
@@ -63,7 +88,127 @@
   * {
     @apply border-border;
   }
+
+  html {
+    @apply scroll-smooth;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+    -webkit-text-size-adjust: 100%;
+  }
+
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: 'tnum', 'cv02', 'cv03', 'cv04', 'cv11';
+    min-height: 100vh;
+  }
+
+  ::selection {
+    background: rgba(37, 99, 235, 0.16);
+    color: inherit;
+  }
+
+  h1, h2, h3, h4 {
+    letter-spacing: -0.025em;
+    text-wrap: balance;
+  }
+
+  /* ── Focus rings (WCAG AA) ── */
+  button:focus-visible,
+  a:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible,
+  [role='button']:focus-visible,
+  [role='tab']:focus-visible,
+  [role='link']:focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+
+  /* ── Tabular numerics for all financial figures ── */
+  .font-mono,
+  [data-numeric='true'],
+  [data-currency='true'] {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum';
+  }
+
+  /* ── Smooth scroll restoration ── */
+  :focus-visible {
+    scroll-margin-top: calc(var(--header-h) + 8px);
+  }
+}
+
+/* ── Enterprise utility classes ── */
+@layer utilities {
+  .tb-surface {
+    @apply bg-white border border-slate-200/80 rounded-xl shadow-[0_1px_4px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.04)];
+  }
+
+  .tb-surface-hover {
+    @apply transition-shadow duration-200 hover:shadow-[0_2px_8px_rgba(0,0,0,0.06),0_8px_24px_rgba(0,0,0,0.06)];
+  }
+
+  .tb-label {
+    @apply text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500;
+  }
+
+  .tb-value {
+    @apply text-3xl font-semibold tracking-[-0.03em] text-slate-950 tabular-nums;
+  }
+
+  .dark .tb-surface {
+    @apply bg-card border-slate-800;
+  }
+
+  .dark .tb-value {
+    @apply text-slate-50;
+  }
+
+  /* Stripe-style subtle card lift */
+  .card-lift {
+    @apply transition-[transform,box-shadow] duration-200
+      hover:-translate-y-px
+      hover:shadow-[0_4px_20px_rgba(0,0,0,0.08)];
+  }
+
+  /* Hide scrollbar cross-browser */
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+  /* Fade-in animation */
+  .animate-fade-in {
+    animation: fadeIn 0.25s ease-out both;
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Slide-up animation for tab content */
+  .animate-slide-up {
+    animation: slideUp 0.2s ease-out both;
+  }
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Hide scrollbar while preserving scroll functionality */
+  .no-scrollbar {
+    scrollbar-width: none;       /* Firefox */
+    -ms-overflow-style: none;    /* IE / Edge */
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;               /* Chrome / Safari / Opera */
+  }
+
+  /* Respect prefers-reduced-motion */
+  @media (prefers-reduced-motion: reduce) {
+    .animate-fade-in,
+    .animate-slide-up,
+    .card-lift {
+      animation: none !important;
+      transform: none !important;
+      transition: none !important;
+    }
   }
 }

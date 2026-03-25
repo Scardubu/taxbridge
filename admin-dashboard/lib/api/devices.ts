@@ -1,7 +1,14 @@
 import { fetchJson } from '../fetcher';
+import { withTaxBridgeHeaders } from '../api-contract';
 
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || '';
 const ADMIN_API_KEY = process.env.NEXT_PUBLIC_ADMIN_API_KEY || '';
+
+function adminHeaders(extra?: HeadersInit): Headers {
+  const h = withTaxBridgeHeaders(extra || {});
+  h.set('X-Admin-API-Key', ADMIN_API_KEY);
+  return h;
+}
 
 export interface Device {
   id: string;
@@ -134,17 +141,13 @@ export async function fetchDevices(params?: {
   if (params?.active !== undefined) query.set('active', params.active.toString());
 
   return fetchJson<DevicesResponse>(`${API_BASE}/api/admin/devices?${query}`, {
-    headers: {
-      'X-Admin-API-Key': ADMIN_API_KEY,
-    },
+    headers: adminHeaders(),
   });
 }
 
 export async function fetchSyncStats(): Promise<SyncStats> {
   return fetchJson<SyncStats>(`${API_BASE}/api/admin/sync/stats`, {
-    headers: {
-      'X-Admin-API-Key': ADMIN_API_KEY,
-    },
+    headers: adminHeaders(),
   });
 }
 
@@ -161,9 +164,7 @@ export async function fetchConflicts(params?: {
   if (params?.userId) query.set('userId', params.userId);
 
   return fetchJson<ConflictsResponse>(`${API_BASE}/api/admin/conflicts?${query}`, {
-    headers: {
-      'X-Admin-API-Key': ADMIN_API_KEY,
-    },
+    headers: adminHeaders(),
   });
 }
 
@@ -176,9 +177,7 @@ export async function fetchPendingSyncJobs(params?: {
   if (params?.status) query.set('status', params.status);
 
   return fetchJson<PendingSyncJobsResponse>(`${API_BASE}/api/admin/sync/pending?${query}`, {
-    headers: {
-      'X-Admin-API-Key': ADMIN_API_KEY,
-    },
+    headers: adminHeaders(),
   });
 }
 
@@ -189,10 +188,7 @@ export async function forceDeviceSync(deviceId: string, reason?: string): Promis
 }> {
   return fetchJson(`${API_BASE}/api/admin/device/force-sync`, {
     method: 'POST',
-    headers: {
-      'X-Admin-API-Key': ADMIN_API_KEY,
-      'Content-Type': 'application/json',
-    },
+    headers: adminHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ deviceId, reason }),
   });
 }
@@ -212,10 +208,7 @@ export async function resolveConflict(params: {
 }> {
   return fetchJson(`${API_BASE}/api/admin/conflicts/resolve`, {
     method: 'POST',
-    headers: {
-      'X-Admin-API-Key': ADMIN_API_KEY,
-      'Content-Type': 'application/json',
-    },
+    headers: adminHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(params),
   });
 }

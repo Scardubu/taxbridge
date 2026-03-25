@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { withTaxBridgeHeaders } from '@/lib/api-contract';
 
 const BACKEND_URL =
   process.env.NEXT_PUBLIC_API_URL ||
@@ -18,6 +19,7 @@ export function useBackendWarmup() {
       try {
         setIsWaking(true);
         const response = await fetch(`${BACKEND_URL}/health`, {
+          headers: withTaxBridgeHeaders(),
           signal: AbortSignal.timeout(15000),
           cache: 'no-store',
         });

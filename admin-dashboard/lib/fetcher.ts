@@ -1,3 +1,5 @@
+import { withTaxBridgeHeaders } from './api-contract';
+
 export class FetchError extends Error {
   status: number;
   url: string;
@@ -45,12 +47,14 @@ async function safeReadJson(response: Response): Promise<unknown> {
 }
 
 export async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
+  const headers = withTaxBridgeHeaders(options?.headers || {});
+  if (!headers.has('Accept')) {
+    headers.set('Accept', 'application/json');
+  }
+
   const response = await fetch(url, {
     ...options,
-    headers: {
-      Accept: 'application/json',
-      ...(options?.headers || {}),
-    },
+    headers,
   });
 
   const body = await safeReadJson(response);

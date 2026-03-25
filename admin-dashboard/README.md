@@ -1,8 +1,8 @@
-# TaxBridge Admin Dashboard
+# TaxBridge Enterprise Control Center
 
 <div align="center">
 
-**Comprehensive monitoring and management for TaxBridge operations**
+**Accountant-first admin dashboard for TaxBridge platform operations**
 
 [![Next.js](https://img.shields.io/badge/Next.js-16.1.1-black)](https://nextjs.org)
 [![React](https://img.shields.io/badge/React-19.2.3-blue)](https://react.dev)
@@ -14,28 +14,113 @@
 
 ---
 
+## 🏗️ Architecture — Enterprise Control Center
+
+The admin dashboard is a single-page tabbed interface at `/dashboard`. All legacy sub-routes
+(`/dashboard/analytics`, `/dashboard/compliance`, etc.) now perform **server-side redirects**
+to the appropriate tab via `?tab=<name>`, preserving backward compatibility and deep-linkability.
+
+### Component structure
+
+```
+components/admin-dashboard/
+├── shell/
+│   └── EnterpriseShell.tsx      — Layout shell (top-nav, SSE indicator, footer)
+├── tabs/
+│   ├── OverviewTab.tsx          — KPIs, health, launch metrics, charts
+│   ├── AnalyticsTab.tsx         — DigiTax + Remita analytics, compliance trends
+│   ├── ComplianceTab.tsx        — NRS status, compliance rate, recent issues
+│   ├── InvoicesTab.tsx          — Invoice registry, UBL viewer, resubmit
+│   ├── UsersTab.tsx             — Business registry, search & filter
+│   ├── DevicesTab.tsx           — Mobile device management, force-sync
+│   ├── SystemTab.tsx            — Infrastructure health, resource usage
+│   └── index.ts                 — Barrel export
+└── ui/
+    ├── MetricCard.tsx            — KPI card with trend indicator
+    ├── StatusPill.tsx            — Semantic status badge
+    ├── SectionHeader.tsx         — Section title + description
+    └── index.ts                  — Barrel export
+```
+
+### Navigation
+
+| URL | Behaviour |
+|-----|-----------|
+| `/` | Server redirect → `/dashboard` |
+| `/dashboard` | Enterprise Control Center (tabbed) |
+| `/dashboard?tab=overview` | Opens Overview tab |
+| `/dashboard?tab=analytics` | Opens Analytics tab |
+| `/dashboard?tab=compliance` | Opens Compliance tab |
+| `/dashboard?tab=invoices` | Opens Invoices tab |
+| `/dashboard?tab=users` | Opens Businesses tab |
+| `/dashboard?tab=devices` | Opens Devices tab |
+| `/dashboard?tab=system` | Opens System tab |
+| `/dashboard/analytics` | Server redirect → `/dashboard?tab=analytics` |
+| `/dashboard/compliance` | Server redirect → `/dashboard?tab=compliance` |
+| `/dashboard/invoices` | Server redirect → `/dashboard?tab=invoices` |
+| `/dashboard/users` | Server redirect → `/dashboard?tab=users` |
+| `/dashboard/devices` | Server redirect → `/dashboard?tab=devices` |
+| `/dashboard/system` | Server redirect → `/dashboard?tab=system` |
+
+---
+
 ## ✨ Features
 
-### 🎯 Dashboard Overview
-- Real-time system health monitoring
-- API health checks for Duplo and Remita
-- Key metrics visualization (users, invoices, payments, compliance)
-- Trend indicators and recent activity tracking
-- Auto-refresh with visual indicators
+### 🎯 Overview Tab
+- Real-time KPI cards (users, invoices, payments, compliance)
+- AI insights panel with platform intelligence and anomaly detection
+- Integration health cards (DigiTax/Duplo, Remita) with live latency
+- Launch metrics widget with MRR, NRR, GRR tracking
+- Risk signal panel with anomaly classification
+- Invoice and payment trend charts
 
-### 📊 Analytics & Insights
-- **Integration Metrics**: Duplo success rates, Remita transaction volumes
-- **Compliance Analytics**: NRS compliance tracking, exemption utilization
-- **Trend Analysis**: Payment patterns, invoice submission trends
-- **Export Capabilities**: CSV export for NRS audits
+### 📊 Analytics Tab
+- **Date range filter**: 7d / 30d / 90d
+- **DigiTax metrics**: Success rate trend, daily submission bar chart, error breakdown pie
+- **Remita metrics**: Transaction trend, daily volume line chart
+- **NRS compliance trend**: Compliant vs non-compliant bar chart
+- **Withholding tax tracking**: Monthly WHT line chart
+- CSV export capability
 
-### 📄 Invoice Management
-- **UBL 3.0 XML Viewer**: Parse and validate UBL XML with mandatory field checking
-- **Duplo Integration**: Resubmit failed invoices, track IRN generation
-- **Status Tracking**: Real-time invoice status updates
-- **Bulk Operations**: Mass resubmission capabilities
+### 🛡️ Compliance Tab
+- NRS connection status (connected / mock / error) with pulse indicator
+- Compliance rate progress bar with breakdown
+- Compliance KPIs: rate, compliant count, pending, non-compliant
+- Recent issues list with type icons and resolved/open status
+- Exemption utilization breakdown with progress bars
 
-### 🔧 System Administration
+### 📄 Invoices Tab
+- Invoice registry with status filter (all / queued / processing / stamped / failed)
+- Full-text search across customer name, business, ID, NRS reference
+- UBL XML viewer dialog with invoice detail
+- One-click resubmit to DigiTax for failed invoices
+- KPIs: total, stamped, in-progress, failed
+
+### 👥 Businesses Tab
+- Business registry with status filter (all / active / pending / suspended)
+- Search by name, email, phone, TIN
+- Onboarding completion indicator
+- KPIs: total, active, pending, suspended
+
+### 📱 Devices Tab
+- Registered mobile device list with platform filter (iOS / Android)
+- Active-only toggle and pagination
+- Real-time updates via SSE (device:heartbeat, device:registered)
+- Force-sync dialog with audit reason
+- KPIs: registered, active, pending sync jobs, unresolved conflicts
+
+### 🖥️ System Tab
+- Overall system status banner (operational / degraded / disruption)
+- Resource utilisation bars: CPU, memory, disk
+- Individual service cards: API Server, Database, Cache, Job Queue
+- Integration status cards: DigiTax, Remita, Supabase, Redis
+- Recent system events feed (info / warning / error)
+- Auto-refresh toggle (30-second interval)
+- KPIs: uptime, CPU %, memory %, active connections
+
+---
+
+## 🔧 System Administration
 - **User Management**: Monitor registered SMEs
 - **Payment Reconciliation**: Track Remita RRR generation and confirmation
 - **Audit Logging**: Complete audit trail for compliance

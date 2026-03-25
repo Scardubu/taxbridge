@@ -1,3 +1,5 @@
+import { withTaxBridgeHeaders } from './api-contract';
+
 type RequestOptions = RequestInit & { expectsJson?: boolean; timeoutMs?: number };
 
 export class BackendAPIError extends Error {
@@ -55,7 +57,7 @@ async function requestBackend(path: string, options: RequestOptions = {}) {
   }
 
   const url = buildUrl(path);
-  const headers = new Headers(options.headers || {});
+  const headers = withTaxBridgeHeaders(options.headers || {});
 
   if (!headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json');

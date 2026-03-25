@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { CheckCircle2, AlertTriangle, XCircle, HelpCircle } from 'lucide-react';
 import { useAdminI18n } from '@/lib/i18n';
+import { cn } from '@/lib/utils';
 
 interface HealthCardProps {
   title: string;
@@ -78,33 +79,40 @@ export function HealthCard({ title, status, latency, lastChecked, description }:
     }
   };
 
+  const statusTone =
+    status === 'error'
+      ? 'border-rose-200/80 bg-rose-50/70'
+      : status === 'degraded'
+        ? 'border-amber-200/80 bg-amber-50/70'
+        : 'border-emerald-200/80 bg-emerald-50/50';
+
   return (
-    <Card className={`transition-all duration-200 hover:shadow-md ${
-      status === 'error' ? 'border-red-200 bg-red-50/50' : 
-      status === 'degraded' ? 'border-yellow-200 bg-yellow-50/50' : 
-      'border-green-200 bg-green-50/30'
-    }`}>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium text-slate-700">{title}</CardTitle>
+    <Card className={cn('overflow-hidden', statusTone)}>
+      <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
+        <div className="space-y-1">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">Integration</p>
+          <CardTitle className="text-base font-semibold text-slate-900">{title}</CardTitle>
+        </div>
         <div className="flex items-center space-x-2">
           {getStatusIcon(status)}
-          <Badge variant={getStatusVariant(status)} className="text-xs font-semibold">
+          <Badge variant={getStatusVariant(status)} className="text-[11px] font-semibold">
             {t(`healthcard.badge.${status}`)}
           </Badge>
         </div>
       </CardHeader>
-      <CardContent>
-        <div className={`text-3xl font-bold ${getLatencyColor(latency)}`}>
+      <CardContent className="space-y-3">
+        <div data-numeric="true" className={`text-3xl font-semibold tracking-[-0.03em] ${getLatencyColor(latency)}`}>
           {formatLatencyDisplay(latency)}
         </div>
-        <p className="text-xs text-muted-foreground mt-1">
+        <p className="text-sm text-muted-foreground leading-6">
           {description || getStatusMessage(status)}
         </p>
-        {lastChecked && (
-          <p className="text-xs text-slate-500 mt-2">
-            {t('healthcard.latency.lastChecked', { time: lastChecked })}
-          </p>
-        )}
+        <div className="flex items-center justify-between gap-3 border-t border-white/60 pt-3 text-xs text-slate-500">
+          <span>{getStatusMessage(status)}</span>
+          {lastChecked && (
+            <span data-numeric="true">{t('healthcard.latency.lastChecked', { time: lastChecked })}</span>
+          )}
+        </div>
       </CardContent>
     </Card>
   );

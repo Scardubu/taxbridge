@@ -6,6 +6,7 @@ import { Navigation } from './Navigation';
 import { cn, safeDate } from '@/lib/utils';
 import { FetchError, fetchJson } from '@/lib/fetcher';
 import { useAdminI18n, type AdminLanguage } from '@/lib/i18n';
+import { useTaxBridgeSSE } from '@/hooks/useTaxBridgeSSE';
 import {
   CheckCircle2,
   AlertTriangle,
@@ -69,10 +70,25 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     data: integrationsHealth,
     error: integrationsError,
     isLoading: isIntegrationsLoading,
+    mutate: revalidateIntegrations,
   } = useSWR<IntegrationsHealthResponse>('/api/admin/health/integrations', integrationsFetcher, {
-    refreshInterval: 30000,
+    refreshInterval: 300_000,
     revalidateOnFocus: false,
     keepPreviousData: true,
+  });
+
+  const handleHealthEvent = useCallback(() => {
+    void revalidateIntegrations();
+  }, [revalidateIntegrations]);
+
+  const { connected: sseConnected } = useTaxBridgeSSE({
+    eventTypes: [
+      'integration:health',
+      'remita:status_change',
+      'digitax:status_change',
+      'system:health',
+    ],
+    onEvent: handleHealthEvent,
   });
 
   useEffect(() => {
@@ -272,6 +288,23 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
                   aria-hidden="true"
                 />
                 <span className="text-xs sm:text-sm font-medium text-slate-700">{t(derived.statusTextKey)}</span>
+              </div>
+
+              {/* SSE Live-stream indicator */}
+              <div
+                title={sseConnected ? 'Real-time stream connected' : 'Polling fallback — stream unavailable'}
+                className="hidden sm:flex items-center gap-1.5 px-2 py-1.5"
+                aria-label={sseConnected ? 'Live stream connected' : 'Stream disconnected'}
+              >
+                <span
+                  className={cn('h-2 w-2 rounded-full', {
+                    'bg-emerald-400 shadow-[0_0_6px_1px_rgba(52,211,153,0.6)] animate-pulse': sseConnected,
+                    'bg-slate-300': !sseConnected,
+                  })}
+                />
+                <span className="text-xs text-slate-400 hidden lg:inline">
+                  {sseConnected ? 'Live' : 'Poll'}
+                </span>
               </div>
 
               {/* User Avatar */}

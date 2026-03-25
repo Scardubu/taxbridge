@@ -6,11 +6,11 @@
  * Real-time admin view of all NRS (Nigeria Revenue Service) submission activity.
  * Surfaces queue health, failed submissions, and IRN audit data.
  *
- * Data refresh: every 10 s (queues/summary) | 30 s (failed submissions)
+ * Data refresh: SSE-driven (instant on nrs:* events) with 5-min polling fallback.
  * Cold-start safe: all SWR calls use fallbackData to avoid blank renders.
  */
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import useSWR from 'swr';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -20,6 +20,7 @@ import { SkeletonCard } from '@/components/ui/skeleton-table';
 import { fetchJson, FetchError } from '@/lib/fetcher';
 import { useAdminI18n } from '@/lib/i18n';
 import { safeDate } from '@/lib/utils';
+import { useTaxBridgeSSE } from '@/hooks/useTaxBridgeSSE';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -73,10 +74,10 @@ interface FailedSubmissionsResponse {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-const adminFetcher = <T,>(url: string): Promise<T> =>
-  fetchJson<T>(url, {
-    headers: { 'x-admin-api-key': process.env.NEXT_PUBLIC_ADMIN_API_KEY || '' },
-  });
+
+// fetchJson already injects X-TaxBridge-Version + X-Device-ID via api-contract.
+// The admin API key is added by the Next.js API route proxy — no exposure on client.
+const adminFetcher = <T,>(url: string): Promise<T> => fetchJson<T>(url);
 
 function statusBadge(status: string) {
   const map: Record<string, string> = {
@@ -240,12 +241,12 @@ export default function NrsOperationsPage() {
   const [resubmitting, setResubmitting] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; ok: boolean } | null>(null);
 
-  // Real-time queue health — 10 s refresh
-  const { data: queueHealth } = useSWR<QueueHealthResponse>(
+  // SSE-driven revalidation: instant refresh on nrs:* events with 5-min polling fallback
+  const { data: queueHealth, mutate: revalidateHealth } = useSWR<QueueHealthResponse>(
     `${API_BASE}/api/admin/nrs/queue-status`,
     adminFetcher,
     {
-      refreshInterval: 10_000,
+      refreshInterval: 300_000,
       fallbackData: { success: true, data: { status: 'unavailable', queues: {} }, timestamp: '' },
       onErrorRetry: (_err, _key, _cfg, revalidate, { retryCount }) => {
         if (retryCount < 5) setTimeout(() => revalidate({ retryCount }), 5_000);
@@ -253,12 +254,11 @@ export default function NrsOperationsPage() {
     },
   );
 
-  // NRS summary stats — 10 s refresh
-  const { data: summary } = useSWR<NrsSummary>(
+  const { data: summary, mutate: revalidateSummary } = useSWR<NrsSummary>(
     `${API_BASE}/api/admin/nrs/summary`,
     adminFetcher,
     {
-      refreshInterval: 10_000,
+      refreshInterval: 300_000,
       fallbackData: {
         success: true,
         data: { total: 0, last24h: { successful: 0, failed: 0, pending: 0 } },
@@ -267,12 +267,12 @@ export default function NrsOperationsPage() {
     },
   );
 
-  // Failed submissions — 30 s refresh
+  // Failed submissions — SSE-driven with 5-min polling fallback
   const { data: failedData, mutate: refetchFailed } = useSWR<FailedSubmissionsResponse>(
     `${API_BASE}/api/admin/nrs/failed-submissions?limit=20`,
     adminFetcher,
     {
-      refreshInterval: 30_000,
+      refreshInterval: 300_000,
       fallbackData: {
         success: true,
         data: { invoices: [], pagination: { page: 1, limit: 20, total: 0, pages: 0 } },
@@ -280,13 +280,23 @@ export default function NrsOperationsPage() {
     },
   );
 
+  const handleNrsEvent = useCallback(() => {
+    void revalidateHealth();
+    void revalidateSummary();
+    void refetchFailed();
+  }, [revalidateHealth, revalidateSummary, refetchFailed]);
+
+  const { connected: sseConnected } = useTaxBridgeSSE({
+    eventTypes: ['nrs:submitted', 'nrs:failed', 'nrs:requeued', 'nrs:queue_health'],
+    onEvent: handleNrsEvent,
+  });
+
   async function handleResubmit(invoiceId: string) {
     setResubmitting(invoiceId);
     setToast(null);
     try {
       await fetchJson(`${API_BASE}/api/admin/nrs/resubmit/${invoiceId}`, {
         method: 'POST',
-        headers: { 'x-admin-api-key': process.env.NEXT_PUBLIC_ADMIN_API_KEY || '' },
       });
       setToast({ message: `Invoice ${invoiceId.slice(0, 8)}… re-queued`, ok: true });
       await refetchFailed();
@@ -310,8 +320,11 @@ export default function NrsOperationsPage() {
               {t('nrsOps.pageDesc')}
             </p>
           </div>
-          <Badge variant="outline" className="text-xs">
-            {t('nrsOps.autoRefresh')}
+          <Badge
+            variant="outline"
+            className={`text-xs ${sseConnected ? 'border-green-300 text-green-700' : 'border-slate-300 text-slate-500'}`}
+          >
+            {sseConnected ? t('nrsOps.realtimeSSE') : t('nrsOps.autoRefresh')}
           </Badge>
         </div>
 

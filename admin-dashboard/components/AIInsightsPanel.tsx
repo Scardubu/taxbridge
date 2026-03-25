@@ -216,12 +216,12 @@ export function AIInsightsPanel() {
   const { data: stats, isLoading: statsLoading } = useSWR<StatsData>(
     '/api/admin/stats',
     fetcher,
-    { refreshInterval: 60_000 }
+    { refreshInterval: 300_000 }
   );
   const { data: health } = useSWR<HealthData>(
     '/api/admin/health/integrations',
     fetcher,
-    { refreshInterval: 30_000 }
+    { refreshInterval: 300_000 }
   );
 
   // Mock anomaly summary — replace with real endpoint when /api/v1/admin/aggregate-anomalies exists
