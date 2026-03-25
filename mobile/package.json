@@ -20,8 +20,10 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
+    "postinstall": "node scripts/fix-lightningcss-win32.js",
+    "build:contracts": "npm --prefix ../packages/contracts run build",
     "fix:expo": "node scripts/fix-expo-sdk.js",
-    "eas:build:apk": "node scripts/fix-expo-sdk.js && node scripts/ensure-expo-bin.js && cross-env CI=1 npx expo prebuild --platform android --clean && cross-env EAS_NO_VCS=1 EAS_SKIP_AUTO_FINGERPRINT=1 eas build --platform android --profile production-apk --clear-cache --non-interactive"
+    "eas:build:apk": "npm run build:contracts && node scripts/fix-expo-sdk.js && node scripts/ensure-expo-bin.js && cross-env CI=1 npx expo prebuild --platform android --clean && cross-env EAS_NO_VCS=1 EAS_SKIP_AUTO_FINGERPRINT=1 eas build --platform android --profile production-apk --clear-cache --non-interactive"
   },
   "dependencies": {
     "@babel/core": "^7.22.0",
@@ -97,6 +99,9 @@
     "react-test-renderer": "19.1.0",
     "typescript": "~5.9.2",
     "tailwindcss": "^3.4.17"
+  },
+  "optionalDependencies": {
+    "lightningcss-win32-x64-msvc": "1.27.0"
   },
   "engines": {
     "node": ">=20.19.4"

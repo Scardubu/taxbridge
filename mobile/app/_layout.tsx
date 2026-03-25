@@ -13,37 +13,66 @@ import i18n from '../i18n';
 import { getDatabase } from '../services/database';
 import { migrateFromAsyncStorage } from '../services/storageMigration';
 import { useBusinessProfileStore } from '../stores/businessProfileStore';
-import { offlineQueue } from '../services/offlineQueue';
 
 const { Stack } = require('expo-router') as {
   Stack: React.ComponentType<any> & { Screen: React.ComponentType<any> };
 };
 
-Sentry.init({
-  dsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
-  enabled: !__DEV__ && !isRunningInExpoGo(),
-  tracesSampleRate: 0.15,
-  environment: process.env.EXPO_PUBLIC_ENV ?? 'development',
-});
+let hasInitializedSentry = false;
 
-void SplashScreen.preventAutoHideAsync();
+function ensureSentryInitialized() {
+  if (hasInitializedSentry) {
+    return;
+  }
+
+  Sentry.init({
+    dsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
+    enabled: !__DEV__ && !isRunningInExpoGo(),
+    tracesSampleRate: 0.15,
+    environment: process.env.EXPO_PUBLIC_ENV ?? 'development',
+  });
+
+  hasInitializedSentry = true;
+}
+
+void SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
 function RootLayout() {
   const hydrateProfile = useBusinessProfileStore((state) => state.hydrate);
 
   useEffect(() => {
+    ensureSentryInitialized();
+
+    let isMounted = true;
+
     void (async () => {
       try {
         await getDatabase();
         await migrateFromAsyncStorage();
-        await hydrateProfile();
-        void offlineQueue.flush();
       } catch (error) {
         Sentry.captureException(error);
       } finally {
-        await SplashScreen.hideAsync();
+        if (isMounted) {
+          await SplashScreen.hideAsync().catch(() => undefined);
+
+          setTimeout(() => {
+            void hydrateProfile().catch((error) => {
+              Sentry.captureException(error);
+            });
+
+            void import('../services/offlineQueue').then(({ offlineQueue }) => {
+              return offlineQueue.flush();
+            }).catch((error) => {
+              Sentry.captureException(error);
+            });
+          }, 0);
+        }
       }
     })();
+
+    return () => {
+      isMounted = false;
+    };
   }, [hydrateProfile]);
 
   return (

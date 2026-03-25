@@ -1,19 +1,31 @@
 import React from 'react';
-import { Platform } from 'react-native';
 import { Redirect, Tabs } from 'expo-router';
-import { NativeTabs, Icon, Label } from 'expo-router/unstable-native-tabs';
+import { Ionicons } from '@expo/vector-icons';
+import type { BottomTabNavigationOptions } from '@react-navigation/bottom-tabs';
 import { useTranslation } from 'react-i18next';
 import { useIsOnboardingDone } from '../../stores/onboardingStore';
 
-const USE_NATIVE_TABS = Platform.OS !== 'ios' || !__DEV__;
+type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 
-const TAB_META = [
-  { name: 'index', sf: 'house.fill', drawable: 'ic_home', key: 'dashboard' },
-  { name: 'invoices', sf: 'doc.text.fill', drawable: 'ic_description', key: 'invoices' },
-  { name: 'tax-calendar', sf: 'calendar.badge.clock', drawable: 'ic_calendar_today', key: 'calendar' },
-  { name: 'compliance', sf: 'checkmark.shield.fill', drawable: 'ic_verified_user', key: 'compliance' },
-  { name: 'settings', sf: 'gearshape.fill', drawable: 'ic_settings', key: 'settings' },
-] as const;
+const TAB_META: Array<{ name: string; icon: IoniconName; key: string }> = [
+  { name: 'index',        icon: 'home',             key: 'dashboard' },
+  { name: 'invoices',     icon: 'document-text',    key: 'invoices' },
+  { name: 'tax-calendar', icon: 'calendar',         key: 'calendar' },
+  { name: 'compliance',   icon: 'shield-checkmark', key: 'compliance' },
+  { name: 'settings',     icon: 'settings',         key: 'settings' },
+];
+
+function buildScreenOptions({ route }: { route: { name: string } }): BottomTabNavigationOptions {
+  return {
+    headerShown: false,
+    tabBarActiveTintColor: '#006B3F',
+    tabBarInactiveTintColor: '#8A9BB0',
+    tabBarIcon: ({ color, size }: { color: string; size: number }) => {
+      const meta = TAB_META.find((m) => m.name === route.name);
+      return <Ionicons name={meta?.icon ?? 'ellipse'} size={size} color={color} />;
+    },
+  };
+}
 
 export default function TabsLayout() {
   const isDone = useIsOnboardingDone();
@@ -21,24 +33,11 @@ export default function TabsLayout() {
 
   if (!isDone) return <Redirect href="/(onboarding)/" />;
 
-  if (!USE_NATIVE_TABS) {
-    return (
-      <Tabs screenOptions={{ headerShown: false, tabBarActiveTintColor: '#006B3F' }}>
-        {TAB_META.map((tab) => (
-          <Tabs.Screen key={tab.name} name={tab.name} options={{ title: t(`tabs.${tab.key}`) }} />
-        ))}
-      </Tabs>
-    );
-  }
-
   return (
-    <NativeTabs>
+    <Tabs screenOptions={buildScreenOptions}>
       {TAB_META.map((tab) => (
-        <NativeTabs.Trigger key={tab.name} name={tab.name}>
-          <Icon sf={tab.sf} drawable={tab.drawable} />
-          <Label>{t(`tabs.${tab.key}`)}</Label>
-        </NativeTabs.Trigger>
+        <Tabs.Screen key={tab.name} name={tab.name} options={{ title: t(`tabs.${tab.key}`) }} />
       ))}
-    </NativeTabs>
+    </Tabs>
   );
 }

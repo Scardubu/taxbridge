@@ -19,22 +19,58 @@
     "jsx": "react-native",
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./*"],
-      "@src/*": ["./src/*"],
-      "@api/*": ["./src/api/*"],
-      "@components/*": ["./components/*", "./src/components/*"],
-      "@ds/*": ["./src/design-system/*"],
-      "@screens/*": ["./src/screens/*"],
-      "@services/*": ["./services/*", "./src/services/*"],
-      "@store/*": ["./src/store/*"],
-      "@stores/*": ["./stores/*", "./src/stores/*"],
-      "@hooks/*": ["./src/hooks/*"],
-      "@utils/*": ["./src/utils/*"],
-      "@types/*": ["./src/types/*"],
-      "@storage/*": ["./storage/*", "./src/storage/*"],
-      "@i18n/*": ["./i18n/*", "./src/i18n/*"]
+      "@/*": [
+        "./*"
+      ],
+      "@src/*": [
+        "./src/*"
+      ],
+      "@api/*": [
+        "./src/api/*"
+      ],
+      "@components/*": [
+        "./components/*",
+        "./src/components/*"
+      ],
+      "@ds/*": [
+        "./src/design-system/*"
+      ],
+      "@screens/*": [
+        "./src/screens/*"
+      ],
+      "@services/*": [
+        "./services/*",
+        "./src/services/*"
+      ],
+      "@store/*": [
+        "./src/store/*"
+      ],
+      "@stores/*": [
+        "./stores/*",
+        "./src/stores/*"
+      ],
+      "@hooks/*": [
+        "./src/hooks/*"
+      ],
+      "@utils/*": [
+        "./src/utils/*"
+      ],
+      "@types/*": [
+        "./src/types/*"
+      ],
+      "@storage/*": [
+        "./storage/*",
+        "./src/storage/*"
+      ],
+      "@i18n/*": [
+        "./i18n/*",
+        "./src/i18n/*"
+      ]
     },
-    "types": ["jest", "node"]
+    "types": [
+      "jest",
+      "node"
+    ]
   },
   "include": [
     "**/*.ts",
@@ -42,7 +78,8 @@
     "App.tsx",
     ".expo/types/**/*.d.ts",
     "expo-env.d.ts",
-    "global.css"
+    "global.css",
+    "nativewind-env.d.ts"
   ],
   "exclude": [
     "node_modules",

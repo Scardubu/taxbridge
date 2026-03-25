@@ -30,7 +30,7 @@ class SSEService {
       },
     });
 
-    const handleEvent = (event: { data?: string }) => {
+    const handleEvent = (event: { data?: string | null | undefined }) => {
       try {
         const rawData = event.data;
         if (typeof rawData !== 'string') return;
@@ -50,14 +50,12 @@ class SSEService {
       } catch {}
     };
 
-    this.source.addEventListener('message', handleEvent);
-    this.source.addEventListener('tin_verified', handleEvent);
-    this.source.addEventListener('tin_failed', handleEvent);
-    this.source.addEventListener('vat_registered', handleEvent);
-    this.source.addEventListener('einvoice_alert', handleEvent);
-    this.source.addEventListener('compliance_deadline', handleEvent);
-    this.source.addEventListener('payment_confirmed', handleEvent);
-    this.source.addEventListener('invoice_submitted', handleEvent);
+    const addListener = (name: string) =>
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      this.source?.addEventListener(name as any, handleEvent as any);
+    ['message', 'tin_verified', 'tin_failed', 'vat_registered',
+      'einvoice_alert', 'compliance_deadline', 'payment_confirmed', 'invoice_submitted',
+    ].forEach(addListener);
     this.source.addEventListener('error', () => {
       this.source?.close();
       this.source = null;

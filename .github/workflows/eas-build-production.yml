@@ -67,7 +67,15 @@ jobs:
           npm cache clean --force
           echo "✅ Cache wipe complete"
 
-      - name: 📥 Install dependencies (clean)
+      - name: � Install contracts dependencies
+        working-directory: packages/contracts
+        run: npm ci --prefer-offline=false --no-audit --loglevel=error
+
+      - name: 🏗️ Build shared contracts
+        working-directory: packages/contracts
+        run: npm run build
+
+      - name: �📥 Install dependencies (clean)
         working-directory: mobile
         run: npm ci --prefer-offline=false --no-audit --loglevel=error
 
