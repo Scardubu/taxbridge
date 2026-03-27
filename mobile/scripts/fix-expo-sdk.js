@@ -12,7 +12,6 @@
 
 const fs = require('fs');
 const path = require('path');
-const { execSync } = require('child_process');
 
 const ROOT = path.resolve(__dirname, '..');
 const APP_JSON = path.join(ROOT, 'app.json');
@@ -117,7 +116,7 @@ for (const mod of NATIVE_MODULES_TO_CHECK) {
       if (v1 !== v2) {
         warnings.push(`Duplicate native module: "${mod}" top-level=${v1}, expo/node_modules=${v2} — run "npm dedupe" to fix`);
       }
-    } catch (_) {}
+    } catch (_err) {}
   }
 }
 

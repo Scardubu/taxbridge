@@ -100,7 +100,7 @@ const npmPrefix = (() => {
     return require('child_process')
       .execSync('npm config get prefix', { encoding: 'utf8' })
       .trim();
-  } catch (_) {
+  } catch (_err) {
     return null;
   }
 })();

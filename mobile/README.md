@@ -19,6 +19,28 @@
 
 TaxBridge Mobile is a **production-ready React Native application** that brings tax compliance to Nigeria's 40+ million informal businesses. Built with an **offline-first architecture** and designed for **low-literacy, low-bandwidth environments**, the app makes NRS-compliant e-invoicing accessible to everyone.
 
+### 📘 Blueprint v6 Implementation
+
+This codebase implements **TaxBridge V13 Mobile Blueprint v6**, which consolidates all corrections from versions 1 through 5. The blueprint enforces **14 absolute constraints** for architecture, dependencies, storage, UI, navigation, and compliance.
+
+#### Key Constraints Applied:
+- ✅ **Expo SDK 54** with expo-router v6 and **NativeTabs** (exactly 5 tabs)
+- ✅ **Zustand** with async JSON storage (no sync getItemSync/setItemSync)
+- ✅ **SecureStore-only** JWT storage (expo-secure-store)
+- ✅ **SQLite** without GENERATED columns, with versioned migrations
+- ✅ **Navigation** via `router.replace()` (no navigationRef.reset)
+- ✅ **CSS transitions only** for onboarding step UI (no withSpring/withTiming)
+- ✅ **Compliance events** logged for onboarding_complete, tin_verified, invoice_submitted
+- ✅ **NRS 2026** phased e-invoicing rules, CIT 0% relief, PIT zero band ₦800K
+- ✅ **SSE** event streaming with react-native-sse EventSource
+- ✅ **i18n** with English and Pidgin translations
+- ✅ **SafeAreaView** from react-native-safe-area-context only
+- ✅ **No reanimated plugins** in babel.config.js
+- ✅ **Remita RRR** immediately stored in tax_payments
+- ✅ **Exactly 5 NativeTabs** entries: dashboard, invoices, tax-calendar, compliance, settings
+
+See `taxbridge_v6_COMPLETE_FINAL.md` for the complete blueprint specification.
+
 ### ✨ Core Features
 
 #### 🔌 Offline-First Architecture

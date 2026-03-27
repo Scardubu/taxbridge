@@ -168,7 +168,7 @@ jest.mock('react-native', () => {
     AccessibilityInfo: {
       isScreenReaderEnabled: jest.fn(() => Promise.resolve(false)),
       isReduceMotionEnabled: jest.fn(() => Promise.resolve(false)),
-      addEventListener: jest.fn((eventName, handler) => ({ remove: jest.fn() })),
+      addEventListener: jest.fn((_eventName, _handler) => ({ remove: jest.fn() })),
       removeEventListener: jest.fn(),
       announceForAccessibility: jest.fn(),
       setAccessibilityFocus: jest.fn(),
@@ -589,7 +589,7 @@ jest.mock('react-native-svg', () => {
 // Mock jwt-decode for deviceSync token parsing
 jest.mock('jwt-decode', () => ({
   __esModule: true,
-  default: jest.fn((token) => {
+  default: jest.fn((_token) => {
     // Return mock decoded JWT payload
     return {
       userId: 'mock-user-id',

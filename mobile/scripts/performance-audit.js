@@ -100,7 +100,7 @@ function checkDuplicates() {
     }
     
     return duplicates;
-  } catch (error) {
+  } catch (_error) {
     console.log('⚠️  Could not check for duplicates (npm ls failed)');
     return [];
   }
@@ -139,11 +139,11 @@ function estimateBundleSize() {
               size += stats.size;
             }
           }
-        } catch (err) {
+        } catch (_err) {
           // Skip files we can't read
         }
       });
-    } catch (err) {
+    } catch (_err) {
       // Skip directories we can't read
     }
     return size;

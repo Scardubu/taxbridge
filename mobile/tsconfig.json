@@ -75,15 +75,15 @@
   "include": [
     "**/*.ts",
     "**/*.tsx",
-    "App.tsx",
     ".expo/types/**/*.d.ts",
     "expo-env.d.ts",
-    "global.css",
     "nativewind-env.d.ts"
   ],
   "exclude": [
     "node_modules",
     "dist",
-    ".expo"
+    ".expo",
+    "App.tsx.bak",
+    "src/**"
   ]
 }

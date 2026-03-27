@@ -1,12 +1,14 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { View, Text } from 'react-native';
-import Animated, { Keyframe, useSharedValue, useAnimatedStyle, withRepeat, withSequence, withTiming } from 'react-native-reanimated';
+import Animated, { Keyframe } from 'react-native-reanimated';
 import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { palette } from './design-system/tokens';
 
+// Blueprint v6: Keyframe entrance is allowed (Reanimated 4.1 Keyframe API).
+// C-02 fix: glow pulse uses CSS transitions only — no withRepeat/withTiming.
 const entrance = new Keyframe({
-  0: { transform: [{ scale: 0.8 }], opacity: 0 },
-  70: { transform: [{ scale: 1.05 }] },
+  0:   { transform: [{ scale: 0.8 }], opacity: 0 },
+  70:  { transform: [{ scale: 1.05 }] },
   100: { transform: [{ scale: 1 }], opacity: 1 },
 }).duration(600);
 
@@ -17,32 +19,35 @@ interface Props {
 }
 
 export function TaxShieldRing({ compliance, isStreaking, size = 128 }: Props) {
-  const glow = useSharedValue(0);
-
-  useEffect(() => {
-    glow.value = isStreaking
-      ? withRepeat(
-          withSequence(withTiming(0.9, { duration: 900 }), withTiming(0.3, { duration: 900 })),
-          -1,
-          true
-        )
-      : withTiming(0, { duration: 300 });
-  }, [glow, isStreaking]);
-
-  const glowStyle = useAnimatedStyle(() => ({
-    opacity: glow.value,
-    shadowOpacity: glow.value * 0.8,
-  }));
-
   const color = compliance >= 80 ? palette.shield : compliance >= 50 ? palette.warning : palette.danger;
-  const radius = size / 2 - 8;
-  const circumference = 2 * Math.PI * radius;
+  const arcRadius = size / 2 - 8;
+  const circumference = 2 * Math.PI * arcRadius;
   const filled = (compliance / 100) * circumference;
   const center = size / 2;
 
+  // CSS transition for glow — opacity and shadowOpacity animate via New Arch interop
+  const glowStyle = {
+    position: 'absolute' as const,
+    width: size,
+    height: size,
+    borderRadius: size / 2,
+    borderWidth: 2,
+    borderColor: color,
+    shadowColor: color,
+    shadowRadius: 20,
+    opacity: isStreaking ? 0.85 : 0,
+    shadowOpacity: isStreaking ? 0.7 : 0,
+    transitionProperty: ['opacity', 'shadowOpacity'],
+    transitionDuration: 900,
+    transitionTimingFunction: 'ease-in-out',
+  } as any;
+
   return (
-    <Animated.View entering={entrance} style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
-      <Animated.View style={[{ position: 'absolute', width: size, height: size, borderRadius: size / 2, borderWidth: 2, borderColor: color, shadowColor: color, shadowRadius: 20 }, glowStyle]} />
+    <Animated.View
+      entering={entrance}
+      style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}
+    >
+      <View style={glowStyle} />
       <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
         <Defs>
           <LinearGradient id="grad" x1="0" y1="0" x2="1" y2="1">
@@ -50,8 +55,17 @@ export function TaxShieldRing({ compliance, isStreaking, size = 128 }: Props) {
             <Stop offset="100%" stopColor={`${color}AA`} />
           </LinearGradient>
         </Defs>
-        <Circle cx={center} cy={center} r={radius} stroke={palette.gray100} strokeWidth={8} fill="transparent" />
-        <Circle cx={center} cy={center} r={radius} stroke="url(#grad)" strokeWidth={8} strokeDasharray={`${filled} ${circumference}`} strokeLinecap="round" fill="transparent" transform={`rotate(-90 ${center} ${center})`} />
+        <Circle
+          cx={center} cy={center} r={arcRadius}
+          stroke={palette.gray100} strokeWidth={8} fill="transparent"
+        />
+        <Circle
+          cx={center} cy={center} r={arcRadius}
+          stroke="url(#grad)" strokeWidth={8}
+          strokeDasharray={`${filled} ${circumference}`}
+          strokeLinecap="round" fill="transparent"
+          transform={`rotate(-90 ${center} ${center})`}
+        />
       </Svg>
       <View style={{ position: 'absolute', alignItems: 'center' }}>
         <Text style={{ fontSize: 22, fontWeight: '700', color }}>{compliance}%</Text>

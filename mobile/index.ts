@@ -1,8 +1,4 @@
-import { registerRootComponent } from 'expo';
-
-import App from './App';
-
-// registerRootComponent calls AppRegistry.registerComponent('main', () => App);
-// It also ensures that whether you load the app in Expo Go or in a native build,
-// the environment is set up appropriately
-registerRootComponent(App);
+// ✅ BLUEPRINT v6 — Expo Router is the entry point.
+// The legacy App.tsx is preserved as App.tsx.bak for reference only.
+// Metro resolves 'main' via package.json "main": "expo-router/entry".
+export {};

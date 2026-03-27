@@ -1,6 +1,4 @@
 const { execSync } = require('child_process');
-const fs = require('fs');
-const path = require('path');
 
 console.log('🔨 Building TaxBridge Android APK...');
 
@@ -23,7 +21,7 @@ try {
   console.log('✅ Build completed successfully!');
   console.log('📁 APK location: mobile/dist/android-apk/');
   
-} catch (error) {
-  console.error('❌ Build failed:', error.message);
+} catch (err) {
+  console.error('❌ Build failed:', err.message);
   process.exit(1);
 }

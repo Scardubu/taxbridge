@@ -22,10 +22,8 @@ const PKG_VERSION   = '1.27.0';
 const REGISTRY_URL  = `https://registry.npmjs.org/${PKG_NAME}/-/${PKG_NAME}-${PKG_VERSION}.tgz`;
 const NODE_MODULES  = path.resolve(__dirname, '..', 'node_modules');
 
-const DEST_DIRS = [
-  path.join(NODE_MODULES, PKG_NAME),
-  // Fallback path expected by the nested css-interop lightningcss (direct .node require)
-];
+// Destination: top-level package dir for the win32 native binary
+const DEST_PKG_DIR = path.join(NODE_MODULES, PKG_NAME);
 
 const FALLBACK_BINARY = path.join(
   NODE_MODULES,
@@ -65,7 +63,6 @@ function download(url, cb) {
 
 function extractTgz(tgzBuf, destDir, cb) {
   const zlib = require('zlib');
-  const { Writable } = require('stream');
 
   try {
     const unzipped = zlib.gunzipSync(tgzBuf);
@@ -101,7 +98,7 @@ download(REGISTRY_URL, (err, buf) => {
     process.exit(0); // non-fatal — EAS builds don't need this
   }
 
-  const destPkg = path.join(NODE_MODULES, PKG_NAME);
+  const destPkg = DEST_PKG_DIR;
   extractTgz(buf, destPkg, (err2) => {
     if (err2) {
       console.warn('[fix-lightningcss] Extract failed:', err2.message);
