@@ -1,21 +1,52 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { EnterpriseShell } from '@/components/admin-dashboard/shell/EnterpriseShell';
-import { OverviewTab }   from '@/components/admin-dashboard/tabs/OverviewTab';
-import { AnalyticsTab }  from '@/components/admin-dashboard/tabs/AnalyticsTab';
-import { ComplianceTab } from '@/components/admin-dashboard/tabs/ComplianceTab';
-import { InvoicesTab }   from '@/components/admin-dashboard/tabs/InvoicesTab';
-import { UsersTab }      from '@/components/admin-dashboard/tabs/UsersTab';
-import { DevicesTab }    from '@/components/admin-dashboard/tabs/DevicesTab';
-import { SystemTab }     from '@/components/admin-dashboard/tabs/SystemTab';
 import {
   LayoutDashboard, BarChart2, ShieldCheck,
   FileText, Users, Smartphone, Server,
 } from 'lucide-react';
+
+const TabPanelFallback = () => (
+  <div className="space-y-6 animate-fade-in" role="status" aria-label="Loading dashboard section">
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      {Array.from({ length: 4 }).map((_, index) => (
+        <div key={index} className="h-28 animate-pulse rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900" />
+      ))}
+    </div>
+    <div className="grid gap-4 lg:grid-cols-2">
+      {Array.from({ length: 2 }).map((_, index) => (
+        <div key={index} className="h-72 animate-pulse rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900" />
+      ))}
+    </div>
+  </div>
+);
+
+const OverviewTab = dynamic(() => import('@/components/admin-dashboard/tabs/OverviewTab').then((mod) => mod.OverviewTab), {
+  loading: () => <TabPanelFallback />,
+});
+const AnalyticsTab = dynamic(() => import('@/components/admin-dashboard/tabs/AnalyticsTab').then((mod) => mod.AnalyticsTab), {
+  loading: () => <TabPanelFallback />,
+});
+const ComplianceTab = dynamic(() => import('@/components/admin-dashboard/tabs/ComplianceTab').then((mod) => mod.ComplianceTab), {
+  loading: () => <TabPanelFallback />,
+});
+const InvoicesTab = dynamic(() => import('@/components/admin-dashboard/tabs/InvoicesTab').then((mod) => mod.InvoicesTab), {
+  loading: () => <TabPanelFallback />,
+});
+const UsersTab = dynamic(() => import('@/components/admin-dashboard/tabs/UsersTab').then((mod) => mod.UsersTab), {
+  loading: () => <TabPanelFallback />,
+});
+const DevicesTab = dynamic(() => import('@/components/admin-dashboard/tabs/DevicesTab').then((mod) => mod.DevicesTab), {
+  loading: () => <TabPanelFallback />,
+});
+const SystemTab = dynamic(() => import('@/components/admin-dashboard/tabs/SystemTab').then((mod) => mod.SystemTab), {
+  loading: () => <TabPanelFallback />,
+});
 
 // ─── Tab definitions ──────────────────────────────────────────────────────────
 
@@ -31,24 +62,49 @@ const TABS = [
 
 type TabId = (typeof TABS)[number]['id'];
 
+const TAB_COMPONENTS: Record<TabId, () => React.ReactElement> = {
+  overview: () => <OverviewTab />,
+  analytics: () => <AnalyticsTab />,
+  compliance: () => <ComplianceTab />,
+  invoices: () => <InvoicesTab />,
+  users: () => <UsersTab />,
+  devices: () => <DevicesTab />,
+  system: () => <SystemTab />,
+};
+
 // ─── Enterprise Control Center ────────────────────────────────────────────────
 
 export default function DashboardPage() {
   const searchParams = useSearchParams();
   const router       = useRouter();
 
-  const initialTab = (searchParams.get('tab') as TabId | null) ?? 'overview';
-  const [activeTab, setActiveTab] = useState<TabId>(
-    TABS.some(t => t.id === initialTab) ? initialTab : 'overview',
+  const searchTab = searchParams.get('tab') as TabId | null;
+  const initialTab = useMemo<TabId>(
+    () => (searchTab && TABS.some(t => t.id === searchTab) ? searchTab : 'overview'),
+    [searchTab],
   );
+  const [activeTab, setActiveTab] = useState<TabId>(initialTab);
+
+  useEffect(() => {
+    if (activeTab !== initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [activeTab, initialTab]);
 
   const handleTabChange = (value: string) => {
     const tab = value as TabId;
     setActiveTab(tab);
-    const url = new URL(window.location.href);
-    url.searchParams.set('tab', tab);
-    router.replace(url.pathname + url.search, { scroll: false });
+    const params = new URLSearchParams(searchParams.toString());
+    if (tab === 'overview') {
+      params.delete('tab');
+    } else {
+      params.set('tab', tab);
+    }
+    const query = params.toString();
+    router.replace(query ? `/dashboard?${query}` : '/dashboard', { scroll: false });
   };
+
+  const ActiveTabComponent = TAB_COMPONENTS[activeTab];
 
   return (
     <EnterpriseShell>
@@ -71,6 +127,15 @@ export default function DashboardPage() {
             Enterprise Control Center — accountant-first, real-time, NRS-ready.
           </p>
         </div>
+        <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 shadow-sm dark:border-slate-800 dark:bg-slate-950">
+          <p className="tb-label">Current Workspace</p>
+          <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">
+            {TABS.find(tab => tab.id === activeTab)?.label ?? 'Overview'}
+          </p>
+          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+            Metrics first, then actions and exception handling.
+          </p>
+        </div>
       </div>
 
       {/* ── Tabbed Control Center ── */}
@@ -84,7 +149,9 @@ export default function DashboardPage() {
           {TABS.map(({ id, label, icon: Icon }) => (
             <TabsTrigger
               key={id}
+              id={`dashboard-tab-${id}`}
               value={id}
+              aria-label={`${label} section`}
               className="flex min-w-[80px] flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium transition-all data-[state=active]:bg-slate-900 data-[state=active]:text-white data-[state=active]:shadow-sm dark:data-[state=active]:bg-slate-100 dark:data-[state=active]:text-slate-900 sm:min-w-[100px] sm:text-sm"
             >
               <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
@@ -93,15 +160,13 @@ export default function DashboardPage() {
             </TabsTrigger>
           ))}
         </TabsList>
-
-        {/* Tab panels */}
-        <TabsContent value="overview"   className="mt-0 focus-visible:outline-none"><OverviewTab   /></TabsContent>
-        <TabsContent value="analytics"  className="mt-0 focus-visible:outline-none"><AnalyticsTab  /></TabsContent>
-        <TabsContent value="compliance" className="mt-0 focus-visible:outline-none"><ComplianceTab /></TabsContent>
-        <TabsContent value="invoices"   className="mt-0 focus-visible:outline-none"><InvoicesTab   /></TabsContent>
-        <TabsContent value="users"      className="mt-0 focus-visible:outline-none"><UsersTab      /></TabsContent>
-        <TabsContent value="devices"    className="mt-0 focus-visible:outline-none"><DevicesTab    /></TabsContent>
-        <TabsContent value="system"     className="mt-0 focus-visible:outline-none"><SystemTab     /></TabsContent>
+        <div
+          role="tabpanel"
+          aria-labelledby={`dashboard-tab-${activeTab}`}
+          className="mt-0 focus-visible:outline-none"
+        >
+          <ActiveTabComponent />
+        </div>
       </Tabs>
     </EnterpriseShell>
   );

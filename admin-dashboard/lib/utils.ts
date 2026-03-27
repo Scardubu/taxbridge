@@ -5,6 +5,8 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+type CsvCell = string | number | boolean | null | undefined
+
 const ngnCurrencyFormatter = new Intl.NumberFormat('en-NG', {
   style: 'currency',
   currency: 'NGN',
@@ -50,4 +52,33 @@ export function formatCompactNumber(value: number | null | undefined, fallback =
 export function formatPercentValue(value: number | null | undefined, fallback = '—'): string {
   if (value == null || Number.isNaN(value)) return fallback
   return `${percentFormatter.format(value)}%`
+}
+
+export function toCsv(rows: CsvCell[][]): string {
+  return rows
+    .map((row) => row.map((cell) => {
+      if (cell == null) return ''
+      const value = String(cell)
+      if (!/[",\n]/.test(value)) return value
+      return `"${value.replace(/"/g, '""')}"`
+    }).join(','))
+    .join('\n')
+}
+
+export function downloadCsvFile(filename: string, rows: CsvCell[][]): void {
+  if (typeof window === 'undefined' || typeof document === 'undefined') return
+
+  const csv = `\uFEFF${toCsv(rows)}`
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+  const url = window.URL.createObjectURL(blob)
+  const link = document.createElement('a')
+
+  link.href = url
+  link.download = filename
+  link.style.display = 'none'
+
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  window.URL.revokeObjectURL(url)
 }

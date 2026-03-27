@@ -80,7 +80,7 @@ components/admin-dashboard/
 - **Remita metrics**: Transaction trend, daily volume line chart
 - **NRS compliance trend**: Compliant vs non-compliant bar chart
 - **Withholding tax tracking**: Monthly WHT line chart
-- CSV export capability
+- CSV export capability using in-browser download for operator handoff and offline review
 
 ### 🛡️ Compliance Tab
 - NRS connection status (connected / mock / error) with pulse indicator
@@ -139,6 +139,13 @@ components/admin-dashboard/
 | **Data Fetching** | SWR | 2.x |
 | **XML Processing** | xml2js | 0.6.x |
 | **Icons** | Lucide React | 0.5x |
+
+### Production-readiness notes
+
+- Dashboard tabs are **lazy-loaded** with `next/dynamic` so the initial admin shell does not eagerly load every heavy analytics panel.
+- Analytics export is implemented as a **client-side CSV download** and is automatically disabled when fallback/cached backend data is being shown.
+- Production builds are **offline-safe** and do not rely on remote Google font fetching during `next build`.
+- The dashboard uses **webpack** for production builds to preserve compatibility with Radix UI packages under Next.js 16.
 
 ---
 
@@ -397,6 +404,8 @@ npm run lint
 **Build Notes:**
 - Production builds use **webpack** (not Turbopack) for compatibility with Radix UI packages.
 - The build script automatically runs `scripts/clean-next.cjs` before `next build` to avoid stale cache issues (especially on Windows).
+- Typography is configured to avoid network-dependent font downloads during CI/CD builds.
+- Run `npm run build` after meaningful UI batches to validate App Router, client boundaries, and route compilation before deployment.
 
 ---
 
@@ -486,6 +495,14 @@ When the backend API is unavailable (e.g., cold start on Render), the admin dash
 - Dashboard pages display a warning banner and avoid misleading empty states.
 - CSV export is disabled when in fallback mode.
 - Use `lib/adminApiFallback.ts` helpers (`getBackendFailureContext`, `fallbackJson`) for consistent handling.
+
+### Recent enterprise polish and hardening
+
+- Shared empty states are standardized through `components/admin-dashboard/ui/AdminEmptyState.tsx`.
+- Dashboard section selection is synchronized with `?tab=` query params for deep linking and backward-compatible redirects.
+- Shell accessibility includes a skip link, better live-region semantics, and improved operator controls.
+- Analytics, compliance, and system tabs now keep informative no-data states instead of blank chart regions.
+- Dashboard tabs load on demand to reduce initial client-side work and improve perceived performance.
 
 ### Common Issues
 

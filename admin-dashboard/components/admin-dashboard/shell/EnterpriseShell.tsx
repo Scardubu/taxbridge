@@ -172,6 +172,10 @@ export function EnterpriseShell({ children }: EnterpriseShellProps) {
   return (
     <div className="flex min-h-screen flex-col bg-background">
 
+      <a href="#main-content" className="tb-skip-link">
+        Skip to main content
+      </a>
+
       {/* ── System status banner (degraded / error only) ── */}
       {showBanner && (
         <div
@@ -246,6 +250,7 @@ export function EnterpriseShell({ children }: EnterpriseShellProps) {
             <div
               className="flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs dark:border-slate-700 dark:bg-slate-900"
               aria-label={`System status: ${statusLabels[systemStatus]}`}
+              aria-live="polite"
             >
               <StatusIcon
                 className={cn('h-3.5 w-3.5 shrink-0', statusColors[systemStatus])}
@@ -274,12 +279,13 @@ export function EnterpriseShell({ children }: EnterpriseShellProps) {
             </div>
 
             {/* Operator avatar */}
-            <div
+            <button
+              type="button"
               aria-label="Operator account"
-              className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-blue-700 text-xs font-bold text-white shadow transition-shadow hover:shadow-md"
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-blue-700 text-xs font-bold text-white shadow transition-shadow hover:shadow-md"
             >
               AD
-            </div>
+            </button>
           </div>
         </div>
       </header>

@@ -96,7 +96,7 @@
   }
 
   body {
-    @apply bg-background text-foreground antialiased;
+    @apply bg-background font-sans text-foreground antialiased;
     font-feature-settings: 'tnum', 'cv02', 'cv03', 'cv04', 'cv11';
     min-height: 100vh;
   }
@@ -139,6 +139,10 @@
 
 /* ── Enterprise utility classes ── */
 @layer utilities {
+  .tb-skip-link {
+    @apply absolute left-4 top-3 z-[70] -translate-y-16 rounded-lg bg-slate-950 px-3 py-2 text-sm font-medium text-white shadow-lg transition-transform duration-200 focus:translate-y-0 dark:bg-slate-100 dark:text-slate-950;
+  }
+
   .tb-surface {
     @apply bg-white border border-slate-200/80 rounded-xl shadow-[0_1px_4px_rgba(0,0,0,0.04),0_4px_16px_rgba(0,0,0,0.04)];
   }

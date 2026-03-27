@@ -5,6 +5,7 @@ import useSWR from 'swr';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { AdminEmptyState } from '@/components/admin-dashboard/ui/AdminEmptyState';
 import { MetricCard } from '@/components/admin-dashboard/ui/MetricCard';
 import { SectionHeader } from '@/components/admin-dashboard/ui/SectionHeader';
 import { DuploHealthChart } from '@/components/charts/DuploHealthChart';
@@ -17,7 +18,7 @@ import { RefreshCw, TrendingUp, Users, FileText, CreditCard, AlertTriangle, Down
 import { FetchError, fetchJson } from '@/lib/fetcher';
 import { useAdminI18n } from '@/lib/i18n';
 import { chartColors } from '@/lib/colors';
-import { formatCompactNumber } from '@/lib/utils';
+import { downloadCsvFile, formatCompactNumber } from '@/lib/utils';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -87,6 +88,67 @@ export function AnalyticsTab() {
   const duplo = data?.duploMetrics;
   const remita = data?.remitaMetrics;
   const compliance = data?.complianceMetrics;
+  const hasDuploTrend = (duplo?.successTrend?.length ?? 0) > 0;
+  const hasDuploSubmissions = (duplo?.dailySubmissions?.length ?? 0) > 0;
+  const hasDuploErrors = (duplo?.errorBreakdown?.length ?? 0) > 0;
+  const hasRemitaTrend = (remita?.transactionTrend?.length ?? 0) > 0;
+  const hasRemitaVolume = (remita?.dailyVolume?.length ?? 0) > 0;
+  const hasComplianceTrend = (compliance?.nrsComplianceTrend?.length ?? 0) > 0;
+  const hasWithholdingTrend = (compliance?.withholdingTaxTracking?.length ?? 0) > 0;
+  const exportDisabled = isLoading || !data || !!data.fallback;
+
+  const handleExport = () => {
+    if (!data || data.fallback) return;
+
+    const rows: Array<Array<string | number>> = [
+      ['Section', 'Metric', 'Value', 'Context'],
+      ['Overview', 'Total Users', ov?.totalUsers ?? 0, dateRange],
+      ['Overview', 'Total Invoices', ov?.totalInvoices ?? 0, dateRange],
+      ['Overview', 'Total Payments', ov?.totalPayments ?? 0, dateRange],
+      ['Overview', 'Compliance Rate (%)', ov?.complianceRate != null ? Number((ov.complianceRate * 100).toFixed(1)) : 0, dateRange],
+      ['Overview', 'Monthly Growth (%)', ov?.monthlyGrowth ?? 0, dateRange],
+      [],
+      ['DigiTax Success Trend', 'Timestamp', 'Success Rate (%)', 'Latency (ms) / Submissions'],
+      ...(duplo?.successTrend ?? []).map((point) => [
+        'DigiTax Success Trend',
+        point.timestamp,
+        Number((point.successRate * 100).toFixed(1)),
+        `${point.latency}ms / ${point.submissions}`,
+      ]),
+      [],
+      ['DigiTax Errors', 'Error Type', 'Count', 'Percentage (%)'],
+      ...(duplo?.errorBreakdown ?? []).map((item) => [
+        'DigiTax Errors',
+        item.error,
+        item.count,
+        Number(item.percentage.toFixed(1)),
+      ]),
+      [],
+      ['Remita Volume', 'Date', 'Volume (NGN)', 'Count'],
+      ...(remita?.dailyVolume ?? []).map((point) => [
+        'Remita Volume',
+        point.date,
+        point.volume,
+        point.count,
+      ]),
+      [],
+      ['Compliance', 'Date/Month', 'Primary Value', 'Secondary Value'],
+      ...(compliance?.nrsComplianceTrend ?? []).map((point) => [
+        'Compliance Trend',
+        point.date,
+        point.compliant,
+        point.nonCompliant,
+      ]),
+      ...(compliance?.withholdingTaxTracking ?? []).map((point) => [
+        'Withholding Tax',
+        point.month,
+        point.wthAmount,
+        point.invoiceCount,
+      ]),
+    ];
+
+    downloadCsvFile(`taxbridge-analytics-${dateRange}.csv`, rows);
+  };
 
   return (
     <div className="space-y-8 animate-slide-up">
@@ -123,7 +185,13 @@ export function AnalyticsTab() {
           >
             <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
           </Button>
-          <Button size="sm" variant="outline" aria-label="Export analytics data">
+          <Button
+            size="sm"
+            variant="outline"
+            aria-label="Export analytics data"
+            onClick={handleExport}
+            disabled={exportDisabled}
+          >
             <Download className="h-4 w-4" />
             <span className="hidden sm:inline">Export</span>
           </Button>
@@ -176,7 +244,11 @@ export function AnalyticsTab() {
 
       {/* ── DigiTax / Duplo metrics ── */}
       <section aria-label="DigiTax integration metrics">
-        <SectionHeader title="DigiTax (Duplo) Integration" className="mb-4" />
+        <SectionHeader
+          title="DigiTax (Duplo) Integration"
+          description="Submission success, error patterns, and throughput for NRS stamping operations."
+          className="mb-4"
+        />
         <div className="grid gap-4 lg:grid-cols-2">
           <Card className="card-lift">
             <CardHeader className="pb-2">
@@ -185,6 +257,12 @@ export function AnalyticsTab() {
             <CardContent>
               {isLoading ? (
                 <div className="h-48 animate-pulse rounded-lg bg-slate-100 dark:bg-slate-800" />
+              ) : !hasDuploTrend ? (
+                <AdminEmptyState
+                  title="No DigiTax trend data yet"
+                  description="Success-rate history will appear here once submission activity is recorded for the selected period."
+                  className="min-h-[12rem]"
+                />
               ) : (
                 <DuploHealthChart data={duplo?.successTrend ?? []} />
               )}
@@ -198,6 +276,12 @@ export function AnalyticsTab() {
             <CardContent>
               {isLoading ? (
                 <div className="h-48 animate-pulse rounded-lg bg-slate-100 dark:bg-slate-800" />
+              ) : !hasDuploSubmissions ? (
+                <AdminEmptyState
+                  title="No submission volumes yet"
+                  description="Daily successful and failed submissions will appear here after invoices begin flowing through DigiTax."
+                  className="min-h-[12rem]"
+                />
               ) : (
                 <ResponsiveContainer width="100%" height={192}>
                   <BarChart data={duplo?.dailySubmissions ?? []} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
@@ -213,12 +297,20 @@ export function AnalyticsTab() {
             </CardContent>
           </Card>
 
-          {(duplo?.errorBreakdown?.length ?? 0) > 0 && (
-            <Card className="card-lift">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Error Breakdown</CardTitle>
-              </CardHeader>
-              <CardContent>
+          <Card className="card-lift">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">Error Breakdown</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <div className="h-48 animate-pulse rounded-lg bg-slate-100 dark:bg-slate-800" />
+              ) : !hasDuploErrors ? (
+                <AdminEmptyState
+                  title="No submission errors recorded"
+                  description="When DigiTax rejects or fails submissions, the reason mix will appear here for exception review."
+                  className="min-h-[12rem]"
+                />
+              ) : (
                 <ResponsiveContainer width="100%" height={192}>
                   <PieChart>
                     <Pie
@@ -240,15 +332,19 @@ export function AnalyticsTab() {
                     <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} />
                   </PieChart>
                 </ResponsiveContainer>
-              </CardContent>
-            </Card>
-          )}
+              )}
+            </CardContent>
+          </Card>
         </div>
       </section>
 
       {/* ── Remita metrics ── */}
       <section aria-label="Remita integration metrics">
-        <SectionHeader title="Remita Payment Rail" className="mb-4" />
+        <SectionHeader
+          title="Remita Payment Rail"
+          description="Track payment activity, throughput, and value movement across the remittance rail."
+          className="mb-4"
+        />
         <div className="grid gap-4 lg:grid-cols-2">
           <Card className="card-lift">
             <CardHeader className="pb-2">
@@ -257,6 +353,12 @@ export function AnalyticsTab() {
             <CardContent>
               {isLoading ? (
                 <div className="h-48 animate-pulse rounded-lg bg-slate-100 dark:bg-slate-800" />
+              ) : !hasRemitaTrend ? (
+                <AdminEmptyState
+                  title="No Remita transaction trend yet"
+                  description="Payment outcomes will appear here once remittance events are recorded for the selected period."
+                  className="min-h-[12rem]"
+                />
               ) : (
                 <RemitaTransactionChart data={remita?.transactionTrend ?? []} />
               )}
@@ -270,6 +372,12 @@ export function AnalyticsTab() {
             <CardContent>
               {isLoading ? (
                 <div className="h-48 animate-pulse rounded-lg bg-slate-100 dark:bg-slate-800" />
+              ) : !hasRemitaVolume ? (
+                <AdminEmptyState
+                  title="No payment volume recorded"
+                  description="Daily processed amount will appear here once Remita settlements are flowing through the platform."
+                  className="min-h-[12rem]"
+                />
               ) : (
                 <ResponsiveContainer width="100%" height={192}>
                   <LineChart data={remita?.dailyVolume ?? []} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
@@ -291,7 +399,11 @@ export function AnalyticsTab() {
 
       {/* ── Compliance metrics ── */}
       <section aria-label="Compliance analytics">
-        <SectionHeader title="NRS Compliance Metrics" className="mb-4" />
+        <SectionHeader
+          title="NRS Compliance Metrics"
+          description="Spot filing performance, non-compliance risk, and withholding-tax movement at a glance."
+          className="mb-4"
+        />
         <div className="grid gap-4 lg:grid-cols-2">
           <Card className="card-lift">
             <CardHeader className="pb-2">
@@ -300,6 +412,12 @@ export function AnalyticsTab() {
             <CardContent>
               {isLoading ? (
                 <div className="h-48 animate-pulse rounded-lg bg-slate-100 dark:bg-slate-800" />
+              ) : !hasComplianceTrend ? (
+                <AdminEmptyState
+                  title="No compliance trend available"
+                  description="Compliant versus non-compliant invoice history will appear here as filing data accumulates."
+                  className="min-h-[12rem]"
+                />
               ) : (
                 <ResponsiveContainer width="100%" height={192}>
                   <BarChart data={compliance?.nrsComplianceTrend ?? []} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
@@ -322,6 +440,12 @@ export function AnalyticsTab() {
             <CardContent>
               {isLoading ? (
                 <div className="h-48 animate-pulse rounded-lg bg-slate-100 dark:bg-slate-800" />
+              ) : !hasWithholdingTrend ? (
+                <AdminEmptyState
+                  title="No withholding-tax history yet"
+                  description="Monthly withholding-tax totals will appear here once invoices with WHT activity are recorded."
+                  className="min-h-[12rem]"
+                />
               ) : (
                 <ResponsiveContainer width="100%" height={192}>
                   <LineChart data={compliance?.withholdingTaxTracking ?? []} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>

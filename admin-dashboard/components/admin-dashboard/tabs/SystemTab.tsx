@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
+import { AdminEmptyState } from '@/components/admin-dashboard/ui/AdminEmptyState';
 import { MetricCard } from '@/components/admin-dashboard/ui/MetricCard';
 import { StatusPill } from '@/components/admin-dashboard/ui/StatusPill';
 import { SectionHeader } from '@/components/admin-dashboard/ui/SectionHeader';
@@ -261,12 +262,26 @@ export function SystemTab() {
 
       {/* Services */}
       <section aria-label="Service statuses">
-        <SectionHeader title="Services" className="mb-4" />
+        <SectionHeader
+          title="Services"
+          description="Monitor core runtime dependencies and identify the specific service causing degraded platform health."
+          className="mb-4"
+        />
         <div className="grid gap-3 sm:grid-cols-2">
           {isLoading
             ? Array.from({ length: 4 }).map((_, i) => (
                 <div key={i} className="h-20 animate-pulse rounded-xl border border-slate-200 bg-slate-100 dark:border-slate-700 dark:bg-slate-800" />
               ))
+            : !(data?.services?.length ?? 0)
+            ? (
+              <div className="sm:col-span-2">
+                <AdminEmptyState
+                  title="No service telemetry available"
+                  description="Runtime service checks will appear here when the backend health endpoint begins reporting component status."
+                  icon={<Server className="h-5 w-5" aria-hidden="true" />}
+                />
+              </div>
+            )
             : data?.services.map(svc => {
                 const Icon = serviceIcons[svc.name] ?? serviceIcons.default;
                 return (
@@ -300,12 +315,26 @@ export function SystemTab() {
 
       {/* Integrations */}
       <section aria-label="Integration statuses">
-        <SectionHeader title="Integrations" className="mb-4" />
+        <SectionHeader
+          title="Integrations"
+          description="Confirm whether tax, payment, database, and cache dependencies are live, degraded, or running in mock mode."
+          className="mb-4"
+        />
         <div className="grid gap-3 sm:grid-cols-2">
           {isLoading
             ? Array.from({ length: 4 }).map((_, i) => (
                 <div key={i} className="h-20 animate-pulse rounded-xl border border-slate-200 bg-slate-100 dark:border-slate-700 dark:bg-slate-800" />
               ))
+            : data && Object.entries(data.integrations).length === 0
+            ? (
+              <div className="sm:col-span-2">
+                <AdminEmptyState
+                  title="No integration status reported"
+                  description="Integration checks will appear here when external dependency monitoring is available from the backend."
+                  icon={<Globe className="h-5 w-5" aria-hidden="true" />}
+                />
+              </div>
+            )
             : data && Object.entries(data.integrations).map(([key, int]) => {
                 const status =
                   int.status === 'connected' ? 'healthy' :
@@ -347,7 +376,11 @@ export function SystemTab() {
       {/* Recent events */}
       {(data?.recentEvents?.length ?? 0) > 0 && (
         <section aria-label="Recent system events">
-          <SectionHeader title="Recent Events" className="mb-4" />
+          <SectionHeader
+            title="Recent Events"
+            description="A rolling feed of operational events, warnings, and failures for fast triage."
+            className="mb-4"
+          />
           <Card>
             <CardContent className="pt-4">
               <ul className="space-y-2.5">

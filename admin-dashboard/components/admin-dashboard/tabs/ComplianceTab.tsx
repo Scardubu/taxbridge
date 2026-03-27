@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Progress } from '@/components/ui/progress';
+import { AdminEmptyState } from '@/components/admin-dashboard/ui/AdminEmptyState';
 import { MetricCard } from '@/components/admin-dashboard/ui/MetricCard';
 import { StatusPill } from '@/components/admin-dashboard/ui/StatusPill';
 import { SectionHeader } from '@/components/admin-dashboard/ui/SectionHeader';
@@ -266,7 +267,11 @@ export function ComplianceTab() {
 
       {/* ── Recent issues ── */}
       <section aria-label="Recent compliance issues">
-        <SectionHeader title="Recent Issues" className="mb-4" />
+        <SectionHeader
+          title="Recent Issues"
+          description="Review filing exceptions and invoice-level blockers that need operator follow-up."
+          className="mb-4"
+        />
         <Card>
           <CardContent className="pt-4">
             {isLoading ? (
@@ -276,12 +281,11 @@ export function ComplianceTab() {
                 ))}
               </div>
             ) : !data?.recentIssues?.length ? (
-              <div className="flex items-center gap-3 rounded-xl border border-dashed border-emerald-200 bg-emerald-50/60 p-4 dark:border-emerald-800 dark:bg-emerald-950/30">
-                <FileCheck className="h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                <p className="text-sm text-emerald-700 dark:text-emerald-300">
-                  No compliance issues in the selected period.
-                </p>
-              </div>
+              <AdminEmptyState
+                title="No open compliance issues in this period"
+                description="This queue will highlight missing TINs, invalid invoice data, and failed submissions when operator action is required."
+                icon={<FileCheck className="h-5 w-5" aria-hidden="true" />}
+              />
             ) : (
               <ul className="divide-y divide-slate-100 dark:divide-slate-800">
                 {data.recentIssues.map((issue) => {
@@ -320,7 +324,11 @@ export function ComplianceTab() {
       {/* ── Exemption stats ── */}
       {(data?.exemptionStats?.length ?? 0) > 0 && (
         <section aria-label="Exemption statistics">
-          <SectionHeader title="Exemption Utilization" className="mb-4" />
+          <SectionHeader
+            title="Exemption Utilization"
+            description="Understand which exemption categories are driving compliance outcomes and operator review volume."
+            className="mb-4"
+          />
           <Card>
             <CardContent className="pt-4">
               <ul className="space-y-3">

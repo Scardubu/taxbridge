@@ -9,6 +9,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { AdminEmptyState } from '@/components/admin-dashboard/ui/AdminEmptyState';
 import { StatusPill } from '@/components/admin-dashboard/ui/StatusPill';
 import { MetricCard } from '@/components/admin-dashboard/ui/MetricCard';
 import { SectionHeader } from '@/components/admin-dashboard/ui/SectionHeader';
@@ -220,8 +221,14 @@ export function InvoicesTab() {
               <TableBody>
                 {filtered.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="py-12 text-center text-sm text-slate-500">
-                      {search ? 'No invoices match your search.' : 'No invoices found.'}
+                    <TableCell colSpan={9} className="p-6">
+                      <AdminEmptyState
+                        title={search ? 'No invoices match this search' : 'No invoices have been submitted yet'}
+                        description={search
+                          ? 'Try a customer name, business name, invoice ID, or NRS reference with fewer filters.'
+                          : 'Submitted invoices will appear here for review, NRS tracking, and exception handling.'}
+                        icon={<FileText className="h-5 w-5" aria-hidden="true" />}
+                      />
                     </TableCell>
                   </TableRow>
                 ) : filtered.map((inv) => {

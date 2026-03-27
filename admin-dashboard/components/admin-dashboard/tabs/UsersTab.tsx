@@ -7,6 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { AdminEmptyState } from '@/components/admin-dashboard/ui/AdminEmptyState';
 import { MetricCard } from '@/components/admin-dashboard/ui/MetricCard';
 import { StatusPill } from '@/components/admin-dashboard/ui/StatusPill';
 import { SectionHeader } from '@/components/admin-dashboard/ui/SectionHeader';
@@ -184,8 +185,14 @@ export function UsersTab() {
                   : filtered.length === 0
                   ? (
                     <TableRow>
-                      <TableCell colSpan={9} className="py-12 text-center text-sm text-slate-500">
-                        {search ? 'No businesses match your search.' : 'No businesses found.'}
+                      <TableCell colSpan={9} className="p-6">
+                        <AdminEmptyState
+                          title={search ? 'No businesses match this search' : 'No businesses to review yet'}
+                          description={search
+                            ? 'Try a business name, email, phone number, or TIN with fewer filters.'
+                            : 'New businesses will appear here once onboarding starts through TaxBridge.'}
+                          icon={<UsersIcon className="h-5 w-5" aria-hidden="true" />}
+                        />
                       </TableCell>
                     </TableRow>
                   )

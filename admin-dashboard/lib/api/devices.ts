@@ -15,7 +15,9 @@ export interface Device {
   deviceId: string;
   platform: 'android' | 'ios';
   active: boolean;
+  appVersion?: string;
   lastHeartbeat: string;
+  createdAt?: string;
   user: {
     id: string;
     name: string;

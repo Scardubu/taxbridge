@@ -3,12 +3,13 @@
 import { useCallback, useState } from 'react';
 import useSWR from 'swr';
 import { safeDate } from '@/lib/utils';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { AdminEmptyState } from '@/components/admin-dashboard/ui/AdminEmptyState';
 import { MetricCard } from '@/components/admin-dashboard/ui/MetricCard';
 import { StatusPill } from '@/components/admin-dashboard/ui/StatusPill';
 import { SectionHeader } from '@/components/admin-dashboard/ui/SectionHeader';
@@ -62,7 +63,8 @@ export function DevicesTab() {
   };
 
   const devices   = devicesData?.devices ?? [];
-  const syncStats = statsData;
+  const pagination = devicesData?.pagination;
+  const syncStats = statsData?.stats;
 
   const PLATFORM_FILTERS = [
     { label: 'All',     value: '' },
@@ -77,27 +79,27 @@ export function DevicesTab() {
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard
           label="Registered Devices"
-          value={(devicesData?.total ?? 0).toLocaleString()}
+          value={(pagination?.total ?? 0).toLocaleString()}
           icon={<Smartphone className="h-5 w-5" />}
           iconVariant="blue"
         />
         <MetricCard
           label="Active Devices"
-          value={(syncStats?.activeDevices ?? 0).toLocaleString()}
+          value={(syncStats?.devices.active ?? 0).toLocaleString()}
           icon={<CheckCircle2 className="h-5 w-5" />}
           iconVariant="emerald"
         />
         <MetricCard
           label="Pending Sync Jobs"
-          value={(syncStats?.pendingJobs ?? 0).toLocaleString()}
+          value={(syncStats?.syncJobs.pending ?? 0).toLocaleString()}
           icon={<RefreshCw className="h-5 w-5" />}
           iconVariant="amber"
         />
         <MetricCard
           label="Unresolved Conflicts"
-          value={(syncStats?.unresolvedConflicts ?? 0).toLocaleString()}
+          value={(syncStats?.conflicts.unresolved ?? 0).toLocaleString()}
           icon={<AlertCircle className="h-5 w-5" />}
-          iconVariant={syncStats?.unresolvedConflicts ? 'rose' : 'slate'}
+          iconVariant={syncStats?.conflicts.unresolved ? 'rose' : 'slate'}
         />
       </div>
 
@@ -162,17 +164,23 @@ export function DevicesTab() {
               <TableBody>
                 {devices.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="py-12 text-center text-sm text-slate-500">
-                      {devicesError ? 'Failed to load devices.' : 'No devices registered.'}
+                    <TableCell colSpan={8} className="p-6">
+                      <AdminEmptyState
+                        title={devicesError ? 'Device data is unavailable right now' : 'No devices registered yet'}
+                        description={devicesError
+                          ? 'Refresh the registry or check backend connectivity to restore live device visibility.'
+                          : 'Connected mobile devices will appear here once invoice and sync activity begins.'}
+                        icon={<Smartphone className="h-5 w-5" aria-hidden="true" />}
+                      />
                     </TableCell>
                   </TableRow>
                 ) : devices.map(device => (
                   <TableRow key={device.id} className="transition-colors hover:bg-slate-50 dark:hover:bg-slate-900">
                     <TableCell className="pl-4 font-mono text-xs text-slate-600 dark:text-slate-400">
-                      {device.id.slice(0, 8)}…
+                      {(device.deviceId || device.id).slice(0, 8)}…
                     </TableCell>
                     <TableCell className="text-sm font-medium text-slate-900 dark:text-slate-100">
-                      {(device as unknown as Record<string, string>).userId?.slice(0, 8) ?? '—'}
+                      {device.user?.name || device.user?.email || '—'}
                     </TableCell>
                     <TableCell className="text-sm capitalize text-slate-600 dark:text-slate-400">
                       {device.platform ?? '—'}
@@ -182,13 +190,13 @@ export function DevicesTab() {
                     </TableCell>
                     <TableCell>
                       <StatusPill
-                        status={device.isActive ? 'active' : 'unknown'}
-                        label={device.isActive ? 'Active' : 'Inactive'}
-                        pulse={device.isActive}
+                        status={device.active ? 'active' : 'unknown'}
+                        label={device.active ? 'Active' : 'Inactive'}
+                        pulse={device.active}
                       />
                     </TableCell>
                     <TableCell className="text-sm text-slate-500">
-                      {device.lastSyncAt ? safeDate(device.lastSyncAt, { dateStyle: 'short', timeStyle: 'short' }) : <span className="italic text-slate-300">Never</span>}
+                      {device.lastHeartbeat ? safeDate(device.lastHeartbeat, { dateStyle: 'short', timeStyle: 'short' }) : <span className="italic text-slate-300">Never</span>}
                     </TableCell>
                     <TableCell className="text-sm text-slate-500">
                       {safeDate(device.createdAt, { dateStyle: 'short' })}
@@ -213,12 +221,12 @@ export function DevicesTab() {
       </Card>
 
       {/* Pagination */}
-      {(devicesData?.totalPages ?? 1) > 1 && (
+      {(pagination?.pages ?? 1) > 1 && (
         <div className="flex items-center justify-between text-sm text-slate-500">
-          <span>Page {page} of {devicesData?.totalPages}</span>
+          <span>Page {page} of {pagination?.pages}</span>
           <div className="flex gap-2">
             <Button size="sm" variant="outline" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>Previous</Button>
-            <Button size="sm" variant="outline" disabled={page >= (devicesData?.totalPages ?? 1)} onClick={() => setPage(p => p + 1)}>Next</Button>
+            <Button size="sm" variant="outline" disabled={page >= (pagination?.pages ?? 1)} onClick={() => setPage(p => p + 1)}>Next</Button>
           </div>
         </div>
       )}
