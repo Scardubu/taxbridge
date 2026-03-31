@@ -30,6 +30,7 @@ eas build --platform ios --profile preview --clear-cache
 ## Production Build (App Store Submission)
 
 ### Pre-Build Checklist
+
 - [ ] Run: `pwsh scripts/nuclear-cache-wipe.ps1 -IncludeGlobal`
 - [ ] Run: `npx expo-doctor` (fix all warnings)
 - [ ] Run: `npx expo prebuild --clean`
@@ -88,9 +89,11 @@ adb logcat | grep -i taxbridge
 ## Troubleshooting
 
 ### Build fails with `ENOENT: no such file or directory, open '/home/expo/workingdir/build/mobile/android/gradlew'`
+
 **Cause:** EAS detected a native Android project locally, but the committed repo snapshot uploaded to EAS did not include the full `android/` directory.
 
 **Fix:**
+
 ```bash
 # Ensure native Android project files are tracked
 git add android
@@ -106,6 +109,7 @@ eas build --platform android --profile production-apk --clear-cache --no-wait
 ```
 
 **Verification:**
+
 ```bash
 git ls-files android/gradlew android/build.gradle android/settings.gradle android/app/build.gradle
 ```
@@ -113,20 +117,26 @@ git ls-files android/gradlew android/build.gradle android/settings.gradle androi
 The command above must print all four files before triggering a cloud build.
 
 ### Build fails with "cached dependency" error
+
 **Solution:** Verify all cache environment variables in `mobile/eas.json`:
+
 ```bash
 cat mobile/eas.json | jq '.build.production.env'
 ```
 
 ### Environment variables not updating
+
 **Solution:** Clear Metro cache specifically:
+
 ```bash
 rm -rf $TMPDIR/metro-*
 METRO_CACHE_DISABLED=1 eas build --platform android --profile production --clear-cache
 ```
 
 ### Assets (icons/splash) not updating
+
 **Solution:** Bump `runtimeVersion` in `app.json`:
+
 ```bash
 # Change from:
 "runtimeVersion": {
