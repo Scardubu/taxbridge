@@ -53,7 +53,14 @@ export default function DashboardTab() {
         <View style={{ gap: spacing.md }}>
           <Text style={{ ...typography.h3, color: tokens.textPrimary }}>{t('dashboard.nudges.title')}</Text>
           {nudges.map((nudge) => (
-            <Pressable key={nudge.id} onPress={() => router.replace(nudge.route)} style={{ backgroundColor: tokens.bgCard, borderRadius: radius.xl, padding: spacing.lg, borderWidth: 1, borderColor: tokens.border, gap: spacing.xs }}>
+            <Pressable
+              key={nudge.id}
+              onPress={() => router.replace(nudge.route)}
+              accessibilityRole="button"
+              accessibilityLabel={nudge.title}
+              accessibilityHint={nudge.actionLabel}
+              style={{ backgroundColor: tokens.bgCard, borderRadius: radius.xl, padding: spacing.lg, borderWidth: 1, borderColor: tokens.border, gap: spacing.xs }}
+            >
               <Text style={{ ...typography.bodyBold, color: tokens.textPrimary }}>{nudge.title}</Text>
               <Text style={{ ...typography.body, color: tokens.textSecondary }}>{nudge.body}</Text>
               <Text style={{ ...typography.caption, color: palette.nrsGreen }}>{nudge.actionLabel}</Text>

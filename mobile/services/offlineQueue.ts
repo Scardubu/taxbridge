@@ -49,6 +49,8 @@ export class OfflineQueue {
     const db = await getDatabase();
 
     try {
+      await db.runAsync("UPDATE offline_operations SET status='pending' WHERE status='syncing'");
+
       const operations = await db.getAllAsync<{
         id: number;
         client_id: string;

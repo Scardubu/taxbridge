@@ -25,7 +25,7 @@ export default function TinVerifyScreen() {
     }
 
     await logComplianceEvent('tin_failed', 'TIN validation failed during onboarding', 'warning', { tin: tin.trim() }).catch(() => undefined);
-    Alert.alert('TIN required', 'Enter a valid TIN to continue.');
+    Alert.alert(t('onboarding.tinRequiredTitle'), t('onboarding.tinRequiredBody'));
   };
 
   return (
@@ -42,6 +42,8 @@ export default function TinVerifyScreen() {
           placeholder="12345678-0001"
           placeholderTextColor={tokens.textMuted}
           autoCapitalize="characters"
+          accessibilityLabel={t('onboarding.tinVerify.title')}
+          accessibilityHint={t('onboarding.tinVerify.body')}
           style={{
             backgroundColor: tokens.bgInput,
             borderWidth: 1,
@@ -52,7 +54,11 @@ export default function TinVerifyScreen() {
             color: tokens.textPrimary,
           }}
         />
-        <Pressable style={{ backgroundColor: palette.gray50, borderRadius: radius.xl, padding: spacing.lg }}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t('onboarding.tinVerify.pendingNote')}
+          style={{ backgroundColor: palette.gray50, borderRadius: radius.xl, padding: spacing.lg }}
+        >
           <Text style={{ ...typography.body, color: palette.gray600 }}>{t('onboarding.tinVerify.pendingNote')}</Text>
         </Pressable>
       </View>

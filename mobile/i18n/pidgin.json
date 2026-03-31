@@ -3,19 +3,31 @@
     "stepCount": "Step {{current}} of {{total}}",
     "skipAll": "Skip the rest",
     "finish": "Finish Setup",
+    "skipStep": "Skip this step",
     "welcome": {
       "title": "Welcome",
       "headline": "Your Tax Paddy,\nBuilt for Nigeria",
       "subheadline": "We go help you do VAT, CIT, TIN and e-invoice. No wahala!",
-      "cta": "Make We Start"
+      "cta": "Make We Start",
+      "ctaHint": "Start TaxBridge setup",
+      "termsNote": "If you continue, e mean say you agree to our Terms of Service",
+      "featureTitle": "Tax waka wey work for Nigeria",
+      "featureBody": "Security onboarding, offline saving, and tax guidance wey fit Nigerian businesses."
     },
     "businessType": {
       "title": "Tell Us About\nYour Business",
-      "subtitle": "We go arrange your tax obligations based on your business type."
+      "subtitle": "We go arrange your tax obligations based on your business type.",
+      "options": {
+        "sole_trader": "Sole trader",
+        "partnership": "Partnership",
+        "limited_company": "Limited company",
+        "ngo": "NGO / Non-profit"
+      }
     },
     "tinVerify": {
       "title": "Enter Your TIN",
       "body": "Without TIN, dem fit cut 10% from all the money wey you collect. Enter am quick quick.",
+      "nrsNote": "NRS (Nigeria Revenue Service, before dem call am FIRS) dey manage am",
       "pendingNote": "Verification fit take small time. We go notify you when e done."
     },
     "vatSetup": {
@@ -71,6 +83,41 @@
     "tin": { "missing": "No TIN → dem go cut 10% from ALL your income" },
     "cit": { "zeroRate": "You qualify for 0% Company Tax" },
     "vat": { "exemption": "You fit be exempt from filing VAT return" }
+  },
+  "invoices": {
+    "title": "Invoices",
+    "featureTitle": "NRS invoice wey follow law",
+    "featureBody": "Make invoice wey NRS go approve, keep am offline, then sync am later.",
+    "testEventLabel": "Test: send invoice event"
+  },
+  "compliance": {
+    "title": "Compliance",
+    "vatRegistration": "VAT registration",
+    "vatFiling": "VAT filing",
+    "einvoicePhase": "E-invoice phase",
+    "annualBurden": "Total tax for the year",
+    "required": "Required",
+    "notRequired": "No need yet",
+    "exemptFiling": "You no need file VAT",
+    "monthlyRequired": "Must file every month",
+    "profileTip": "Complete your business profile make we give you better guidance."
+  },
+  "settings": {
+    "title": "Settings"
+  },
+  "calendar": {
+    "daysAway_one": "{{date}} · {{count}} day remain",
+    "daysAway_other": "{{date}} · {{count}} days remain"
+  },
+  "offline": {
+    "title": "You dey offline",
+    "body": "We don save your work. E go sync when you get signal back."
+  },
+  "error": {
+    "boundaryTitle": "Wahala dey \u2014 something break small",
+    "boundaryBody": "Your progress don save. You fit continue later.",
+    "retry": "Try Again",
+    "errorIdLabel": "Error ID"
   },
   "common": {
     "back": "Go Back",

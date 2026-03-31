@@ -1,16 +1,16 @@
 # TaxBridge Mobile - Production Readiness Report
 
-**Date:** March 23, 2026  
-**Status:** ✅ **PRODUCTION READY — Blueprint v6**  
-**Version:** 6.0.0
+**Date:** March 31, 2026  
+**Status:** ✅ **PRODUCTION READY — Blueprint v6 + Phase C UI Lockdown COMPLETE**  
+**Version:** 6.1.0
 
 ---
 
 ## 🎯 Executive Summary
 
-TaxBridge Mobile v6.0.0 satisfies all 14 Blueprint v6 absolute constraints and is ready for EAS production build. This report supersedes the v1.0.0 MVP report.
+TaxBridge Mobile v6.1.0 satisfies all 14 Blueprint v6 absolute constraints **and** now passes Phase C Final UI Lockdown. All screens are i18n-complete (EN + Pidgin parity), accessibility-compliant, and hardcoded-string-free. `tsc --noEmit` and `eslint` both exit 0.
 
-**Blueprint v6 — all constraints verified:**
+**Blueprint v6 — all 14 constraints verified:**
 - ✅ Expo SDK 54 + expo-router v6 + Reanimated 4.x (no forbidden babel plugins)
 - ✅ SecureStore-only JWT — `services/tokenService.ts`
 - ✅ Zustand + `expo-sqlite/kv-store` async persistence — `storage/kv.ts`
@@ -25,6 +25,41 @@ TaxBridge Mobile v6.0.0 satisfies all 14 Blueprint v6 absolute constraints and i
 - ✅ Three-branch Nigerian phone normalisation — `services/otpService.ts`
 - ✅ NRS 2026 e-invoice phase schedule — `services/nrsCompliance.ts`
 - ✅ `generateTaxCalendar`, `generateNudges`, `speakStepHint` helper API
+
+**Phase C UI Lockdown — all gates passed:**
+- ✅ Zero hardcoded user-facing strings across all app/ screens and components
+- ✅ Full EN + Nigerian Pidgin i18n parity (240+ keys each)
+- ✅ NativeTabs `sf` prop correctly typed — `SFSymbols7_0` via `makeSF()` helper
+- ✅ UX-05: Prominent language toggle on welcome screen, auto-detects Nigerian locale
+- ✅ Real business profile used in tax-calendar (not stub)
+- ✅ All interactive Pressables have `accessibilityRole`, `accessibilityLabel`, `accessibilityState`
+- ✅ All Switches have `accessibilityRole="switch"` + `accessibilityState={{ checked }}`
+- ✅ `OnboardingErrorBoundary` uses `i18next.t()` — no hardcoded strings in class component
+- ✅ `OfflineIndicator` fully i18n'd with `useTranslation`
+- ✅ `ComplianceBadge` i18n'd with dynamic shield key and accessibility label
+- ✅ `tsc --noEmit` → 0 errors | `eslint` → exit 0
+
+---
+
+## 🆕 Phase C — UI Lockdown Changes (March 31, 2026)
+
+| File | Change |
+|------|--------|
+| `app/(tabs)/_layout.tsx` | Fixed `sf` prop type — `SFSymbols7_0` via `makeSF()` helper + `SFProp` derived type |
+| `app/(onboarding)/welcome.tsx` | Full rewrite: UX-05 language toggle, auto-detects NG locale via `expo-localization`, all text via `t()` |
+| `app/(onboarding)/business-type.tsx` | `OPTIONS` replaced with `OPTION_VALUES` + `t()` lookup, `accessibilityState={{ selected }}` |
+| `app/(onboarding)/tin-verify.tsx` | `accessibilityLabel`, `accessibilityHint` on `TextInput`; `accessibilityRole="button"` on `Pressable`; `Alert` text i18n'd |
+| `app/(onboarding)/shared.tsx` | `accessibilityRole="button"` + `accessibilityLabel` on primary & secondary `Pressable` |
+| `app/(tabs)/invoices.tsx` | All text via `t()`, `useTranslation` added, `accessibilityRole="button"` on CTA |
+| `app/(tabs)/compliance.tsx` | `useTranslation` added, all row labels/values via `t()` |
+| `app/(tabs)/settings.tsx` | Single `useTranslation` hook, all text via `t()`, `Switch` has `accessibilityRole="switch"` |
+| `app/(tabs)/tax-calendar.tsx` | Real `useBusinessProfileStore` profile, i18n for date/days-away via `t('calendar.daysAway', { date, count })` |
+| `app/(tabs)/index.tsx` | Nudge `Pressable` has `accessibilityRole="button"`, `accessibilityLabel`, `accessibilityHint` |
+| `components/OfflineIndicator.tsx` | `useTranslation` added, `t('offline.title')` / `t('offline.body')`, `accessibilityRole="text"` |
+| `components/ComplianceBadge.tsx` | `useTranslation` added, dynamic `shieldKey` i18n, `accessibilityLabel`, `titleKey` prop |
+| `components/OnboardingErrorBoundary.tsx` | `import i18next from 'i18next'`, all 4 hardcoded strings replaced with `i18next.t()` |
+| `i18n/en.json` | Added: `skipStep`, `onboarding.welcome.featureTitle/Body`, `businessType.options.*`, `invoices.*`, `compliance.*`, `settings.*`, `calendar.*`, `offline.*`, `error.*` |
+| `i18n/pidgin.json` | Full EN parity for all new keys in authentic Nigerian Pidgin |
 
 ---
 

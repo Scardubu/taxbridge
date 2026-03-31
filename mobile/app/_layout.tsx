@@ -12,7 +12,9 @@ import { I18nextProvider } from 'react-i18next';
 import i18n from '../i18n';
 import { getDatabase } from '../services/database';
 import { migrateFromAsyncStorage } from '../services/storageMigration';
+import { offlineQueue } from '../services/offlineQueue';
 import { useBusinessProfileStore } from '../stores/businessProfileStore';
+import { useOnboardingStore } from '../stores/onboardingStore';
 
 const { Stack } = require('expo-router') as {
   Stack: React.ComponentType<any> & { Screen: React.ComponentType<any> };
@@ -36,36 +38,26 @@ function ensureSentryInitialized() {
 }
 
 void SplashScreen.preventAutoHideAsync().catch(() => undefined);
+ensureSentryInitialized();
 
 function RootLayout() {
   const hydrateProfile = useBusinessProfileStore((state) => state.hydrate);
 
   useEffect(() => {
-    ensureSentryInitialized();
-
     let isMounted = true;
 
     void (async () => {
       try {
         await getDatabase();
         await migrateFromAsyncStorage();
+        await useOnboardingStore.persist.rehydrate();
+        await hydrateProfile();
+        await offlineQueue.flush();
       } catch (error) {
         Sentry.captureException(error);
       } finally {
         if (isMounted) {
           await SplashScreen.hideAsync().catch(() => undefined);
-
-          setTimeout(() => {
-            void hydrateProfile().catch((error) => {
-              Sentry.captureException(error);
-            });
-
-            void import('../services/offlineQueue').then(({ offlineQueue }) => {
-              return offlineQueue.flush();
-            }).catch((error) => {
-              Sentry.captureException(error);
-            });
-          }, 0);
         }
       }
     })();

@@ -5,19 +5,17 @@ import { OnboardingFrame, advanceToNext } from './shared';
 import { palette, radius, spacing, typography, useTokens } from '../../components/design-system/tokens';
 import { useBusinessProfileStore } from '../../stores/businessProfileStore';
 
-const OPTIONS = [
-  { label: 'Sole trader', value: 'sole_trader' },
-  { label: 'Partnership', value: 'partnership' },
-  { label: 'Limited company', value: 'limited_company' },
-  { label: 'NGO', value: 'ngo' },
-] as const;
+const OPTION_VALUES = ['sole_trader', 'partnership', 'limited_company', 'ngo'] as const;
+type BusinessTypeValue = typeof OPTION_VALUES[number];
 
 export default function BusinessTypeScreen() {
   const { t } = useTranslation();
   const tokens = useTokens();
   const saved = useBusinessProfileStore((state) => state.businessType);
   const updateField = useBusinessProfileStore((state) => state.updateField);
-  const [selected, setSelected] = useState(saved || 'sole_trader');
+  const [selected, setSelected] = useState<BusinessTypeValue>(
+    (OPTION_VALUES as readonly string[]).includes(saved) ? (saved as BusinessTypeValue) : 'sole_trader'
+  );
 
   return (
     <OnboardingFrame
@@ -30,12 +28,15 @@ export default function BusinessTypeScreen() {
       }}
     >
       <View style={{ gap: spacing.sm }}>
-        {OPTIONS.map((option) => {
-          const active = selected === option.value;
+        {OPTION_VALUES.map((value) => {
+          const active = selected === value;
           return (
             <Pressable
-              key={option.value}
-              onPress={() => setSelected(option.value)}
+              key={value}
+              onPress={() => setSelected(value)}
+              accessibilityRole="button"
+              accessibilityLabel={t(`onboarding.businessType.options.${value}`)}
+              accessibilityState={{ selected: active }}
               style={{
                 backgroundColor: active ? palette.nrsGreen : tokens.bgCard,
                 borderColor: active ? palette.nrsGreen : tokens.border,
@@ -44,7 +45,11 @@ export default function BusinessTypeScreen() {
                 padding: spacing.lg,
               }}
             >
-              <Text style={{ ...typography.bodyBold, color: active ? palette.white : tokens.textPrimary }}>{option.label}</Text>
+              <Text
+                style={{ ...typography.bodyBold, color: active ? palette.white : tokens.textPrimary }}
+              >
+                {t(`onboarding.businessType.options.${value}`)}
+              </Text>
             </Pressable>
           );
         })}

@@ -10,12 +10,21 @@
       "subheadline": "VAT, CIT, TIN and e-invoices — offline-first, Pidgin-ready.",
       "cta": "Get Started",
       "ctaHint": "Begin TaxBridge setup",
-      "termsNote": "By continuing you agree to our Terms of Service"
+      "termsNote": "By continuing you agree to our Terms of Service",
+      "featureTitle": "NRS-ready mobile workflows",
+      "featureBody": "Secure onboarding, offline queueing, and tax-aware guidance built for Nigerian businesses."
     },
     "businessType": {
       "title": "Tell Us About\nYour Business",
-      "subtitle": "We personalise your obligations based on your type."
+      "subtitle": "We personalise your obligations based on your type.",
+      "options": {
+        "sole_trader": "Sole trader",
+        "partnership": "Partnership",
+        "limited_company": "Limited company",
+        "ngo": "NGO / Non-profit"
+      }
     },
+    "skipStep": "Skip this step",
     "tinVerify": {
       "title": "Verify Your TIN",
       "body": "Your TIN is required on all invoices. Without it, 10% WHT applies to ALL payments you receive.",
@@ -75,6 +84,41 @@
     "tin": { "missing": "No TIN → 10% WHT on ALL income" },
     "cit": { "zeroRate": "You qualify for 0% Company Tax" },
     "vat": { "exemption": "You may be exempt from VAT return filing" }
+  },
+  "invoices": {
+    "title": "Invoices",
+    "featureTitle": "NRS-compliant invoice workflows",
+    "featureBody": "Generate structured invoices, keep NRS references, and prepare for PDF/download integration.",
+    "testEventLabel": "Test: emit submission event"
+  },
+  "compliance": {
+    "title": "Compliance",
+    "vatRegistration": "VAT registration",
+    "vatFiling": "VAT filing",
+    "einvoicePhase": "E-invoicing phase",
+    "annualBurden": "Annual tax burden",
+    "required": "Required",
+    "notRequired": "Not required yet",
+    "exemptFiling": "Exempt from filing",
+    "monthlyRequired": "Required monthly",
+    "profileTip": "Keep your business profile complete to improve guidance accuracy."
+  },
+  "settings": {
+    "title": "Settings"
+  },
+  "calendar": {
+    "daysAway_one": "{{date}} · {{count}} day away",
+    "daysAway_other": "{{date}} · {{count}} days away"
+  },
+  "offline": {
+    "title": "Offline mode active",
+    "body": "Changes are being saved locally and will sync when connectivity returns."
+  },
+  "error": {
+    "boundaryTitle": "Something went wrong",
+    "boundaryBody": "Your progress has been saved. You can continue later.",
+    "retry": "Try Again",
+    "errorIdLabel": "Error ID"
   },
   "common": {
     "back": "Back",

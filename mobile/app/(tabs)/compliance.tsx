@@ -1,6 +1,7 @@
 import React from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { ComplianceBadge } from '../../components/ComplianceBadge';
 import { palette, radius, spacing, typography, useTokens } from '../../components/design-system/tokens';
 import { computeObligations } from '../../services/nrsCompliance';
@@ -26,26 +27,55 @@ export default function ComplianceTab() {
     monthlyRevenue,
   });
 
+  const { t } = useTranslation();
+
   const rows = [
-    { label: 'VAT registration', value: obligations.vatRegistrationRequired ? 'Required' : 'Not required yet' },
-    { label: 'VAT filing', value: obligations.vatFilingExempt ? 'Exempt from filing' : 'Required monthly' },
-    { label: 'E-invoicing phase', value: obligations.eInvoicingPhase },
-    { label: 'Annual tax burden', value: `₦${Math.round(obligations.annualTaxBurden).toLocaleString('en-NG')}` },
+    {
+      key: 'vatRegistration',
+      label: t('compliance.vatRegistration'),
+      value: obligations.vatRegistrationRequired ? t('compliance.required') : t('compliance.notRequired'),
+    },
+    {
+      key: 'vatFiling',
+      label: t('compliance.vatFiling'),
+      value: obligations.vatFilingExempt ? t('compliance.exemptFiling') : t('compliance.monthlyRequired'),
+    },
+    {
+      key: 'einvoice',
+      label: t('compliance.einvoicePhase'),
+      value: obligations.eInvoicingPhase,
+    },
+    {
+      key: 'burden',
+      label: t('compliance.annualBurden'),
+      value: `₦${Math.round(obligations.annualTaxBurden).toLocaleString('en-NG')}`,
+    },
   ];
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: tokens.bg }} edges={['top', 'left', 'right']}>
       <ScrollView contentContainerStyle={{ padding: spacing.lg, gap: spacing.lg }}>
-        <Text style={{ ...typography.h1, color: tokens.textPrimary }}>Compliance</Text>
+        <Text style={{ ...typography.h1, color: tokens.textPrimary }}>{t('compliance.title')}</Text>
         <ComplianceBadge score={obligations.complianceScore} />
-        <View style={{ backgroundColor: tokens.bgCard, borderRadius: radius.xl, padding: spacing.lg, borderWidth: 1, borderColor: tokens.border, gap: spacing.sm }}>
+        <View
+          style={{
+            backgroundColor: tokens.bgCard,
+            borderRadius: radius.xl,
+            padding: spacing.lg,
+            borderWidth: 1,
+            borderColor: tokens.border,
+            gap: spacing.sm,
+          }}
+        >
           {rows.map((row) => (
-            <View key={row.label} style={{ gap: spacing.xs }}>
+            <View key={row.key} style={{ gap: spacing.xs }}>
               <Text style={{ ...typography.caption, color: tokens.textSecondary }}>{row.label}</Text>
               <Text style={{ ...typography.bodyBold, color: tokens.textPrimary }}>{row.value}</Text>
             </View>
           ))}
-          <Text style={{ ...typography.caption, color: palette.gray600 }}>Keep your business profile complete to improve guidance accuracy.</Text>
+          <Text style={{ ...typography.caption, color: palette.gray600 }}>
+            {t('compliance.profileTip')}
+          </Text>
         </View>
       </ScrollView>
     </SafeAreaView>

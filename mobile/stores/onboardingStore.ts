@@ -3,6 +3,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { zustandKvStorage } from '../storage/kv';
+import { AppKV } from '../storage/kv';
 import { apiRequest } from '../services/api';
 import { logComplianceEvent } from '../services/complianceEventService';
 import { getDatabase } from '../services/database';
@@ -44,17 +45,37 @@ export function migrateLegacyStepId(raw: string): StepId {
   return LEGACY[raw] ?? (STEPS.find((step) => step.id === raw)?.id ?? 'welcome');
 }
 
+function deriveCompletedSteps(currentStepId: StepId): StepId[] {
+  const currentIndex = STEPS.findIndex((step) => step.id === currentStepId);
+  if (currentIndex <= 0) {
+    return [];
+  }
+
+  return STEPS.slice(0, currentIndex).map((step) => step.id);
+}
+
+function getUniqueSteps(steps: StepId[]): StepId[] {
+  return Array.from(new Set(steps));
+}
+
+function mirrorOnboardingState(currentStepId: StepId, isComplete: boolean) {
+  AppKV.onboarding.setStep(currentStepId);
+  AppKV.onboarding.setComplete(isComplete);
+}
+
 interface OnboardingStore {
   currentStepId: StepId;
   completedSteps: StepId[];
   isComplete: boolean;
   schemaVersion: number;
   isSyncing: boolean;
+  hasHydrated: boolean;
   goNext(): Promise<void>;
   goPrev(): void;
   skipAllOptional(): Promise<void>;
   complete(): Promise<void>;
   migrateIfNeeded(): void;
+  markHydrated(): void;
 }
 
 export const useOnboardingStore = create<OnboardingStore>()(
@@ -65,15 +86,25 @@ export const useOnboardingStore = create<OnboardingStore>()(
       isComplete: false,
       schemaVersion: 13,
       isSyncing: false,
+      hasHydrated: false,
+      markHydrated: () => set({ hasHydrated: true }),
       migrateIfNeeded: () => {
         const { currentStepId, completedSteps, schemaVersion } = get();
-        if (schemaVersion < 13) {
+        const migratedStepId = migrateLegacyStepId(currentStepId);
+        const migratedCompletedSteps = getUniqueSteps([
+          ...deriveCompletedSteps(migratedStepId),
+          ...completedSteps.map(migrateLegacyStepId),
+        ]);
+
+        if (schemaVersion < 13 || migratedStepId !== currentStepId) {
           set({
-            currentStepId: migrateLegacyStepId(currentStepId),
-            completedSteps: completedSteps.map(migrateLegacyStepId),
+            currentStepId: migratedStepId,
+            completedSteps: migratedCompletedSteps,
             schemaVersion: 13,
           });
         }
+
+        mirrorOnboardingState(migratedStepId, get().isComplete);
       },
       goNext: async () => {
         const { currentStepId, completedSteps } = get();
@@ -106,25 +137,34 @@ export const useOnboardingStore = create<OnboardingStore>()(
           return;
         }
 
-        set({ currentStepId: STEPS[idx + 1].id, completedSteps: newCompleted });
+        const nextStepId = STEPS[idx + 1].id;
+        set({ currentStepId: nextStepId, completedSteps: newCompleted });
+        mirrorOnboardingState(nextStepId, false);
       },
       goPrev: () => {
         const idx = STEPS.findIndex((step) => step.id === get().currentStepId);
         if (idx > 0) {
-          set({ currentStepId: STEPS[idx - 1].id });
+          const previousStepId = STEPS[idx - 1].id;
+          set({ currentStepId: previousStepId });
+          mirrorOnboardingState(previousStepId, false);
         }
       },
       skipAllOptional: async () => {
-        const { completedSteps } = get();
+        const { completedSteps, currentStepId } = get();
         const optionalIds = STEPS.filter((step) => !step.required).map((step) => step.id);
-        const requiredDone = completedSteps.filter((id) =>
+        const requiredDone = getUniqueSteps([
+          ...deriveCompletedSteps(currentStepId),
+          ...completedSteps,
+        ]).filter((id) =>
           STEPS.find((step) => step.id === id && step.required)
         );
-        set({ completedSteps: [...requiredDone, ...optionalIds] });
+        set({ completedSteps: getUniqueSteps([...requiredDone, ...optionalIds]) });
         await get().complete();
       },
       complete: async () => {
+        const { currentStepId } = get();
         set({ isComplete: true });
+        mirrorOnboardingState(currentStepId, true);
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         apiRequest('/api/v1/onboarding/complete', { method: 'POST' }).catch(() => undefined);
         logComplianceEvent('onboarding_complete', 'User completed onboarding', 'info').catch(() => undefined);
@@ -140,13 +180,17 @@ export const useOnboardingStore = create<OnboardingStore>()(
         isComplete: state.isComplete,
         schemaVersion: state.schemaVersion,
       }),
-      onRehydrateStorage: () => (state) => state?.migrateIfNeeded(),
+      onRehydrateStorage: () => (state) => {
+        state?.migrateIfNeeded();
+        state?.markHydrated();
+      },
     }
   )
 );
 
 export const useCurrentStepId = () => useOnboardingStore((state) => state.currentStepId);
 export const useIsOnboardingDone = () => useOnboardingStore((state) => state.isComplete);
+export const useOnboardingHydrated = () => useOnboardingStore((state) => state.hasHydrated);
 export const useProgressPercent = () =>
   useOnboardingStore((state) => {
     const requiredSteps = STEPS.filter((step) => step.required).length;

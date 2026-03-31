@@ -88,11 +88,21 @@ export function OnboardingFrame({
               </View>
 
               <View style={{ gap: spacing.sm }}>
-                <Pressable onPress={onPrimary} style={{ backgroundColor: palette.nrsGreen, borderRadius: radius.xl, paddingVertical: spacing.md, alignItems: 'center' }}>
+                <Pressable
+                  onPress={onPrimary}
+                  accessibilityRole="button"
+                  accessibilityLabel={primaryLabel ?? t('common.continue')}
+                  style={{ backgroundColor: palette.nrsGreen, borderRadius: radius.xl, paddingVertical: spacing.md, alignItems: 'center' }}
+                >
                   <Text style={{ ...typography.bodyBold, color: palette.white }}>{primaryLabel ?? t('common.continue')}</Text>
                 </Pressable>
                 {secondaryLabel && onSecondary ? (
-                  <Pressable onPress={onSecondary} style={{ borderRadius: radius.xl, paddingVertical: spacing.md, alignItems: 'center', borderWidth: 1, borderColor: tokens.border }}>
+                  <Pressable
+                    onPress={onSecondary}
+                    accessibilityRole="button"
+                    accessibilityLabel={secondaryLabel}
+                    style={{ borderRadius: radius.xl, paddingVertical: spacing.md, alignItems: 'center', borderWidth: 1, borderColor: tokens.border }}
+                  >
                     <Text style={{ ...typography.bodyBold, color: tokens.textPrimary }}>{secondaryLabel}</Text>
                   </Pressable>
                 ) : null}
