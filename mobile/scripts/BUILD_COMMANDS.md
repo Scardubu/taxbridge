@@ -87,6 +87,31 @@ adb logcat | grep -i taxbridge
 
 ## Troubleshooting
 
+### Build fails with `ENOENT: no such file or directory, open '/home/expo/workingdir/build/mobile/android/gradlew'`
+**Cause:** EAS detected a native Android project locally, but the committed repo snapshot uploaded to EAS did not include the full `android/` directory.
+
+**Fix:**
+```bash
+# Ensure native Android project files are tracked
+git add android
+
+# Keep only local secrets/artifacts ignored
+git add .gitignore android/.gitignore
+
+# Commit before EAS build when requireCommit=true
+git commit -m "fix(build): commit native android project for EAS"
+
+# Re-run the APK build
+eas build --platform android --profile production-apk --clear-cache --no-wait
+```
+
+**Verification:**
+```bash
+git ls-files android/gradlew android/build.gradle android/settings.gradle android/app/build.gradle
+```
+
+The command above must print all four files before triggering a cloud build.
+
 ### Build fails with "cached dependency" error
 **Solution:** Verify all cache environment variables in `mobile/eas.json`:
 ```bash

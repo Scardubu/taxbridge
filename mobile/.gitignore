@@ -17,6 +17,7 @@ expo-env.d.ts
 *.p12
 *.key
 *.mobileprovision
+android/app/debug.keystore
 
 # Metro
 .metro-health-check*
@@ -36,6 +37,5 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
-# generated native folders
-/ios
-/android
+# Native projects are committed for EAS generic workflow.
+# Keep only machine-local/native build artifacts ignored.
