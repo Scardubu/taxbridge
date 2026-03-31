@@ -133,6 +133,18 @@ rm -rf $TMPDIR/metro-*
 METRO_CACHE_DISABLED=1 eas build --platform android --profile production --clear-cache
 ```
 
+### Build stalls or exits during `Computing project fingerprint`
+
+**Cause:** EAS CLI auto-fingerprint can hang or fail on larger native project uploads.
+
+**Solution:** Skip auto fingerprint for the build request:
+
+```bash
+EAS_SKIP_AUTO_FINGERPRINT=1 eas build --platform android --profile production-apk --clear-cache --no-wait
+```
+
+The repository must still be Git-clean when `requireCommit=true`.
+
 ### Assets (icons/splash) not updating
 
 **Solution:** Bump `runtimeVersion` in `app.json`:
