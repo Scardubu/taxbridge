@@ -16,6 +16,7 @@
     "check:ui-consistency": "node scripts/ui-consistency-check.js",
     "check:accessibility": "node scripts/accessibility-audit.js",
     "check:post-deploy": "node scripts/post-deployment-check.js",
+    "export:android-smoke": "cross-env CI=1 expo export --platform android --output-dir .tmp/eas-metro-smoke",
     "build": "echo 'Mobile: No build needed (Expo builds via EAS)' && exit 0",
     "android": "expo run:android",
     "ios": "expo run:ios",

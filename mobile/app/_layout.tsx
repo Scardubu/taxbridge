@@ -1,5 +1,4 @@
 import 'react-native-reanimated';
-import '../global.css';
 
 import React, { useEffect } from 'react';
 import { isRunningInExpoGo } from 'expo';

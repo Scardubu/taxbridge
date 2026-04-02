@@ -145,6 +145,23 @@ EAS_SKIP_AUTO_FINGERPRINT=1 eas build --platform android --profile production-ap
 
 The repository must still be Git-clean when `requireCommit=true`.
 
+### Build times out at `Starting Metro Bundler`
+
+**Cause:** Metro can spend excessive time initializing when NativeWind scans large legacy trees that are not part of the active Expo Router app.
+
+**Fix applied in this repo:**
+```bash
+# tailwind.config.js content scan is limited to the active app surface
+./app/**/*.{js,jsx,ts,tsx}
+./components/**/*.{js,jsx,ts,tsx}
+```
+
+**If Metro times out again:**
+```bash
+# Re-run with clean cache after confirming the current commit is pushed
+eas build --platform android --profile production-apk --clear-cache --no-wait
+```
+
 ### Assets (icons/splash) not updating
 
 **Solution:** Bump `runtimeVersion` in `app.json`:

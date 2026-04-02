@@ -40,6 +40,7 @@ TaxBridge Mobile v6.1.0 satisfies all 14 Blueprint v6 absolute constraints **and
 - ✅ `OfflineIndicator` fully i18n'd with `useTranslation`
 - ✅ `ComplianceBadge` i18n'd with dynamic shield key and accessibility label
 - ✅ `tsc --noEmit` → 0 errors | `eslint` → exit 0
+- ✅ Metro bundling stabilized for EAS Android builds by removing unused NativeWind runtime wiring and reducing non-app scan overhead
 
 ---
 
@@ -60,6 +61,11 @@ TaxBridge Mobile v6.1.0 satisfies all 14 Blueprint v6 absolute constraints **and
 | `components/OfflineIndicator.tsx` | `useTranslation` added, `t('offline.title')` / `t('offline.body')`, `accessibilityRole="text"` |
 | `components/ComplianceBadge.tsx` | `useTranslation` added, dynamic `shieldKey` i18n, `accessibilityLabel`, `titleKey` prop |
 | `components/OnboardingErrorBoundary.tsx` | `import i18next from 'i18next'`, all 4 hardcoded strings replaced with `i18next.t()` |
+| `metro.config.js` | Removed unused `withNativeWind(...)` wrapper from active Metro path to unblock bundling |
+| `babel.config.js` | Removed unused `nativewind/babel` preset and `jsxImportSource: 'nativewind'` |
+| `app/_layout.tsx` | Removed unused `global.css` import from runtime entry |
+| `tailwind.config.js` | Limited content scan to active `app/` and `components/` trees |
+| `package.json` | Added `export:android-smoke` for repeatable local Metro export verification |
 | `i18n/en.json` | Added: `skipStep`, `onboarding.welcome.featureTitle/Body`, `businessType.options.*`, `invoices.*`, `compliance.*`, `settings.*`, `calendar.*`, `offline.*`, `error.*` |
 | `i18n/pidgin.json` | Full EN parity for all new keys in authentic Nigerian Pidgin |
 
