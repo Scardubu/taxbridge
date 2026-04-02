@@ -20,6 +20,13 @@ const { Stack } = require('expo-router') as {
 };
 
 let hasInitializedSentry = false;
+const STARTUP_TIMEOUT_MS = 4000;
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
 
 function ensureSentryInitialized() {
   if (hasInitializedSentry) {
@@ -47,15 +54,34 @@ function RootLayout() {
 
     void (async () => {
       try {
-        await getDatabase();
-        await migrateFromAsyncStorage();
-        await useOnboardingStore.persist.rehydrate();
-        await hydrateProfile();
-        await offlineQueue.flush();
+        await Promise.race([
+          (async () => {
+            await getDatabase();
+            await migrateFromAsyncStorage();
+            await useOnboardingStore.persist.rehydrate();
+
+            if (!useOnboardingStore.getState().hasHydrated) {
+              useOnboardingStore.getState().markHydrated();
+            }
+
+            await hydrateProfile();
+          })(),
+          delay(STARTUP_TIMEOUT_MS).then(() => {
+            throw new Error('startup_timeout');
+          }),
+        ]);
       } catch (error) {
         Sentry.captureException(error);
+
+        if (!useOnboardingStore.getState().hasHydrated) {
+          useOnboardingStore.getState().markHydrated();
+        }
       } finally {
         if (isMounted) {
+          void offlineQueue.flush().catch((error) => {
+            Sentry.captureException(error);
+          });
+
           await SplashScreen.hideAsync().catch(() => undefined);
         }
       }

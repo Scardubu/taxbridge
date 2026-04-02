@@ -8,6 +8,15 @@ type JsonRecord = Record<string, unknown>;
 let deviceIdPromise: Promise<string> | null = null;
 let refreshPromise: Promise<string | null> | null = null;
 
+function getRequestTimeoutMs(): number {
+  const raw = Number(process.env.API_TIMEOUT ?? 30000);
+  if (!Number.isFinite(raw) || raw <= 0) {
+    return 30000;
+  }
+
+  return raw;
+}
+
 function getBaseUrl(): string {
   return process.env.EXPO_PUBLIC_API_URL ?? 'https://api.taxbridge.ng';
 }
@@ -60,16 +69,28 @@ async function refreshAccessToken(): Promise<string | null> {
 }
 
 async function executeRequest(path: string, options: RequestInit = {}, accessToken?: string | null): Promise<Response> {
-  return fetch(`${getBaseUrl()}${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: accessToken ? `Bearer ${accessToken}` : '',
-      'X-TaxBridge-Version': '13',
-      'X-Device-ID': await getDeviceId(),
-      ...options.headers,
-    },
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), getRequestTimeoutMs());
+
+  if (options.signal) {
+    options.signal.addEventListener('abort', () => controller.abort(), { once: true });
+  }
+
+  try {
+    return await fetch(`${getBaseUrl()}${path}`, {
+      ...options,
+      signal: controller.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: accessToken ? `Bearer ${accessToken}` : '',
+        'X-TaxBridge-Version': '13',
+        'X-Device-ID': await getDeviceId(),
+        ...options.headers,
+      },
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 export async function apiRequest<T>(path: string, options: RequestInit = {}, hasRetried = false): Promise<T> {

@@ -41,6 +41,7 @@ TaxBridge Mobile v6.1.0 satisfies all 14 Blueprint v6 absolute constraints **and
 - ✅ `ComplianceBadge` i18n'd with dynamic shield key and accessibility label
 - ✅ `tsc --noEmit` → 0 errors | `eslint` → exit 0
 - ✅ Metro bundling stabilized for EAS Android builds by removing unused NativeWind runtime wiring and reducing non-app scan overhead
+- ✅ Splash-screen startup stabilized by decoupling `offlineQueue.flush()` from splash hide and adding API/startup timeouts
 
 ---
 
@@ -64,6 +65,8 @@ TaxBridge Mobile v6.1.0 satisfies all 14 Blueprint v6 absolute constraints **and
 | `metro.config.js` | Removed unused `withNativeWind(...)` wrapper from active Metro path to unblock bundling |
 | `babel.config.js` | Removed unused `nativewind/babel` preset and `jsxImportSource: 'nativewind'` |
 | `app/_layout.tsx` | Removed unused `global.css` import from runtime entry |
+| `app/_layout.tsx` | Splash now hides after local boot tasks only; `offlineQueue.flush()` runs in background with startup timeout fallback |
+| `services/api.ts` | Added request timeout via `AbortController` so stalled backend calls cannot block boot or sync forever |
 | `tailwind.config.js` | Limited content scan to active `app/` and `components/` trees |
 | `package.json` | Added `export:android-smoke` for repeatable local Metro export verification |
 | `i18n/en.json` | Added: `skipStep`, `onboarding.welcome.featureTitle/Body`, `businessType.options.*`, `invoices.*`, `compliance.*`, `settings.*`, `calendar.*`, `offline.*`, `error.*` |
