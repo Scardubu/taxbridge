@@ -9,27 +9,53 @@
       "headline": "Your Tax Partner,\nBuilt for Nigeria",
       "subheadline": "VAT, CIT, TIN and e-invoices — offline-first, Pidgin-ready.",
       "cta": "Get Started",
+      "skipCta": "Explore dashboard first",
       "ctaHint": "Begin TaxBridge setup",
       "termsNote": "By continuing you agree to our Terms of Service",
       "featureTitle": "NRS-ready mobile workflows",
-      "featureBody": "Secure onboarding, offline queueing, and tax-aware guidance built for Nigerian businesses."
+      "featureBody": "Secure onboarding, offline queueing, and tax-aware guidance built for Nigerian businesses.",
+      "highlights": {
+        "setup": {
+          "title": "Guided setup, not guesswork",
+          "body": "We explain each tax step in plain language so you know what matters now and what can wait."
+        },
+        "offline": {
+          "title": "Built for unstable networks",
+          "body": "Your progress saves locally first, then syncs later when signal comes back."
+        },
+        "deadlines": {
+          "title": "Personalised deadlines",
+          "body": "The dashboard turns your setup answers into clear VAT, WHT, CIT, and e-invoicing next steps."
+        }
+      }
     },
     "businessType": {
       "title": "Tell Us About\nYour Business",
       "subtitle": "We personalise your obligations based on your type.",
+      "skipCta": "Use recommended setup",
       "options": {
         "sole_trader": "Sole trader",
         "partnership": "Partnership",
         "limited_company": "Limited company",
         "ngo": "NGO / Non-profit"
+      },
+      "descriptions": {
+        "sole_trader": "Best for one-person businesses and freelancers with personal tax obligations.",
+        "partnership": "For shared ownership businesses where partners split profits and reporting duties.",
+        "limited_company": "For registered companies that need company tax guidance and annual filing support.",
+        "ngo": "For missions, associations, and non-profits that still need a clean compliance record."
       }
     },
     "skipStep": "Skip this step",
     "tinVerify": {
       "title": "Verify Your TIN",
       "body": "Your TIN is required on all invoices. Without it, 10% WHT applies to ALL payments you receive.",
+      "placeholder": "12345678-0001",
+      "skipCta": "I'll verify later",
       "nrsNote": "Managed by NRS (Nigeria Revenue Service, formerly FIRS)",
-      "pendingNote": "Verification takes 1–2 minutes via NRS. We'll notify you automatically."
+      "pendingNote": "Verification takes 1–2 minutes via NRS. We'll notify you automatically.",
+      "educationTitle": "Why this matters",
+      "educationBody": "A valid TIN reduces payment friction, protects you from avoidable withholding, and makes invoices easier for clients to approve."
     },
     "vatSetup": {
       "title": "VAT Setup",
@@ -57,12 +83,58 @@
     "title": "Dashboard",
     "greeting": "Good day",
     "yourBusiness": "Your Business",
+    "quickActionsTitle": "Quick actions",
+    "loading": {
+      "title": "Preparing your dashboard",
+      "body": "We are loading your business profile and compliance snapshot."
+    },
+    "resumeSetup": {
+      "title": "Finish your guided setup",
+      "body": "Complete a few setup steps to unlock clearer tax nudges and a more accurate compliance dashboard.",
+      "fallbackBody": "We loaded a safe dashboard view. Continue guided setup to restore your full personalised experience.",
+      "action": "Continue setup"
+    },
+    "emptyState": {
+      "title": "You are in a good place to start",
+      "body": "No urgent nudges right now. Review your obligations below or open invoices to keep your records current."
+    },
     "shield": {
+      "label": "Protected",
       "excellent": "🛡️ Excellent compliance — keep it up!",
       "good": "Your compliance is on track",
       "needsWork": "Action needed to improve your shield"
     },
     "nudges": { "title": "Action Required" },
+    "nudgeCards": {
+      "deadline": {
+        "action": "Open calendar"
+      },
+      "missingTin": {
+        "title": "Verify your TIN",
+        "body": "No TIN means 10% WHT can be deducted from every payment you receive.",
+        "action": "Verify TIN now"
+      },
+      "vatRequired": {
+        "title": "VAT setup needed",
+        "body": "Your turnover is above the ₦25M threshold, so VAT registration and charging should be active.",
+        "action": "Review VAT"
+      },
+      "citZero": {
+        "title": "You qualify for 0% Company Tax",
+        "body": "Small company relief applies, so your current CIT rate is 0%.",
+        "action": "View details"
+      },
+      "vatExempt": {
+        "title": "VAT return filing exemption",
+        "body": "Your turnover is under ₦100M, so monthly VAT filing is currently exempt.",
+        "action": "Learn more"
+      },
+      "einvoiceReadiness": {
+        "title": "Prepare for e-invoicing",
+        "body": "Banks and larger clients move faster when your invoice workflow is already e-invoice ready.",
+        "action": "View readiness"
+      }
+    },
     "obligations": { "title": "Your Tax Obligations" },
     "quickAction": { "invoice": "New Invoice", "payTax": "Pay Tax", "simulate": "Tax Simulator" }
   },
@@ -107,6 +179,14 @@
     "title": "Settings"
   },
   "calendar": {
+    "deadlines": {
+      "vatTitle": "VAT Return Filing",
+      "vatDescription": "File VAT returns by the 21st of {{month}} {{year}}.",
+      "whtTitle": "WHT Remittance",
+      "whtDescription": "Remit Withholding Tax by the 21st of {{month}} {{year}}.",
+      "citTitle": "CIT Annual Filing",
+      "citDescription": "Company Income Tax for {{year}} is due 30 June {{dueYear}}."
+    },
     "daysAway_one": "{{date}} · {{count}} day away",
     "daysAway_other": "{{date}} · {{count}} days away"
   },

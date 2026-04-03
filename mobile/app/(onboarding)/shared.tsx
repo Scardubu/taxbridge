@@ -7,16 +7,7 @@ import { OnboardingErrorBoundary } from '../../components/OnboardingErrorBoundar
 import { StepContainer } from '../../components/StepContainer';
 import { OnboardingProgressBar } from '../../components/OnboardingProgressBar';
 import { palette, radius, spacing, typography, useTokens } from '../../components/design-system/tokens';
-import { STEPS, type StepId, useOnboardingStore } from '../../stores/onboardingStore';
-
-const ROUTES: Record<StepId, string> = {
-  welcome: '/(onboarding)/welcome',
-  'business-type': '/(onboarding)/business-type',
-  'tin-verify': '/(onboarding)/tin-verify',
-  'vat-setup': '/(onboarding)/vat-setup',
-  einvoice: '/(onboarding)/einvoice',
-  community: '/(onboarding)/community',
-};
+import { STEPS, STEP_ROUTES, type StepId, useOnboardingStore } from '../../stores/onboardingStore';
 
 export function useBindOnboardingStep(stepId: StepId) {
   useEffect(() => {
@@ -42,13 +33,17 @@ export function advanceToNext(stepId: StepId) {
   const next = STEPS[index + 1];
   return state.goNext().then(() => {
     if (next) {
-      router.replace(ROUTES[next.id]);
+      router.replace(STEP_ROUTES[next.id]);
     }
   });
 }
 
 export function completeOptionalFlow() {
   return useOnboardingStore.getState().skipAllOptional();
+}
+
+export function skipSetupForNow() {
+  return useOnboardingStore.getState().skipForNow();
 }
 
 export function OnboardingFrame({

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import * as Localization from 'expo-localization';
-import { OnboardingFrame, advanceToNext } from './shared';
+import { OnboardingFrame, advanceToNext, skipSetupForNow } from './shared';
 import { palette, radius, spacing, typography, useTokens } from '../../components/design-system/tokens';
 import { AppKV } from '../../storage/kv';
 import i18n, { normalizeLanguage, type SupportedLanguage } from '../../i18n';
@@ -11,6 +11,11 @@ export default function WelcomeScreen() {
   const { t } = useTranslation();
   const tokens = useTokens();
   const [lang, setLang] = useState<SupportedLanguage>(normalizeLanguage(i18n.resolvedLanguage));
+  const highlights = [
+    'setup',
+    'offline',
+    'deadlines',
+  ] as const;
 
   // UX-05 fix: Detect Nigerian locale on first load, suggest Pidgin
   useEffect(() => {
@@ -46,6 +51,8 @@ export default function WelcomeScreen() {
       body={t('onboarding.welcome.subheadline')}
       primaryLabel={t('onboarding.welcome.cta')}
       onPrimary={() => void advanceToNext('welcome')}
+      secondaryLabel={t('onboarding.welcome.skipCta')}
+      onSecondary={() => void skipSetupForNow()}
     >
       {/* UX-05 fix: Prominent language toggle — not buried in settings */}
       <View
@@ -98,6 +105,29 @@ export default function WelcomeScreen() {
         <Text style={{ ...typography.body, color: palette.gray600 }}>
           {t('onboarding.welcome.featureBody')}
         </Text>
+      </View>
+
+      <View style={{ gap: spacing.sm }}>
+        {highlights.map((highlight) => (
+          <View
+            key={highlight}
+            style={{
+              backgroundColor: tokens.bgCard,
+              borderRadius: radius.xl,
+              padding: spacing.lg,
+              borderWidth: 1,
+              borderColor: tokens.border,
+              gap: spacing.xs,
+            }}
+          >
+            <Text style={{ ...typography.bodyBold, color: tokens.textPrimary }}>
+              {t(`onboarding.welcome.highlights.${highlight}.title`)}
+            </Text>
+            <Text style={{ ...typography.body, color: tokens.textSecondary }}>
+              {t(`onboarding.welcome.highlights.${highlight}.body`)}
+            </Text>
+          </View>
+        ))}
       </View>
     </OnboardingFrame>
   );

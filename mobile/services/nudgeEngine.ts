@@ -1,5 +1,6 @@
 import { computeObligations, type BusinessProfile } from './nrsCompliance';
 import { generateTaxCalendar } from './taxCalendar';
+import i18next from 'i18next';
 
 export type NudgePriority = 'critical' | 'warning' | 'opportunity';
 
@@ -28,15 +29,16 @@ export function generateNudges(
   const year = new Date().getFullYear();
   const calendar = generateTaxCalendar(profile, year);
   const urgentDeadline = calendar.find((d) => d.daysAway > 0 && d.daysAway <= 7);
+  const t = i18next.t.bind(i18next);
 
   if (!profile.hasValidTIN) {
     nudges.push({
       id: 'missing-tin',
-      title: 'Verify your TIN',
-      body: 'No TIN → 10% WHT deducted from ALL payments you receive.',
+      title: t('dashboard.nudgeCards.missingTin.title'),
+      body: t('dashboard.nudgeCards.missingTin.body'),
       severity: 'critical',
       priority: 'critical',
-      actionLabel: 'Verify TIN now',
+      actionLabel: t('dashboard.nudgeCards.missingTin.action'),
       route: '/(tabs)/compliance',
     });
   }
@@ -48,7 +50,7 @@ export function generateNudges(
       body: `${urgentDeadline.description} Due in ${urgentDeadline.daysAway} day${urgentDeadline.daysAway === 1 ? '' : 's'}.`,
       severity: urgentDeadline.daysAway <= 3 ? 'critical' : 'warning',
       priority: urgentDeadline.daysAway <= 3 ? 'critical' : 'warning',
-      actionLabel: 'Open calendar',
+      actionLabel: t('dashboard.nudgeCards.deadline.action'),
       route: '/(tabs)/tax-calendar',
     });
   }
@@ -56,11 +58,11 @@ export function generateNudges(
   if (obligations.vatRegistrationRequired && !profile.isVatRegistered) {
     nudges.push({
       id: 'vat-required',
-      title: 'VAT setup needed',
-      body: 'Turnover exceeds ₦25M threshold — register for VAT and start charging on invoices.',
+      title: t('dashboard.nudgeCards.vatRequired.title'),
+      body: t('dashboard.nudgeCards.vatRequired.body'),
       severity: 'warning',
       priority: 'warning',
-      actionLabel: 'Review VAT',
+      actionLabel: t('dashboard.nudgeCards.vatRequired.action'),
       route: '/(tabs)/compliance',
     });
   }
@@ -68,11 +70,11 @@ export function generateNudges(
   if (obligations.citRate === 0) {
     nudges.push({
       id: 'cit-zero',
-      title: 'You qualify for 0% Company Tax',
-      body: 'Small company relief applies — your CIT rate is 0% this year.',
+      title: t('dashboard.nudgeCards.citZero.title'),
+      body: t('dashboard.nudgeCards.citZero.body'),
       severity: 'info',
       priority: 'opportunity',
-      actionLabel: 'View details',
+      actionLabel: t('dashboard.nudgeCards.citZero.action'),
       route: '/(tabs)/compliance',
     });
   }
@@ -80,11 +82,11 @@ export function generateNudges(
   if (obligations.vatFilingExempt) {
     nudges.push({
       id: 'vat-filing-exempt',
-      title: 'VAT return filing exemption',
-      body: 'Your turnover is under ₦100M — you are exempt from filing monthly VAT returns.',
+      title: t('dashboard.nudgeCards.vatExempt.title'),
+      body: t('dashboard.nudgeCards.vatExempt.body'),
       severity: 'info',
       priority: 'opportunity',
-      actionLabel: 'Learn more',
+      actionLabel: t('dashboard.nudgeCards.vatExempt.action'),
       route: '/(tabs)/compliance',
     });
   }
@@ -92,11 +94,11 @@ export function generateNudges(
   if (!obligations.eInvoicingMandatory) {
     nudges.push({
       id: 'einvoice-readiness',
-      title: 'Prepare for e-invoicing',
-      body: 'Banks offer faster invoice financing to e-invoice-ready businesses.',
+      title: t('dashboard.nudgeCards.einvoiceReadiness.title'),
+      body: t('dashboard.nudgeCards.einvoiceReadiness.body'),
       severity: 'info',
       priority: 'opportunity',
-      actionLabel: 'View readiness',
+      actionLabel: t('dashboard.nudgeCards.einvoiceReadiness.action'),
       route: '/(tabs)/invoices',
     });
   }

@@ -4,6 +4,7 @@
  */
 
 import {
+  getNextUnfinishedStepId,
   migrateLegacyStepId,
   STEPS,
   STEP_IDS,
@@ -87,5 +88,19 @@ describe('Step ordering invariants', () => {
     const tinIdx = STEPS.findIndex((s) => s.id === 'tin-verify');
     const vatIdx = STEPS.findIndex((s) => s.id === 'vat-setup');
     expect(tinIdx).toBeLessThan(vatIdx);
+  });
+});
+
+describe('getNextUnfinishedStepId', () => {
+  test('returns first step when nothing is completed', () => {
+    expect(getNextUnfinishedStepId([])).toBe('welcome');
+  });
+
+  test('returns first unfinished optional step after required steps are done', () => {
+    expect(getNextUnfinishedStepId(['welcome', 'business-type', 'tin-verify'])).toBe('vat-setup');
+  });
+
+  test('returns community when every step is completed', () => {
+    expect(getNextUnfinishedStepId(STEPS.map((step) => step.id))).toBe('community');
   });
 });

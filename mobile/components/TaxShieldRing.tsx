@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import Animated, { Keyframe } from 'react-native-reanimated';
 import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 import { palette } from './design-system/tokens';
@@ -19,6 +20,7 @@ interface Props {
 }
 
 export function TaxShieldRing({ compliance, isStreaking, size = 128 }: Props) {
+  const { t } = useTranslation();
   const color = compliance >= 80 ? palette.shield : compliance >= 50 ? palette.warning : palette.danger;
   const arcRadius = size / 2 - 8;
   const circumference = 2 * Math.PI * arcRadius;
@@ -69,7 +71,7 @@ export function TaxShieldRing({ compliance, isStreaking, size = 128 }: Props) {
       </Svg>
       <View style={{ position: 'absolute', alignItems: 'center' }}>
         <Text style={{ fontSize: 22, fontWeight: '700', color }}>{compliance}%</Text>
-        <Text style={{ fontSize: 11, color: palette.gray400 }}>Protected</Text>
+        <Text style={{ fontSize: 11, color: palette.gray400 }}>{t('dashboard.shield.label')}</Text>
       </View>
       {isStreaking ? (
         <View style={{ position: 'absolute', top: 4, right: 4, backgroundColor: '#FF6D00', borderRadius: 10, paddingHorizontal: 6, paddingVertical: 2 }}>

@@ -26,6 +26,11 @@ export default function BusinessTypeScreen() {
         updateField('businessType', selected);
         void advanceToNext('business-type');
       }}
+      secondaryLabel={t('onboarding.businessType.skipCta')}
+      onSecondary={() => {
+        updateField('businessType', selected);
+        void advanceToNext('business-type');
+      }}
     >
       <View style={{ gap: spacing.sm }}>
         {OPTION_VALUES.map((value) => {
@@ -49,6 +54,15 @@ export default function BusinessTypeScreen() {
                 style={{ ...typography.bodyBold, color: active ? palette.white : tokens.textPrimary }}
               >
                 {t(`onboarding.businessType.options.${value}`)}
+              </Text>
+              <Text
+                style={{
+                  ...typography.caption,
+                  color: active ? `${palette.white}DD` : tokens.textSecondary,
+                  marginTop: spacing.xs,
+                }}
+              >
+                {t(`onboarding.businessType.descriptions.${value}`)}
               </Text>
             </Pressable>
           );

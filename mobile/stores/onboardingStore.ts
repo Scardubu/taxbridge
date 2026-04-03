@@ -18,6 +18,17 @@ export const STEP_IDS = {
 
 export type StepId = typeof STEP_IDS[keyof typeof STEP_IDS];
 
+export const DEFAULT_TAB_ROUTE = '/(tabs)/index' as const;
+
+export const STEP_ROUTES: Record<StepId, `/(onboarding)/${string}`> = {
+  welcome: '/(onboarding)/welcome',
+  'business-type': '/(onboarding)/business-type',
+  'tin-verify': '/(onboarding)/tin-verify',
+  'vat-setup': '/(onboarding)/vat-setup',
+  einvoice: '/(onboarding)/einvoice',
+  community: '/(onboarding)/community',
+};
+
 export interface OnboardingStep {
   id: StepId;
   titleKey: string;
@@ -57,6 +68,10 @@ function getUniqueSteps(steps: StepId[]): StepId[] {
   return Array.from(new Set(steps));
 }
 
+export function getNextUnfinishedStepId(completedSteps: StepId[]): StepId {
+  return STEPS.find((step) => !completedSteps.includes(step.id))?.id ?? STEP_IDS.COMMUNITY;
+}
+
 function mirrorOnboardingState(currentStepId: StepId, isComplete: boolean) {
   AppKV.onboarding.setStep(currentStepId);
   AppKV.onboarding.setComplete(isComplete);
@@ -72,6 +87,7 @@ interface OnboardingStore {
   goNext(): Promise<void>;
   goPrev(): void;
   skipAllOptional(): Promise<void>;
+  skipForNow(): Promise<void>;
   complete(): Promise<void>;
   migrateIfNeeded(): void;
   markHydrated(): void;
@@ -160,14 +176,28 @@ export const useOnboardingStore = create<OnboardingStore>()(
         set({ completedSteps: getUniqueSteps([...requiredDone, ...optionalIds]) });
         await get().complete();
       },
+      skipForNow: async () => {
+        const completedSteps = getUniqueSteps(get().completedSteps);
+        const resumeStepId = getNextUnfinishedStepId(completedSteps);
+
+        set({ currentStepId: resumeStepId, completedSteps, isComplete: true });
+        mirrorOnboardingState(resumeStepId, true);
+
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        logComplianceEvent('onboarding_complete', 'User skipped onboarding for now', 'info', { skipped: true }).catch(() => undefined);
+
+        router.replace(DEFAULT_TAB_ROUTE);
+      },
       complete: async () => {
-        const { currentStepId } = get();
-        set({ isComplete: true });
+        const { currentStepId, completedSteps } = get();
+        const finalizedSteps = getUniqueSteps([...completedSteps, currentStepId]);
+
+        set({ isComplete: true, completedSteps: finalizedSteps });
         mirrorOnboardingState(currentStepId, true);
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         apiRequest('/api/v1/onboarding/complete', { method: 'POST' }).catch(() => undefined);
         logComplianceEvent('onboarding_complete', 'User completed onboarding', 'info').catch(() => undefined);
-        router.replace('/(tabs)/');
+        router.replace(DEFAULT_TAB_ROUTE);
       },
     }),
     {
@@ -190,6 +220,8 @@ export const useOnboardingStore = create<OnboardingStore>()(
 export const useCurrentStepId = () => useOnboardingStore((state) => state.currentStepId);
 export const useIsOnboardingDone = () => useOnboardingStore((state) => state.isComplete);
 export const useOnboardingHydrated = () => useOnboardingStore((state) => state.hasHydrated);
+export const useResumeStepId = () =>
+  useOnboardingStore((state) => getNextUnfinishedStepId(state.completedSteps));
 export const useProgressPercent = () =>
   useOnboardingStore((state) => {
     const requiredSteps = STEPS.filter((step) => step.required).length;

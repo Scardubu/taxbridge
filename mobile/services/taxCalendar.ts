@@ -1,4 +1,5 @@
 import type { BusinessProfile } from './nrsCompliance';
+import i18next from 'i18next';
 
 export interface TaxDeadline {
   id: string;
@@ -31,6 +32,7 @@ export function generateTaxCalendar(profile: BusinessProfile, year: number): Tax
   const isSole = ['sole_trader', 'partnership'].includes(profile.businessType);
   const vatFilingRequired =
     profile.isVatRegistered || profile.annualTurnover > 100_000_000;
+  const t = i18next.t.bind(i18next);
 
   if (vatFilingRequired) {
     for (let m = 0; m < 12; m++) {
@@ -38,8 +40,11 @@ export function generateTaxCalendar(profile: BusinessProfile, year: number): Tax
       if (due >= now) {
         deadlines.push({
           id: `vat-${year}-${String(m + 1).padStart(2, '0')}`,
-          title: 'VAT Return Filing',
-          description: `File VAT returns by the 21st of ${due.toLocaleString('en-NG', { month: 'long' })} ${year}.`,
+          title: t('calendar.deadlines.vatTitle'),
+          description: t('calendar.deadlines.vatDescription', {
+            month: due.toLocaleString('en-NG', { month: 'long' }),
+            year,
+          }),
           dueDate: due,
           type: 'VAT',
           timeZone: 'Africa/Lagos',
@@ -56,8 +61,11 @@ export function generateTaxCalendar(profile: BusinessProfile, year: number): Tax
     if (due >= now) {
       deadlines.push({
         id: `wht-${year}-${String(m + 1).padStart(2, '0')}`,
-        title: 'WHT Remittance',
-        description: `Remit Withholding Tax by the 21st of ${due.toLocaleString('en-NG', { month: 'long' })} ${year}.`,
+        title: t('calendar.deadlines.whtTitle'),
+        description: t('calendar.deadlines.whtDescription', {
+          month: due.toLocaleString('en-NG', { month: 'long' }),
+          year,
+        }),
         dueDate: due,
         type: 'WHT',
         timeZone: 'Africa/Lagos',
@@ -72,8 +80,11 @@ export function generateTaxCalendar(profile: BusinessProfile, year: number): Tax
     const citDue = lagosDate(year + 1, 5, 30);
     deadlines.push({
       id: `cit-${year}`,
-      title: 'CIT Annual Filing',
-      description: `Company Income Tax for ${year} is due 30 June ${year + 1}.`,
+      title: t('calendar.deadlines.citTitle'),
+      description: t('calendar.deadlines.citDescription', {
+        year,
+        dueYear: year + 1,
+      }),
       dueDate: citDue,
       type: 'CIT',
       timeZone: 'Africa/Lagos',

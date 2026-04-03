@@ -34,12 +34,18 @@ export default function TinVerifyScreen() {
       title={t('onboarding.tinVerify.title')}
       body={t('onboarding.tinVerify.body')}
       onPrimary={() => void handleVerify()}
+      secondaryLabel={t('onboarding.tinVerify.skipCta')}
+      onSecondary={() => {
+        updateField('tin', tin.trim());
+        updateField('hasValidTIN', false);
+        void advanceToNext('tin-verify');
+      }}
     >
       <View style={{ gap: spacing.sm }}>
         <TextInput
           value={tin}
           onChangeText={setTin}
-          placeholder="12345678-0001"
+          placeholder={t('onboarding.tinVerify.placeholder')}
           placeholderTextColor={tokens.textMuted}
           autoCapitalize="characters"
           accessibilityLabel={t('onboarding.tinVerify.title')}
@@ -61,6 +67,10 @@ export default function TinVerifyScreen() {
         >
           <Text style={{ ...typography.body, color: palette.gray600 }}>{t('onboarding.tinVerify.pendingNote')}</Text>
         </Pressable>
+        <View style={{ backgroundColor: tokens.bgCard, borderRadius: radius.xl, padding: spacing.lg, borderWidth: 1, borderColor: tokens.border, gap: spacing.xs }}>
+          <Text style={{ ...typography.bodyBold, color: tokens.textPrimary }}>{t('onboarding.tinVerify.educationTitle')}</Text>
+          <Text style={{ ...typography.body, color: tokens.textSecondary }}>{t('onboarding.tinVerify.educationBody')}</Text>
+        </View>
       </View>
     </OnboardingFrame>
   );
