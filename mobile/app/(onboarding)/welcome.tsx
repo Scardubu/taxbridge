@@ -12,9 +12,9 @@ export default function WelcomeScreen() {
   const tokens = useTokens();
   const [lang, setLang] = useState<SupportedLanguage>(normalizeLanguage(i18n.resolvedLanguage));
   const highlights = [
-    'setup',
-    'offline',
-    'deadlines',
+    { key: 'setup', icon: '📋' },
+    { key: 'offline', icon: '📡' },
+    { key: 'deadlines', icon: '📅' },
   ] as const;
 
   // UX-05 fix: Detect Nigerian locale on first load, suggest Pidgin
@@ -108,24 +108,29 @@ export default function WelcomeScreen() {
       </View>
 
       <View style={{ gap: spacing.sm }}>
-        {highlights.map((highlight) => (
+        {highlights.map(({ key, icon }) => (
           <View
-            key={highlight}
+            key={key}
             style={{
               backgroundColor: tokens.bgCard,
               borderRadius: radius.xl,
               padding: spacing.lg,
               borderWidth: 1,
               borderColor: tokens.border,
-              gap: spacing.xs,
+              flexDirection: 'row',
+              gap: spacing.md,
+              alignItems: 'flex-start',
             }}
           >
-            <Text style={{ ...typography.bodyBold, color: tokens.textPrimary }}>
-              {t(`onboarding.welcome.highlights.${highlight}.title`)}
-            </Text>
-            <Text style={{ ...typography.body, color: tokens.textSecondary }}>
-              {t(`onboarding.welcome.highlights.${highlight}.body`)}
-            </Text>
+            <Text style={{ fontSize: 24 }}>{icon}</Text>
+            <View style={{ flex: 1, gap: spacing.xs }}>
+              <Text style={{ ...typography.bodyBold, color: tokens.textPrimary }}>
+                {t(`onboarding.welcome.highlights.${key}.title`)}
+              </Text>
+              <Text style={{ ...typography.body, color: tokens.textSecondary }}>
+                {t(`onboarding.welcome.highlights.${key}.body`)}
+              </Text>
+            </View>
           </View>
         ))}
       </View>

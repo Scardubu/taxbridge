@@ -111,6 +111,7 @@ function RootLayout() {
         <I18nextProvider i18n={i18n}>
           <StatusBar style="auto" />
           <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="index" options={{ animation: 'none' }} />
             <Stack.Screen name="(onboarding)" options={{ animation: 'none' }} />
             <Stack.Screen name="(tabs)" options={{ animation: 'none' }} />
           </Stack>

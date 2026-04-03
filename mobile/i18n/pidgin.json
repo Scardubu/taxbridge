@@ -61,19 +61,27 @@
       "exemptTitle": "Good news — you no need file VAT return!",
       "exemptBody": "If your business dey below 100 million naira, you no need submit VAT return. But you still need collect 7.5% VAT for invoice.",
       "requiredBody": "Your business must file VAT return before 21st of every month.",
-      "rate": "VAT Rate: 7.5%"
+      "rate": "VAT Rate: 7.5%",
+      "educationTitle": "Wetin this one mean for you",
+      "educationBody": "Even if you no need file, you still need charge 7.5% VAT on goods and services. TaxBridge go track am automatically inside every invoice wey you create."
     },
     "einvoice": {
       "title": "E-Invoice — New Law",
       "phaseSmall": "This one no dey compulsory for your business size until 2027. But if you start now, bank fit trust your records more.",
       "phaseMedium": "Pilot phase don start. E go compulsory by July 1 2026. Apply for FIRSMBS integration now.",
       "phaseLarge": "⚠️ E-INVOICE DON BECOME LAW. If you no comply, NRS fit fine you.",
-      "platform": "Na FIRSMBS (NRS Merchant-Buyer Solution) dem dey use"
+      "platform": "Na FIRSMBS (NRS Merchant-Buyer Solution) dem dey use",
+      "educationTitle": "Why you suppose prepare early?",
+      "educationBody": "Business wey start e-invoice early go get faster loan approval, smoother audit, and better trust score with bigger clients and banks."
     },
     "community": {
       "title": "Join Our Community",
-      "body": "Join plenty Nigerian business owners. Share your badge and collect referral reward."
-      ,"shareLabel": "Share Compliance Badge"
+      "body": "Join plenty Nigerian business owners. Share your badge and collect referral reward.",
+      "shareLabel": "Share Compliance Badge",
+      "shareBody": "Show clients and partners say your compliance dey correct. Strong badge mean say dem fit trust you.",
+      "benefitTitle": "Community benefits",
+      "benefitBody": "Get early access to new features, tax law change alerts, and connect with other business owners wey dey navigate the same compliance journey.",
+      "skipCta": "Go dashboard"
     },
     "tinRequiredTitle": "TIN need to dey",
     "tinRequiredBody": "Put correct TIN before you continue."

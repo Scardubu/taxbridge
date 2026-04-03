@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { OnboardingErrorBoundary } from '../../components/OnboardingErrorBoundary';
 import { StepContainer } from '../../components/StepContainer';
@@ -70,15 +71,34 @@ export function OnboardingFrame({
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: tokens.bg }} edges={['top', 'left', 'right', 'bottom']}>
       <OnboardingErrorBoundary stepId={stepId}>
-        <OnboardingProgressBar percent={progress} />
+        <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.sm, flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+          {current > 1 ? (
+            <Pressable
+              onPress={() => {
+                useOnboardingStore.getState().goPrev();
+                const prevStep = STEPS[current - 2];
+                if (prevStep) router.replace(STEP_ROUTES[prevStep.id]);
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={t('common.back')}
+              hitSlop={12}
+              style={{ padding: spacing.xs }}
+            >
+              <Ionicons name="arrow-back" size={22} color={tokens.textPrimary} />
+            </Pressable>
+          ) : <View style={{ width: 30 }} />}
+          <View style={{ flex: 1 }}>
+            <OnboardingProgressBar percent={progress} />
+          </View>
+          <Text style={{ ...typography.caption, color: tokens.textSecondary, minWidth: 48, textAlign: 'right' }}>{current}/{STEPS.length}</Text>
+        </View>
         <ScrollView contentContainerStyle={{ flexGrow: 1, padding: spacing.lg }}>
           <StepContainer isActive>
             <View style={{ flex: 1, justifyContent: 'space-between', gap: spacing.lg }}>
               <View style={{ gap: spacing.md }}>
-                <Text style={{ ...typography.label, color: palette.nrsGreen }}>{t('onboarding.stepCount', { current, total: STEPS.length })}</Text>
                 {eyebrow ? <Text style={{ ...typography.caption, color: tokens.textSecondary }}>{eyebrow}</Text> : null}
                 <Text style={{ ...typography.display, color: tokens.textPrimary }}>{title}</Text>
-                <Text style={{ ...typography.body, color: tokens.textSecondary }}>{body}</Text>
+                <Text style={{ ...typography.body, color: tokens.textSecondary, lineHeight: 24 }}>{body}</Text>
                 <View style={{ gap: spacing.md }}>{children}</View>
               </View>
 

@@ -18,7 +18,7 @@ export const STEP_IDS = {
 
 export type StepId = typeof STEP_IDS[keyof typeof STEP_IDS];
 
-export const DEFAULT_TAB_ROUTE = '/(tabs)/index' as const;
+export const DEFAULT_TAB_ROUTE = '/(tabs)' as const;
 
 export const STEP_ROUTES: Record<StepId, `/(onboarding)/${string}`> = {
   welcome: '/(onboarding)/welcome',

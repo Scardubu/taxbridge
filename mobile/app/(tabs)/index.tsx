@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { ScrollView, Text, View, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
+import { Ionicons } from '@expo/vector-icons';
 import * as Sentry from '@sentry/react-native';
 import { TaxShieldRing } from '../../components/TaxShieldRing';
 import { ComplianceBadge } from '../../components/ComplianceBadge';
@@ -17,7 +18,7 @@ function formatCurrency(value: number): string {
   return `₦${Math.round(value).toLocaleString('en-NG')}`;
 }
 
-function QuickActionCard({ label, route }: Readonly<{ label: string; route: string }>) {
+function QuickActionCard({ label, route, icon }: Readonly<{ label: string; route: string; icon: React.ComponentProps<typeof Ionicons>['name'] }>) {
   const tokens = useTokens();
 
   return (
@@ -33,10 +34,11 @@ function QuickActionCard({ label, route }: Readonly<{ label: string; route: stri
         borderWidth: 1,
         borderColor: tokens.border,
         padding: spacing.md,
-        justifyContent: 'flex-end',
+        justifyContent: 'space-between',
       }}
     >
-      <Text style={{ ...typography.bodyBold, color: tokens.textPrimary }}>{label}</Text>
+      <Ionicons name={icon} size={22} color={palette.nrsGreen} />
+      <Text style={{ ...typography.bodyBold, color: tokens.textPrimary, marginTop: spacing.sm }}>{label}</Text>
     </Pressable>
   );
 }
@@ -128,9 +130,9 @@ export default function DashboardTab() {
   const resumeRoute = STEP_ROUTES[resumeStepId];
 
   const quickActions = [
-    { key: 'invoices', label: t('tabs.invoices'), route: '/(tabs)/invoices' },
-    { key: 'calendar', label: t('tabs.calendar'), route: '/(tabs)/tax-calendar' },
-    { key: 'compliance', label: t('tabs.compliance'), route: '/(tabs)/compliance' },
+    { key: 'invoices', label: t('tabs.invoices'), route: '/(tabs)/invoices', icon: 'document-text' as const },
+    { key: 'calendar', label: t('tabs.calendar'), route: '/(tabs)/tax-calendar', icon: 'calendar' as const },
+    { key: 'compliance', label: t('tabs.compliance'), route: '/(tabs)/compliance', icon: 'shield-checkmark' as const },
   ];
 
   const obligationRows = [
@@ -217,7 +219,7 @@ export default function DashboardTab() {
           <Text style={{ ...typography.h3, color: tokens.textPrimary }}>{t('dashboard.quickActionsTitle')}</Text>
           <View style={{ flexDirection: 'row', gap: spacing.sm }}>
             {quickActions.map((action) => (
-              <QuickActionCard key={action.key} label={action.label} route={action.route} />
+              <QuickActionCard key={action.key} label={action.label} route={action.route} icon={action.icon} />
             ))}
           </View>
         </View>

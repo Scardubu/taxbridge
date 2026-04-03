@@ -62,19 +62,27 @@
       "exemptTitle": "Good news — you may be exempt from filing VAT returns",
       "exemptBody": "Businesses under ₦100M turnover are exempt from filing VAT returns. However you MUST still charge 7.5% VAT on all invoices.",
       "requiredBody": "Your business must file VAT returns by the 21st of each month.",
-      "rate": "VAT Rate: 7.5%"
+      "rate": "VAT Rate: 7.5%",
+      "educationTitle": "What this means for you",
+      "educationBody": "Even if you are exempt from filing, you still need to charge 7.5% VAT on goods and services. TaxBridge will track this automatically in every invoice you create."
     },
     "einvoice": {
       "title": "E-Invoicing",
       "phaseSmall": "Mandatory from July 2027 for your business size. Set up now — banks offer faster invoice financing to e-invoice-ready businesses.",
       "phaseMedium": "Pilot phase active. Mandatory July 1 2026. Apply for FIRSMBS integration now.",
       "phaseLarge": "⚠️ E-INVOICING ENFORCEMENT IS ACTIVE. Non-compliance = ₦200,000 penalty + 100% of tax due.",
-      "platform": "Via FIRSMBS (NRS Merchant-Buyer Solution)"
+      "platform": "Via FIRSMBS (NRS Merchant-Buyer Solution)",
+      "educationTitle": "Why prepare early?",
+      "educationBody": "Businesses that adopt e-invoicing early get faster loan approvals, smoother audits, and better trust scores with larger clients and banks."
     },
     "community": {
       "title": "Join the\nTaxBridge Community",
       "body": "Connect with Nigerian SMEs. Share your Compliance Badge and earn referral rewards.",
-      "shareLabel": "Share Compliance Badge"
+      "shareLabel": "Share Compliance Badge",
+      "shareBody": "Show clients and partners your verified compliance status. A strong badge signals trustworthiness.",
+      "benefitTitle": "Community perks",
+      "benefitBody": "Get early access to new features, tax law change alerts, and connect with other business owners navigating the same compliance journey.",
+      "skipCta": "Go to dashboard"
     },
     "tinRequiredTitle": "TIN required",
     "tinRequiredBody": "Enter a valid TIN to continue."

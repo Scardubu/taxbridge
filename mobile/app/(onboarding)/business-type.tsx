@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
-import { OnboardingFrame, advanceToNext } from './shared';
+import { OnboardingFrame, advanceToNext, skipSetupForNow } from './shared';
 import { palette, radius, spacing, typography, useTokens } from '../../components/design-system/tokens';
 import { useBusinessProfileStore } from '../../stores/businessProfileStore';
 
@@ -29,7 +29,7 @@ export default function BusinessTypeScreen() {
       secondaryLabel={t('onboarding.businessType.skipCta')}
       onSecondary={() => {
         updateField('businessType', selected);
-        void advanceToNext('business-type');
+        void skipSetupForNow();
       }}
     >
       <View style={{ gap: spacing.sm }}>
