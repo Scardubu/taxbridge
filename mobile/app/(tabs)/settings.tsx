@@ -2,14 +2,14 @@ import React, { useState } from 'react';
 import { Pressable, ScrollView, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
-import i18n from '../../i18n';
+import i18n, { normalizeLanguage, type SupportedLanguage } from '../../i18n';
 import { AppKV } from '../../storage/kv';
 import { palette, radius, spacing, typography, useTokens } from '../../components/design-system/tokens';
 
 export default function SettingsTab() {
   const { t } = useTranslation();
   const tokens = useTokens();
-  const [language, setLanguage] = useState<'en' | 'pidgin'>(AppKV.prefs.getLanguage());
+  const [language, setLanguage] = useState<SupportedLanguage>(normalizeLanguage(i18n.resolvedLanguage));
   const [voiceEnabled, setVoiceEnabled] = useState(AppKV.prefs.isVoiceEnabled());
   const [darkMode, setDarkMode] = useState(AppKV.prefs.isDarkMode());
 

@@ -45,6 +45,21 @@ const FALLBACK_ICONS: Record<string, IoniconName> = {
   settings:       'settings',
 };
 
+function FallbackTabBarIcon({ routeName, color, size }: Readonly<{ routeName: string; color: string; size: number }>) {
+  return <Ionicons name={FALLBACK_ICONS[routeName] ?? 'ellipse'} size={size} color={color} />;
+}
+
+function getFallbackScreenOptions(routeName: string) {
+  return {
+    headerShown: false,
+    tabBarActiveTintColor: '#006B3F',
+    tabBarInactiveTintColor: '#8A9BB0',
+    tabBarIcon: ({ color, size }: { color: string; size: number }) => (
+      <FallbackTabBarIcon routeName={routeName} color={color} size={size} />
+    ),
+  };
+}
+
 export default function TabsLayout() {
   const isHydrated = useOnboardingHydrated();
   const isDone = useIsOnboardingDone();
@@ -72,18 +87,7 @@ export default function TabsLayout() {
   // Fallback: standard Expo Router Tabs (iOS 18 dev client + web)
   return (
     <Tabs
-      screenOptions={({ route }) => ({
-        headerShown: false,
-        tabBarActiveTintColor: '#006B3F',
-        tabBarInactiveTintColor: '#8A9BB0',
-        tabBarIcon: ({ color, size }: { color: string; size: number }) => (
-          <Ionicons
-            name={FALLBACK_ICONS[route.name] ?? 'ellipse'}
-            size={size}
-            color={color}
-          />
-        ),
-      })}
+      screenOptions={({ route }) => getFallbackScreenOptions(route.name)}
     >
       {TABS.map((tab) => (
         <Tabs.Screen

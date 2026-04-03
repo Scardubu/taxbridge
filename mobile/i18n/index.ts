@@ -4,8 +4,14 @@ import en from './en.json';
 import pidgin from './pidgin.json';
 import { AppKV } from '../storage/kv';
 
+export type SupportedLanguage = 'en' | 'pidgin';
+
+export function normalizeLanguage(value: string | null | undefined): SupportedLanguage {
+  return value === 'pidgin' ? 'pidgin' : 'en';
+}
+
 i18next.use(initReactI18next).init({
-  lng: AppKV.prefs.getLanguage(),
+  lng: 'en',
   fallbackLng: 'en',
   resources: {
     en: { translation: en },
@@ -14,5 +20,22 @@ i18next.use(initReactI18next).init({
   interpolation: { escapeValue: false },
   initImmediate: false,
 });
+
+let initializationPromise: Promise<void> | null = null;
+
+export async function initializeI18n(): Promise<void> {
+  initializationPromise ??= (async () => {
+    const language = normalizeLanguage(await AppKV.prefs.getLanguageAsync());
+
+    if (i18next.resolvedLanguage !== language) {
+      await i18next.changeLanguage(language);
+    }
+  })().catch((error) => {
+    initializationPromise = null;
+    throw error;
+  });
+
+  await initializationPromise;
+}
 
 export default i18next;

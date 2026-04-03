@@ -5,16 +5,16 @@ import * as Localization from 'expo-localization';
 import { OnboardingFrame, advanceToNext } from './shared';
 import { palette, radius, spacing, typography, useTokens } from '../../components/design-system/tokens';
 import { AppKV } from '../../storage/kv';
-import i18n from '../../i18n';
+import i18n, { normalizeLanguage, type SupportedLanguage } from '../../i18n';
 
 export default function WelcomeScreen() {
   const { t } = useTranslation();
   const tokens = useTokens();
-  const [lang, setLang] = useState<'en' | 'pidgin'>(AppKV.prefs.getLanguage());
+  const [lang, setLang] = useState<SupportedLanguage>(normalizeLanguage(i18n.resolvedLanguage));
 
   // UX-05 fix: Detect Nigerian locale on first load, suggest Pidgin
   useEffect(() => {
-    const stored = AppKV.prefs.getLanguage();
+    const stored = normalizeLanguage(i18n.resolvedLanguage);
     if (stored === 'en') {
       const locales = Localization.getLocales();
       const isNigerian = locales.some(
@@ -33,7 +33,7 @@ export default function WelcomeScreen() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const toggleLang = async (newLang: 'en' | 'pidgin') => {
+  const toggleLang = async (newLang: SupportedLanguage) => {
     setLang(newLang);
     AppKV.prefs.setLanguage(newLang);
     await i18n.changeLanguage(newLang);

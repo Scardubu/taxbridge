@@ -20,6 +20,10 @@ export const AppKV = {
     markMigrated: ()           => Storage.setItemSync('migration:v13', 'true'),
   },
   prefs: {
+    getLanguageAsync: async (): Promise<'en' | 'pidgin'> => {
+      const value = await Storage.getItem('pref:lang');
+      return value === 'pidgin' ? 'pidgin' : 'en';
+    },
     getLanguage:    (): 'en' | 'pidgin' => (Storage.getItemSync('pref:lang') ?? 'en') as 'en' | 'pidgin',
     setLanguage:    (l: 'en' | 'pidgin') => Storage.setItemSync('pref:lang', l),
     isDarkMode:     (): boolean  => Storage.getItemSync('pref:dark') === 'true',

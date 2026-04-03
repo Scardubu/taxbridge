@@ -121,8 +121,8 @@ describe('computeObligations — VAT', () => {
 });
 
 describe('computeObligations — e-invoicing', () => {
-  test('₦3B turnover → large phase', () => {
-    const obs = computeObligations({ ...BASE_PROFILE, annualTurnover: 3_000_000_000 });
+  test('₦6B turnover → large phase', () => {
+    const obs = computeObligations({ ...BASE_PROFILE, annualTurnover: 6_000_000_000 });
     expect(obs.eInvoicingPhase).toBe('large');
   });
 

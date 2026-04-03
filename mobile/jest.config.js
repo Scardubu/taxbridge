@@ -3,6 +3,7 @@ module.exports = {
   rootDir: __dirname,
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
   moduleNameMapper: {
+    '^expo-router$': '<rootDir>/__mocks__/expo-router.js',
     '^expo-image-picker$': '<rootDir>/__mocks__/expo-image-picker.js',
     '^expo-file-system$': '<rootDir>/__mocks__/expo-file-system.js',
     '^react-native-vector-icons$': '@expo/vector-icons',

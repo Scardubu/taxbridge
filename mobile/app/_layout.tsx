@@ -1,32 +1,24 @@
 import 'react-native-reanimated';
+import '../global.css';
 
-import React, { useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { isRunningInExpoGo } from 'expo';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Sentry from '@sentry/react-native';
+import { Stack } from 'expo-router';
 import { I18nextProvider } from 'react-i18next';
-import i18n from '../i18n';
+import i18n, { initializeI18n } from '../i18n';
 import { getDatabase } from '../services/database';
 import { migrateFromAsyncStorage } from '../services/storageMigration';
 import { offlineQueue } from '../services/offlineQueue';
 import { useBusinessProfileStore } from '../stores/businessProfileStore';
 import { useOnboardingStore } from '../stores/onboardingStore';
 
-const { Stack } = require('expo-router') as {
-  Stack: React.ComponentType<any> & { Screen: React.ComponentType<any> };
-};
-
 let hasInitializedSentry = false;
 const STARTUP_TIMEOUT_MS = 4000;
-
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => {
-    setTimeout(resolve, ms);
-  });
-}
 
 function ensureSentryInitialized() {
   if (hasInitializedSentry) {
@@ -47,29 +39,43 @@ void SplashScreen.preventAutoHideAsync().catch(() => undefined);
 ensureSentryInitialized();
 
 function RootLayout() {
+  const [appIsReady, setAppIsReady] = useState(false);
   const hydrateProfile = useBusinessProfileStore((state) => state.hydrate);
+
+  const onLayoutRootView = useCallback(() => {
+    if (!appIsReady) {
+      return;
+    }
+
+    void SplashScreen.hideAsync().catch(() => undefined);
+  }, [appIsReady]);
 
   useEffect(() => {
     let isMounted = true;
+    const releaseApp = () => {
+      if (!useOnboardingStore.getState().hasHydrated) {
+        useOnboardingStore.getState().markHydrated();
+      }
+
+      if (isMounted) {
+        setAppIsReady(true);
+      }
+    };
+
+    const timeoutId = setTimeout(releaseApp, STARTUP_TIMEOUT_MS);
 
     void (async () => {
       try {
-        await Promise.race([
-          (async () => {
-            await getDatabase();
-            await migrateFromAsyncStorage();
-            await useOnboardingStore.persist.rehydrate();
+        await initializeI18n();
+        await getDatabase();
+        await migrateFromAsyncStorage();
+        await useOnboardingStore.persist.rehydrate();
 
-            if (!useOnboardingStore.getState().hasHydrated) {
-              useOnboardingStore.getState().markHydrated();
-            }
+        if (!useOnboardingStore.getState().hasHydrated) {
+          useOnboardingStore.getState().markHydrated();
+        }
 
-            await hydrateProfile();
-          })(),
-          delay(STARTUP_TIMEOUT_MS).then(() => {
-            throw new Error('startup_timeout');
-          }),
-        ]);
+        await hydrateProfile();
       } catch (error) {
         Sentry.captureException(error);
 
@@ -77,23 +83,30 @@ function RootLayout() {
           useOnboardingStore.getState().markHydrated();
         }
       } finally {
+        clearTimeout(timeoutId);
+
+        releaseApp();
+
         if (isMounted) {
           void offlineQueue.flush().catch((error) => {
             Sentry.captureException(error);
           });
-
-          await SplashScreen.hideAsync().catch(() => undefined);
         }
       }
     })();
 
     return () => {
       isMounted = false;
+      clearTimeout(timeoutId);
     };
   }, [hydrateProfile]);
 
+  if (!appIsReady) {
+    return null;
+  }
+
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    <GestureHandlerRootView style={{ flex: 1 }} onLayout={onLayoutRootView}>
       <SafeAreaProvider>
         <I18nextProvider i18n={i18n}>
           <StatusBar style="auto" />
