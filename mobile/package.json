@@ -24,7 +24,8 @@
     "postinstall": "node scripts/fix-lightningcss-win32.js",
     "build:contracts": "npm --prefix ../packages/contracts run build",
     "fix:expo": "node scripts/fix-expo-sdk.js",
-    "eas:build:apk": "npm run build:contracts && node scripts/fix-expo-sdk.js && node scripts/ensure-expo-bin.js && cross-env CI=1 npx expo prebuild --platform android --clean && cross-env EAS_NO_VCS=1 EAS_SKIP_AUTO_FINGERPRINT=1 eas build --platform android --profile production-apk --clear-cache --non-interactive"
+    "eas:build:apk": "npm run build:contracts && node scripts/fix-expo-sdk.js && node scripts/ensure-expo-bin.js && cross-env CI=1 npx expo prebuild --platform android --clean && node scripts/eas-build-retry.js production-apk",
+    "eas:build:apk:retry": "node scripts/eas-build-retry.js production-apk"
   },
   "dependencies": {
     "@babel/core": "^7.22.0",

@@ -57,7 +57,7 @@ export function OnboardingFrame({
   secondaryLabel,
   onPrimary,
   onSecondary,
-}: FrameProps) {
+}: Readonly<FrameProps>) {
   useBindOnboardingStep(stepId);
   const tokens = useTokens();
   const { t } = useTranslation();

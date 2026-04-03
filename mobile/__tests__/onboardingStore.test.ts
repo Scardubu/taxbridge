@@ -75,7 +75,7 @@ describe('Step ordering invariants', () => {
   });
 
   test('community is last step', () => {
-    expect(STEPS[STEPS.length - 1].id).toBe('community');
+    expect(STEPS.at(-1)?.id).toBe('community');
   });
 
   test('business-type precedes tin-verify', () => {

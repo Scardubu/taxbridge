@@ -104,7 +104,7 @@ export function generateNudges(
   }
 
   return nudges
-    .sort((a, b) => PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority])
+    .toSorted((a, b) => PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority])
     .slice(0, 3);
 }
 

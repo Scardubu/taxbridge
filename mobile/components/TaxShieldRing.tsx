@@ -19,9 +19,21 @@ interface Props {
   size?: number;
 }
 
-export function TaxShieldRing({ compliance, isStreaking, size = 128 }: Props) {
+function getShieldColor(compliance: number) {
+  if (compliance >= 80) {
+    return palette.shield;
+  }
+
+  if (compliance >= 50) {
+    return palette.warning;
+  }
+
+  return palette.danger;
+}
+
+export function TaxShieldRing({ compliance, isStreaking, size = 128 }: Readonly<Props>) {
   const { t } = useTranslation();
-  const color = compliance >= 80 ? palette.shield : compliance >= 50 ? palette.warning : palette.danger;
+  const color = getShieldColor(compliance);
   const arcRadius = size / 2 - 8;
   const circumference = 2 * Math.PI * arcRadius;
   const filled = (compliance / 100) * circumference;

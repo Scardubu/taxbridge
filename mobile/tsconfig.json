@@ -13,11 +13,11 @@
     "allowSyntheticDefaultImports": true,
     "resolveJsonModule": true,
     "skipLibCheck": true,
+    "module": "ESNext",
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
     "noEmit": true,
     "jsx": "react-native",
-    "baseUrl": ".",
     "paths": {
       "@/*": [
         "./*"

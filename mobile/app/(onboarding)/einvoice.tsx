@@ -10,11 +10,13 @@ export default function EInvoiceScreen() {
   const tokens = useTokens();
   const turnover = useBusinessProfileStore((state) => state.annualTurnover) ?? 0;
   const isLarge = turnover >= 5_000_000_000;
-  const phaseText = isLarge
-    ? t('onboarding.einvoice.phaseLarge')
-    : turnover >= 1_000_000_000
-      ? t('onboarding.einvoice.phaseMedium')
-      : t('onboarding.einvoice.phaseSmall');
+  let phaseText = t('onboarding.einvoice.phaseSmall');
+
+  if (isLarge) {
+    phaseText = t('onboarding.einvoice.phaseLarge');
+  } else if (turnover >= 1_000_000_000) {
+    phaseText = t('onboarding.einvoice.phaseMedium');
+  }
 
   return (
     <OnboardingFrame

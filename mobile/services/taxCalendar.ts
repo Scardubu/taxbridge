@@ -22,6 +22,122 @@ function daysUntil(target: Date, from: Date): number {
   return Math.ceil((target.getTime() - from.getTime()) / 86_400_000);
 }
 
+function getDeadlineSeverity(daysAway: number, criticalThreshold: number, warningThreshold: number): TaxDeadline['severity'] {
+  if (daysAway <= criticalThreshold) {
+    return 'critical';
+  }
+
+  if (daysAway <= warningThreshold) {
+    return 'warning';
+  }
+
+  return 'info';
+}
+
+function createMonthlyDeadline({
+  id,
+  title,
+  description,
+  dueDate,
+  type,
+  route,
+  severity,
+  now,
+}: {
+  id: string;
+  title: string;
+  description: string;
+  dueDate: Date;
+  type: TaxDeadline['type'];
+  route: TaxDeadline['route'];
+  severity: TaxDeadline['severity'];
+  now: Date;
+}): TaxDeadline {
+  return {
+    id,
+    title,
+    description,
+    dueDate,
+    type,
+    timeZone: 'Africa/Lagos',
+    daysAway: daysUntil(dueDate, now),
+    route,
+    severity,
+  };
+}
+
+function addVatDeadlines(deadlines: TaxDeadline[], year: number, now: Date, t: typeof i18next.t) {
+  for (let monthIndex = 0; monthIndex < 12; monthIndex++) {
+    const dueDate = lagosDate(year, monthIndex, 21);
+    if (dueDate < now) {
+      continue;
+    }
+
+    const daysAway = daysUntil(dueDate, now);
+    deadlines.push(
+      createMonthlyDeadline({
+        id: `vat-${year}-${String(monthIndex + 1).padStart(2, '0')}`,
+        title: t('calendar.deadlines.vatTitle'),
+        description: t('calendar.deadlines.vatDescription', {
+          month: dueDate.toLocaleString('en-NG', { month: 'long' }),
+          year,
+        }),
+        dueDate,
+        type: 'VAT',
+        route: '/(tabs)/tax-calendar',
+        severity: getDeadlineSeverity(daysAway, 7, 14),
+        now,
+      }),
+    );
+  }
+}
+
+function addWhtDeadlines(deadlines: TaxDeadline[], year: number, now: Date, t: typeof i18next.t) {
+  for (let monthIndex = 0; monthIndex < 12; monthIndex++) {
+    const dueDate = lagosDate(year, monthIndex, 21);
+    if (dueDate < now) {
+      continue;
+    }
+
+    const daysAway = daysUntil(dueDate, now);
+    deadlines.push(
+      createMonthlyDeadline({
+        id: `wht-${year}-${String(monthIndex + 1).padStart(2, '0')}`,
+        title: t('calendar.deadlines.whtTitle'),
+        description: t('calendar.deadlines.whtDescription', {
+          month: dueDate.toLocaleString('en-NG', { month: 'long' }),
+          year,
+        }),
+        dueDate,
+        type: 'WHT',
+        route: '/(tabs)/tax-calendar',
+        severity: getDeadlineSeverity(daysAway, 7, 7),
+        now,
+      }),
+    );
+  }
+}
+
+function addCitDeadline(deadlines: TaxDeadline[], year: number, now: Date, t: typeof i18next.t) {
+  const dueDate = lagosDate(year + 1, 5, 30);
+  const daysAway = daysUntil(dueDate, now);
+
+  deadlines.push({
+    id: `cit-${year}`,
+    title: t('calendar.deadlines.citTitle'),
+    description: t('calendar.deadlines.citDescription', {
+      year,
+      dueYear: year + 1,
+    }),
+    dueDate,
+    type: 'CIT',
+    timeZone: 'Africa/Lagos',
+    daysAway,
+    route: '/(tabs)/compliance',
+    severity: getDeadlineSeverity(daysAway, 30, 30),
+  });
+}
+
 /**
  * Generate the full tax deadline calendar for a given year, personalised
  * to the business profile (VAT filing exemption, CIT sole-trader bypass).
@@ -35,63 +151,13 @@ export function generateTaxCalendar(profile: BusinessProfile, year: number): Tax
   const t = i18next.t.bind(i18next);
 
   if (vatFilingRequired) {
-    for (let m = 0; m < 12; m++) {
-      const due = lagosDate(year, m, 21);
-      if (due >= now) {
-        deadlines.push({
-          id: `vat-${year}-${String(m + 1).padStart(2, '0')}`,
-          title: t('calendar.deadlines.vatTitle'),
-          description: t('calendar.deadlines.vatDescription', {
-            month: due.toLocaleString('en-NG', { month: 'long' }),
-            year,
-          }),
-          dueDate: due,
-          type: 'VAT',
-          timeZone: 'Africa/Lagos',
-          daysAway: daysUntil(due, now),
-          route: '/(tabs)/tax-calendar',
-          severity: daysUntil(due, now) <= 7 ? 'critical' : daysUntil(due, now) <= 14 ? 'warning' : 'info',
-        });
-      }
-    }
+    addVatDeadlines(deadlines, year, now, t);
   }
 
-  for (let m = 0; m < 12; m++) {
-    const due = lagosDate(year, m, 21);
-    if (due >= now) {
-      deadlines.push({
-        id: `wht-${year}-${String(m + 1).padStart(2, '0')}`,
-        title: t('calendar.deadlines.whtTitle'),
-        description: t('calendar.deadlines.whtDescription', {
-          month: due.toLocaleString('en-NG', { month: 'long' }),
-          year,
-        }),
-        dueDate: due,
-        type: 'WHT',
-        timeZone: 'Africa/Lagos',
-        daysAway: daysUntil(due, now),
-        route: '/(tabs)/tax-calendar',
-        severity: daysUntil(due, now) <= 7 ? 'critical' : 'warning',
-      });
-    }
-  }
+  addWhtDeadlines(deadlines, year, now, t);
 
   if (!isSole) {
-    const citDue = lagosDate(year + 1, 5, 30);
-    deadlines.push({
-      id: `cit-${year}`,
-      title: t('calendar.deadlines.citTitle'),
-      description: t('calendar.deadlines.citDescription', {
-        year,
-        dueYear: year + 1,
-      }),
-      dueDate: citDue,
-      type: 'CIT',
-      timeZone: 'Africa/Lagos',
-      daysAway: daysUntil(citDue, now),
-      route: '/(tabs)/compliance',
-      severity: daysUntil(citDue, now) <= 30 ? 'critical' : 'warning',
-    });
+    addCitDeadline(deadlines, year, now, t);
   }
 
   return deadlines.sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime());

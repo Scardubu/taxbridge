@@ -46,7 +46,6 @@
         "ngo": "For missions, associations, and non-profits that still need a clean compliance record."
       }
     },
-    "skipStep": "Skip this step",
     "tinVerify": {
       "title": "Verify Your TIN",
       "body": "Your TIN is required on all invoices. Without it, 10% WHT applies to ALL payments you receive.",

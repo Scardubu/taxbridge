@@ -57,7 +57,6 @@
         "backgroundColor": "#FFFFFF"
       },
       "package": "ng.taxbridge.app",
-      "versionCode": 13,
       "permissions": [
         "CAMERA",
         "READ_EXTERNAL_STORAGE",
