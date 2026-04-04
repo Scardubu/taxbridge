@@ -1,4 +1,4 @@
-const { spawn } = require('child_process');
+const { exec } = require('child_process');
 
 const profile = process.argv[2] || 'production-apk';
 const maxAttempts = Number(process.env.EAS_BUILD_MAX_ATTEMPTS || 3);
@@ -17,14 +17,13 @@ async function runBuild(attempt) {
 
   const command = `npx eas build --platform android --profile ${profile} --non-interactive`;
 
-  const child = spawn(command, [], {
+  const child = exec(command, {
     cwd: process.cwd(),
     env: {
       ...process.env,
       CI: process.env.CI || '1',
     },
-    shell: true,
-    stdio: ['inherit', 'pipe', 'pipe'],
+    maxBuffer: 10 * 1024 * 1024,
   });
 
   let combinedOutput = '';
