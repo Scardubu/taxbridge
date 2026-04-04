@@ -4,6 +4,14 @@
     "skipAll": "Skip remaining steps",
     "skipStep": "Skip this step",
     "finish": "Complete Setup",
+    "eyebrow": {
+      "welcome": "Getting Started",
+      "profile": "Your Profile",
+      "identity": "Tax Identity",
+      "obligations": "Tax Obligations",
+      "compliance": "Compliance",
+      "finish": "Almost Done!"
+    },
     "welcome": {
       "title": "Welcome",
       "headline": "Your Tax Partner,\nBuilt for Nigeria",
@@ -12,8 +20,9 @@
       "skipCta": "Explore dashboard first",
       "ctaHint": "Begin TaxBridge setup",
       "termsNote": "By continuing you agree to our Terms of Service",
+      "timeEstimate": "Takes about 3 minutes — your progress saves automatically",
       "featureTitle": "NRS-ready mobile workflows",
-      "featureBody": "Secure onboarding, offline queueing, and tax-aware guidance built for Nigerian businesses.",
+      "featureBody": "Secure onboarding, offline queueing, and tax-aware guidance — personalised for your business.",
       "highlights": {
         "setup": {
           "title": "Guided setup, not guesswork",
@@ -31,8 +40,13 @@
     },
     "businessType": {
       "title": "Tell Us About\nYour Business",
-      "subtitle": "We personalise your obligations based on your type.",
+      "subtitle": "Your business type and size determine your CIT rate, VAT filing duties, and e-invoice timeline. This only takes a moment.",
       "skipCta": "Use recommended setup",
+      "turnoverLabel": "Estimated annual turnover",
+      "turnoverPlaceholder": "e.g. 25,000,000",
+      "turnoverHint": "Used to determine your VAT filing status and e-invoice phase. You can update this later.",
+      "whyTitle": "Why we ask this",
+      "whyBody": "Nigerian tax law ties your CIT rate, VAT filing exemptions, and e-invoicing deadline directly to your business type and turnover. Getting this right means fewer surprises and accurate guidance.",
       "options": {
         "sole_trader": "Sole trader",
         "partnership": "Partnership",
@@ -48,39 +62,77 @@
     },
     "tinVerify": {
       "title": "Verify Your TIN",
-      "body": "Your TIN is required on all invoices. Without it, 10% WHT applies to ALL payments you receive.",
+      "body": "Your Tax Identification Number goes on every invoice you issue. It's how NRS links your business to its tax records.",
       "placeholder": "12345678-0001",
+      "verifyCta": "Verify TIN",
       "skipCta": "I'll verify later",
+      "inputLabel": "Tax Identification Number (TIN)",
+      "formatHint": "Usually 8–14 digits. Find it on your NRS certificate or old FIRS documents.",
       "nrsNote": "Managed by NRS (Nigeria Revenue Service, formerly FIRS)",
-      "pendingNote": "Verification takes 1–2 minutes via NRS. We'll notify you automatically.",
+      "pendingNote": "Verification takes 1–2 minutes via NRS. We'll notify you automatically when it's confirmed.",
+      "whtWarningTitle": "Without a TIN, you lose 10% on every payment",
+      "whtWarningBody": "Clients are legally required to withhold 10% WHT from payments to businesses without a valid TIN. That money is very difficult to recover.",
       "educationTitle": "Why this matters",
-      "educationBody": "A valid TIN reduces payment friction, protects you from avoidable withholding, and makes invoices easier for clients to approve."
+      "educationBody": "A valid TIN reduces payment friction, protects you from avoidable withholding tax, and makes invoices easier for clients to approve. It's the single most important step for your tax health."
     },
     "vatSetup": {
       "title": "VAT Setup",
-      "exemptTitle": "Good news — you may be exempt from filing VAT returns",
-      "exemptBody": "Businesses under ₦100M turnover are exempt from filing VAT returns. However you MUST still charge 7.5% VAT on all invoices.",
-      "requiredBody": "Your business must file VAT returns by the 21st of each month.",
-      "rate": "VAT Rate: 7.5%",
-      "educationTitle": "What this means for you",
-      "educationBody": "Even if you are exempt from filing, you still need to charge 7.5% VAT on goods and services. TaxBridge will track this automatically in every invoice you create."
+      "exemptTitle": "You're exempt from filing VAT returns",
+      "exemptBody": "Businesses under ₦100M turnover are exempt from filing VAT returns. But here's the important part — you must still charge 7.5% VAT on all invoices.",
+      "exemptDetail": "Your annual turnover is below the ₦100M threshold, so you don't need to submit monthly VAT returns to NRS. TaxBridge will remind you if your turnover changes.",
+      "requiredTitle": "You must file VAT returns monthly",
+      "requiredBody": "Your turnover exceeds ₦100M, so VAT returns are due by the 21st of each month.",
+      "requiredDetail": "Late filing attracts penalties. TaxBridge will send you reminders before each deadline and help you calculate the amounts.",
+      "rate": "Standard rate on goods and services",
+      "distinctionTitle": "Two things to know about VAT",
+      "chargingTitle": "Charging VAT on invoices",
+      "chargingBody": "Every Nigerian business must add 7.5% VAT to invoices for taxable goods and services. TaxBridge does this automatically.",
+      "filingTitle": "Filing monthly VAT returns",
+      "filingExemptBody": "You're currently exempt from filing returns because your turnover is under ₦100M. This can change if your business grows.",
+      "filingRequiredBody": "You must file by the 21st of each month. TaxBridge will remind you and help calculate the amount due.",
+      "allBusinesses": "ALL BUSINESSES",
+      "exempt": "EXEMPT",
+      "required": "REQUIRED",
+      "educationTitle": "TaxBridge handles this for you",
+      "educationBody": "Every invoice you create in TaxBridge automatically includes the correct 7.5% VAT line. If filing is required, we'll prepare your return summary with one tap."
     },
     "einvoice": {
       "title": "E-Invoicing",
-      "phaseSmall": "Mandatory from July 2027 for your business size. Set up now — banks offer faster invoice financing to e-invoice-ready businesses.",
-      "phaseMedium": "Pilot phase active. Mandatory July 1 2026. Apply for FIRSMBS integration now.",
-      "phaseLarge": "⚠️ E-INVOICING ENFORCEMENT IS ACTIVE. Non-compliance = ₦200,000 penalty + 100% of tax due.",
-      "platform": "Via FIRSMBS (NRS Merchant-Buyer Solution)",
+      "phaseSmall": "E-invoicing becomes mandatory for your business size from July 2027. Getting set up early gives you a head start with banks and larger clients.",
+      "phaseMedium": "The pilot phase is active now. E-invoicing becomes mandatory for your business size on July 1, 2026. We recommend applying for FIRSMBS integration.",
+      "phaseLarge": "E-invoicing enforcement is active for businesses your size. Non-compliance carries a ₦200,000 penalty plus 100% of tax due.",
+      "enforcementTitle": "Enforcement is active now",
+      "enforcementBody": "Businesses with ₦5B+ turnover must issue compliant e-invoices. Penalties include ₦200,000 per offence and 100% of the tax due on uninvoiced transactions.",
+      "timelineTitle": "NRS E-Invoicing Rollout",
+      "phases": {
+        "large": {
+          "label": "Large companies (₦5B+)",
+          "desc": "Enforcement active since April 2026. Full compliance required."
+        },
+        "medium": {
+          "label": "Medium companies (₦1B+)",
+          "desc": "Pilot underway. Mandatory from July 2026."
+        },
+        "small": {
+          "label": "Small & micro businesses",
+          "desc": "Voluntary until July 2027. Early adoption earns better trust scores."
+        }
+      },
+      "yourPhase": "YOUR PHASE",
+      "platform": "E-invoices are submitted via FIRSMBS (NRS Merchant-Buyer Solution). TaxBridge connects to this platform on your behalf.",
       "educationTitle": "Why prepare early?",
-      "educationBody": "Businesses that adopt e-invoicing early get faster loan approvals, smoother audits, and better trust scores with larger clients and banks."
+      "educationBody": "Businesses that adopt e-invoicing early get faster loan approvals, smoother audits, and higher trust scores with larger clients and banks. TaxBridge makes it easy to get ready."
     },
     "community": {
-      "title": "Join the\nTaxBridge Community",
-      "body": "Connect with Nigerian SMEs. Share your Compliance Badge and earn referral rewards.",
-      "shareLabel": "Share Compliance Badge",
-      "shareBody": "Show clients and partners your verified compliance status. A strong badge signals trustworthiness.",
-      "benefitTitle": "Community perks",
-      "benefitBody": "Get early access to new features, tax law change alerts, and connect with other business owners navigating the same compliance journey.",
+      "title": "You're All Set!",
+      "body": "Your personalised tax profile is ready. Here's a summary of what we've configured for your business.",
+      "congratsTitle": "Setup complete!",
+      "congratsBody": "Your dashboard is now personalised with accurate CIT rates, VAT guidance, and e-invoice readiness — all based on what you told us.",
+      "summaryTitle": "Your setup summary",
+      "shareLabel": "Share your Compliance Badge",
+      "shareBody": "Show clients and partners that your business is NRS-compliant. A strong badge builds trust and can unlock better payment terms.",
+      "benefitTitle": "Join the TaxBridge community",
+      "benefitBody": "Connect with thousands of Nigerian business owners. Get early access to new features, tax law change alerts, and peer advice from others navigating the same compliance journey.",
       "skipCta": "Go to dashboard"
     },
     "tinRequiredTitle": "TIN required",
@@ -168,7 +220,9 @@
     "title": "Invoices",
     "featureTitle": "NRS-compliant invoice workflows",
     "featureBody": "Generate structured invoices, keep NRS references, and prepare for PDF/download integration.",
-    "testEventLabel": "Test: emit submission event"
+    "testEventLabel": "Test: emit submission event",
+    "emptyTitle": "No invoices yet",
+    "emptyBody": "Your issued and received invoices will appear here. Create your first NRS-compliant invoice to get started."
   },
   "compliance": {
     "title": "Compliance",
@@ -183,7 +237,8 @@
     "profileTip": "Keep your business profile complete to improve guidance accuracy."
   },
   "settings": {
-    "title": "Settings"
+    "title": "Settings",
+    "madeInNigeria": "Made with \u2764\ufe0f in Nigeria"
   },
   "calendar": {
     "deadlines": {
@@ -196,6 +251,8 @@
     },
     "daysAway_one": "{{date}} · {{count}} day away",
     "daysAway_other": "{{date}} · {{count}} days away",
+    "overdue": "OVERDUE",
+    "urgent": "URGENT",
     "emptyState": {
       "title": "No upcoming deadlines",
       "body": "Complete your business profile so we can show personalised tax deadlines here."

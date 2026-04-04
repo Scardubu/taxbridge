@@ -1,5 +1,6 @@
 import React from 'react';
-import { View } from 'react-native';
+import { View, Text } from 'react-native';
+import { palette, radius, spacing, typography } from './design-system/tokens';
 
 interface Props {
   isActive: boolean;
@@ -25,21 +26,28 @@ export function StepContainer({ isActive, children }: Props) {
   );
 }
 
-export function OnboardingProgressBar({ percent }: { percent: number }) {
-  const color = percent === 100 ? '#00C853' : '#006B3F';
+export function OnboardingProgressBar({ percent, stepName }: { percent: number; stepName?: string }) {
+  const color = percent === 100 ? palette.shield : palette.nrsGreen;
   const progressStyle = {
     height: '100%',
     width: `${percent}%`,
     backgroundColor: color,
-    borderRadius: 2,
+    borderRadius: 4,
     transitionProperty: ['width', 'backgroundColor'],
     transitionDuration: 400,
     transitionTimingFunction: 'ease-in-out',
   } as any;
 
   return (
-    <View style={{ height: 4, backgroundColor: '#E8EDF2', borderRadius: 2, marginHorizontal: 20 }}>
-      <View style={progressStyle} />
+    <View style={{ gap: spacing.xs }}>
+      <View style={{ height: 6, backgroundColor: palette.gray100, borderRadius: 4 }}>
+        <View style={progressStyle} />
+      </View>
+      {stepName ? (
+        <Text style={{ ...typography.caption, color: palette.gray400, textAlign: 'center' }}>
+          {stepName}
+        </Text>
+      ) : null}
     </View>
   );
 }

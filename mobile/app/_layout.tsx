@@ -88,6 +88,7 @@ function RootLayout() {
         releaseApp();
 
         if (isMounted) {
+          offlineQueue.start();
           void offlineQueue.flush().catch((error) => {
             Sentry.captureException(error);
           });

@@ -15,8 +15,15 @@ export class OfflineQueue {
   private static instance: OfflineQueue | null = null;
   private flushing = false;
   private unsubscribe: (() => void) | null = null;
+  private ready = false;
 
-  private constructor() {
+  // eslint-disable-next-line @typescript-eslint/no-empty-function
+  private constructor() {}
+
+  /** Call once after the database has been initialised */
+  start(): void {
+    if (this.ready) return;
+    this.ready = true;
     this.unsubscribe = NetInfo.addEventListener((state) => {
       if (state.isConnected && !this.flushing) {
         this.flush().catch(() => undefined);
@@ -34,7 +41,7 @@ export class OfflineQueue {
   async enqueue(type: OpType, payload: Record<string, unknown>): Promise<void> {
     const db = await getDatabase();
     const clientId = typeof Crypto.randomUUID === 'function'
-      ? await Crypto.randomUUID()
+      ? Crypto.randomUUID()
       : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
     await db.runAsync(

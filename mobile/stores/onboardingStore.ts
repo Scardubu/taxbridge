@@ -209,7 +209,12 @@ export const useOnboardingStore = create<OnboardingStore>()(
         isComplete: state.isComplete,
         schemaVersion: state.schemaVersion,
       }),
-      onRehydrateStorage: () => (state) => {
+      onRehydrateStorage: () => (state, error) => {
+        if (error) {
+          // Hydration failed — still mark hydrated so navigation unblocks
+          useOnboardingStore.getState().markHydrated();
+          return;
+        }
         state?.migrateIfNeeded();
         state?.markHydrated();
       },

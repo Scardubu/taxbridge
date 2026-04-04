@@ -4,19 +4,27 @@
 import * as SQLite from 'expo-sqlite';
 
 let _db: SQLite.SQLiteDatabase | null = null;
+let _dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
 export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
   if (_db) return _db;
-  // SDK-06 fix: no options object — openDatabaseAsync('name') only
-  _db = await SQLite.openDatabaseAsync('taxbridge_v13.db');
-  await _db.execAsync(`
-    PRAGMA journal_mode = WAL;
-    PRAGMA foreign_keys = ON;
-    PRAGMA cache_size = -8000;
-    PRAGMA synchronous = NORMAL;
-  `);
-  await runMigrations(_db);
-  return _db;
+  // Deduplicate concurrent initialisation calls
+  if (_dbPromise) return _dbPromise;
+  _dbPromise = (async () => {
+    // SDK-06 fix: no options object — openDatabaseAsync('name') only
+    const db = await SQLite.openDatabaseAsync('taxbridge_v13.db');
+    await db.execAsync(`
+      PRAGMA journal_mode = WAL;
+      PRAGMA foreign_keys = ON;
+      PRAGMA cache_size = -8000;
+      PRAGMA synchronous = NORMAL;
+    `);
+    await runMigrations(db);
+    _db = db;
+    return db;
+  })();
+  _dbPromise.catch(() => { _dbPromise = null; });
+  return _dbPromise;
 }
 
 async function runMigrations(db: SQLite.SQLiteDatabase): Promise<void> {

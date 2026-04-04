@@ -4,6 +4,14 @@
     "skipAll": "Skip the rest",
     "finish": "Finish Setup",
     "skipStep": "Skip this step",
+    "eyebrow": {
+      "welcome": "Make We Start",
+      "profile": "Your Business",
+      "identity": "Tax ID",
+      "obligations": "Tax Duties",
+      "compliance": "Compliance",
+      "finish": "Almost Done!"
+    },
     "welcome": {
       "title": "Welcome",
       "headline": "Your Tax Paddy,\nBuilt for Nigeria",
@@ -12,8 +20,9 @@
       "skipCta": "Make I see dashboard first",
       "ctaHint": "Start TaxBridge setup",
       "termsNote": "If you continue, e mean say you agree to our Terms of Service",
+      "timeEstimate": "E go take like 3 minutes — your progress dey save automatically",
       "featureTitle": "Tax waka wey work for Nigeria",
-      "featureBody": "Security onboarding, offline saving, and tax guidance wey fit Nigerian businesses.",
+      "featureBody": "Security onboarding, offline saving, and tax guidance wey dey personalised for your own business.",
       "highlights": {
         "setup": {
           "title": "Guided setup wey clear",
@@ -31,8 +40,13 @@
     },
     "businessType": {
       "title": "Tell Us About\nYour Business",
-      "subtitle": "We go arrange your tax obligations based on your business type.",
+      "subtitle": "Your business type and size go determine your CIT rate, VAT filing, and e-invoice timeline. E go take small time.",
       "skipCta": "Use recommended setup",
+      "turnoverLabel": "How much money your business dey turn per year",
+      "turnoverPlaceholder": "e.g. 25,000,000",
+      "turnoverHint": "We go use am determine your VAT filing status and e-invoice phase. You fit change am later.",
+      "whyTitle": "Why we dey ask",
+      "whyBody": "Nigeria tax law dey tie your CIT rate, VAT filing exemption, and e-invoicing deadline to your business type and turnover. If we get am right, no go get surprise.",
       "options": {
         "sole_trader": "Sole trader",
         "partnership": "Partnership",
@@ -48,39 +62,77 @@
     },
     "tinVerify": {
       "title": "Enter Your TIN",
-      "body": "Without TIN, dem fit cut 10% from all the money wey you collect. Enter am quick quick.",
+      "body": "Your Tax Identification Number go dey for every invoice wey you send. Na how NRS go know your business.",
       "placeholder": "12345678-0001",
+      "verifyCta": "Verify TIN",
       "skipCta": "I go do am later",
+      "inputLabel": "Tax Identification Number (TIN)",
+      "formatHint": "E dey usually 8–14 digits. Check your NRS certificate or old FIRS documents.",
       "nrsNote": "NRS (Nigeria Revenue Service, before dem call am FIRS) dey manage am",
-      "pendingNote": "Verification fit take small time. We go notify you when e done.",
+      "pendingNote": "Verification fit take 1–2 minutes through NRS. We go notify you when e confirm.",
+      "whtWarningTitle": "No TIN = dem go cut 10% from every payment",
+      "whtWarningBody": "Your clients go hold back 10% WHT from any payment wey dey go business without TIN. That money hard to recover.",
       "educationTitle": "Why e matter",
-      "educationBody": "Correct TIN dey make payment easier, reduce unnecessary withholding, and help clients approve your invoice faster."
+      "educationBody": "Correct TIN dey make payment easier, reduce unnecessary withholding tax, and help clients approve your invoice faster. Na the most important step for your tax health."
     },
     "vatSetup": {
       "title": "VAT Setup",
-      "exemptTitle": "Good news — you no need file VAT return!",
-      "exemptBody": "If your business dey below 100 million naira, you no need submit VAT return. But you still need collect 7.5% VAT for invoice.",
-      "requiredBody": "Your business must file VAT return before 21st of every month.",
-      "rate": "VAT Rate: 7.5%",
-      "educationTitle": "Wetin this one mean for you",
-      "educationBody": "Even if you no need file, you still need charge 7.5% VAT on goods and services. TaxBridge go track am automatically inside every invoice wey you create."
+      "exemptTitle": "You no need file VAT return!",
+      "exemptBody": "If your business dey below 100 million naira, you no need submit VAT return. But — you still need charge 7.5% VAT for every invoice.",
+      "exemptDetail": "Your annual turnover dey below ₦100M, so you no need submit monthly VAT return to NRS. TaxBridge go notify you if your turnover change.",
+      "requiredTitle": "You must file VAT return every month",
+      "requiredBody": "Your turnover don pass ₦100M, so VAT return must submit before 21st every month.",
+      "requiredDetail": "If you file late, NRS fit charge penalty. TaxBridge go send reminder before each deadline.",
+      "rate": "Standard rate for goods and services",
+      "distinctionTitle": "Two things wey you need know about VAT",
+      "chargingTitle": "Charging VAT for invoice",
+      "chargingBody": "Every Nigerian business must add 7.5% VAT to invoice for taxable goods and services. TaxBridge dey do this automatically.",
+      "filingTitle": "Filing monthly VAT return",
+      "filingExemptBody": "You no need file return because your turnover dey under ₦100M. This fit change if your business grow.",
+      "filingRequiredBody": "You must file before 21st every month. TaxBridge go remind you and help calculate the amount.",
+      "allBusinesses": "ALL BUSINESSES",
+      "exempt": "NO NEED",
+      "required": "MUST DO",
+      "educationTitle": "TaxBridge dey handle this for you",
+      "educationBody": "Every invoice wey you create for TaxBridge go automatically include correct 7.5% VAT line. If filing dey required, we go prepare your return summary with one tap."
     },
     "einvoice": {
       "title": "E-Invoice — New Law",
-      "phaseSmall": "This one no dey compulsory for your business size until 2027. But if you start now, bank fit trust your records more.",
+      "phaseSmall": "E-invoice go become compulsory for your business size by July 2027. If you start now, banks go trust your records more.",
       "phaseMedium": "Pilot phase don start. E go compulsory by July 1 2026. Apply for FIRSMBS integration now.",
-      "phaseLarge": "⚠️ E-INVOICE DON BECOME LAW. If you no comply, NRS fit fine you.",
-      "platform": "Na FIRSMBS (NRS Merchant-Buyer Solution) dem dey use",
+      "phaseLarge": "E-invoice enforcement don start for businesses your size. NRS fit fine you if you no comply.",
+      "enforcementTitle": "Enforcement don start",
+      "enforcementBody": "Business wey get ₦5B+ turnover must issue compliant e-invoice. Penalty na ₦200,000 per offence plus 100% of tax for uninvoiced transactions.",
+      "timelineTitle": "NRS E-Invoice Rollout",
+      "phases": {
+        "large": {
+          "label": "Big companies (₦5B+)",
+          "desc": "Enforcement don start since April 2026. Full compliance dey required."
+        },
+        "medium": {
+          "label": "Medium companies (₦1B+)",
+          "desc": "Pilot dey go on. E go compulsory from July 2026."
+        },
+        "small": {
+          "label": "Small & micro business",
+          "desc": "No compulsory until July 2027. Early adoption mean better trust score."
+        }
+      },
+      "yourPhase": "YOUR PHASE",
+      "platform": "E-invoice dey go through FIRSMBS (NRS Merchant-Buyer Solution). TaxBridge go connect to this platform for your behalf.",
       "educationTitle": "Why you suppose prepare early?",
-      "educationBody": "Business wey start e-invoice early go get faster loan approval, smoother audit, and better trust score with bigger clients and banks."
+      "educationBody": "Business wey start e-invoice early go get faster loan approval, smoother audit, and higher trust score with bigger clients and banks. TaxBridge go make am easy."
     },
     "community": {
-      "title": "Join Our Community",
-      "body": "Join plenty Nigerian business owners. Share your badge and collect referral reward.",
-      "shareLabel": "Share Compliance Badge",
-      "shareBody": "Show clients and partners say your compliance dey correct. Strong badge mean say dem fit trust you.",
-      "benefitTitle": "Community benefits",
-      "benefitBody": "Get early access to new features, tax law change alerts, and connect with other business owners wey dey navigate the same compliance journey.",
+      "title": "You Don Ready!",
+      "body": "Your personalised tax profile don ready. See wetin we don setup for your business.",
+      "congratsTitle": "Setup complete!",
+      "congratsBody": "Your dashboard don get correct CIT rates, VAT guidance, and e-invoice readiness — all based on wetin you tell us.",
+      "summaryTitle": "Your setup summary",
+      "shareLabel": "Share your Compliance Badge",
+      "shareBody": "Show clients and partners say your business dey NRS-compliant. Strong badge dey build trust and fit open better payment terms.",
+      "benefitTitle": "Join TaxBridge community",
+      "benefitBody": "Connect with thousands of Nigerian business owners. Get early access to new features, tax law change alerts, and advice from others wey dey navigate the same compliance journey.",
       "skipCta": "Go dashboard"
     },
     "tinRequiredTitle": "TIN need to dey",
@@ -168,7 +220,9 @@
     "title": "Invoices",
     "featureTitle": "NRS invoice wey follow law",
     "featureBody": "Make invoice wey NRS go approve, keep am offline, then sync am later.",
-    "testEventLabel": "Test: send invoice event"
+    "testEventLabel": "Test: send invoice event",
+    "emptyTitle": "No invoice yet",
+    "emptyBody": "Your invoices wey you send and receive go show here. Create your first NRS invoice make you start."
   },
   "compliance": {
     "title": "Compliance",
@@ -183,7 +237,8 @@
     "profileTip": "Complete your business profile make we give you better guidance."
   },
   "settings": {
-    "title": "Settings"
+    "title": "Settings",
+    "madeInNigeria": "We build am with \u2764\ufe0f for Nigeria"
   },
   "calendar": {
     "deadlines": {
@@ -196,6 +251,8 @@
     },
     "daysAway_one": "{{date}} · {{count}} day remain",
     "daysAway_other": "{{date}} · {{count}} days remain",
+    "overdue": "DON PASS",
+    "urgent": "URGENT",
     "emptyState": {
       "title": "No deadline dey come",
       "body": "Complete your business profile make we show your personalised tax deadlines here."

@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { ScrollView, Text, View, Pressable } from 'react-native';
+import { ActivityIndicator, ScrollView, Text, View, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,7 +7,7 @@ import * as Sentry from '@sentry/react-native';
 import { TaxShieldRing } from '../../components/TaxShieldRing';
 import { ComplianceBadge } from '../../components/ComplianceBadge';
 import { OfflineIndicator } from '../../components/OfflineIndicator';
-import { palette, radius, spacing, typography, useTokens } from '../../components/design-system/tokens';
+import { palette, radius, shadows, spacing, typography, useTokens } from '../../components/design-system/tokens';
 import { useBusinessProfileStore } from '../../stores/businessProfileStore';
 import { buildComplianceNudges, type ComplianceNudge } from '../../services/nudgeEngine';
 import { computeObligations } from '../../services/nrsCompliance';
@@ -18,6 +18,15 @@ function formatCurrency(value: number): string {
   return `₦${Math.round(value).toLocaleString('en-NG')}`;
 }
 
+const NUDGE_ICONS: Record<string, React.ComponentProps<typeof Ionicons>['name']> = {
+  missingTin: 'alert-circle',
+  vatRequired: 'receipt',
+  citZero: 'checkmark-circle',
+  vatExempt: 'information-circle',
+  einvoiceReadiness: 'document-text',
+  deadline: 'calendar',
+};
+
 function QuickActionCard({ label, route, icon }: Readonly<{ label: string; route: string; icon: React.ComponentProps<typeof Ionicons>['name'] }>) {
   const tokens = useTokens();
 
@@ -26,7 +35,7 @@ function QuickActionCard({ label, route, icon }: Readonly<{ label: string; route
       onPress={() => router.push(route)}
       accessibilityRole="button"
       accessibilityLabel={label}
-      style={{
+      style={({ pressed }) => ({
         flex: 1,
         minHeight: 88,
         backgroundColor: tokens.bgCard,
@@ -35,9 +44,13 @@ function QuickActionCard({ label, route, icon }: Readonly<{ label: string; route
         borderColor: tokens.border,
         padding: spacing.md,
         justifyContent: 'space-between',
-      }}
+        opacity: pressed ? 0.85 : 1,
+        ...shadows.sm,
+      })}
     >
-      <Ionicons name={icon} size={22} color={palette.nrsGreen} />
+      <View style={{ width: 36, height: 36, borderRadius: radius.lg, backgroundColor: palette.nrsGreenLight, alignItems: 'center', justifyContent: 'center' }}>
+        <Ionicons name={icon} size={20} color={palette.nrsGreen} />
+      </View>
       <Text style={{ ...typography.bodyBold, color: tokens.textPrimary, marginTop: spacing.sm }}>{label}</Text>
     </Pressable>
   );
@@ -161,7 +174,8 @@ export default function DashboardTab() {
   if (!snapshot.isHydrated) {
     return (
       <SafeAreaView style={{ flex: 1, backgroundColor: tokens.bg }} edges={['top', 'left', 'right']}>
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: spacing.lg, gap: spacing.sm }}>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: spacing.lg, gap: spacing.md }}>
+          <ActivityIndicator size="large" color={palette.nrsGreen} />
           <Text style={{ ...typography.h3, color: tokens.textPrimary }}>{t('dashboard.loading.title')}</Text>
           <Text style={{ ...typography.body, color: tokens.textSecondary, textAlign: 'center' }}>{t('dashboard.loading.body')}</Text>
         </View>
@@ -186,15 +200,20 @@ export default function DashboardTab() {
         {(needsGuidedSetup || dashboardData.hadError) ? (
           <View
             style={{
-              backgroundColor: tokens.bgCard,
+              backgroundColor: palette.nrsGreenLight,
               borderRadius: radius.xl,
               padding: spacing.lg,
               borderWidth: 1,
-              borderColor: tokens.border,
+              borderColor: palette.nrsGreen + '30',
               gap: spacing.sm,
             }}
           >
-            <Text style={{ ...typography.h3, color: tokens.textPrimary }}>{t('dashboard.resumeSetup.title')}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+              <View style={{ width: 32, height: 32, borderRadius: radius.full, backgroundColor: palette.nrsGreen, alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name="rocket" size={16} color={palette.white} />
+              </View>
+              <Text style={{ ...typography.h3, color: tokens.textPrimary, flex: 1 }}>{t('dashboard.resumeSetup.title')}</Text>
+            </View>
             <Text style={{ ...typography.body, color: tokens.textSecondary }}>
               {dashboardData.hadError ? t('dashboard.resumeSetup.fallbackBody') : t('dashboard.resumeSetup.body')}
             </Text>
@@ -202,15 +221,20 @@ export default function DashboardTab() {
               onPress={() => router.push(resumeRoute)}
               accessibilityRole="button"
               accessibilityLabel={t('dashboard.resumeSetup.action')}
-              style={{
+              style={({ pressed }) => ({
                 alignSelf: 'flex-start',
                 backgroundColor: palette.nrsGreen,
                 borderRadius: radius.lg,
                 paddingHorizontal: spacing.lg,
                 paddingVertical: spacing.sm,
-              }}
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: spacing.xs,
+                opacity: pressed ? 0.85 : 1,
+              })}
             >
               <Text style={{ ...typography.bodyBold, color: palette.white }}>{t('dashboard.resumeSetup.action')}</Text>
+              <Ionicons name="arrow-forward" size={16} color={palette.white} />
             </Pressable>
           </View>
         ) : null}
@@ -233,11 +257,21 @@ export default function DashboardTab() {
               accessibilityRole="button"
               accessibilityLabel={nudge.title}
               accessibilityHint={nudge.actionLabel}
-              style={{ backgroundColor: tokens.bgCard, borderRadius: radius.xl, padding: spacing.lg, borderWidth: 1, borderColor: tokens.border, gap: spacing.xs }}
+              style={({ pressed }) => ({
+                backgroundColor: tokens.bgCard, borderRadius: radius.xl, padding: spacing.lg,
+                borderWidth: 1, borderColor: tokens.border, gap: spacing.sm,
+                opacity: pressed ? 0.85 : 1,
+              })}
             >
-              <Text style={{ ...typography.bodyBold, color: tokens.textPrimary }}>{nudge.title}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+                <Ionicons name={NUDGE_ICONS[nudge.id] ?? 'information-circle'} size={20} color={palette.nrsGreen} />
+                <Text style={{ ...typography.bodyBold, color: tokens.textPrimary, flex: 1 }}>{nudge.title}</Text>
+              </View>
               <Text style={{ ...typography.body, color: tokens.textSecondary }}>{nudge.body}</Text>
-              <Text style={{ ...typography.caption, color: palette.nrsGreen }}>{nudge.actionLabel}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
+                <Text style={{ ...typography.bodyBold, color: palette.nrsGreen }}>{nudge.actionLabel}</Text>
+                <Ionicons name="chevron-forward" size={14} color={palette.nrsGreen} />
+              </View>
             </Pressable>
           )) : (
             <View style={{ backgroundColor: tokens.bgCard, borderRadius: radius.xl, padding: spacing.lg, borderWidth: 1, borderColor: tokens.border, gap: spacing.xs }}>
@@ -250,8 +284,8 @@ export default function DashboardTab() {
         <View style={{ gap: spacing.md }}>
           <Text style={{ ...typography.h3, color: tokens.textPrimary }}>{t('dashboard.obligations.title')}</Text>
           <View style={{ backgroundColor: tokens.bgCard, borderRadius: radius.xl, padding: spacing.lg, borderWidth: 1, borderColor: tokens.border, gap: spacing.md }}>
-            {obligationRows.map((row) => (
-              <View key={row.key} style={{ gap: spacing.xs }}>
+            {obligationRows.map((row, index) => (
+              <View key={row.key} style={{ gap: spacing.xs, paddingTop: index > 0 ? spacing.sm : 0, borderTopWidth: index > 0 ? 1 : 0, borderTopColor: tokens.border }}>
                 <Text style={{ ...typography.caption, color: tokens.textSecondary }}>{row.label}</Text>
                 <Text style={{ ...typography.bodyBold, color: tokens.textPrimary }}>{row.value}</Text>
               </View>

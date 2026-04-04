@@ -41,7 +41,7 @@ jest.mock('expo-constants', () => ({
 // Mock React Native core components - complete mock without requiring actual RN
 jest.mock('react-native', () => {
   const React = require('react');
-  
+
   // Create mock components that render their children
   const mockComponent = (name) => {
     const MockedComp = (props) => {
@@ -50,7 +50,7 @@ jest.mock('react-native', () => {
     MockedComp.displayName = name;
     return MockedComp;
   };
-  
+
   return {
     NativeModules: {
       SettingsManager: { settings: {} },
@@ -254,7 +254,7 @@ jest.mock('react-native-safe-area-context', () => ({
 jest.mock('react-native-reanimated', () => {
   const React = require('react');
   const { View, Text, Image, ScrollView } = require('react-native');
-  
+
   // Create a chainable animation builder mock
   const createAnimationMock = () => {
     const mock = {
@@ -363,7 +363,7 @@ jest.mock('react-native-reanimated', () => {
       inOut: (fn) => fn,
     },
   };
-  
+
   return {
     __esModule: true,
     default: mockReanimated,
@@ -413,7 +413,7 @@ jest.mock('expo-camera', () => {
   });
 
   Camera.requestCameraPermissionsAsync = jest.fn(async () => ({ status: 'granted' }));
-  
+
   // New CameraView component (expo-camera v15+)
   const CameraView = React.forwardRef((props, ref) => {
     React.useImperativeHandle(ref, () => ({
@@ -466,8 +466,29 @@ jest.mock('expo-sqlite', () => ({
     runAsync: jest.fn(() => Promise.resolve({ lastInsertRowId: 1, changes: 1 })),
     getFirstAsync: jest.fn(() => Promise.resolve(null)),
     execAsync: jest.fn(() => Promise.resolve()),
+    withExclusiveTransactionAsync: jest.fn((fn) => fn({
+      getAllAsync: jest.fn(() => Promise.resolve([])),
+      runAsync: jest.fn(() => Promise.resolve({ lastInsertRowId: 1, changes: 1 })),
+      getFirstAsync: jest.fn(() => Promise.resolve(null)),
+      execAsync: jest.fn(() => Promise.resolve()),
+    })),
   })),
 }));
+
+// Mock expo-sqlite/kv-store (sub-path import used by storage/kv.ts)
+jest.mock('expo-sqlite/kv-store', () => {
+  const store = {};
+  return {
+    __esModule: true,
+    default: {
+      getItem: jest.fn((key) => Promise.resolve(store[key] ?? null)),
+      setItem: jest.fn((key, value) => { store[key] = String(value); return Promise.resolve(); }),
+      removeItem: jest.fn((key) => { delete store[key]; return Promise.resolve(); }),
+      getItemSync: jest.fn((key) => store[key] ?? null),
+      setItemSync: jest.fn((key, value) => { store[key] = String(value); }),
+    },
+  };
+});
 
 // Mock expo-file-system
 jest.mock('expo-file-system', () => ({

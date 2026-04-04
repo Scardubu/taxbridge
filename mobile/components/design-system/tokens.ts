@@ -3,6 +3,7 @@ import { Platform, useColorScheme } from 'react-native';
 export const palette = {
   nrsGreen: '#006B3F',
   nrsGreenDim: '#004D2D',
+  nrsGreenLight: '#E8F5EE',
   nrsGold: '#FFD700',
   nrsRed: '#E8401C',
   shield: '#00C853',
@@ -20,6 +21,11 @@ export const palette = {
   dark800: '#1A1A2E',
   dark700: '#16213E',
   dark600: '#1E2D40',
+  blue50: '#EBF5FF',
+  blue600: '#2563EB',
+  amber50: '#FFFBEB',
+  amber600: '#D97706',
+  red50: '#FEF2F2',
 } as const;
 
 export function useTokens() {
