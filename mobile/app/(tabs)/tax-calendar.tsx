@@ -25,9 +25,9 @@ export default function TaxCalendarTab() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: tokens.bg }} edges={['top', 'left', 'right']}>
-      <ScrollView contentContainerStyle={{ padding: spacing.lg, gap: spacing.md }}>
+      <ScrollView contentContainerStyle={{ padding: spacing.lg, gap: spacing.lg, paddingBottom: spacing.xxl }}>
         <Text style={{ ...typography.h1, color: tokens.textPrimary }}>{t('tabs.calendar')}</Text>
-        {deadlines.map((deadline) => (
+        {deadlines.length > 0 ? deadlines.map((deadline) => (
           <View
             key={deadline.id}
             style={{
@@ -50,7 +50,12 @@ export default function TaxCalendarTab() {
               {t('calendar.daysAway', { date: deadline.dueDate.toLocaleDateString('en-NG', { day: 'numeric', month: 'short', year: 'numeric' }), count: deadline.daysAway })}
             </Text>
           </View>
-        ))}
+        )) : (
+          <View style={{ backgroundColor: tokens.bgCard, borderRadius: radius.xl, padding: spacing.lg, borderWidth: 1, borderColor: tokens.border, gap: spacing.xs }}>
+            <Text style={{ ...typography.bodyBold, color: tokens.textPrimary }}>{t('calendar.emptyState.title')}</Text>
+            <Text style={{ ...typography.body, color: tokens.textSecondary }}>{t('calendar.emptyState.body')}</Text>
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );

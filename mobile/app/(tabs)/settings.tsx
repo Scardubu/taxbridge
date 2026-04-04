@@ -43,7 +43,7 @@ export default function SettingsTab() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: tokens.bg }} edges={['top', 'left', 'right']}>
-      <ScrollView contentContainerStyle={{ padding: spacing.lg, gap: spacing.lg }}>
+      <ScrollView contentContainerStyle={{ padding: spacing.lg, gap: spacing.lg, paddingBottom: spacing.xxl }}>
         <Text style={{ ...typography.h1, color: tokens.textPrimary }}>{t('settings.title')}</Text>
         <Pressable
           onPress={() => void toggleLanguage()}

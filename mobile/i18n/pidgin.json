@@ -195,7 +195,11 @@
       "citDescription": "Company Income Tax for {{year}} go due on 30 June {{dueYear}}."
     },
     "daysAway_one": "{{date}} · {{count}} day remain",
-    "daysAway_other": "{{date}} · {{count}} days remain"
+    "daysAway_other": "{{date}} · {{count}} days remain",
+    "emptyState": {
+      "title": "No deadline dey come",
+      "body": "Complete your business profile make we show your personalised tax deadlines here."
+    }
   },
   "offline": {
     "title": "You dey offline",

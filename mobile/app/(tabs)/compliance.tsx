@@ -43,7 +43,7 @@ export default function ComplianceTab() {
     {
       key: 'einvoice',
       label: t('compliance.einvoicePhase'),
-      value: obligations.eInvoicingPhase,
+      value: t(`einvoice.status.${obligations.eInvoicingPhase}`),
     },
     {
       key: 'burden',
@@ -54,7 +54,7 @@ export default function ComplianceTab() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: tokens.bg }} edges={['top', 'left', 'right']}>
-      <ScrollView contentContainerStyle={{ padding: spacing.lg, gap: spacing.lg }}>
+      <ScrollView contentContainerStyle={{ padding: spacing.lg, gap: spacing.lg, paddingBottom: spacing.xxl }}>
         <Text style={{ ...typography.h1, color: tokens.textPrimary }}>{t('compliance.title')}</Text>
         <ComplianceBadge score={obligations.complianceScore} />
         <View

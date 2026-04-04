@@ -25,8 +25,8 @@ module.exports = {
   },
   // Increased timeout for async tests
   testTimeout: 30000,
-  // Teardown/cleanup is handled in jest.setup.js; avoid forced shutdown warnings
-  forceExit: false,
+  // jest-expo workers don't always exit cleanly; force shutdown to keep CI green
+  forceExit: true,
   // Keep disabled by default for speed; enable ad-hoc with CLI when diagnosing leaks
   detectOpenHandles: false,
 };
