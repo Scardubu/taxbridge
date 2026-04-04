@@ -15,15 +15,15 @@ function wait(ms) {
 async function runBuild(attempt) {
   console.log(`Starting EAS build attempt ${attempt}/${maxAttempts} for profile "${profile}"...`);
 
-  const command = process.platform === 'win32' ? 'npx.cmd' : 'npx';
-  const args = ['eas', 'build', '--platform', 'android', '--profile', profile, '--non-interactive'];
+  const command = `npx eas build --platform android --profile ${profile} --non-interactive`;
 
-  const child = spawn(command, args, {
+  const child = spawn(command, [], {
     cwd: process.cwd(),
     env: {
       ...process.env,
       CI: process.env.CI || '1',
     },
+    shell: true,
     stdio: ['inherit', 'pipe', 'pipe'],
   });
 
