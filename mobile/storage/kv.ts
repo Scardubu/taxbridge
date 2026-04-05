@@ -34,5 +34,16 @@ export const AppKV = {
   flags: {
     get: (key: string, fallback = '') => Storage.getItemSync(`flag:${key}`) ?? fallback,
     set: (key: string, v: string)     => Storage.setItemSync(`flag:${key}`, v),
+    setPreviewMode: (val: boolean) =>
+      Storage.setItem('flags:previewMode', JSON.stringify(val)),
+    getPreviewMode: async (): Promise<boolean> => {
+      const raw = await Storage.getItem('flags:previewMode');
+      return raw ? JSON.parse(raw) : false;
+    },
+    setStoreReady: () => Storage.setItem('flags:storeReady', 'true'),
+    getStoreReady: async (): Promise<boolean> => {
+      const raw = await Storage.getItem('flags:storeReady');
+      return raw === 'true';
+    },
   },
 };

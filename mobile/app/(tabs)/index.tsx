@@ -1,175 +1,137 @@
-import React, { useMemo } from 'react';
-import { ActivityIndicator, ScrollView, Text, View, Pressable } from 'react-native';
+import React, { useCallback, useMemo, useState } from 'react';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
-import * as Sentry from '@sentry/react-native';
-import { TaxShieldRing } from '../../components/TaxShieldRing';
-import { ComplianceBadge } from '../../components/ComplianceBadge';
-import { OfflineIndicator } from '../../components/OfflineIndicator';
-import { palette, radius, shadows, spacing, typography, useTokens } from '../../components/design-system/tokens';
-import { useBusinessProfileStore } from '../../stores/businessProfileStore';
-import { buildComplianceNudges, type ComplianceNudge } from '../../services/nudgeEngine';
-import { computeObligations } from '../../services/nrsCompliance';
+import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
-import { STEP_ROUTES, useResumeStepId } from '../../stores/onboardingStore';
+import { TaxShieldRing } from '../../components/TaxShieldRing';
+import { OfflineIndicator } from '../../components/OfflineIndicator';
+import { OnboardingProgressBanner } from '../../components/OnboardingProgressBanner';
+import { EducativeTaxObligationsSection } from '../../components/EducativeTaxObligationsSection';
+import { palette, spacing, typography, useTokens } from '../../components/design-system/tokens';
+import { computeObligations } from '../../services/nrsCompliance';
+import { generateNudges } from '../../services/nudgeEngine';
+import { offlineQueue } from '../../services/offlineQueue';
+import { useBusinessProfileStore } from '../../stores/businessProfileStore';
+import { useIsOnboardingDone, useOnboardingStore } from '../../stores/onboardingStore';
 
-function formatCurrency(value: number): string {
-  return `₦${Math.round(value).toLocaleString('en-NG')}`;
-}
+const PREVIEW_PROFILE = {
+  businessType: 'sole_trader',
+  sector: 'retail',
+  annualTurnover: 8_500_000,
+  totalFixedAssets: 0,
+  hasValidTIN: false,
+  isVatRegistered: false,
+  monthlyRevenue: 708_333,
+} as const;
 
 const NUDGE_ICONS: Record<string, React.ComponentProps<typeof Ionicons>['name']> = {
-  missingTin: 'alert-circle',
-  vatRequired: 'receipt',
-  citZero: 'checkmark-circle',
-  vatExempt: 'information-circle',
-  einvoiceReadiness: 'document-text',
-  deadline: 'calendar',
+  'missing-tin': 'alert-circle',
+  'vat-required': 'receipt',
+  'cit-zero': 'checkmark-circle',
+  'vat-filing-exempt': 'information-circle',
+  'einvoice-readiness': 'document-text',
 };
 
-function QuickActionCard({ label, route, icon }: Readonly<{ label: string; route: string; icon: React.ComponentProps<typeof Ionicons>['name'] }>) {
-  const tokens = useTokens();
+function getNudgeIcon(id: string): React.ComponentProps<typeof Ionicons>['name'] {
+  if (id.startsWith('deadline-')) {
+    return 'calendar';
+  }
 
-  return (
-    <Pressable
-      onPress={() => router.push(route)}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      style={({ pressed }) => ({
-        flex: 1,
-        minHeight: 88,
-        backgroundColor: tokens.bgCard,
-        borderRadius: radius.xl,
-        borderWidth: 1,
-        borderColor: tokens.border,
-        padding: spacing.md,
-        justifyContent: 'space-between',
-        opacity: pressed ? 0.85 : 1,
-        ...shadows.sm,
-      })}
-    >
-      <View style={{ width: 36, height: 36, borderRadius: radius.lg, backgroundColor: palette.nrsGreenLight, alignItems: 'center', justifyContent: 'center' }}>
-        <Ionicons name={icon} size={20} color={palette.nrsGreen} />
-      </View>
-      <Text style={{ ...typography.bodyBold, color: tokens.textPrimary, marginTop: spacing.sm }}>{label}</Text>
-    </Pressable>
-  );
+  return NUDGE_ICONS[id] ?? 'information-circle';
+}
+
+function getShieldMeta(score: number, t: ReturnType<typeof useTranslation>['t']) {
+  if (score >= 80) {
+    return {
+      label: t('compliance.excellent'),
+      sublabel: t('shield.fullyProtected'),
+      bannerColor: '#065F46',
+      textColor: '#D1FAE5',
+      icon: '🏆',
+    };
+  }
+
+  if (score >= 50) {
+    return {
+      label: t('compliance.good'),
+      sublabel: t('shield.moderate'),
+      bannerColor: '#78350F',
+      textColor: '#FEF3C7',
+      icon: '📋',
+    };
+  }
+
+  if (score >= 20) {
+    return {
+      label: t('compliance.actionNeeded'),
+      sublabel: t('shield.partial'),
+      bannerColor: '#7C2D12',
+      textColor: '#FEE2E2',
+      icon: '⚠️',
+    };
+  }
+
+  return {
+    label: t('compliance.getStarted'),
+    sublabel: t('shield.none'),
+    bannerColor: '#1C1C1C',
+    textColor: '#9CA3AF',
+    icon: '🚀',
+  };
 }
 
 export default function DashboardTab() {
   const { t } = useTranslation();
   const tokens = useTokens();
-  const resumeStepId = useResumeStepId();
-  const businessName = useBusinessProfileStore((state) => state.businessName);
-  const annualTurnover = useBusinessProfileStore((state) => state.annualTurnover);
-  const totalFixedAssets = useBusinessProfileStore((state) => state.totalFixedAssets);
-  const sector = useBusinessProfileStore((state) => state.sector);
-  const businessType = useBusinessProfileStore((state) => state.businessType);
-  const isVatRegistered = useBusinessProfileStore((state) => state.isVatRegistered);
-  const hasValidTIN = useBusinessProfileStore((state) => state.hasValidTIN);
-  const monthlyRevenue = useBusinessProfileStore((state) => state.monthlyRevenue);
-  const tin = useBusinessProfileStore((state) => state.tin);
-  const isHydrated = useBusinessProfileStore((state) => state.isHydrated);
+  const isDone = useIsOnboardingDone();
+  const previewMode = useOnboardingStore((state) => state.previewMode);
+  const snapshot = useBusinessProfileStore((state) => ({
+    businessName: state.businessName,
+    annualTurnover: state.annualTurnover,
+    totalFixedAssets: state.totalFixedAssets,
+    sector: state.sector,
+    businessType: state.businessType,
+    isVatRegistered: state.isVatRegistered,
+    hasValidTIN: state.hasValidTIN,
+    monthlyRevenue: state.monthlyRevenue,
+    isHydrated: state.isHydrated,
+  }));
+  const [refreshing, setRefreshing] = useState(false);
 
-  const snapshot = {
-    businessName,
-    annualTurnover,
-    totalFixedAssets,
-    sector,
-    businessType,
-    isVatRegistered,
-    hasValidTIN,
-    monthlyRevenue,
-    tin,
-    isHydrated,
-  };
-
-  const profile = {
-    annualTurnover: snapshot.annualTurnover ?? 0,
-    totalFixedAssets: snapshot.totalFixedAssets ?? 0,
-    sector: snapshot.sector ?? '',
-    businessType: snapshot.businessType ?? 'sole_trader',
-    isVatRegistered: snapshot.isVatRegistered ?? false,
-    hasValidTIN: snapshot.hasValidTIN ?? false,
-    monthlyRevenue: snapshot.monthlyRevenue ?? 0,
-  };
-
-  const dashboardData = useMemo(() => {
-    try {
-      return {
-        obligations: computeObligations(profile),
-        nudges: buildComplianceNudges(profile),
-        hadError: false,
-      };
-    } catch (error) {
-      Sentry.captureException(error, {
-        contexts: {
-          dashboard: {
-            businessType: profile.businessType,
-            annualTurnover: profile.annualTurnover,
-            hasValidTIN: profile.hasValidTIN,
-          },
-        },
-      });
-
-      return {
-        obligations: {
-          vatRegistrationRequired: false,
-          vatFilingRequired: false,
-          vatFilingExempt: false,
-          citRate: 0,
-          citLiability: 0,
-          pitLiability: 0,
-          whtExemptEligible: false,
-          eInvoicingPhase: 'small' as const,
-          eInvoicingMandatory: false,
-          eInvoicingRequired: false,
-          eInvoicingStatus: 'VOLUNTARY' as const,
-          eInvoicingDeadline: new Date('2027-07-01'),
-          complianceScore: 0,
-          annualTaxBurden: 0,
-        },
-        nudges: [] as ComplianceNudge[],
-        hadError: true,
-      };
+  const profile = useMemo(() => {
+    if (previewMode && !snapshot.businessType) {
+      return PREVIEW_PROFILE;
     }
-  }, [profile]);
 
-  const businessTypeLabel = snapshot.businessType
-    ? t(`onboarding.businessType.options.${snapshot.businessType}`)
-    : t('dashboard.yourBusiness');
-  const businessLabel = snapshot.businessName.trim() || businessTypeLabel;
-  const needsGuidedSetup = !snapshot.businessType || !snapshot.tin || !snapshot.hasValidTIN;
-  const resumeRoute = STEP_ROUTES[resumeStepId];
+    return {
+      annualTurnover: snapshot.annualTurnover ?? 0,
+      totalFixedAssets: snapshot.totalFixedAssets ?? 0,
+      sector: snapshot.sector ?? '',
+      businessType: snapshot.businessType || 'sole_trader',
+      isVatRegistered: snapshot.isVatRegistered ?? false,
+      hasValidTIN: snapshot.hasValidTIN ?? false,
+      monthlyRevenue: snapshot.monthlyRevenue ?? 0,
+    };
+  }, [previewMode, snapshot]);
 
-  const quickActions = [
-    { key: 'invoices', label: t('tabs.invoices'), route: '/(tabs)/invoices', icon: 'document-text' as const },
-    { key: 'calendar', label: t('tabs.calendar'), route: '/(tabs)/tax-calendar', icon: 'calendar' as const },
-    { key: 'compliance', label: t('tabs.compliance'), route: '/(tabs)/compliance', icon: 'shield-checkmark' as const },
-  ];
+  const obligations = useMemo(() => computeObligations(profile), [profile]);
+  const nudges = useMemo(() => generateNudges(profile, obligations), [obligations, profile]);
+  const score = previewMode && !isDone ? 0 : obligations.complianceScore ?? 0;
+  const shieldMeta = useMemo(() => getShieldMeta(score, t), [score, t]);
+  const businessLabel = snapshot.businessName.trim() || t('dashboard.yourBusiness');
 
-  const obligationRows = [
-    {
-      key: 'vatRegistration',
-      label: t('compliance.vatRegistration'),
-      value: dashboardData.obligations.vatRegistrationRequired ? t('compliance.required') : t('compliance.notRequired'),
-    },
-    {
-      key: 'vatFiling',
-      label: t('compliance.vatFiling'),
-      value: dashboardData.obligations.vatFilingExempt ? t('compliance.exemptFiling') : t('compliance.monthlyRequired'),
-    },
-    {
-      key: 'einvoice',
-      label: t('compliance.einvoicePhase'),
-      value: t(`einvoice.status.${dashboardData.obligations.eInvoicingPhase}`),
-    },
-    {
-      key: 'burden',
-      label: t('compliance.annualBurden'),
-      value: formatCurrency(dashboardData.obligations.annualTaxBurden),
-    },
-  ];
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await offlineQueue.flush();
+    setRefreshing(false);
+  }, []);
+
+  const handleExitPreview = useCallback(() => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    router.push('/(onboarding)/business-type');
+  }, []);
 
   if (!snapshot.isHydrated) {
     return (
@@ -184,114 +146,162 @@ export default function DashboardTab() {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: tokens.bg }} edges={['top', 'left', 'right']}>
-      <ScrollView contentContainerStyle={{ padding: spacing.lg, gap: spacing.lg, paddingBottom: spacing.xxl }}>
-        <OfflineIndicator />
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-          <View style={{ flex: 1, gap: spacing.xs }}>
-            <Text style={{ ...typography.caption, color: tokens.textSecondary }}>{t('dashboard.greeting')}</Text>
-            <Text style={{ ...typography.h1, color: tokens.textPrimary }}>{businessLabel}</Text>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#0a0a0a' }} edges={['top', 'bottom']}>
+      <OfflineIndicator />
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: 120 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#1D9E75" />}
+      >
+        <View style={{ paddingHorizontal: 24, paddingTop: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <View>
+            <Text style={{ color: '#6B7280', fontSize: 14 }}>{t('dashboard.greeting')}</Text>
+            <Text style={{ color: '#FFFFFF', fontSize: 32, fontWeight: '800', lineHeight: 36 }}>{businessLabel}</Text>
           </View>
-          <TaxShieldRing compliance={dashboardData.obligations.complianceScore} isStreaking={dashboardData.obligations.complianceScore >= 80} />
+          <TaxShieldRing compliance={score} isStreaking={score >= 80} size={88} />
         </View>
 
-        <ComplianceBadge score={dashboardData.obligations.complianceScore} />
+        <Text style={{ color: '#6B7280', fontSize: 12, paddingHorizontal: 24, marginTop: 4 }}>
+          {shieldMeta.sublabel}
+        </Text>
 
-        {(needsGuidedSetup || dashboardData.hadError) ? (
+        <View style={{ marginHorizontal: 24, marginTop: 20, borderRadius: 16, backgroundColor: shieldMeta.bannerColor, padding: 20 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <Text style={{ fontSize: 28 }}>{shieldMeta.icon}</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: shieldMeta.textColor, fontWeight: '700', fontSize: 16 }}>{shieldMeta.label}</Text>
+              <Text style={{ color: shieldMeta.textColor, opacity: 0.75, fontSize: 13, marginTop: 4 }}>
+                {t('shield.percentProtected', { score })}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {previewMode && !isDone ? <OnboardingProgressBanner onContinue={handleExitPreview} /> : null}
+
+        {!isDone && !previewMode ? (
           <View
             style={{
-              backgroundColor: palette.nrsGreenLight,
-              borderRadius: radius.xl,
-              padding: spacing.lg,
+              marginHorizontal: 24,
+              marginTop: 16,
+              backgroundColor: '#0D2B22',
+              borderColor: '#1D9E75',
               borderWidth: 1,
-              borderColor: palette.nrsGreen + '30',
-              gap: spacing.sm,
+              borderRadius: 20,
+              padding: 20,
             }}
           >
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-              <View style={{ width: 32, height: 32, borderRadius: radius.full, backgroundColor: palette.nrsGreen, alignItems: 'center', justifyContent: 'center' }}>
-                <Ionicons name="rocket" size={16} color={palette.white} />
-              </View>
-              <Text style={{ ...typography.h3, color: tokens.textPrimary, flex: 1 }}>{t('dashboard.resumeSetup.title')}</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <Text style={{ fontSize: 24 }}>🚀</Text>
+              <Text style={{ color: '#34D399', fontWeight: '700', fontSize: 16 }}>{t('dashboard.resumeSetup.title')}</Text>
             </View>
-            <Text style={{ ...typography.body, color: tokens.textSecondary }}>
-              {dashboardData.hadError ? t('dashboard.resumeSetup.fallbackBody') : t('dashboard.resumeSetup.body')}
-            </Text>
+            <Text style={{ color: '#6B7280', marginTop: 8, fontSize: 14 }}>{t('dashboard.resumeSetup.fallbackBody')}</Text>
             <Pressable
-              onPress={() => router.push(resumeRoute)}
+              onPress={() => router.push('/(onboarding)/business-type')}
               accessibilityRole="button"
               accessibilityLabel={t('dashboard.resumeSetup.action')}
-              style={({ pressed }) => ({
-                alignSelf: 'flex-start',
-                backgroundColor: palette.nrsGreen,
-                borderRadius: radius.lg,
-                paddingHorizontal: spacing.lg,
-                paddingVertical: spacing.sm,
-                flexDirection: 'row',
+              style={{
+                marginTop: 16,
+                backgroundColor: '#1D9E75',
+                borderRadius: 12,
+                paddingVertical: 14,
                 alignItems: 'center',
-                gap: spacing.xs,
-                opacity: pressed ? 0.85 : 1,
-              })}
+              }}
             >
-              <Text style={{ ...typography.bodyBold, color: palette.white }}>{t('dashboard.resumeSetup.action')}</Text>
-              <Ionicons name="arrow-forward" size={16} color={palette.white} />
+              <Text style={{ color: '#FFFFFF', fontWeight: '700' }}>{t('preview.cta')}</Text>
             </Pressable>
           </View>
         ) : null}
 
-        <View style={{ gap: spacing.md }}>
-          <Text style={{ ...typography.h3, color: tokens.textPrimary }}>{t('dashboard.quickActionsTitle')}</Text>
-          <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-            {quickActions.map((action) => (
-              <QuickActionCard key={action.key} label={action.label} route={action.route} icon={action.icon} />
-            ))}
-          </View>
-        </View>
-
-        <View style={{ gap: spacing.md }}>
-          <Text style={{ ...typography.h3, color: tokens.textPrimary }}>{t('dashboard.nudges.title')}</Text>
-          {dashboardData.nudges.length > 0 ? dashboardData.nudges.map((nudge) => (
-            <Pressable
-              key={nudge.id}
-              onPress={() => router.push(nudge.route)}
-              accessibilityRole="button"
-              accessibilityLabel={nudge.title}
-              accessibilityHint={nudge.actionLabel}
-              style={({ pressed }) => ({
-                backgroundColor: tokens.bgCard, borderRadius: radius.xl, padding: spacing.lg,
-                borderWidth: 1, borderColor: tokens.border, gap: spacing.sm,
-                opacity: pressed ? 0.85 : 1,
-              })}
-            >
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-                <Ionicons name={NUDGE_ICONS[nudge.id] ?? 'information-circle'} size={20} color={palette.nrsGreen} />
-                <Text style={{ ...typography.bodyBold, color: tokens.textPrimary, flex: 1 }}>{nudge.title}</Text>
-              </View>
-              <Text style={{ ...typography.body, color: tokens.textSecondary }}>{nudge.body}</Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
-                <Text style={{ ...typography.bodyBold, color: palette.nrsGreen }}>{nudge.actionLabel}</Text>
-                <Ionicons name="chevron-forward" size={14} color={palette.nrsGreen} />
-              </View>
-            </Pressable>
-          )) : (
-            <View style={{ backgroundColor: tokens.bgCard, borderRadius: radius.xl, padding: spacing.lg, borderWidth: 1, borderColor: tokens.border, gap: spacing.xs }}>
-              <Text style={{ ...typography.bodyBold, color: tokens.textPrimary }}>{t('dashboard.emptyState.title')}</Text>
-              <Text style={{ ...typography.body, color: tokens.textSecondary }}>{t('dashboard.emptyState.body')}</Text>
+        <View style={{ paddingHorizontal: 24, marginTop: 28 }}>
+          <Text style={{ color: '#9CA3AF', fontSize: 16, fontWeight: '600', marginBottom: 12 }}>{t('dashboard.nudges.title')}</Text>
+          {nudges.length > 0 ? (
+            nudges.map((nudge) => (
+              <Pressable
+                key={nudge.id}
+                onPress={() => router.push(nudge.route)}
+                accessibilityRole="button"
+                accessibilityLabel={nudge.title}
+                style={({ pressed }) => ({
+                  backgroundColor: '#1C1C1C',
+                  borderRadius: 16,
+                  padding: 20,
+                  marginBottom: 12,
+                  opacity: pressed ? 0.88 : 1,
+                })}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                  <View
+                    style={{
+                      width: 40,
+                      height: 40,
+                      backgroundColor: '#0D2B22',
+                      borderRadius: 12,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Ionicons name={getNudgeIcon(nudge.id)} size={20} color={palette.nrsGreen} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: '#F9FAFB', fontWeight: '600', fontSize: 15 }}>{nudge.title}</Text>
+                    <Text style={{ color: '#6B7280', fontSize: 13, marginTop: 4, lineHeight: 19 }}>{nudge.body}</Text>
+                    <Text style={{ color: '#34D399', fontSize: 13, fontWeight: '600', marginTop: 10 }}>{nudge.actionLabel}</Text>
+                  </View>
+                </View>
+              </Pressable>
+            ))
+          ) : (
+            <View style={{ backgroundColor: '#1C1C1C', borderRadius: 16, padding: 20 }}>
+              <Text style={{ color: '#F9FAFB', fontWeight: '600', fontSize: 15 }}>{t('dashboard.emptyState.title')}</Text>
+              <Text style={{ color: '#6B7280', fontSize: 13, marginTop: 6, lineHeight: 19 }}>{t('dashboard.emptyState.body')}</Text>
             </View>
           )}
         </View>
 
-        <View style={{ gap: spacing.md }}>
-          <Text style={{ ...typography.h3, color: tokens.textPrimary }}>{t('dashboard.obligations.title')}</Text>
-          <View style={{ backgroundColor: tokens.bgCard, borderRadius: radius.xl, padding: spacing.lg, borderWidth: 1, borderColor: tokens.border, gap: spacing.md }}>
-            {obligationRows.map((row, index) => (
-              <View key={row.key} style={{ gap: spacing.xs, paddingTop: index > 0 ? spacing.sm : 0, borderTopWidth: index > 0 ? 1 : 0, borderTopColor: tokens.border }}>
-                <Text style={{ ...typography.caption, color: tokens.textSecondary }}>{row.label}</Text>
-                <Text style={{ ...typography.bodyBold, color: tokens.textPrimary }}>{row.value}</Text>
-              </View>
+        <View style={{ paddingHorizontal: 24, marginTop: 28 }}>
+          <Text style={{ color: '#9CA3AF', fontSize: 16, fontWeight: '600', marginBottom: 12 }}>{t('dashboard.quickActionsTitle')}</Text>
+          <View style={{ flexDirection: 'row', gap: 12 }}>
+            {[
+              { icon: 'document-text' as const, label: t('tabs.invoices'), route: '/(tabs)/invoices' },
+              { icon: 'calendar' as const, label: t('tabs.calendar'), route: '/(tabs)/tax-calendar' },
+              { icon: 'shield-checkmark' as const, label: t('tabs.compliance'), route: '/(tabs)/compliance' },
+            ].map((action) => (
+              <Pressable
+                key={action.route}
+                onPress={() => {
+                  void Haptics.selectionAsync();
+                  router.push(action.route);
+                }}
+                accessibilityRole="button"
+                accessibilityLabel={action.label}
+                style={{
+                  flex: 1,
+                  backgroundColor: '#1C1C1C',
+                  borderRadius: 16,
+                  padding: 16,
+                  alignItems: 'center',
+                  gap: 10,
+                }}
+              >
+                <View
+                  style={{
+                    width: 48,
+                    height: 48,
+                    backgroundColor: '#0D2B22',
+                    borderRadius: 14,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Ionicons name={action.icon} size={24} color="#34D399" />
+                </View>
+                <Text style={{ color: '#F9FAFB', fontWeight: '500', fontSize: 13 }}>{action.label}</Text>
+              </Pressable>
             ))}
           </View>
         </View>
+
+        <EducativeTaxObligationsSection obligations={obligations} isPreviewMode={previewMode} />
       </ScrollView>
     </SafeAreaView>
   );

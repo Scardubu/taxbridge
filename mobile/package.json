@@ -116,6 +116,14 @@
         "@react-navigation/native",
         "@react-navigation/native-stack"
       ]
+    },
+    "doctor": {
+      "reactNativeDirectoryCheck": {
+        "enabled": false
+      },
+      "appConfigFieldsNotSyncedCheck": {
+        "enabled": false
+      }
     }
   },
   "private": true

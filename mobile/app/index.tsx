@@ -1,14 +1,10 @@
 import React from 'react';
 import { Redirect } from 'expo-router';
-import { DEFAULT_TAB_ROUTE, useIsOnboardingDone, useOnboardingHydrated } from '../stores/onboardingStore';
+import { DEFAULT_TAB_ROUTE, useIsOnboardingDone, useOnboardingStore } from '../stores/onboardingStore';
 
 export default function AppIndex() {
-  const isHydrated = useOnboardingHydrated();
   const isDone = useIsOnboardingDone();
+  const previewMode = useOnboardingStore((state) => state.previewMode);
 
-  if (!isHydrated) {
-    return null;
-  }
-
-  return <Redirect href={isDone ? DEFAULT_TAB_ROUTE : '/(onboarding)/'} />;
+  return <Redirect href={isDone || previewMode ? DEFAULT_TAB_ROUTE : '/(onboarding)'} />;
 }

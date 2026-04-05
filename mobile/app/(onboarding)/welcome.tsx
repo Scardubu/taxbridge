@@ -1,168 +1,252 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { Pressable, Text, View } from 'react-native';
-import { useTranslation } from 'react-i18next';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
 import * as Localization from 'expo-localization';
-import { OnboardingFrame, advanceToNext, skipSetupForNow } from './_shared';
-import { palette, radius, spacing, typography, useTokens } from '../../components/design-system/tokens';
+import * as Haptics from 'expo-haptics';
+import { useTranslation } from 'react-i18next';
+import { OnboardingErrorBoundary } from '../../components/OnboardingErrorBoundary';
+import { OnboardingProgressBar } from '../../components/OnboardingProgressBar';
 import { AppKV } from '../../storage/kv';
 import i18n, { normalizeLanguage, type SupportedLanguage } from '../../i18n';
+import { DEFAULT_TAB_ROUTE, useOnboardingStore } from '../../stores/onboardingStore';
+
+const LANGUAGE_OPTIONS: ReadonlyArray<{
+  code: SupportedLanguage;
+  flag: string;
+  labelKey: string;
+  accessibilityKey: string;
+}> = [
+  {
+    code: 'en',
+    flag: '🇬🇧',
+    labelKey: 'common.english',
+    accessibilityKey: 'onboarding.welcome.switchEnglish',
+  },
+  {
+    code: 'pidgin',
+    flag: '🇳🇬',
+    labelKey: 'common.pidgin',
+    accessibilityKey: 'onboarding.welcome.switchPidgin',
+  },
+];
+
+const HIGHLIGHTS: ReadonlyArray<{
+  key: 'setup' | 'offline' | 'deadlines';
+  icon: string;
+}> = [
+  { key: 'setup', icon: '📋' },
+  { key: 'offline', icon: '📡' },
+  { key: 'deadlines', icon: '📅' },
+];
 
 export default function WelcomeScreen() {
   const { t } = useTranslation();
-  const tokens = useTokens();
-  const [lang, setLang] = useState<SupportedLanguage>(normalizeLanguage(i18n.resolvedLanguage));
-  const highlights = [
-    { key: 'setup', icon: '📋', color: palette.nrsGreenLight },
-    { key: 'offline', icon: '📡', color: palette.blue50 },
-    { key: 'deadlines', icon: '📅', color: palette.amber50 },
-  ] as const;
+  const setPreviewMode = useOnboardingStore((state) => state.setPreviewMode);
+  const language = normalizeLanguage(i18n.resolvedLanguage);
 
-  // UX-05 fix: Detect Nigerian locale on first load, suggest Pidgin
   useEffect(() => {
-    const stored = normalizeLanguage(i18n.resolvedLanguage);
-    if (stored === 'en') {
-      const locales = Localization.getLocales();
-      const isNigerian = locales.some(
-        (l) =>
-          l.regionCode === 'NG' ||
-          l.languageTag?.startsWith('yo') ||
-          l.languageTag?.startsWith('ha') ||
-          l.languageTag?.startsWith('ig')
-      );
-      if (isNigerian) {
-        setLang('pidgin');
-        AppKV.prefs.setLanguage('pidgin');
-        void i18n.changeLanguage('pidgin');
-      }
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    useOnboardingStore.setState({ currentStepId: 'welcome' });
   }, []);
 
-  const toggleLang = async (newLang: SupportedLanguage) => {
-    setLang(newLang);
-    AppKV.prefs.setLanguage(newLang);
-    await i18n.changeLanguage(newLang);
+  useEffect(() => {
+    if (language !== 'en') {
+      return;
+    }
+
+    const isNigerianLocale = Localization.getLocales().some((locale) => {
+      const tag = locale.languageTag ?? '';
+      return locale.regionCode === 'NG' || tag.startsWith('en-NG') || tag.startsWith('pcm');
+    });
+
+    if (isNigerianLocale) {
+      AppKV.prefs.setLanguage('pidgin');
+      void i18n.changeLanguage('pidgin');
+    }
+  }, [language]);
+
+  const handleGetStarted = () => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setPreviewMode(false);
+    router.push('/(onboarding)/business-type');
+  };
+
+  const handleExploreFirst = () => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setPreviewMode(true);
+    router.replace(DEFAULT_TAB_ROUTE);
+  };
+
+  const handleLanguageToggle = (nextLanguage: SupportedLanguage) => {
+    void Haptics.selectionAsync();
+    AppKV.prefs.setLanguage(nextLanguage);
+    void i18n.changeLanguage(nextLanguage);
   };
 
   return (
-    <OnboardingFrame
-      stepId="welcome"
-      title={t('onboarding.welcome.headline')}
-      body={t('onboarding.welcome.subheadline')}
-      primaryLabel={t('onboarding.welcome.cta')}
-      onPrimary={() => void advanceToNext('welcome')}
-      secondaryLabel={t('onboarding.welcome.skipCta')}
-      onSecondary={() => void skipSetupForNow()}
-    >
-      {/* UX-05: Prominent language toggle — not buried in settings */}
-      <View
-        style={{
-          flexDirection: 'row',
-          backgroundColor: tokens.bgCard,
-          borderRadius: radius.xl,
-          padding: spacing.xs,
-          gap: spacing.xs,
-        }}
-      >
-        {(['en', 'pidgin'] as const).map((l) => (
-          <Pressable
-            key={l}
-            onPress={() => void toggleLang(l)}
-            accessibilityRole="button"
-            accessibilityLabel={l === 'en' ? t('common.english') : t('common.pidgin')}
-            accessibilityState={{ selected: lang === l }}
-            style={{
-              flex: 1,
-              alignItems: 'center',
-              paddingVertical: spacing.sm + 2,
-              borderRadius: radius.lg,
-              backgroundColor: lang === l ? palette.nrsGreen : 'transparent',
-              flexDirection: 'row',
-              justifyContent: 'center',
-              gap: spacing.xs,
-            }}
-          >
-            <Text style={{ fontSize: 16 }}>{l === 'en' ? '🇬🇧' : '🇳🇬'}</Text>
-            <Text
-              style={{
-                ...typography.bodyBold,
-                color: lang === l ? palette.white : tokens.textSecondary,
-              }}
-            >
-              {l === 'en' ? t('common.english') : t('common.pidgin')}
+    <OnboardingErrorBoundary stepId="welcome">
+      <SafeAreaView edges={['top', 'bottom']} style={{ flex: 1, backgroundColor: '#0a0a0a' }}>
+        <View style={{ flex: 1 }}>
+          <View style={{ paddingHorizontal: 24, paddingTop: 16 }}>
+            <OnboardingProgressBar percent={0} />
+          </View>
+
+          <View style={{ flex: 1, paddingHorizontal: 24, paddingTop: 32 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+              <View
+                style={{
+                  width: 36,
+                  height: 36,
+                  backgroundColor: '#1D9E75',
+                  borderRadius: 10,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Text style={{ fontSize: 20 }}>🇳🇬</Text>
+              </View>
+              <Text style={{ color: '#1D9E75', fontWeight: '600', fontSize: 13, letterSpacing: 1.5 }}>
+                {t('onboarding.eyebrow.welcome')}
+              </Text>
+            </View>
+
+            <Text style={{ fontSize: 42, fontWeight: '800', color: '#FFFFFF', lineHeight: 46, marginBottom: 12 }}>
+              {t('onboarding.welcome.headline')}
             </Text>
-          </Pressable>
-        ))}
-      </View>
+            <Text style={{ color: '#9CA3AF', fontSize: 16, marginBottom: 36 }}>
+              {t('onboarding.welcome.subheadline')}
+            </Text>
 
-      {/* What you'll set up */}
-      <View
-        style={{
-          backgroundColor: palette.nrsGreenLight,
-          borderRadius: radius.xl,
-          padding: spacing.lg,
-          gap: spacing.sm,
-          borderWidth: 1,
-          borderColor: `${palette.nrsGreen}20`,
-        }}
-      >
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-          <Text style={{ fontSize: 18 }}>🛡️</Text>
-          <Text style={{ ...typography.h3, color: palette.nrsGreenDim }}>
-            {t('onboarding.welcome.featureTitle')}
-          </Text>
-        </View>
-        <Text style={{ ...typography.body, color: palette.gray600, lineHeight: 22 }}>
-          {t('onboarding.welcome.featureBody')}
-        </Text>
-      </View>
+            <View style={{ flexDirection: 'row', backgroundColor: '#1C1C1C', borderRadius: 24, padding: 4, marginBottom: 36 }}>
+              {LANGUAGE_OPTIONS.map((option) => {
+                const selected = language === option.code;
+                const languageOptionStyle = {
+                  flex: 1,
+                  paddingVertical: 14,
+                  borderRadius: 20,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexDirection: 'row',
+                  gap: 8,
+                  backgroundColor: selected ? '#1D9E75' : 'transparent',
+                  transitionProperty: 'background-color',
+                  transitionDuration: '200ms',
+                } as any;
 
-      {/* Feature highlights */}
-      <View style={{ gap: spacing.sm }}>
-        {highlights.map(({ key, icon, color }) => (
-          <View
-            key={key}
-            style={{
-              backgroundColor: tokens.bgCard,
-              borderRadius: radius.xl,
-              padding: spacing.lg,
-              borderWidth: 1,
-              borderColor: tokens.border,
-              flexDirection: 'row',
-              gap: spacing.md,
-              alignItems: 'flex-start',
-            }}
-          >
+                return (
+                  <Pressable
+                    key={option.code}
+                    onPress={() => handleLanguageToggle(option.code)}
+                    accessibilityRole="button"
+                    accessibilityLabel={t(option.accessibilityKey)}
+                    accessibilityState={{ selected }}
+                    style={languageOptionStyle}
+                  >
+                    <Text style={{ fontSize: 18 }}>{option.flag}</Text>
+                    <Text
+                      style={{
+                        fontWeight: '600',
+                        fontSize: 15,
+                        color: selected ? '#FFFFFF' : '#9CA3AF',
+                      }}
+                    >
+                      {t(option.labelKey)}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
             <View
               style={{
-                width: 40,
-                height: 40,
-                borderRadius: radius.lg,
-                backgroundColor: color,
-                alignItems: 'center',
-                justifyContent: 'center',
+                backgroundColor: 'rgba(16,74,56,0.35)',
+                borderColor: '#0F6E56',
+                borderWidth: 1,
+                borderRadius: 20,
+                padding: 20,
+                marginBottom: 16,
               }}
             >
-              <Text style={{ fontSize: 20 }}>{icon}</Text>
-            </View>
-            <View style={{ flex: 1, gap: spacing.xs }}>
-              <Text style={{ ...typography.bodyBold, color: tokens.textPrimary }}>
-                {t(`onboarding.welcome.highlights.${key}.title`)}
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Text style={{ fontSize: 20 }}>🛡️</Text>
+                <Text style={{ color: '#34D399', fontWeight: '700', fontSize: 17, flex: 1 }}>
+                  {t('onboarding.welcome.featureTitle')}
+                </Text>
+                <View style={{ backgroundColor: '#064E3B', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 }}>
+                  <Text style={{ color: '#6EE7B7', fontSize: 11, fontWeight: '600' }}>
+                    {t('onboarding.welcome.featureBadge')}
+                  </Text>
+                </View>
+              </View>
+              <Text style={{ color: '#9CA3AF', marginTop: 8, fontSize: 14, lineHeight: 20 }}>
+                {t('onboarding.welcome.featureBody')}
               </Text>
-              <Text style={{ ...typography.body, color: tokens.textSecondary, lineHeight: 21 }}>
-                {t(`onboarding.welcome.highlights.${key}.body`)}
-              </Text>
             </View>
-          </View>
-        ))}
-      </View>
 
-      {/* Time estimate */}
-      <View style={{ alignItems: 'center', paddingTop: spacing.xs }}>
-        <Text style={{ ...typography.caption, color: tokens.textMuted }}>
-          {t('onboarding.welcome.timeEstimate')}
-        </Text>
-      </View>
-    </OnboardingFrame>
+            {HIGHLIGHTS.map((item) => (
+              <View
+                key={item.key}
+                style={{ flexDirection: 'row', gap: 14, marginBottom: 20, alignItems: 'flex-start' }}
+              >
+                <View
+                  style={{
+                    width: 44,
+                    height: 44,
+                    backgroundColor: '#1C1C1C',
+                    borderRadius: 14,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Text style={{ fontSize: 22 }}>{item.icon}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: '#F9FAFB', fontWeight: '600', fontSize: 15, marginBottom: 4 }}>
+                    {t(`onboarding.welcome.highlights.${item.key}.title`)}
+                  </Text>
+                  <Text style={{ color: '#6B7280', fontSize: 13, lineHeight: 19 }}>
+                    {t(`onboarding.welcome.highlights.${item.key}.body`)}
+                  </Text>
+                </View>
+              </View>
+            ))}
+          </View>
+
+          <View style={{ paddingHorizontal: 24, paddingBottom: 16 }}>
+            <Text style={{ color: '#6B7280', fontSize: 12, textAlign: 'center', marginBottom: 20 }}>
+              {t('onboarding.welcome.timeEstimate')}
+            </Text>
+
+            <Pressable
+              onPress={handleGetStarted}
+              accessibilityRole="button"
+              accessibilityLabel={t('onboarding.welcome.ctaHint')}
+              style={{
+                backgroundColor: '#1D9E75',
+                borderRadius: 16,
+                paddingVertical: 18,
+                alignItems: 'center',
+                marginBottom: 12,
+              }}
+            >
+              <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: 17 }}>
+                {t('onboarding.getStarted')}
+              </Text>
+            </Pressable>
+
+            <Pressable
+              onPress={handleExploreFirst}
+              accessibilityRole="button"
+              accessibilityLabel={t('onboarding.welcome.skipCta')}
+              style={{ paddingVertical: 14, alignItems: 'center' }}
+            >
+              <Text style={{ color: '#6B7280', fontSize: 15 }}>
+                {t('onboarding.exploreDash')}
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      </SafeAreaView>
+    </OnboardingErrorBoundary>
   );
 }

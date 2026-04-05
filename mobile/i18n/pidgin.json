@@ -19,9 +19,12 @@
       "cta": "Make We Start",
       "skipCta": "Make I see dashboard first",
       "ctaHint": "Start TaxBridge setup",
+      "switchEnglish": "Change am to English",
+      "switchPidgin": "Change am to Pidgin",
       "termsNote": "If you continue, e mean say you agree to our Terms of Service",
       "timeEstimate": "E go take like 3 minutes — your progress dey save automatically",
       "featureTitle": "Tax waka wey work for Nigeria",
+      "featureBadge": "NRS 2026",
       "featureBody": "Security onboarding, offline saving, and tax guidance wey dey personalised for your own business.",
       "highlights": {
         "setup": {
@@ -38,6 +41,8 @@
         }
       }
     },
+    "exploreDash": "Make I look around first",
+    "getStarted": "Make we begin",
     "businessType": {
       "title": "Tell Us About\nYour Business",
       "subtitle": "Your business type and size go determine your CIT rate, VAT filing, and e-invoice timeline. E go take small time.",
@@ -197,6 +202,44 @@
     "obligations": { "title": "Your Tax Waka" },
     "quickAction": { "invoice": "Make Invoice", "payTax": "Pay Tax", "simulate": "Tax Calculator" }
   },
+  "preview": {
+    "banner": "Preview Mode — finish setup to get your real dashboard",
+    "cta": "Finish Setup",
+    "data": "Preview data"
+  },
+  "shield": {
+    "fullyProtected": "You fully protected",
+    "moderate": "You moderate protected",
+    "partial": "You small-small protected",
+    "none": "You never start yet",
+    "percentProtected": "{{score}}% Protected"
+  },
+  "obligations": {
+    "status": {
+      "citRate": "{{rate}}%"
+    },
+    "portalLabel": "FIRS portal: {{portal}}",
+    "vatRegistration": {
+      "title": "VAT Registration",
+      "threshold": "You go need am when annual turnover pass ₦25 million.",
+      "action": "If your turnover never reach ₦25M, you no need register yet."
+    },
+    "vatFiling": {
+      "title": "VAT Filing",
+      "threshold": "If you don register for VAT, file am by every 21st of the month.",
+      "action": "Submit am through the FIRS e-invoice portal or your TaxBridge dashboard."
+    },
+    "eInvoicing": {
+      "title": "E-Invoicing Phase",
+      "threshold": "Big taxpayers: enforcement from April 2026. Medium: July 2026. Small: July 2027.",
+      "action": "Check your phase from your turnover and begin issue FIRS-compliant e-invoices."
+    },
+    "cit": {
+      "title": "Company Income Tax (CIT)",
+      "threshold": "Company wey turnover no pass ₦25M fit pay 0% CIT under small company exemption.",
+      "action": "File annual returns by June 30 after your financial year end."
+    }
+  },
   "tabs": {
     "dashboard": "Dashboard",
     "invoices": "Invoices",
@@ -226,6 +269,10 @@
   },
   "compliance": {
     "title": "Compliance",
+    "excellent": "E don excellent — make you continue!",
+    "good": "You dey do well — small things remain",
+    "actionNeeded": "Action dey needed — improve your shield",
+    "getStarted": "Make we set you up",
     "vatRegistration": "VAT registration",
     "vatFiling": "VAT filing",
     "einvoicePhase": "E-invoice phase",
@@ -271,6 +318,7 @@
   "common": {
     "back": "Go Back",
     "continue": "Continue",
+    "dismiss": "Comot am",
     "skip": "Skip",
     "loading": "E dey load...",
     "error": "Something break",

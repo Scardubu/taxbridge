@@ -4,7 +4,7 @@ import { Redirect, Tabs } from 'expo-router';
 import { Icon, Label, NativeTabs } from 'expo-router/unstable-native-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
-import { useIsOnboardingDone, useOnboardingHydrated } from '../../stores/onboardingStore';
+import { useIsOnboardingDone, useOnboardingStore } from '../../stores/onboardingStore';
 
 // SDK-08: NativeTabs crashes on iOS 18 dev builds — guard with platform check.
 // Use NativeTabs on production iOS and all Android; fall back to Tabs elsewhere.
@@ -61,15 +61,11 @@ function getFallbackScreenOptions(routeName: string) {
 }
 
 export default function TabsLayout() {
-  const isHydrated = useOnboardingHydrated();
   const isDone = useIsOnboardingDone();
+  const previewMode = useOnboardingStore((state) => state.previewMode);
   const { t } = useTranslation();
 
-  if (!isHydrated) {
-    return null;
-  }
-
-  if (!isDone) return <Redirect href="/(onboarding)/" />;
+  if (!isDone && !previewMode) return <Redirect href="/(onboarding)" />;
 
   if (USE_NATIVE_TABS) {
     return (
