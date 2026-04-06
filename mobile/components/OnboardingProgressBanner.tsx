@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useTranslation } from 'react-i18next';
+import { Colors, Typography, Spacing, Radii } from './design-system/tokens';
 
 interface Props {
   onContinue: () => void;
@@ -10,58 +11,60 @@ interface Props {
 export function OnboardingProgressBanner({ onContinue }: Readonly<Props>) {
   const { t } = useTranslation();
   const [dismissed, setDismissed] = useState(false);
-  const bannerStyle = {
-    marginHorizontal: 24,
-    marginTop: 16,
-    backgroundColor: '#064E3B',
-    borderColor: '#059669',
-    borderWidth: 1,
-    borderRadius: 16,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    opacity: 1,
-    transform: [{ translateY: 0 }],
-    transitionProperty: ['opacity', 'transform'],
-    transitionDuration: '220ms',
-  } as any;
 
-  if (dismissed) {
-    return null;
-  }
+  if (dismissed) return null;
 
   return (
-    <View style={bannerStyle}>
-      <Text style={{ fontSize: 22 }}>🚀</Text>
-      <Text style={{ flex: 1, color: '#D1FAE5', fontSize: 13, lineHeight: 18 }}>
-        {t('preview.banner')}
-      </Text>
-      <Pressable
-        onPress={() => {
-          void Haptics.selectionAsync();
-          onContinue();
-        }}
-        accessibilityRole="button"
-        accessibilityLabel={t('preview.cta')}
+    <View
+      style={{
+        marginHorizontal: Spacing.xxl,
+        marginTop: Spacing.lg,
+        backgroundColor: Colors.status.successBg,
+        borderColor: Colors.status.successBorder,
+        borderWidth: 1,
+        borderRadius: Radii.lg,
+        padding: Spacing.lg,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: Spacing.md,
+      }}
+    >
+      <Text style={{ fontSize: 20 }}>\uD83D\uDE80</Text>
+      <Text
         style={{
-          backgroundColor: '#10B981',
-          borderRadius: 10,
-          paddingHorizontal: 14,
-          paddingVertical: 8,
+          flex: 1,
+          ...Typography.caption,
+          color: Colors.status.successText,
+          lineHeight: 18,
         }}
       >
-        <Text style={{ color: '#FFFFFF', fontWeight: '700', fontSize: 13 }}>
-          {t('preview.cta')}
+        {t('dashboard.bannerBody')}
+      </Text>
+      <Pressable
+        onPress={() => { void Haptics.selectionAsync(); onContinue(); }}
+        accessibilityRole="button"
+        accessibilityLabel={t('dashboard.bannerCta')}
+        style={{
+          backgroundColor: Colors.brand.primary,
+          borderRadius: Radii.sm,
+          paddingHorizontal: Spacing.md,
+          paddingVertical: Spacing.sm,
+        }}
+      >
+        <Text style={{ color: Colors.ui.white, ...Typography.micro, fontWeight: '700' }}>
+          {t('dashboard.bannerCta')}
         </Text>
       </Pressable>
       <Pressable
-        onPress={() => setDismissed(true)}
+        onPress={() => {
+          void Haptics.selectionAsync();
+          setDismissed(true);
+        }}
         accessibilityRole="button"
         accessibilityLabel={t('common.dismiss')}
         style={{ padding: 4 }}
       >
-        <Text style={{ color: '#6EE7B7', fontSize: 18 }}>×</Text>
+        <Text style={{ color: Colors.brand.badge, fontSize: 18 }}>×</Text>
       </Pressable>
     </View>
   );
