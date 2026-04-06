@@ -6,6 +6,10 @@ import * as SQLite from 'expo-sqlite';
 let _db: SQLite.SQLiteDatabase | null = null;
 let _dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
+export async function initDatabase(): Promise<void> {
+  await getDatabase();
+}
+
 export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
   if (_db) return _db;
   // Deduplicate concurrent initialisation calls

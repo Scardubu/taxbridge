@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
+import * as Sentry from '@sentry/react-native';
 import { AppKV, zustandKvStorage } from '../storage/kv';
 import { apiRequest } from '../services/api';
 import { logComplianceEvent } from '../services/complianceEventService';
@@ -20,8 +21,8 @@ export type StepId = typeof STEP_IDS[keyof typeof STEP_IDS];
 
 export const DEFAULT_TAB_ROUTE = '/(tabs)' as const;
 
-export const STEP_ROUTES: Record<StepId, `/(onboarding)/${string}`> = {
-  welcome: '/(onboarding)/welcome',
+export const STEP_ROUTES: Record<StepId, `/(onboarding)${string}`> = {
+  welcome: '/(onboarding)',
   'business-type': '/(onboarding)/business-type',
   'tin-verify': '/(onboarding)/tin-verify',
   'vat-setup': '/(onboarding)/vat-setup',
@@ -78,7 +79,7 @@ function mirrorOnboardingState(currentStepId: StepId, isComplete: boolean) {
 }
 
 interface OnboardingStore {
-  currentStepId: StepId;
+  currentStepId: StepId | 'done';
   completedSteps: StepId[];
   isComplete: boolean;
   schemaVersion: number;
@@ -128,6 +129,7 @@ export const useOnboardingStore = create<OnboardingStore>()(
       },
       goNext: async () => {
         const { currentStepId, completedSteps } = get();
+        if (currentStepId === 'done') return;
         const idx = STEPS.findIndex((step) => step.id === currentStepId);
         const newCompleted = completedSteps.includes(currentStepId)
           ? completedSteps
@@ -171,6 +173,7 @@ export const useOnboardingStore = create<OnboardingStore>()(
       },
       skipAllOptional: async () => {
         const { completedSteps, currentStepId } = get();
+        if (currentStepId === 'done') { await get().complete(); return; }
         const optionalIds = STEPS.filter((step) => !step.required).map((step) => step.id);
         const requiredDone = getUniqueSteps([
           ...deriveCompletedSteps(currentStepId),
@@ -187,7 +190,7 @@ export const useOnboardingStore = create<OnboardingStore>()(
 
         set({ currentStepId: resumeStepId, completedSteps, isComplete: true, previewMode: false });
         mirrorOnboardingState(resumeStepId, true);
-        void AppKV.flags.setPreviewMode(false);
+        await AppKV.flags.clearPreviewMode();
 
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         logComplianceEvent('onboarding_complete', 'User skipped onboarding for now', 'info', { skipped: true }).catch(() => undefined);
@@ -196,11 +199,14 @@ export const useOnboardingStore = create<OnboardingStore>()(
       },
       complete: async () => {
         const { currentStepId, completedSteps } = get();
-        const finalizedSteps = getUniqueSteps([...completedSteps, currentStepId]);
+        const finalizedSteps = getUniqueSteps([
+          ...completedSteps,
+          ...(currentStepId === 'done' ? [] : [currentStepId]),
+        ]);
 
-        await AppKV.flags.setPreviewMode(false);
-        set({ isComplete: true, completedSteps: finalizedSteps, previewMode: false });
-        mirrorOnboardingState(currentStepId, true);
+        set({ currentStepId: 'done', isComplete: true, completedSteps: finalizedSteps, previewMode: false });
+        await AppKV.flags.clearPreviewMode();
+        mirrorOnboardingState(STEP_IDS.COMMUNITY, true);
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         apiRequest('/api/v1/onboarding/complete', { method: 'POST' }).catch(() => undefined);
         await logComplianceEvent('onboarding_complete', 'User completed onboarding', 'info').catch(() => undefined);
@@ -217,18 +223,21 @@ export const useOnboardingStore = create<OnboardingStore>()(
         schemaVersion: state.schemaVersion,
       }),
       onRehydrateStorage: () => async (state, error) => {
-        if (error) {
+        if (!error) {
+          try {
+            state?.migrateIfNeeded();
+            const persisted = await AppKV.flags.getPreviewMode();
+            useOnboardingStore.setState({
+              _hasHydrated: true,
+              previewMode: persisted,
+            });
+          } catch {
+            useOnboardingStore.setState({ _hasHydrated: true });
+          }
+        } else {
           useOnboardingStore.setState({ _hasHydrated: true });
-          return;
+          Sentry.captureException(error);
         }
-
-        state?.migrateIfNeeded();
-        const persistedPreviewMode = await AppKV.flags.getPreviewMode();
-        useOnboardingStore.setState({
-          _hasHydrated: true,
-          previewMode: persistedPreviewMode,
-        });
-        void AppKV.flags.setStoreReady();
       },
     }
   )
@@ -237,6 +246,7 @@ export const useOnboardingStore = create<OnboardingStore>()(
 export const useCurrentStepId = () => useOnboardingStore((state) => state.currentStepId);
 export const useIsOnboardingDone = () => useOnboardingStore((state) => state.isComplete);
 export const useStoreHydrated = () => useOnboardingStore((state) => state._hasHydrated);
+export const usePreviewMode = () => useOnboardingStore((state) => state.previewMode);
 export const useOnboardingHydrated = useStoreHydrated;
 export const useResumeStepId = () =>
   useOnboardingStore((state) => getNextUnfinishedStepId(state.completedSteps));

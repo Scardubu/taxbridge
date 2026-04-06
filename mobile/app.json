@@ -54,9 +54,10 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon-square.png",
-        "backgroundColor": "#FFFFFF"
+        "backgroundColor": "#0A0A0A"
       },
       "package": "ng.taxbridge.app",
+      "versionCode": 13,
       "permissions": [
         "CAMERA",
         "READ_EXTERNAL_STORAGE",

@@ -102,6 +102,18 @@ export class OfflineQueue {
     }
   }
 
+  async getPendingCount(): Promise<number> {
+    try {
+      const db = await getDatabase();
+      const result = await db.getFirstAsync<{ count: number }>(
+        "SELECT COUNT(*) as count FROM offline_operations WHERE status IN ('pending', 'syncing')"
+      );
+      return result?.count ?? 0;
+    } catch {
+      return 0;
+    }
+  }
+
   destroy() {
     this.unsubscribe?.();
     OfflineQueue.instance = null;

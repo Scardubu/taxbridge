@@ -57,6 +57,15 @@ jest.mock('react-i18next', () => ({
 jest.mock('../../stores/onboardingStore', () => ({
   useOnboardingStore: (selector: (state: { previewMode: boolean }) => unknown) => selector({ previewMode: mockPreviewMode }),
   useIsOnboardingDone: () => mockOnboardingDone,
+  useCurrentStepId: () => 'welcome',
+  STEP_ROUTES: {
+    welcome: '/(onboarding)',
+    'business-type': '/(onboarding)/business-type',
+    'tin-verify': '/(onboarding)/tin-verify',
+    'vat-setup': '/(onboarding)/vat-setup',
+    einvoice: '/(onboarding)/einvoice',
+    community: '/(onboarding)/community',
+  },
 }));
 
 jest.mock('../../stores/businessProfileStore', () => ({
@@ -77,11 +86,42 @@ jest.mock('../../services/offlineQueue', () => ({
 }));
 
 jest.mock('../../components/TaxShieldRing', () => ({
-  TaxShieldRing: ({ compliance }: { compliance: number }) => require('react').createElement('Text', null, `ring:${compliance}`),
+  TaxShieldRing: ({ score }: { score: number }) => require('react').createElement('Text', null, `ring:${score}`),
 }));
 
 jest.mock('../../components/OfflineIndicator', () => ({
   OfflineIndicator: () => null,
+}));
+
+jest.mock('../../components/OnboardingProgressBanner', () => ({
+  OnboardingProgressBanner: ({ onContinue }: { onContinue: () => void }) => {
+    const React = require('react');
+    const { Text, Pressable } = require('react-native');
+    const { useTranslation } = require('react-i18next');
+    const { t } = useTranslation();
+    return React.createElement(
+      Pressable,
+      { onPress: onContinue, accessibilityLabel: 'continue-banner' },
+      React.createElement(Text, null, t('dashboard.bannerBody')),
+      React.createElement(Text, null, t('dashboard.bannerCta')),
+    );
+  },
+}));
+
+jest.mock('../../services/tokenService', () => ({
+  TokenService: {
+    getAccessToken: jest.fn().mockResolvedValue(null),
+    setAccessToken: jest.fn().mockResolvedValue(undefined),
+    clearAccessToken: jest.fn().mockResolvedValue(undefined),
+  },
+}));
+
+jest.mock('../../services/sseService', () => ({
+  sseService: {
+    connect: jest.fn(),
+    disconnect: jest.fn(),
+    on: jest.fn().mockReturnValue(() => undefined),
+  },
 }));
 
 describe('mobile v7 dashboard', () => {
@@ -122,7 +162,7 @@ describe('mobile v7 dashboard', () => {
   test('renders preview mode with a zero score and neutral shield copy', () => {
     const screen = render(<DashboardTab />);
 
-    expect(screen.getByText(mockEn.preview.banner)).toBeTruthy();
+    expect(screen.getByText(mockEn.dashboard.bannerBody)).toBeTruthy();
     expect(screen.getByText(mockEn.shield.none)).toBeTruthy();
     expect(screen.getByText(mockEn.compliance.getStarted)).toBeTruthy();
     expect(screen.getAllByText('🚀').length).toBeGreaterThan(0);
@@ -135,7 +175,7 @@ describe('mobile v7 dashboard', () => {
 
     const screen = render(<DashboardTab />);
 
-    expect(screen.getByText(mockPidgin.preview.banner)).toBeTruthy();
+    expect(screen.getByText(mockPidgin.dashboard.bannerBody)).toBeTruthy();
     expect(screen.getByText(mockPidgin.shield.none)).toBeTruthy();
     expect(screen.getByText(mockPidgin.compliance.getStarted)).toBeTruthy();
   });

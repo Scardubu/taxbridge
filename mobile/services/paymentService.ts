@@ -69,3 +69,13 @@ export async function verifyPayment(reference: string) {
     method: 'GET',
   });
 }
+
+export async function markPaymentConfirmed(remitaRrr: string): Promise<void> {
+  const db = await getDatabase();
+  await db.runAsync(
+    `UPDATE tax_payments
+     SET status = 'successful', completed_at = datetime('now')
+     WHERE remita_rrr = ?`,
+    [remitaRrr]
+  );
+}

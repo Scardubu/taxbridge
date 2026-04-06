@@ -43,6 +43,18 @@
     },
     "exploreDash": "Make I look around first",
     "getStarted": "Make we begin",
+    "gettingStarted": "MAKE WE START",
+    "headline": "Your Tax Paddy, Built for Nigeria",
+    "subheadline": "VAT, CIT, TIN and e-invoice. E dey work offline. E sabi Pidgin!",
+    "nrsTitle": "Tax waka wey work for Nigeria",
+    "nrsBody": "Security onboarding, offline saving, and tax guidance wey dey personalised for your own business.",
+    "feature1Title": "Guided setup wey clear",
+    "feature1Body": "We go explain each tax step for simple language so you know wetin dey urgent and wetin fit wait.",
+    "feature2Title": "Built for bad network",
+    "feature2Body": "Your progress go save for phone first, then sync later when network come back.",
+    "feature3Title": "Deadline wey match your business",
+    "feature3Body": "Your answers go turn to clear VAT, WHT, CIT, and e-invoice next steps for dashboard.",
+    "timeEstimate": "E go take like 3 minutes — your progress dey save automatically",
     "businessType": {
       "title": "Tell Us About\nYour Business",
       "subtitle": "Your business type and size go determine your CIT rate, VAT filing, and e-invoice timeline. E go take small time.",
@@ -147,6 +159,23 @@
     "title": "Dashboard",
     "greeting": "How far",
     "yourBusiness": "Your Business",
+    "defaultName": "Your Business",
+    "previewMode": "Preview Mode",
+    "previewData": "Preview data",
+    "protected": "Protected",
+    "finishSetupTitle": "Finish your guided setup",
+    "finishSetupBody": "Complete small setup make we fit show clearer tax nudges and better compliance guidance.",
+    "continueSetup": "Continue Setup",
+    "actionRequired": "Action Needed",
+    "allClear": "You don clear!",
+    "allClearBody": "No urgent nudge for now. Check your obligations below or open invoices make your records stay complete.",
+    "quickActions": "Quick Actions",
+    "taxObligations": "Your Tax Waka",
+    "invoices": "Invoices",
+    "calendar": "Calendar",
+    "compliance": "Compliance",
+    "bannerBody": "Finish setup to unlock your full compliance score",
+    "bannerCta": "Continue →",
     "quickActionsTitle": "Quick actions",
     "loading": {
       "title": "We dey prepare your dashboard",
@@ -168,7 +197,9 @@
       "good": "Your compliance dey okay",
       "needsWork": "You need do some things to protect your business"
     },
-    "nudges": { "title": "Action Needed" },
+    "nudges": {
+      "title": "Action Needed"
+    },
     "nudgeCards": {
       "deadline": {
         "action": "Open calendar"
@@ -199,8 +230,14 @@
         "action": "View readiness"
       }
     },
-    "obligations": { "title": "Your Tax Waka" },
-    "quickAction": { "invoice": "Make Invoice", "payTax": "Pay Tax", "simulate": "Tax Calculator" }
+    "obligations": {
+      "title": "Your Tax Waka"
+    },
+    "quickAction": {
+      "invoice": "Make Invoice",
+      "payTax": "Pay Tax",
+      "simulate": "Tax Calculator"
+    }
   },
   "preview": {
     "banner": "Preview Mode — finish setup to get your real dashboard",
@@ -215,6 +252,7 @@
     "percentProtected": "{{score}}% Protected"
   },
   "obligations": {
+    "tapToLearn": "Tap make you learn more about this obligation",
     "status": {
       "citRate": "{{rate}}%"
     },
@@ -224,21 +262,28 @@
       "threshold": "You go need am when annual turnover pass ₦25 million.",
       "action": "If your turnover never reach ₦25M, you no need register yet."
     },
-    "vatFiling": {
-      "title": "VAT Filing",
-      "threshold": "If you don register for VAT, file am by every 21st of the month.",
-      "action": "Submit am through the FIRS e-invoice portal or your TaxBridge dashboard."
-    },
+    "vatFiling": "VAT Filing",
     "eInvoicing": {
       "title": "E-Invoicing Phase",
       "threshold": "Big taxpayers: enforcement from April 2026. Medium: July 2026. Small: July 2027.",
       "action": "Check your phase from your turnover and begin issue FIRS-compliant e-invoices."
     },
-    "cit": {
-      "title": "Company Income Tax (CIT)",
-      "threshold": "Company wey turnover no pass ₦25M fit pay 0% CIT under small company exemption.",
-      "action": "File annual returns by June 30 after your financial year end."
-    }
+    "cit": "Company Income Tax (CIT)",
+    "vatReg": "VAT Registration",
+    "vatRegThreshold": "E require when your yearly turnover pass ₦25 million. If e never reach, you no need register yet.",
+    "vatRegAction": "If you think say you go reach ₦25M this year, register early so you no get penalty.",
+    "vatFilingThreshold": "If you done register for VAT, you must file return before 21st every month.",
+    "vatFilingAction": "Submit through FIRS e-invoice portal or your TaxBridge dashboard. Even nil return must go.",
+    "eInvoice": "E-Invoice Phase",
+    "eInvoiceThreshold": "Big company (turnover ≥ ₦1B): enforcement April 2026. Medium: July 2026. Small: July 2027.",
+    "eInvoiceAction": "Start issue FIRS e-invoice before your phase deadline to avoid 150% penalty.",
+    "citThreshold": "Company wey turnover no reach ₦25M dey pay 0% CIT — small company exemption.",
+    "citAction": "File annual return with FIRS before June 30 after your financial year end.",
+    "required": "E dey required",
+    "requiredMonthly": "E dey required every month",
+    "notRequired": "E no dey require for now",
+    "citZero": "0% — small company exemption",
+    "pending": "E never assess"
   },
   "tabs": {
     "dashboard": "Dashboard",
@@ -248,16 +293,41 @@
     "settings": "Settings"
   },
   "tax": {
-    "cit": { "label": "Company Income Tax", "exempt": "0% — Small Company Relief" },
-    "vat": { "filing": "VAT Return Filing", "exempt": "You no need file VAT (below ₦100M)", "required": "You must file every month" },
-    "einvoice": { "label": "E-Invoice" }
+    "cit": {
+      "label": "Company Income Tax",
+      "exempt": "0% — Small Company Relief"
+    },
+    "vat": {
+      "filing": "VAT Return Filing",
+      "exempt": "You no need file VAT (below ₦100M)",
+      "required": "You must file every month"
+    },
+    "einvoice": {
+      "label": "E-Invoice"
+    }
   },
-  "einvoice": { "status": { "small": "No compulsory yet — prepare for 2027", "medium": "Pilot active — compulsory July 2026", "large": "⚠️ E-Invoice don dey compulsory now" } },
-  "nrs": { "name": "Nigeria Revenue Service", "shortName": "NRS", "formerly": "Before dem call am FIRS" },
+  "einvoice": {
+    "status": {
+      "small": "No compulsory yet — prepare for 2027",
+      "medium": "Pilot active — compulsory July 2026",
+      "large": "⚠️ E-Invoice don dey compulsory now"
+    }
+  },
+  "nrs": {
+    "name": "Nigeria Revenue Service",
+    "shortName": "NRS",
+    "formerly": "Before dem call am FIRS"
+  },
   "nudge": {
-    "tin": { "missing": "No TIN → dem go cut 10% from ALL your income" },
-    "cit": { "zeroRate": "You qualify for 0% Company Tax" },
-    "vat": { "exemption": "You fit be exempt from filing VAT return" }
+    "tin": {
+      "missing": "No TIN → dem go cut 10% from ALL your income"
+    },
+    "cit": {
+      "zeroRate": "You qualify for 0% Company Tax"
+    },
+    "vat": {
+      "exemption": "You fit be exempt from filing VAT return"
+    }
   },
   "invoices": {
     "title": "Invoices",
@@ -285,7 +355,7 @@
   },
   "settings": {
     "title": "Settings",
-    "madeInNigeria": "We build am with \u2764\ufe0f for Nigeria"
+    "madeInNigeria": "We build am with ❤️ for Nigeria"
   },
   "calendar": {
     "deadlines": {
@@ -307,10 +377,18 @@
   },
   "offline": {
     "title": "You dey offline",
-    "body": "We don save your work. E go sync when you get signal back."
+    "body": "We don save your work. E go sync when you get signal back.",
+    "syncing_one": "{{count}} operation dey sync...",
+    "syncing_other": "{{count}} operations dey sync...",
+    "syncing": "{{count}} operations dey sync...",
+    "queued_one": "You dey offline. {{count}} operation dey queue.",
+    "queued_other": "You dey offline. {{count}} operations dey queue.",
+    "queued": "You dey offline. {{count}} operations dey queue.",
+    "syncNow": "Sync now",
+    "syncingNow": "E dey sync..."
   },
   "error": {
-    "boundaryTitle": "Wahala dey \u2014 something break small",
+    "boundaryTitle": "Wahala dey — something break small",
     "boundaryBody": "Your progress don save. You fit continue later.",
     "retry": "Try Again",
     "errorIdLabel": "Error ID"

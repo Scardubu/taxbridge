@@ -82,8 +82,9 @@
       },
       "distribution": "store",
       "android": {
-        "buildType": "app-bundle"
-      },
+          "buildType": "app-bundle",
+          "gradleCommand": ":app:bundleRelease"
+        },
       "ios": {
         "buildConfiguration": "Release",
         "autoIncrement": "buildNumber"

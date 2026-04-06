@@ -8,7 +8,8 @@
 [![React Native](https://img.shields.io/badge/React%20Native-0.81.5-blue)](https://reactnative.dev)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue)](https://typescriptlang.org)
 [![Tests](https://img.shields.io/badge/Tests-167%20passing-success)]()
-[![Blueprint](https://img.shields.io/badge/Blueprint-v6-green)]()
+[![Blueprint](https://img.shields.io/badge/Blueprint-v8-green)]()
+[![Version](https://img.shields.io/badge/Version-1.3.0-blue)]()
 [![Production](https://img.shields.io/badge/Status-Production%20Ready-success)]()
 
 </div>
@@ -19,38 +20,48 @@
 
 TaxBridge Mobile is a **production-ready React Native application** that brings tax compliance to Nigeria's 40+ million informal businesses. Built with an **offline-first architecture** and designed for **low-literacy, low-bandwidth environments**, the app makes NRS-compliant e-invoicing accessible to everyone.
 
-### 📘 Blueprint v6 Implementation
+### 📘 Blueprint v8 — Final Production Release
 
-This codebase implements **TaxBridge V13 Mobile Blueprint v6**, which consolidates all corrections from versions 1 through 5. The blueprint enforces **14 absolute constraints** for architecture, dependencies, storage, UI, navigation, and compliance.
+This codebase implements **TaxBridge V13 Mobile Blueprint v8**, which is the single authoritative patch superseding all prior versions (v1–v7). It enforces **14 absolute constraints** for architecture, dependencies, storage, UI, navigation, and compliance, and additionally delivers:
 
-#### Key Constraints Applied:
+- **Zero blank-screen guarantee** — root layout gate eliminates RC-B + RC-C compound race conditions
+- **Admin dashboard integration contract** — SSE push events, compliance event sourcing, obligation overrides
+- **Full-stack typed API contract** — profile sync, compliance events, invoice submission, Remita payment, TIN verify, admin alerts
+- **World-class UX** — score-driven TaxShieldRing SVG, SkeletonDashboard pulse, OfflineIndicator with queue depth
+- **Complete i18n** — 60+ new EN + Pidgin keys covering onboarding, shield, obligations, offline, dashboard
+
+#### Key Constraints Applied
+
 - ✅ **Expo SDK 54** with expo-router v6 and **NativeTabs** (exactly 5 tabs)
-- ✅ **Zustand** with async JSON storage (no sync getItemSync/setItemSync)
+- ✅ **Zustand `_hasHydrated`** sentinel — `waitForHydration()` via `store.subscribe()`, not polling
+- ✅ **`previewMode` in Zustand store** — synchronous guard, no async KV read during render
+- ✅ **Root layout gate** — DB init → storage migration → hydration → profile hydrate → splash hide
 - ✅ **SecureStore-only** JWT storage (expo-secure-store)
 - ✅ **SQLite** without GENERATED columns, with versioned migrations
-- ✅ **Navigation** via `router.replace()` (no navigationRef.reset)
-- ✅ **CSS transitions only** for onboarding step UI (no withSpring/withTiming)
-- ✅ **Compliance events** logged for onboarding_complete, tin_verified, invoice_submitted
+- ✅ **Navigation** via `router.replace()` (no `navigationRef.reset`)
+- ✅ **Animated API pulse only** for skeleton loaders; no `withSpring`/`withTiming` on step transitions
+- ✅ **Compliance events** logged for `onboarding_complete`, `tin_verified`, `invoice_submitted`
 - ✅ **NRS 2026** phased e-invoicing rules, CIT 0% relief, PIT zero band ₦800K
-- ✅ **SSE** event streaming with react-native-sse EventSource
-- ✅ **i18n** with English and Pidgin translations
-- ✅ **SafeAreaView** from react-native-safe-area-context only
-- ✅ **No reanimated plugins** in babel.config.js
-- ✅ **Remita RRR** immediately stored in tax_payments
+- ✅ **SSE** event streaming — `tin_verified`, `admin_alert`, `obligation_override`, `tin_manual_verify`, `payment_confirmed`
+- ✅ **i18n** with English and Nigerian Pidgin (205+ keys)
+- ✅ **SafeAreaView** from `react-native-safe-area-context` only
+- ✅ **No reanimated plugins** in `babel.config.js`
+- ✅ **Remita RRR** immediately persisted to `tax_payments` on API response
 - ✅ **Exactly 5 NativeTabs** entries: dashboard, invoices, tax-calendar, compliance, settings
-
-See `taxbridge_v6_COMPLETE_FINAL.md` for the complete blueprint specification.
 
 ### ✨ Core Features
 
 #### 🔌 Offline-First Architecture
+
 - **Local-first storage**: Create invoices without internet connection using SQLite
 - **Intelligent sync**: Automatic background sync when connectivity is restored
+- **Queue depth display**: `OfflineIndicator` shows pending count + "Sync now" CTA
 - **Conflict resolution**: Smart merge strategies for concurrent edits
-- **Queue management**: Resilient retry logic for failed sync operations
+- **Queue management**: Resilient retry with dead-letter after 5 attempts
 - **Network indicators**: Real-time connection status with visual feedback
 
 #### 📊 Tax Compliance & Education
+
 - **PIT Calculator**: Personal Income Tax calculator aligned with Nigeria Tax Act 2025
 - **VAT/CIT Awareness**: Conditional education on thresholds and rates
 - **FIRS Demo**: Mock e-invoicing simulation with educational disclaimers
@@ -58,6 +69,7 @@ See `taxbridge_v6_COMPLETE_FINAL.md` for the complete blueprint specification.
 - **Progressive Disclosure**: Step-by-step tax education flow
 
 #### 🌍 Inclusion-First Design
+
 - **Multi-language Support**: Full English and Nigerian Pidgin translations (205+ keys)
 - **Low-bandwidth optimized**: Works on 2G/3G networks
 - **Accessible UI**: WCAG 2.1 Level AA compliant components
@@ -65,6 +77,7 @@ See `taxbridge_v6_COMPLETE_FINAL.md` for the complete blueprint specification.
 - **Touch-optimized**: Large tap targets for low-precision input
 
 #### 🎓 Enhanced Onboarding System
+
 - **Profile Assessment**: Smart income/business type collection with emoji-enhanced UX
 - **Number formatting**: Real-time comma-separated number formatting for better readability
 - **Loading states**: Visual feedback during async operations
@@ -81,6 +94,7 @@ See `taxbridge_v6_COMPLETE_FINAL.md` for the complete blueprint specification.
 - **Community Features**: Referral codes with reward tracking
 
 #### 🎨 Production-Grade User Experience
+
 - **Premium Animations**: Smooth transitions using React Native Reanimated 4.x
 - **Web Compatibility**: Shadow styles optimized for web (boxShadow)
 - **Form Validation**: Real-time validation with contextual error messages
@@ -88,7 +102,7 @@ See `taxbridge_v6_COMPLETE_FINAL.md` for the complete blueprint specification.
 - **Number Formatting**: Auto-formatted currency inputs (e.g., "1,000,000")
 - **Visual Polish**: Consistent 12-16px border radius, proper spacing scale
 - **Responsive Design**: Adaptive layouts for phones and tablets
-- **Accessibility**: 
+- **Accessibility**:
   - WCAG 2.1 Level AA compliant
   - Proper semantic roles (`accessibilityRole`, `accessibilityState`)
   - Screen reader optimized labels
@@ -101,18 +115,19 @@ See `taxbridge_v6_COMPLETE_FINAL.md` for the complete blueprint specification.
   - Lazy loading for heavy components
 
 #### 🔧 Technical Excellence
+
 - **TypeScript**: Strict mode enabled, 100% type coverage
 - **Modular Architecture**: Clean separation of concerns
   - Components: Reusable UI primitives
   - Contexts: Global state management
   - Services: Business logic layer
   - Utilities: Pure helper functions
-- **Error Handling**: 
+- **Error Handling**:
   - Error boundaries at screen and app level
   - Sentry integration for crash reporting
   - User-friendly fallback UI
   - Automatic error recovery
-- **Performance**: 
+- **Performance**:
   - React.memo for 6 onboarding components
   - useCallback/useMemo hooks throughout
   - Virtualized lists for invoice rendering
@@ -123,7 +138,7 @@ See `taxbridge_v6_COMPLETE_FINAL.md` for the complete blueprint specification.
   - Pre-commit hooks (Husky)
   - Automated testing (Jest)
   - **139 tests across 7 suites (100% passing)**
-- **i18n Support**: 
+- **i18n Support**:
   - 205+ translation keys
   - English + Nigerian Pidgin
   - Context-aware pluralization
@@ -135,59 +150,64 @@ See `taxbridge_v6_COMPLETE_FINAL.md` for the complete blueprint specification.
 
 ```
 mobile/
-├── src/
-│   ├── components/          # Reusable UI components
-│   │   ├── onboarding/      # Onboarding step components
-│   │   │   ├── ProfileAssessmentStep.tsx
-│   │   │   ├── PITTutorialStep.tsx
-│   │   │   ├── VATCITAwarenessStep.tsx
-│   │   │   ├── FIRSDemoStep.tsx
-│   │   │   ├── GamificationStep.tsx
-│   │   │   └── CommunityStep.tsx
-│   │   ├── AnimatedButton.tsx
-│   │   ├── AnimatedStatusBadge.tsx
-│   │   ├── InvoiceCard.tsx
-│   │   ├── LoadingOverlay.tsx
-│   │   ├── ErrorBoundary.tsx
-│   │   └── NetworkStatus.tsx
-│   ├── contexts/            # React contexts for global state
-│   │   ├── OnboardingContext.tsx
-│   │   ├── LoadingContext.tsx
-│   │   └── NetworkContext.tsx
-│   ├── screens/             # Main application screens
-│   │   ├── OnboardingScreen.tsx
-│   │   ├── HomeScreen.tsx
-│   │   ├── CreateInvoiceScreen.tsx
-│   │   ├── InvoicesScreen.tsx
-│   │   └── SettingsScreen.tsx
-│   ├── services/            # Business logic and API calls
-│   │   ├── api.ts           # Backend API integration
-│   │   ├── database.ts      # SQLite operations
-│   │   ├── sync.ts          # Offline sync logic
-│   │   ├── sentry.ts        # Error tracking
-│   │   ├── mockFIRS.ts      # Mock e-invoicing simulation
-│   │   ├── taxCalculator.ts # Tax calculation service
-│   │   └── NudgeService.ts  # Safe personalization
-│   ├── utils/               # Utility functions
-│   │   ├── validation.ts
-│   │   └── taxCalculator.ts # PIT/VAT/CIT calculations
-│   ├── types/               # TypeScript type definitions
-│   │   └── invoice.ts
-│   └── i18n/                # Internationalization
-│       ├── en.json          # English translations (150+ keys)
-│       ├── pidgin.json      # Nigerian Pidgin translations (150+ keys)
-│       └── index.ts
+├── app/                     # Expo Router file-system routes
+│   ├── _layout.tsx          # Root gate: DB → migration → hydration → splash
+│   ├── index.tsx            # Entry redirect
+│   ├── (onboarding)/        # Onboarding route group
+│   │   ├── _layout.tsx      # Onboarding guard (redirect if done)
+│   │   ├── index.tsx        # Welcome screen + language toggle
+│   │   ├── business-type.tsx
+│   │   ├── income.tsx
+│   │   ├── tin.tsx
+│   │   └── review.tsx
+│   └── (tabs)/              # Main tab group (5 NativeTabs)
+│       ├── _layout.tsx      # Tab guard (sync previewMode read — RC-B fix)
+│       ├── index.tsx        # Dashboard (MODE A preview / MODE B full)
+│       ├── invoices.tsx
+│       ├── tax-calendar.tsx
+│       ├── compliance.tsx
+│       └── settings.tsx
+├── components/              # Shared UI components
+│   ├── design-system/
+│   │   └── tokens.ts        # Single source of truth for all design tokens
+│   ├── TaxShieldRing.tsx    # SVG compliance score arc
+│   ├── SkeletonDashboard.tsx # Animated pulse skeleton
+│   ├── OfflineIndicator.tsx # Queue depth display + sync CTA
+│   ├── OnboardingProgressBanner.tsx # MODE A continue banner
+│   ├── EducativeTaxObligationsSection.tsx # Accordion obligations
+│   ├── ComplianceBadge.tsx
+│   ├── OnboardingProgressBar.tsx
+│   └── StepContainer.tsx
+├── services/                # Business logic and API
+│   ├── api.ts               # Typed HTTP client (6 methods + ApiError)
+│   ├── sseService.ts        # SSE — 10 event types + auto-reconnect
+│   ├── database.ts          # SQLite WAL mode, versioned migrations
+│   ├── offlineQueue.ts      # SQLite-backed retry queue
+│   ├── nrsCompliance.ts     # NRS 2026 obligations engine
+│   ├── nudgeEngine.ts       # Priority-sorted nudge generation
+│   ├── taxCalendar.ts       # WAT-aware deadline generation
+│   ├── otpService.ts        # 3-branch NG phone normalisation
+│   ├── paymentService.ts    # Remita payment + RRR persistence
+│   ├── tokenService.ts      # SecureStore-only JWT management
+│   └── complianceEventService.ts
+├── stores/
+│   ├── onboardingStore.ts   # Zustand + _hasHydrated + previewMode
+│   └── businessProfileStore.ts
+├── storage/
+│   └── kv.ts                # Namespaced KV — flags, prefs
+├── i18n/
+│   ├── en.json              # English (205+ keys)
+│   ├── pidgin.json          # Nigerian Pidgin (205+ keys)
+│   └── index.ts
 ├── __tests__/               # Test suites
-│   ├── OnboardingSystem.integration.test.tsx
-│   ├── taxCalculator.test.ts
-│   └── mockFIRS.test.ts
 ├── __mocks__/               # Jest mocks
-├── App.tsx                  # Main application entry point
-├── babel.config.js          # Babel configuration
-├── jest.config.js           # Jest configuration
-├── jest.setup.js            # Jest setup and mocks
-├── package.json             # Dependencies and scripts
-└── tsconfig.json            # TypeScript configuration
+├── app.json                 # Expo config — v1.3.0, ng.taxbridge.app
+├── eas.json                 # EAS Build profiles
+├── babel.config.js
+├── jest.config.js
+├── jest.setup.js
+├── package.json
+└── tsconfig.json            # TypeScript strict mode
 ```
 
 ---
@@ -195,6 +215,7 @@ mobile/
 ## 🚀 Getting Started
 
 ### Prerequisites
+
 - Node.js >=20.19.4
 - npm or yarn
 - Expo CLI (`npm install -g expo-cli`)
@@ -204,35 +225,41 @@ mobile/
 ### Installation
 
 1. **Clone the repository**:
+
    ```bash
    git clone https://github.com/Scardubu/taxbridge.git
    cd taxbridge/mobile
    ```
 
 2. **Install dependencies**:
+
    ```bash
    npm install
    ```
 
 3. **Start the development server**:
+
    ```bash
    npm start
    ```
-   
+
    > **Note**: If you experience `fetch failed` or network-related failures on restricted networks, use:
+>
    > ```bash
    > npm run start:no-doctor
    > ```
+>
    > This sets `EXPO_NO_DOCTOR=1` to skip the dependency health check.
 
 4. **Run on device/simulator**:
+
    ```bash
    # Android emulator
    npm run android
-   
+
    # iOS simulator (macOS only)
    npm run ios
-   
+
    # Web browser
    npm run web
    ```
@@ -255,12 +282,14 @@ The mobile app connects to the backend API. Default configuration:
 ### Changing API URL
 
 **Option 1: Settings Screen**
+
 1. Open the app → Settings
 2. Tap "API Server URL"
 3. Enter your backend URL
 4. Save changes
 
 **Option 2: Programmatic**
+
 ```typescript
 import { setApiBaseUrl } from './src/services/api';
 
@@ -279,6 +308,7 @@ await setApiBaseUrl('http://192.168.1.100:3000');
 ### Request/Response Format
 
 **Create Invoice**:
+
 ```typescript
 // Request
 POST /api/v1/invoices
@@ -339,7 +369,7 @@ POST /api/v1/invoices
 // Automatically syncs pending invoices
 export async function syncPendingInvoices() {
   const pending = await getPendingInvoices();
-  
+
   for (const invoice of pending) {
     try {
       await updateInvoiceStatus(invoice.id, 'processing');
@@ -367,6 +397,7 @@ export async function syncPendingInvoices() {
 ### Translation Coverage
 
 **Modules**:
+
 - Home screen (6 keys)
 - Invoice creation (6 keys)
 - Invoice list (3 keys)
@@ -375,6 +406,7 @@ export async function syncPendingInvoices() {
 - Onboarding (150+ keys across 6 steps)
 
 **Key Highlights**:
+
 - Profile Assessment: Income sources, business types, hints
 - PIT Tutorial: Calculator labels, quiz questions, feedback
 - VAT/CIT: Thresholds, rates, flowcharts
@@ -389,7 +421,7 @@ import { useTranslation } from 'react-i18next';
 
 function MyComponent() {
   const { t, i18n } = useTranslation();
-  
+
   return (
     <View>
       <Text>{t('home.title')}</Text>
@@ -404,6 +436,7 @@ function MyComponent() {
 ### Adding Translations
 
 1. Add key to `src/i18n/en.json`:
+
    ```json
    {
      "newFeature": {
@@ -414,6 +447,7 @@ function MyComponent() {
    ```
 
 2. Add Pidgin translation to `src/i18n/pidgin.json`:
+
    ```json
    {
      "newFeature": {
@@ -462,12 +496,14 @@ npm test -- OnboardingSystem.integration.test.tsx
 ### Test Highlights
 
 **Onboarding System (29 tests):**
+
 - ✅ Full 6-step flow with conditional gating
 - ✅ AsyncStorage persistence verification
 - ✅ Tax calculations (Nigeria Tax Act 2025)
 - ✅ Mock FIRS API safety checks
 
 **Tax Calculator (50+ tests):**
+
 - ✅ PIT 6-band progressive system
 - ✅ VAT threshold (₦100M)
 - ✅ CIT rates (0%/20%/30%)
@@ -621,6 +657,7 @@ npx react-native log-ios      # iOS
 ### 🚀 Recent Improvements (January 2026)
 
 **UX Enhancements:**
+
 - Enhanced ProfileAssessmentStep with emoji icons and formatted number inputs
 - Added "Skip All" onboarding with confirmation dialog
 - Improved HomeScreen with stats cards, quick actions, and compliance tips
@@ -628,12 +665,14 @@ npx react-native log-ios      # iOS
 - Better OfflineBadge with clearer messaging
 
 **Performance:**
+
 - Added React.memo to 6 onboarding components
 - Implemented useCallback for event handlers
 - Optimized re-renders with useMemo for computed values
 - Number formatting with real-time updates
 
 **Visual Polish:**
+
 - Fixed deprecated shadow styles (migrated to boxShadow)
 - Consistent border radius (12-16px)
 - Improved color contrast ratios
@@ -641,6 +680,7 @@ npx react-native log-ios      # iOS
 - Enhanced button states (pressed, disabled, loading)
 
 **i18n:**
+
 - Added 15+ missing translation keys
 - Full coverage for network status
 - Onboarding step indicators
@@ -652,19 +692,66 @@ npx react-native log-ios      # iOS
 |--------|-------|--------|
 | Test Coverage | 167/167 tests | ✅ 100% passing |
 | TypeScript Errors | 0 | ✅ No errors |
-| Translation Keys | 230+ | ✅ Full EN + Pidgin parity |
+| Translation Keys | 205+ | ✅ Full EN + Pidgin parity |
 | Build Warnings | 0 | ✅ Clean |
 | Accessibility | WCAG 2.1 AA | ✅ Compliant |
-| Blueprint v6 Constraints | 14/14 | ✅ All satisfied |
-| Performance | Optimized | ✅ Production-ready |
+| Blueprint v8 Constraints | 14/14 | ✅ All satisfied |
+| Navigation Races (RC-B, RC-C) | 0 | ✅ Eliminated |
+| App Version | 1.3.0 (versionCode 13) | ✅ Production |
 
 ---
 
 ## 🔄 Changelog
 
+### Version 1.3.0 (2026) — Blueprint v8 FINAL
+
+**Navigation — RC-B + RC-C compound race conditions eliminated:**
+
+- `waitForHydration()` uses `store.subscribe()` (not polling), 4 s safety timeout
+- `previewMode` stored in Zustand (synchronous reads) — KV only used for cold-start restore
+- `setPreviewMode(true)` called before `router.replace('/(tabs)')` — guard sees state immediately
+
+**New Components:**
+
+- `TaxShieldRing` — SVG arc score ring, score-driven colour, no Reanimated
+- `SkeletonDashboard` — Animated pulse, shared opacity value, `useNativeDriver`
+- `OfflineIndicator` — queue depth display, 5 s poll, "Sync now" CTA
+- `OnboardingProgressBanner` — MODE A dismissable banner with haptics
+- `EducativeTaxObligationsSection` — accordion with FIRS portal deep-links
+
+**Design System:**
+
+- `components/design-system/tokens.ts` — `Colors`, `Spacing`, `Radii`, `Typography` + backward-compat aliases
+
+**Dashboard — MODE A / MODE B:**
+
+- Preview profile with realistic sample data for first-run UX
+- SSE wiring — 10 event types: `tin_verified`, `admin_alert`, `obligation_override`, `payment_confirmed`, etc.
+- Score-driven `TaxShieldRing` + nudge-driven action cards
+
+**Backend API Contract:**
+
+- `patchBusinessProfile`, `postComplianceEvent`, `postInvoice`, `initiatePayment`, `verifyTin`, `getAlerts`
+- 401 silent refresh → single retry; 409 conflict resolves with server version + Sentry capture
+
+**i18n (+60 new keys):**
+
+- Flat obligation keys: `obligations.vatReg`, `obligations.eInvoice`, `obligations.cit`, etc.
+- Offline indicator: `offline.syncing`, `offline.queued`, `offline.syncNow`, `offline.syncingNow`
+- Dashboard banner: `dashboard.bannerBody`, `dashboard.bannerCta`
+- Full EN + Pidgin parity maintained
+
+**Build:**
+
+- `app.json` version `1.3.0`, versionCode `13`
+- `eas.json` production android: explicit `gradleCommand: ":app:bundleRelease"`
+
+---
+
 ### Version 6.0.0 (March 2026) — Blueprint v6
 
 **Architecture (14 absolute constraints satisfied):**
+
 - SDK 54 + expo-router v6 + Reanimated 4.x (no worklets/reanimated babel plugins)
 - SecureStore-only JWT storage (`services/tokenService.ts`)
 - `expo-sqlite/kv-store` for Zustand async persistence (`storage/kv.ts`)
@@ -680,18 +767,21 @@ npx react-native log-ios      # iOS
 - NRS 2026 e-invoicing phase schedule (Apr/Jul 2026, Jul 2027)
 
 **New / Updated Services:**
+
 - `generateTaxCalendar(profile, year)` — Africa/Lagos (WAT) deadline generation
 - `generateNudges(profile, obligations)` — priority-sorted (critical > warning > opportunity)
 - `speakStepHint(stepId)` — Pidgin voice hints for all six onboarding steps
 - Expanded `computeObligations` — `eInvoicingRequired`, `eInvoicingStatus`, `citRate` fields
 
 **Tests (+31 new):**
+
 - `onboardingStore.test.ts` — step config, migration, ordering invariants
 - `nrsCompliance.test.ts` — CIT/VAT/e-invoice obligations, compliance score
 - `otpService.test.ts` — three-branch phone normalisation coverage
 - `offlineQueue.test.ts` — retry/dead-letter, dedup, compliance event payloads
 
 **i18n:**
+
 - `pidgin.json` now at full EN key parity (230+ keys): tax, einvoice, nrs, nudge, obligations, quickAction, common.error/retry
 
 ---
@@ -699,6 +789,7 @@ npx react-native log-ios      # iOS
 ### Version 5.0.0 (January 2026) - Production Launch
 
 **Major Features:**
+
 - Complete onboarding system with 6 interactive steps
 - Skip All onboarding functionality
 - Enhanced HomeScreen with stats and quick actions
@@ -706,6 +797,7 @@ npx react-native log-ios      # iOS
 - Multi-language support (205+ keys)
 
 **Improvements:**
+
 - ProfileAssessmentStep with emoji-enhanced UI
 - Number formatting (comma-separated)
 - Loading states for all async operations
@@ -713,18 +805,21 @@ npx react-native log-ios      # iOS
 - Web compatibility improvements
 
 **Performance:**
+
 - React.memo for 6 components
 - useCallback/useMemo optimizations
 - Optimized re-renders
 - Improved list rendering
 
 **Bug Fixes:**
+
 - Fixed shadow style deprecation warnings
 - Fixed missing translation keys
 - Fixed number input formatting
 - Fixed network status display
 
 **Testing:**
+
 - 139 tests (100% passing)
 - Integration test suite
 - E2E test coverage
@@ -766,7 +861,7 @@ MIT License - see [LICENSE](../LICENSE) for details.
 
 - **Documentation**: [docs/PRD.md](../docs/PRD.md)
 - **Issues**: [GitHub Issues](https://github.com/Scardubu/taxbridge/issues)
-- **Email**: support@taxbridge.ng
+- **Email**: <support@taxbridge.ng>
 
 ---
 
@@ -775,12 +870,14 @@ MIT License - see [LICENSE](../LICENSE) for details.
 Built with ❤️ for Nigerian SMEs and informal traders.
 
 **Technologies:**
+
 - React Native & Expo Team
 - SQLite Foundation
 - React Navigation Team
 - i18next Community
 
 **Compliance:**
+
 - Nigeria Tax Act 2025
 - NITDA (National Information Technology Development Agency)
 - NDPC (Nigeria Data Protection Commission)
@@ -800,9 +897,10 @@ Built with ❤️ for Nigerian SMEs and informal traders.
 ## 📞 Support
 
 For technical support:
+
 - **Documentation**: Check main [README](../README.md)
 - **Issues**: Open a GitHub issue
-- **Email**: support@taxbridge.ng
+- **Email**: <support@taxbridge.ng>
 
 ---
 

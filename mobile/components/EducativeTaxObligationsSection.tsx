@@ -1,7 +1,8 @@
-import React, { useMemo, useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { Linking, Pressable, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import { TAX_AUTHORITY, computeObligations } from '../services/nrsCompliance';
+import { Colors, Typography, Spacing, Radii } from './design-system/tokens';
 
 type ObligationKey = 'vatRegistration' | 'vatFiling' | 'eInvoicing' | 'cit';
 
@@ -18,74 +19,100 @@ export function EducativeTaxObligationsSection({ obligations, isPreviewMode }: R
     () => [
       {
         key: 'vatRegistration' as const,
-        status: obligations.vatRegistrationRequired ? t('compliance.required') : t('compliance.notRequired'),
+        title: t('obligations.vatReg'),
+        threshold: t('obligations.vatRegThreshold'),
+        action: t('obligations.vatRegAction'),
+        status: obligations.vatRegistrationRequired ? t('obligations.required') : t('obligations.notRequired'),
       },
       {
         key: 'vatFiling' as const,
-        status: obligations.vatFilingRequired ? t('compliance.monthlyRequired') : t('compliance.notRequired'),
+        title: t('obligations.vatFiling'),
+        threshold: t('obligations.vatFilingThreshold'),
+        action: t('obligations.vatFilingAction'),
+        status: obligations.vatFilingRequired ? t('obligations.requiredMonthly') : t('obligations.notRequired'),
       },
       {
         key: 'eInvoicing' as const,
+        title: t('obligations.eInvoice'),
+        threshold: t('obligations.eInvoiceThreshold'),
+        action: t('obligations.eInvoiceAction'),
         status: t(`einvoice.status.${obligations.eInvoicingPhase}`),
       },
       {
         key: 'cit' as const,
-        status: obligations.citRate === 0 ? t('tax.cit.exempt') : t('obligations.status.citRate', { rate: obligations.citRate * 100 }),
+        title: t('obligations.cit'),
+        threshold: t('obligations.citThreshold'),
+        action: t('obligations.citAction'),
+        status: obligations.citRate === 0 ? t('obligations.citZero') : t('obligations.status.citRate', { rate: obligations.citRate * 100 }),
       },
     ],
     [obligations.citRate, obligations.eInvoicingPhase, obligations.vatFilingRequired, obligations.vatRegistrationRequired, t]
   );
 
   return (
-    <View style={{ paddingHorizontal: 24, marginTop: 28 }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-        <Text style={{ color: '#9CA3AF', fontSize: 16, fontWeight: '600' }}>
-          {t('dashboard.obligations.title')}
+    <View style={{ paddingHorizontal: Spacing.xxl, marginTop: 28 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.md }}>
+        <Text style={{ ...Typography.section, color: Colors.ui.textMuted }}>
+          {t('dashboard.taxObligations')}
         </Text>
         {isPreviewMode ? (
-          <View style={{ backgroundColor: '#1C1C1C', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3 }}>
-            <Text style={{ color: '#6B7280', fontSize: 11 }}>{t('preview.data')}</Text>
+          <View style={{ backgroundColor: Colors.ui.surface, borderRadius: Radii.pill, paddingHorizontal: Spacing.sm, paddingVertical: 3 }}>
+            <Text style={{ ...Typography.micro, color: Colors.ui.textDim }}>{t('dashboard.previewData')}</Text>
           </View>
         ) : null}
       </View>
 
-      <View style={{ backgroundColor: '#1C1C1C', borderRadius: 20, overflow: 'hidden' }}>
+      <View style={{ backgroundColor: Colors.ui.surface, borderRadius: Radii.xl, overflow: 'hidden' }}>
         {rows.map((row, index) => {
           const isOpen = expanded === row.key;
+          const rowA11yLabel = `${row.title}: ${row.status}`;
 
           return (
             <View key={row.key}>
-              {index > 0 ? <View style={{ height: 1, backgroundColor: '#2A2A2A', marginHorizontal: 16 }} /> : null}
+              {index > 0 ? <View style={{ height: 1, backgroundColor: Colors.ui.border, marginHorizontal: Spacing.lg }} /> : null}
               <Pressable
                 onPress={() => setExpanded(isOpen ? null : row.key)}
                 accessibilityRole="button"
-                accessibilityLabel={`${t(`obligations.${row.key}.title`)}: ${row.status}`}
+                accessibilityLabel={rowA11yLabel}
+                accessibilityHint={t('obligations.tapToLearn')}
                 accessibilityState={{ expanded: isOpen }}
-                style={{ padding: 18, flexDirection: 'row', alignItems: 'flex-start', gap: 12 }}
+                style={{ padding: Spacing.lg, flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.md }}
               >
                 <View style={{ flex: 1 }}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Text style={{ color: '#9CA3AF', fontSize: 12, letterSpacing: 0.5 }}>
-                      {t(`obligations.${row.key}.title`)}
+                    <Text style={{ ...Typography.micro, color: Colors.ui.textMuted, letterSpacing: 0.5 }}>
+                      {row.title}
                     </Text>
-                    <Text style={{ color: '#6B7280', fontSize: 16 }}>{isOpen ? '↑' : '›'}</Text>
+                    <Text style={{ color: Colors.ui.textDim, fontSize: 16 }}>{isOpen ? '↑' : '›'}</Text>
                   </View>
-                  <Text style={{ color: '#F9FAFB', fontWeight: '600', fontSize: 15, marginTop: 4 }}>
+                  <Text style={{ ...Typography.body, color: Colors.ui.text, fontWeight: '600', marginTop: 4 }}>
                     {row.status}
                   </Text>
 
                   {isOpen ? (
-                    <View style={{ marginTop: 10 }}>
-                      <Text style={{ color: '#9CA3AF', fontSize: 13, lineHeight: 19 }}>
-                        {t(`obligations.${row.key}.threshold`)}
+                    <View style={{ marginTop: Spacing.sm }}>
+                      <Text style={{ ...Typography.caption, color: Colors.ui.textMuted, lineHeight: 19 }}>
+                        {row.threshold}
                       </Text>
-                      <Text style={{ color: '#6B7280', fontSize: 13, lineHeight: 19, marginTop: 6 }}>
-                        {t(`obligations.${row.key}.action`)}
+                      <Text style={{ ...Typography.caption, color: Colors.ui.textDim, lineHeight: 19, marginTop: 6 }}>
+                        {row.action}
                       </Text>
                       {row.key === 'vatRegistration' || row.key === 'vatFiling' || row.key === 'eInvoicing' ? (
-                        <Text style={{ color: '#34D399', fontSize: 12, marginTop: 8 }}>
-                          {t('obligations.portalLabel', { portal: TAX_AUTHORITY.portalUrl })}
-                        </Text>
+                        <View style={{ marginTop: Spacing.sm }}>
+                          <Text style={{ ...Typography.caption, color: Colors.ui.textMuted }}>
+                            {t('obligations.portalLabel', { portal: TAX_AUTHORITY.portalUrl })}
+                          </Text>
+                          <Pressable
+                            onPress={() => void Linking.openURL(TAX_AUTHORITY.portalUrl)}
+                            accessibilityRole="link"
+                            accessibilityLabel={t('obligations.tapToLearn')}
+                            style={{ marginTop: Spacing.xs }}
+                          >
+                            <Text style={{ ...Typography.micro, color: Colors.brand.accent }}>
+                              {t('obligations.tapToLearn')} →
+                            </Text>
+                          </Pressable>
+                        </View>
                       ) : null}
                     </View>
                   ) : null}

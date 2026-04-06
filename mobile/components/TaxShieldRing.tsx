@@ -1,95 +1,80 @@
-import React from 'react';
 import { View, Text } from 'react-native';
-import { useTranslation } from 'react-i18next';
-import Animated, { Keyframe } from 'react-native-reanimated';
-import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
-import { palette } from './design-system/tokens';
+import Svg, { Circle, Path } from 'react-native-svg';
+import { Colors } from './design-system/tokens';
 
-// Blueprint v6: Keyframe entrance is allowed (Reanimated 4.1 Keyframe API).
-// C-02 fix: glow pulse uses CSS transitions only — no withRepeat/withTiming.
-const entrance = new Keyframe({
-  0:   { transform: [{ scale: 0.8 }], opacity: 0 },
-  70:  { transform: [{ scale: 1.05 }] },
-  100: { transform: [{ scale: 1 }], opacity: 1 },
-}).duration(600);
+// Blueprint v8 — SVG arc path, score-driven colour, no Reanimated.
+// CONSTRAINT-11: step-UI transitions are CSS-only; this is a data-display
+// component with no animated transitions, so Reanimated is not needed here.
 
-interface Props {
-  compliance: number;
-  isStreaking: boolean;
-  size?: number;
+interface TaxShieldRingProps {
+  score: number;   // 0–100
+  size?: number;   // default 88
 }
 
-function getShieldColor(compliance: number) {
-  if (compliance >= 80) {
-    return palette.shield;
-  }
-
-  if (compliance >= 50) {
-    return palette.warning;
-  }
-
-  return palette.danger;
+function toRad(deg: number): number {
+  return (deg * Math.PI) / 180;
 }
 
-export function TaxShieldRing({ compliance, isStreaking, size = 128 }: Readonly<Props>) {
-  const { t } = useTranslation();
-  const color = getShieldColor(compliance);
-  const arcRadius = size / 2 - 8;
-  const circumference = 2 * Math.PI * arcRadius;
-  const filled = (compliance / 100) * circumference;
-  const center = size / 2;
+function describeArc(
+  cx: number, cy: number, r: number,
+  startAngle: number, endAngle: number,
+): string {
+  const sx = cx + r * Math.cos(toRad(startAngle - 90));
+  const sy = cy + r * Math.sin(toRad(startAngle - 90));
+  const ex = cx + r * Math.cos(toRad(endAngle - 90));
+  const ey = cy + r * Math.sin(toRad(endAngle - 90));
+  const largeArc = endAngle - startAngle > 180 ? 1 : 0;
+  return `M ${sx} ${sy} A ${r} ${r} 0 ${largeArc} 1 ${ex} ${ey}`;
+}
 
-  // CSS transition for glow — opacity and shadowOpacity animate via New Arch interop
-  const glowStyle = {
-    position: 'absolute' as const,
-    width: size,
-    height: size,
-    borderRadius: size / 2,
-    borderWidth: 2,
-    borderColor: color,
-    shadowColor: color,
-    shadowRadius: 20,
-    opacity: isStreaking ? 0.85 : 0,
-    shadowOpacity: isStreaking ? 0.7 : 0,
-    transitionProperty: ['opacity', 'shadowOpacity'],
-    transitionDuration: 900,
-    transitionTimingFunction: 'ease-in-out',
-  } as any;
+function getRingColor(score: number): string {
+  if (score >= 80) return Colors.shield.score100;
+  if (score >= 50) return Colors.shield.score50;
+  if (score >= 20) return Colors.shield.score20;
+  return Colors.shield.score0;
+}
+
+export function TaxShieldRing({ score, size = 88 }: Readonly<TaxShieldRingProps>) {
+  const safeScore = Math.max(0, Math.min(100, score));
+  const cx = size / 2;
+  const cy = size / 2;
+  const r = size / 2 - 8;
+  const strokeWidth = 7;
+  const ringColor = getRingColor(safeScore);
+  const endAngle = (safeScore / 100) * 360;
+  const arcPath = safeScore > 0 ? describeArc(cx, cy, r, 0, Math.min(endAngle, 359.99)) : null;
 
   return (
-    <Animated.View
-      entering={entrance}
-      style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}
-    >
-      <View style={glowStyle} />
-      <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-        <Defs>
-          <LinearGradient id="grad" x1="0" y1="0" x2="1" y2="1">
-            <Stop offset="0%" stopColor={color} />
-            <Stop offset="100%" stopColor={`${color}AA`} />
-          </LinearGradient>
-        </Defs>
+    <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+      <Svg width={size} height={size} style={{ position: 'absolute', top: 0, left: 0 }}>
+        {/* Track ring */}
         <Circle
-          cx={center} cy={center} r={arcRadius}
-          stroke={palette.gray100} strokeWidth={8} fill="transparent"
+          cx={cx} cy={cy} r={r}
+          fill="none"
+          stroke={Colors.ui.border}
+          strokeWidth={strokeWidth}
         />
-        <Circle
-          cx={center} cy={center} r={arcRadius}
-          stroke="url(#grad)" strokeWidth={8}
-          strokeDasharray={`${filled} ${circumference}`}
-          strokeLinecap="round" fill="transparent"
-          transform={`rotate(-90 ${center} ${center})`}
-        />
+        {/* Score arc */}
+        {arcPath ? (
+          <Path
+            d={arcPath}
+            fill="none"
+            stroke={ringColor}
+            strokeWidth={strokeWidth}
+            strokeLinecap="round"
+          />
+        ) : null}
       </Svg>
-      <View style={{ position: 'absolute', alignItems: 'center' }}>
-        <Text style={{ fontSize: 22, fontWeight: '700', color }}>{compliance}%</Text>
-        <Text style={{ fontSize: 11, color: palette.gray400 }}>{t('dashboard.shield.label')}</Text>
-      </View>
-      {isStreaking ? (
-        <View style={{ position: 'absolute', top: 4, right: 4, backgroundColor: '#FF6D00', borderRadius: 10, paddingHorizontal: 6, paddingVertical: 2 }}>
-          <Text style={{ fontSize: 10, color: '#fff' }}>🔥</Text>
-        </View>
-      ) : null}
-    </Animated.View>
+      <Text
+        style={{
+          color: ringColor,
+          fontSize: size * 0.27,
+          fontWeight: '800',
+          lineHeight: size * 0.3,
+        }}
+      >
+        {safeScore}%
+      </Text>
+    </View>
   );
 }

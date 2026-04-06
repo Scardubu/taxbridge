@@ -8,7 +8,10 @@ export type SSEEventName =
   | 'einvoice_alert'
   | 'compliance_deadline'
   | 'payment_confirmed'
-  | 'invoice_submitted';
+  | 'invoice_submitted'
+  | 'admin_alert'
+  | 'obligation_override'
+  | 'tin_manual_verify';
 
 type EventHandler = (payload: Record<string, unknown>) => void;
 type SSEPayload = { type?: SSEEventName; payload?: Record<string, unknown> };
@@ -55,6 +58,7 @@ class SSEService {
       this.source?.addEventListener(name as any, handleEvent as any);
     ['message', 'tin_verified', 'tin_failed', 'vat_registered',
       'einvoice_alert', 'compliance_deadline', 'payment_confirmed', 'invoice_submitted',
+      'admin_alert', 'obligation_override', 'tin_manual_verify',
     ].forEach(addListener);
     this.source.addEventListener('error', () => {
       this.source?.close();
