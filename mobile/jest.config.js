@@ -6,6 +6,7 @@ module.exports = {
     '^expo-router$': '<rootDir>/__mocks__/expo-router.js',
     '^expo-image-picker$': '<rootDir>/__mocks__/expo-image-picker.js',
     '^expo-file-system$': '<rootDir>/__mocks__/expo-file-system.js',
+    '^@sentry/react-native$': '<rootDir>/__mocks__/@sentry/react-native.js',
     '^react-native-vector-icons$': '@expo/vector-icons',
     '^react-native-vector-icons/(.*)': '@expo/vector-icons/$1',
     '\\.(css|less|scss|sass)$': '<rootDir>/__mocks__/styleMock.js',

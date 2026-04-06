@@ -55,10 +55,10 @@ describe('EducativeTaxObligationsSection', () => {
     );
 
     fireEvent.press(screen.getByLabelText('VAT Registration: Not required yet'));
-    expect(screen.getByText(mockEn.obligations.vatRegistration.threshold)).toBeTruthy();
+    expect(screen.getByText(mockEn.obligations.vatRegThreshold)).toBeTruthy();
     expect(screen.getByText(`FIRS portal: https://einvoice.firs.gov.ng`)).toBeTruthy();
 
     fireEvent.press(screen.getByLabelText('VAT Registration: Not required yet'));
-    expect(screen.queryByText(mockEn.obligations.vatRegistration.threshold)).toBeNull();
+    expect(screen.queryByText(mockEn.obligations.vatRegThreshold)).toBeNull();
   });
 });

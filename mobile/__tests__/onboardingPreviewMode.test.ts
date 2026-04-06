@@ -1,4 +1,5 @@
 const mockSetPreviewModeFlag = jest.fn((value: boolean) => Promise.resolve(value));
+const mockClearPreviewModeFlag = jest.fn(() => Promise.resolve());
 const mockLogComplianceEvent = jest.fn((event: string, message?: string, severity?: string, meta?: Record<string, unknown>) =>
   Promise.resolve({ event, message, severity, meta })
 );
@@ -13,6 +14,7 @@ jest.mock('../storage/kv', () => ({
     flags: {
       setPreviewMode: (value: boolean) => mockSetPreviewModeFlag(value),
       getPreviewMode: jest.fn(() => Promise.resolve(false)),
+      clearPreviewMode: () => mockClearPreviewModeFlag(),
       setStoreReady: jest.fn(() => Promise.resolve()),
     },
   },
@@ -67,7 +69,7 @@ describe('onboarding preview mode', () => {
     await useOnboardingStore.getState().complete();
 
     expect(useOnboardingStore.getState().previewMode).toBe(false);
-    expect(mockSetPreviewModeFlag).toHaveBeenCalledWith(false);
+    expect(mockClearPreviewModeFlag).toHaveBeenCalled();
     expect(mockLogComplianceEvent).toHaveBeenCalled();
     expect(mockReplace).toHaveBeenCalledWith('/(tabs)');
   });
