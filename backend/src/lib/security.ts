@@ -53,8 +53,8 @@ const SECURITY_CONFIG = {
   maxRequestSize: 1024 * 1024, // 1MB
   // Input sanitization
   enableInputSanitization: true,
-  // CORS settings
-  allowedOrigins: (process.env.ALLOWED_ORIGINS ?? process.env.CORS_ORIGINS)?.split(',') || ['*'],
+  // CORS settings — must be explicitly configured via ALLOWED_ORIGINS env var in production
+  allowedOrigins: (process.env.ALLOWED_ORIGINS ?? process.env.CORS_ORIGINS)?.split(',').filter(Boolean) ?? [],
   // Request timeout
   requestTimeout: 30000, // 30 seconds
   // Maximum session duration

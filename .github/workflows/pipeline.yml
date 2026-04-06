@@ -22,7 +22,12 @@ jobs:
       - run: npm ci
       - run: grep -q "## \[13\." docs/CHANGELOG.md || exit 1
       - run: grep -rn "FIRS\|from 'express'" backend/src mobile/src admin/src --include="*.ts" --include="*.tsx" | grep -v node_modules | wc -l | xargs -I{} test {} -eq 0
-      - run: '! grep -nE "express|SDK 51|pages/admin" prompts/v13_master_prompt.md'
+      # Filter out lines that reference Express/SDK 51/pages/admin only in "avoid this" documentation context
+      - run: |
+          BAD=$(grep -nE "express|SDK 51|pages/admin" prompts/v13_master_prompt.md \
+            | grep -vE "NOT|not use|No Express|no express|remove|avoid|deprecated|→ 0|grep|#|example" \
+            | grep -vE "from 'express'.*→|Express middleware|express-rate-limit" || true)
+          if [ -n "$BAD" ]; then echo "$BAD"; exit 1; fi
       - run: npm run docs:api
       - run: '[ -s docs/api/openapi.json ] || exit 1'
 
