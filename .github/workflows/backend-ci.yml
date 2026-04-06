@@ -28,15 +28,15 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'yarn'
+          cache: 'npm'
 
       - name: Install dependencies
         run: |
-          yarn install --frozen-lockfile
-          yarn --cwd backend install --frozen-lockfile
+          npm ci
+          npm ci --prefix backend
 
       - name: Run unit tests with coverage
-        run: yarn --cwd backend test:unit
+        run: npm run test:unit --prefix backend
         env:
           CI: true
 
@@ -83,35 +83,35 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'yarn'
+          cache: 'npm'
 
       - name: Install dependencies
         run: |
-          yarn install --frozen-lockfile
-          yarn --cwd backend install --frozen-lockfile
+          npm ci
+          npm ci --prefix backend
 
       - name: Setup database
         run: |
-          yarn --cwd backend prisma:generate
-          yarn --cwd backend db:migrate
+          npm run prisma:generate --prefix backend
+          npm run db:migrate --prefix backend
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/taxbridge_test
 
       - name: Run integration tests
-        run: yarn --cwd backend test:integration
+        run: npm run test:integration --prefix backend
         env:
           CI: true
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/taxbridge_test
           REDIS_URL: redis://localhost:6379
 
       - name: Test Duplo integration
-        run: yarn --cwd backend node_modules/.bin/jest src/integrations/duplo.integration.test.ts --verbose
+        run: npm exec --prefix backend -- jest src/integrations/duplo.integration.test.ts --verbose
         env:
           CI: true
           NODE_ENV: test
 
       - name: Test Remita integration
-        run: yarn --cwd backend node_modules/.bin/jest src/integrations/remita.integration.test.ts --verbose
+        run: npm exec --prefix backend -- jest src/integrations/remita.integration.test.ts --verbose
         env:
           CI: true
           NODE_ENV: test
@@ -129,12 +129,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'yarn'
+          cache: 'npm'
 
       - name: Install dependencies
         run: |
-          yarn install --frozen-lockfile
-          yarn --cwd backend install --frozen-lockfile
+          npm ci
+          npm ci --prefix backend
 
       - name: Start services
         run: |
@@ -149,7 +149,7 @@ jobs:
           timeout 60 bash -c 'until curl -f http://localhost:3000/api/health; do sleep 2; done'
 
       - name: Run E2E tests
-        run: yarn --cwd backend test:e2e
+        run: npm run test:e2e --prefix backend
         env:
           CI: true
           BASE_URL: http://localhost:3000
@@ -169,15 +169,15 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'yarn'
+          cache: 'npm'
 
       - name: Install dependencies
         run: |
-          yarn install --frozen-lockfile
-          yarn --cwd backend install --frozen-lockfile
+          npm ci
+          npm ci --prefix backend
 
-      - name: Run npm audit
-        run: yarn --cwd backend test:security
+      - name: Run security audit
+        run: npm run test:security --prefix backend
 
       - name: Run OWASP ZAP Baseline Scan
         uses: zaproxy/action-baseline@v0.7.0
@@ -200,7 +200,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'yarn'
+          cache: 'npm'
 
       - name: Install k6
         run: |
@@ -212,14 +212,14 @@ jobs:
 
       - name: Install dependencies
         run: |
-          yarn install --frozen-lockfile
-          yarn --cwd backend install --frozen-lockfile
+          npm ci
+          npm ci --prefix backend
 
       - name: Start backend server
         run: |
-          yarn --cwd backend prisma:generate
-          yarn --cwd backend db:migrate
-          yarn --cwd backend dev &
+          npm run prisma:generate --prefix backend
+          npm run db:migrate --prefix backend
+          npm run dev --prefix backend &
           sleep 30
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/taxbridge_test
@@ -259,14 +259,14 @@ jobs:
 
       - name: Install dependencies
         run: |
-          yarn install --frozen-lockfile
-          yarn --cwd backend install --frozen-lockfile
+          npm ci
+          npm ci --prefix backend
 
       - name: Run OCR tests
-        run: yarn --cwd backend ocr:test
+        run: npm run ocr:test --prefix backend
 
       - name: Run OCR assertions
-        run: yarn --cwd backend ocr:assert
+        run: npm run ocr:assert --prefix backend
         env:
           CI: true
 
@@ -287,11 +287,11 @@ jobs:
 
       - name: Install dependencies
         run: |
-          yarn install --frozen-lockfile
-          yarn --cwd backend install --frozen-lockfile
+          npm ci
+          npm ci --prefix backend
 
       - name: Build backend
-        run: yarn --cwd backend build
+        run: npm run build --prefix backend
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v3
