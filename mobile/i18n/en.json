@@ -43,6 +43,18 @@
     },
     "exploreDash": "Explore dashboard first",
     "getStarted": "Get Started",
+    "gettingStarted": "GETTING STARTED",
+    "headline": "Your Tax Partner, Built for Nigeria",
+    "subheadline": "VAT, CIT, TIN and e-invoices — offline-first, Pidgin-ready.",
+    "nrsTitle": "NRS-ready mobile workflows",
+    "nrsBody": "Secure onboarding, offline queuing, and tax-aware guidance — personalised for your business.",
+    "feature1Title": "Guided setup, not guesswork",
+    "feature1Body": "We explain each tax step in plain language so you know what matters now and what can wait.",
+    "feature2Title": "Built for unstable networks",
+    "feature2Body": "Your progress saves locally first, then syncs later when signal comes back.",
+    "feature3Title": "Personalised deadlines",
+    "feature3Body": "The dashboard turns your setup answers into clear VAT, WHT, CIT, and e-invoicing next steps.",
+    "timeEstimate": "Takes about 3 minutes — your progress saves automatically",
     "businessType": {
       "title": "Tell Us About\nYour Business",
       "subtitle": "Your business type and size determine your CIT rate, VAT filing duties, and e-invoice timeline. This only takes a moment.",
@@ -147,6 +159,23 @@
     "title": "Dashboard",
     "greeting": "Good day",
     "yourBusiness": "Your Business",
+    "defaultName": "Your Business",
+    "previewMode": "Preview Mode",
+    "previewData": "Preview data",
+    "protected": "Protected",
+    "finishSetupTitle": "Finish your guided setup",
+    "finishSetupBody": "Complete a few steps to unlock personalised tax nudges and an accurate compliance dashboard.",
+    "continueSetup": "Continue Setup",
+    "actionRequired": "Action Required",
+    "allClear": "You're all clear!",
+    "allClearBody": "No urgent nudges right now. Review your obligations below or open invoices to keep records current.",
+    "quickActions": "Quick Actions",
+    "taxObligations": "Your Tax Obligations",
+    "invoices": "Invoices",
+    "calendar": "Calendar",
+    "compliance": "Compliance",
+    "bannerBody": "Finish your setup to unlock your full compliance score",
+    "bannerCta": "Continue →",
     "quickActionsTitle": "Quick actions",
     "loading": {
       "title": "Preparing your dashboard",
@@ -215,16 +244,34 @@
     "percentProtected": "{{score}}% Protected"
   },
   "obligations": {
+    "tapToLearn": "Tap to learn more about this obligation",
     "status": {
       "citRate": "{{rate}}%"
     },
     "portalLabel": "FIRS portal: {{portal}}",
+    "vatReg": "VAT Registration",
+    "vatRegThreshold": "Required when your annual turnover exceeds ₦25 million. Below ₦25M, you are not required to register yet.",
+    "vatRegAction": "If you expect to cross ₦25M this year, register proactively to avoid penalties.",
+    "vatFiling": "VAT Filing",
+    "vatFilingThreshold": "If VAT-registered, you must file a return by the 21st of every month.",
+    "vatFilingAction": "Submit via the FIRS e-invoice portal or your TaxBridge dashboard. Even nil returns must be filed.",
+    "eInvoice": "E-Invoicing Phase",
+    "eInvoiceThreshold": "Large taxpayers (turnover ≥ ₦1B): enforcement April 2026. Medium: July 2026. Small: July 2027.",
+    "eInvoiceAction": "Start issuing FIRS-compliant e-invoices before your phase deadline to avoid 150% penalty.",
+    "cit": "Company Income Tax (CIT)",
+    "citThreshold": "Companies with turnover ≤ ₦25M pay 0% CIT under the small company exemption.",
+    "citAction": "File annual returns with FIRS by June 30 following your financial year end. Failing to file incurs penalties even at 0% rate.",
+    "required": "Required",
+    "requiredMonthly": "Required monthly",
+    "notRequired": "Not required yet",
+    "citZero": "0% (small company exemption)",
+    "pending": "Pending assessment",
     "vatRegistration": {
       "title": "VAT Registration",
       "threshold": "Required when annual turnover exceeds ₦25 million.",
       "action": "If your turnover is below ₦25M you are not required to register yet."
     },
-    "vatFiling": {
+    "vatFilingNested": {
       "title": "VAT Filing",
       "threshold": "If VAT-registered, file by the 21st of each month.",
       "action": "Submit via the FIRS e-invoice portal or your TaxBridge dashboard."
@@ -234,7 +281,7 @@
       "threshold": "Large taxpayers: enforcement from April 2026. Medium: July 2026. Small: July 2027.",
       "action": "Check your phase based on turnover and start issuing FIRS-compliant e-invoices."
     },
-    "cit": {
+    "citNested": {
       "title": "Company Income Tax (CIT)",
       "threshold": "Companies with turnover ≤ ₦25M pay 0% CIT under the small company exemption.",
       "action": "File annual returns by June 30 following your financial year end."
@@ -307,7 +354,15 @@
   },
   "offline": {
     "title": "Offline mode active",
-    "body": "Changes are being saved locally and will sync when connectivity returns."
+    "body": "Changes are being saved locally and will sync when connectivity returns.",
+    "syncing_one": "{{count}} operation syncing...",
+    "syncing_other": "{{count}} operations syncing...",
+    "syncing": "{{count}} operations syncing...",
+    "queued_one": "You're offline. {{count}} operation queued.",
+    "queued_other": "You're offline. {{count}} operations queued.",
+    "queued": "You're offline. {{count}} operations queued.",
+    "syncNow": "Sync now",
+    "syncingNow": "Syncing..."
   },
   "error": {
     "boundaryTitle": "Something went wrong",
