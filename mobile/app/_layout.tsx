@@ -1,22 +1,22 @@
 import 'react-native-reanimated';
-import '../global.css';
 
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator } from 'react-native';
+import { ActivityIndicator, View } from 'react-native';
 import { isRunningInExpoGo } from 'expo';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Sentry from '@sentry/react-native';
-import { Stack } from 'expo-router';
+import { Slot } from 'expo-router';
 import { I18nextProvider } from 'react-i18next';
 import i18n, { initializeI18n } from '../i18n';
-import { getDatabase as initDatabase } from '../services/database';
+import { initDatabase } from '../services/database';
 import { migrateFromAsyncStorage as runStorageMigration } from '../services/storageMigration';
 import { offlineQueue } from '../services/offlineQueue';
 import { useBusinessProfileStore } from '../stores/businessProfileStore';
 import { useOnboardingStore } from '../stores/onboardingStore';
+import { Colors } from '../components/design-system/tokens';
 
 let hasInitializedSentry = false;
 
@@ -38,18 +38,24 @@ function ensureSentryInitialized() {
 void SplashScreen.preventAutoHideAsync().catch(() => undefined);
 ensureSentryInitialized();
 
-async function waitForOnboardingHydration() {
-  await new Promise<void>((resolve) => {
-    const checkHydration = () => {
-      if (useOnboardingStore.getState()._hasHydrated) {
+function waitForHydration(): Promise<void> {
+  return new Promise((resolve) => {
+    if (useOnboardingStore.getState()._hasHydrated) {
+      resolve();
+      return;
+    }
+
+    const unsub = useOnboardingStore.subscribe((state) => {
+      if (state._hasHydrated) {
+        unsub();
         resolve();
-        return;
       }
+    });
 
-      setTimeout(checkHydration, 30);
-    };
-
-    checkHydration();
+    setTimeout(() => {
+      unsub();
+      resolve();
+    }, 4000);
   });
 }
 
@@ -58,40 +64,25 @@ function RootLayout() {
   const hydrateProfile = useBusinessProfileStore((state) => state.hydrate);
 
   useEffect(() => {
-    let isMounted = true;
-
     void (async () => {
       try {
-        await SplashScreen.preventAutoHideAsync().catch(() => undefined);
         await initializeI18n();
         await initDatabase();
         await runStorageMigration();
         await useOnboardingStore.persist.rehydrate();
-
-        await waitForOnboardingHydration();
-
+        await waitForHydration();
         await hydrateProfile();
-
-        if (isMounted) {
-          offlineQueue.start();
-          void offlineQueue.flush().catch((error) => {
-            Sentry.captureException(error);
-          });
-        }
+        offlineQueue.start();
       } catch (error) {
         Sentry.captureException(error);
       } finally {
-        if (isMounted) {
-          setIsAppReady(true);
-        }
-
+        setIsAppReady(true);
         await SplashScreen.hideAsync().catch(() => undefined);
+        void offlineQueue.flush().catch((error) => {
+          Sentry.captureException(error);
+        });
       }
     })();
-
-    return () => {
-      isMounted = false;
-    };
   }, [hydrateProfile]);
 
   return (
@@ -100,23 +91,18 @@ function RootLayout() {
         <I18nextProvider i18n={i18n}>
           <StatusBar style="auto" />
           {isAppReady ? (
-            <Stack screenOptions={{ headerShown: false }}>
-              <Stack.Screen name="index" options={{ animation: 'none' }} />
-              <Stack.Screen name="(onboarding)" options={{ animation: 'none' }} />
-              <Stack.Screen name="(tabs)" options={{ animation: 'none' }} />
-            </Stack>
+            <Slot />
           ) : (
-            <SafeAreaView
-              edges={['top', 'bottom']}
+            <View
               style={{
                 flex: 1,
-                backgroundColor: '#0a0a0a',
+                backgroundColor: Colors.ui.bg,
                 alignItems: 'center',
                 justifyContent: 'center',
               }}
             >
-              <ActivityIndicator color="#1D9E75" size="large" />
-            </SafeAreaView>
+              <ActivityIndicator color={Colors.brand.primary} size="large" />
+            </View>
           )}
         </I18nextProvider>
       </SafeAreaProvider>
