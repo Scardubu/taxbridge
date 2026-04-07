@@ -7,9 +7,9 @@
 [![Expo](https://img.shields.io/badge/Expo-54.0.31-blue)](https://expo.dev)
 [![React Native](https://img.shields.io/badge/React%20Native-0.81.5-blue)](https://reactnative.dev)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue)](https://typescriptlang.org)
-[![Tests](https://img.shields.io/badge/Tests-167%20passing-success)]()
-[![Blueprint](https://img.shields.io/badge/Blueprint-v8-green)]()
-[![Version](https://img.shields.io/badge/Version-1.3.0-blue)]()
+[![Tests](https://img.shields.io/badge/Tests-378%20passing-success)]()
+[![Blueprint](https://img.shields.io/badge/Blueprint-v9-green)]()
+[![Version](https://img.shields.io/badge/Version-1.4.0-blue)]()
 [![Production](https://img.shields.io/badge/Status-Production%20Ready-success)]()
 
 </div>
@@ -20,15 +20,27 @@
 
 TaxBridge Mobile is a **production-ready React Native application** that brings tax compliance to Nigeria's 40+ million informal businesses. Built with an **offline-first architecture** and designed for **low-literacy, low-bandwidth environments**, the app makes NRS-compliant e-invoicing accessible to everyone.
 
-### 📘 Blueprint v8 — Final Production Release
+### 📘 Blueprint v9 — Final Production Release
 
-This codebase implements **TaxBridge V13 Mobile Blueprint v8**, which is the single authoritative patch superseding all prior versions (v1–v7). It enforces **14 absolute constraints** for architecture, dependencies, storage, UI, navigation, and compliance, and additionally delivers:
+This codebase implements **TaxBridge V13 Mobile Blueprint v9**, the single authoritative patch superseding all prior versions (v1–v8). It enforces **14 absolute constraints** for architecture, dependencies, storage, UI, navigation, and compliance, and delivers two net-new systems on top of v8’s zero-blank-screen foundation:
 
-- **Zero blank-screen guarantee** — root layout gate eliminates RC-B + RC-C compound race conditions
-- **Admin dashboard integration contract** — SSE push events, compliance event sourcing, obligation overrides
-- **Full-stack typed API contract** — profile sync, compliance events, invoice submission, Remita payment, TIN verify, admin alerts
-- **World-class UX** — score-driven TaxShieldRing SVG, SkeletonDashboard pulse, OfflineIndicator with queue depth
-- **Complete i18n** — 60+ new EN + Pidgin keys covering onboarding, shield, obligations, offline, dashboard
+**SYSTEM-A — Receipt Scanner**
+- `expo-camera` capture → ML Kit OCR pipeline → expense classification (7 categories)
+- VAT input credit extraction, SHA-256 duplicate detection
+- SQLite persistence: `receipts`, `vat_credits`, `vat_returns` tables
+- Offline queue op `RECEIPT_SUBMIT`; SSE `receipt_processed` → `markServerConfirmed`
+- `ExpenseSummaryCard` on dashboard shows running spend + credit totals
+- Receipt scanner replaces invoices as the primary tab
+
+**SYSTEM-B — Tax Engine v2 (pure TypeScript)**
+- VAT: 7.5% output, input credit netting, net payable, nil-return detection
+- CIT: 3-tier (0% ≤₦25M • 20% ≤₦100M • 30% >₦100M) per NRS 2026
+- WHT: 22 rate codes per FIRS schedule
+- E-invoicing phase assignment (large/medium/small) + enforcement dates
+- Compliance score v2: 6-factor weighted (max 100 pts)
+- `useTaxEngine` memoised hook; `TaxCalculationSummary` on dashboard
+
+**Tests: 31/31 suites • 378 passing • 0 failing • TypeScript: 0 errors**
 
 #### Key Constraints Applied
 
