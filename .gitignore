@@ -39,6 +39,10 @@ yarn-error.log*
 .expo/
 .expo-shared/
 
+# AI assistant metadata
+.serena/
+**/.serena/
+
 # Android
 android/app/build/
 android/.gradle/
