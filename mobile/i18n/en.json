@@ -200,7 +200,19 @@
     "nudges": { "title": "Action Required" },
     "nudgeCards": {
       "deadline": {
+        "title": "Upcoming compliance deadline",
+        "body": "A tax deadline needs attention soon. Open your calendar to review the due date and next step.",
         "action": "Open calendar"
+      },
+      "adminAlert": {
+        "title": "Admin alert",
+        "body": "A compliance update from the admin team needs your attention.",
+        "action": "Open details"
+      },
+      "einvoiceAlert": {
+        "title": "E-invoice alert",
+        "body": "Review the latest e-invoice guidance and complete the next required step.",
+        "action": "Open e-invoice portal"
       },
       "missingTin": {
         "title": "Verify your TIN",
@@ -369,6 +381,14 @@
     "boundaryBody": "Your progress has been saved. You can continue later.",
     "retry": "Try Again",
     "errorIdLabel": "Error ID"
+  },
+  "accessibility": {
+    "switchEnglish": "Switch to English",
+    "switchPidgin": "Switch to Nigerian Pidgin",
+    "guidedSetupHint": "Opens the guided tax setup",
+    "previewDashboardHint": "Shows a preview dashboard. You can return to setup at any time.",
+    "loadingDashboard": "Loading dashboard",
+    "openFirsPortal": "Open FIRS portal"
   },
   "common": {
     "back": "Back",

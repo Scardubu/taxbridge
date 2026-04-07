@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
+import { Linking, Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,11 +12,15 @@ import { EducativeTaxObligationsSection } from '../../components/EducativeTaxObl
 import { SkeletonDashboard } from '../../components/SkeletonDashboard';
 import { Colors, Spacing, Radii, Typography } from '../../components/design-system/tokens';
 import { computeObligations } from '../../services/nrsCompliance';
-import { generateNudges } from '../../services/nudgeEngine';
+import { type ComplianceNudge, generateNudges } from '../../services/nudgeEngine';
 import { offlineQueue } from '../../services/offlineQueue';
 import { sseService } from '../../services/sseService';
+import { getAlerts } from '../../services/api';
+import { logComplianceEvent } from '../../services/complianceEventService';
+import { markPaymentConfirmed } from '../../services/paymentService';
 import { TokenService } from '../../services/tokenService';
 import { useBusinessProfileStore } from '../../stores/businessProfileStore';
+import { type EventNudge, useNudgeStore } from '../../stores/nudgeStore';
 import { useCurrentStepId, useIsOnboardingDone, useOnboardingStore, STEP_ROUTES } from '../../stores/onboardingStore';
 
 const PREVIEW_PROFILE = {
@@ -35,7 +39,32 @@ const NUDGE_ICONS: Record<string, React.ComponentProps<typeof Ionicons>['name']>
   'cit-zero': 'checkmark-circle',
   'vat-filing-exempt': 'information-circle',
   'einvoice-readiness': 'document-text',
+  'admin-alert': 'notifications',
+  'einvoice-alert': 'warning',
 };
+
+const NUDGE_PRIORITY_ORDER = {
+  critical: 0,
+  warning: 1,
+  opportunity: 2,
+} as const;
+
+type DashboardNudge = Omit<ComplianceNudge, 'route'> & {
+  route: string;
+  external?: boolean;
+};
+
+function mapSeverityToPriority(severity: 'info' | 'warning' | 'critical') {
+  if (severity === 'critical') return 'critical' as const;
+  if (severity === 'warning') return 'warning' as const;
+  return 'opportunity' as const;
+}
+
+function toEventNudge(nudge: EventNudge): DashboardNudge {
+  return {
+    ...nudge,
+  };
+}
 
 function getNudgeIcon(id: string): React.ComponentProps<typeof Ionicons>['name'] {
   if (id.startsWith('deadline-')) {
@@ -90,6 +119,7 @@ export default function DashboardTab() {
   const isDone = useIsOnboardingDone();
   const currentStepId = useCurrentStepId();
   const previewMode = useOnboardingStore((state) => state.previewMode);
+  const eventNudges = useNudgeStore((state) => state.eventNudges);
   const snapshot = useBusinessProfileStore((state) => ({
     businessName: state.businessName,
     annualTurnover: state.annualTurnover,
@@ -107,19 +137,114 @@ export default function DashboardTab() {
   useEffect(() => {
     if (!isDone) return;
     void TokenService.getAccessToken().then((token) => {
-      if (token) sseService.connect(token);
+      if (!token) return;
+
+      sseService.connect(token);
+      void getAlerts()
+        .then((alerts) => {
+          alerts
+            .slice()
+            .reverse()
+            .forEach((alert) => {
+              useNudgeStore.getState().prependNudge({
+                id: `admin-alert-${alert.id}`,
+                title: t('dashboard.nudgeCards.adminAlert.title'),
+                body: alert.message,
+                severity: alert.severity,
+                priority: mapSeverityToPriority(alert.severity),
+                actionLabel: t('dashboard.nudgeCards.adminAlert.action'),
+                route: alert.action_url ?? '/(tabs)/compliance',
+                external: typeof alert.action_url === 'string' && /^https?:\/\//.test(alert.action_url),
+                source: 'admin',
+              });
+            });
+        })
+        .catch(() => undefined);
     });
     const offTinVerified = sseService.on('tin_verified', () => {
       void useBusinessProfileStore.getState().hydrate();
     });
+    const offDeadline = sseService.on('compliance_deadline', (payload) => {
+      useNudgeStore.getState().prependNudge({
+        id: String(payload.id ?? `deadline-${Date.now()}`),
+        title: typeof payload.title === 'string' ? payload.title : t('dashboard.nudgeCards.deadline.title'),
+        body: typeof payload.body === 'string' ? payload.body : t('dashboard.nudgeCards.deadline.body'),
+        severity: 'critical',
+        priority: 'critical',
+        actionLabel: t('dashboard.nudgeCards.deadline.action'),
+        route: typeof payload.action_url === 'string' ? payload.action_url : '/(tabs)/tax-calendar',
+        external: typeof payload.action_url === 'string' && /^https?:\/\//.test(payload.action_url),
+        source: 'system',
+      });
+    });
+    const offPaymentConfirmed = sseService.on('payment_confirmed', (payload) => {
+      if (typeof payload.remita_rrr === 'string') {
+        void markPaymentConfirmed(payload.remita_rrr);
+      }
+      void useBusinessProfileStore.getState().hydrate();
+    });
     const offEinvoiceAlert = sseService.on('einvoice_alert', () => {
-      // alerts surface via getAlerts() poll; SSE just triggers a UI nudge refresh
+      useNudgeStore.getState().prependNudge({
+        id: 'einvoice-alert',
+        title: t('dashboard.nudgeCards.einvoiceAlert.title'),
+        body: t('dashboard.nudgeCards.einvoiceAlert.body'),
+        severity: 'warning',
+        priority: 'warning',
+        actionLabel: t('dashboard.nudgeCards.einvoiceAlert.action'),
+        route: 'https://einvoice.firs.gov.ng',
+        external: true,
+        source: 'system',
+      });
+    });
+    const offAdminAlert = sseService.on('admin_alert', (payload) => {
+      const severity = payload.severity === 'critical' || payload.severity === 'warning' ? payload.severity : 'info';
+      useNudgeStore.getState().prependNudge({
+        id: String(payload.id ?? `admin-alert-${Date.now()}`),
+        title: t('dashboard.nudgeCards.adminAlert.title'),
+        body: typeof payload.message === 'string' ? payload.message : t('dashboard.nudgeCards.adminAlert.body'),
+        severity,
+        priority: mapSeverityToPriority(severity),
+        actionLabel: t('dashboard.nudgeCards.adminAlert.action'),
+        route: typeof payload.action_url === 'string' ? payload.action_url : '/(tabs)/compliance',
+        external: typeof payload.action_url === 'string' && /^https?:\/\//.test(payload.action_url),
+        source: 'admin',
+      });
+      void logComplianceEvent(
+        'admin_alert_received',
+        typeof payload.message === 'string' ? payload.message : 'Admin alert received',
+        severity === 'info' ? 'warning' : severity,
+        payload,
+        { source: 'admin', actionUrl: typeof payload.action_url === 'string' ? payload.action_url : undefined }
+      );
+    });
+    const offObligationOverride = sseService.on('obligation_override', (payload) => {
+      void useBusinessProfileStore.getState().hydrate();
+      void logComplianceEvent(
+        'obligation_override',
+        'Compliance obligation overridden by admin',
+        'warning',
+        payload,
+        { source: 'admin' }
+      );
+    });
+    const offTinManualVerify = sseService.on('tin_manual_verify', (payload) => {
+      if (typeof payload.status === 'string') {
+        void useBusinessProfileStore.getState().updateField('hasValidTIN', payload.status === 'verified');
+      }
+      void useBusinessProfileStore.getState().hydrate();
     });
     return () => {
       offTinVerified();
+      offDeadline();
+      offPaymentConfirmed();
       offEinvoiceAlert();
+      offAdminAlert();
+      offObligationOverride();
+      offTinManualVerify();
+      useNudgeStore.getState().clearEventNudges();
+      sseService.disconnect();
     };
-  }, [isDone]);
+  }, [isDone, t]);
 
   const profile = useMemo(() => {
     if (previewMode && !snapshot.businessType) {
@@ -138,7 +263,16 @@ export default function DashboardTab() {
   }, [previewMode, snapshot]);
 
   const obligations = useMemo(() => computeObligations(profile), [profile]);
-  const nudges = useMemo(() => generateNudges(profile, obligations), [obligations, profile]);
+  const nudges = useMemo<DashboardNudge[]>(() => {
+    const generated = generateNudges(profile, obligations).map((nudge) => ({
+      ...nudge,
+      external: false,
+    }));
+
+    return [...eventNudges.map(toEventNudge), ...generated]
+      .sort((left, right) => NUDGE_PRIORITY_ORDER[left.priority] - NUDGE_PRIORITY_ORDER[right.priority])
+      .slice(0, 3);
+  }, [eventNudges, obligations, profile]);
   const score = previewMode && !isDone ? 0 : obligations.complianceScore ?? 0;
   const shieldMeta = useMemo(() => getShieldMeta(score, t), [score, t]);
   const businessLabel = snapshot.businessName.trim() || t('dashboard.yourBusiness');
@@ -154,6 +288,15 @@ export default function DashboardTab() {
     const route = (currentStepId !== 'done' ? STEP_ROUTES[currentStepId] : null) ?? '/(onboarding)/business-type';
     router.push(route);
   }, [currentStepId]);
+
+  const handleNudgePress = useCallback((nudge: DashboardNudge) => {
+    if (nudge.external || /^https?:\/\//.test(nudge.route)) {
+      void Linking.openURL(nudge.route);
+      return;
+    }
+
+    router.push(nudge.route as never);
+  }, []);
 
   if (!snapshot.isHydrated) {
     return <SkeletonDashboard />;
@@ -232,7 +375,7 @@ export default function DashboardTab() {
             nudges.map((nudge) => (
               <Pressable
                 key={nudge.id}
-                onPress={() => router.push(nudge.route)}
+                onPress={() => handleNudgePress(nudge)}
                 accessibilityRole="button"
                 accessibilityLabel={nudge.title}
                 style={({ pressed }) => ({

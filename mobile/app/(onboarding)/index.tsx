@@ -128,7 +128,7 @@ export default function WelcomeScreen() {
                   key={lang}
                   onPress={() => handleLanguageToggle(lang)}
                   accessibilityRole="tab"
-                  accessibilityLabel={lang === 'en' ? 'Switch to English' : 'Switch to Nigerian Pidgin'}
+                  accessibilityLabel={lang === 'en' ? t('accessibility.switchEnglish') : t('accessibility.switchPidgin')}
                   accessibilityState={{ selected: active }}
                   style={{
                     flex: 1,
@@ -149,7 +149,7 @@ export default function WelcomeScreen() {
                       color: active ? Colors.ui.white : Colors.ui.textMuted,
                     }}
                   >
-                    {lang === 'en' ? 'English' : 'Pidgin'}
+                    {lang === 'en' ? t('common.english') : t('common.pidgin')}
                   </Text>
                 </Pressable>
               );
@@ -179,7 +179,7 @@ export default function WelcomeScreen() {
                   paddingVertical: 3,
                 }}
               >
-                <Text style={{ color: Colors.brand.badge, ...Typography.micro }}>NRS 2026</Text>
+                <Text style={{ color: Colors.brand.badge, ...Typography.micro }}>{t('onboarding.welcome.featureBadge')}</Text>
               </View>
             </View>
             <Text style={{ ...Typography.caption, color: Colors.ui.textDim, marginTop: Spacing.sm }}>
@@ -244,7 +244,7 @@ export default function WelcomeScreen() {
             onPress={handleGetStarted}
             accessibilityRole="button"
             accessibilityLabel={t('onboarding.getStarted')}
-            accessibilityHint="Opens the guided tax setup"
+            accessibilityHint={t('accessibility.guidedSetupHint')}
             style={{
               backgroundColor: Colors.brand.primary,
               borderRadius: Radii.lg,
@@ -262,7 +262,7 @@ export default function WelcomeScreen() {
             onPress={handleExploreFirst}
             accessibilityRole="button"
             accessibilityLabel={t('onboarding.exploreDash')}
-            accessibilityHint="Shows a preview dashboard. You can return to setup at any time."
+            accessibilityHint={t('accessibility.previewDashboardHint')}
             style={{ paddingVertical: Spacing.md, alignItems: 'center' }}
           >
             <Text style={{ ...Typography.body, color: Colors.ui.textDim }}>

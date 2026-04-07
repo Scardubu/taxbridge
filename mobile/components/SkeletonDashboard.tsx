@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Animated, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { Colors, Radii, Spacing } from './design-system/tokens';
 
 function SkeletonBox({
@@ -28,6 +29,7 @@ function SkeletonBox({
 }
 
 export function SkeletonDashboard() {
+  const { t } = useTranslation();
   const pulse = useRef(new Animated.Value(0.4)).current;
 
   useEffect(() => {
@@ -53,7 +55,7 @@ export function SkeletonDashboard() {
     <SafeAreaView
       style={{ flex: 1, backgroundColor: Colors.ui.bg }}
       edges={['top', 'bottom']}
-      accessibilityLabel="Loading dashboard"
+      accessibilityLabel={t('accessibility.loadingDashboard')}
       accessibilityRole="progressbar"
     >
       <View
