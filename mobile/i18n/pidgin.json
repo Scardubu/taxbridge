@@ -330,6 +330,8 @@
     "backToDashboard": "Back to dashboard",
     "retakePhoto": "Take photo again",
     "saveError": "We no fit save receipt now. Try again.",
+    "vendorRequired": "Make you enter vendor name",
+    "amountRequired": "Amount must pass ₦0",
     "flaggedBody": "One receipt need review: {{reason}}",
     "taxAssessmentBody": "Tax assessment don come for ₦{{amount}} and e due on {{dueDate}}.",
     "categories": {

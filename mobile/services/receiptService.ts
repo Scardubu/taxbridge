@@ -37,6 +37,15 @@ export const receiptService = {
 
   async saveReceipt(draft: DraftReceipt, businessId: string): Promise<ReceiptRecord> {
     const resolvedBusinessId = businessId || RECEIPT_FALLBACK_BUSINESS_ID;
+
+    // Input validation at system boundary
+    if (!draft.vendorName?.trim()) {
+      throw new Error('vendorName is required');
+    }
+    if (!draft.amountNgn || draft.amountNgn <= 0) {
+      throw new Error('amountNgn must be greater than zero');
+    }
+
     const id = generateId();
     const now = new Date().toISOString();
     const db = await getDatabase();
@@ -112,6 +121,7 @@ export const receiptService = {
 
     await offlineQueue.enqueue('RECEIPT_SUBMIT', {
       client_receipt_id: id,
+      idempotency_key: id,
       business_id: resolvedBusinessId,
       vendor_name: draft.vendorName,
       vendor_tin: draft.vendorTin,

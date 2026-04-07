@@ -86,6 +86,9 @@ export function computeTaxEngine(input: TaxEngineInput): TaxCalculationResult {
   }
 
   const citExempt = citRate === 0;
+  // Intentional (Blueprint v9 §CIT-decision): estimate CIT only when annualProfit is
+  // explicitly provided in the input. If absent, return zero to avoid false precision
+  // on unverified profit data. This is the authoritative behaviour for v9.
   const citEstimatedNgn = typeof input.annualProfit === 'number'
     ? Math.round(Math.max(0, input.annualProfit) * citRate)
     : 0;

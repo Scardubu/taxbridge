@@ -49,15 +49,15 @@ export default function WelcomeScreen() {
     }
   }, [i18n]);
 
-  const handleExploreFirst = useCallback(() => {
+  const handleExploreFirst = useCallback(async () => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setPreviewMode(true);
+    await setPreviewMode(true);
     router.replace('/(tabs)');
   }, [setPreviewMode]);
 
-  const handleGetStarted = useCallback(() => {
+  const handleGetStarted = useCallback(async () => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    setPreviewMode(false);
+    await setPreviewMode(false);
     router.push('/(onboarding)/business-type');
   }, [setPreviewMode]);
 

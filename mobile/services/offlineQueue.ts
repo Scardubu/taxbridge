@@ -117,6 +117,19 @@ export class OfflineQueue {
     }
   }
 
+  /** Returns the number of operations that exhausted all retries and are in the dead-letter state. */
+  async getDeadLetterCount(): Promise<number> {
+    try {
+      const db = await getDatabase();
+      const result = await db.getFirstAsync<{ count: number }>(
+        "SELECT COUNT(*) as count FROM offline_operations WHERE status = 'dead'"
+      );
+      return result?.count ?? 0;
+    } catch {
+      return 0;
+    }
+  }
+
   destroy() {
     this.unsubscribe?.();
     OfflineQueue.instance = null;

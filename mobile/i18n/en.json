@@ -332,6 +332,8 @@
     "backToDashboard": "Back to dashboard",
     "retakePhoto": "Retake photo",
     "saveError": "Could not save receipt. Please try again.",
+    "vendorRequired": "Vendor name is required",
+    "amountRequired": "Amount must be greater than ₦0",
     "flaggedBody": "A receipt needs review: {{reason}}",
     "taxAssessmentBody": "Tax assessment issued for ₦{{amount}} and due on {{dueDate}}.",
     "categories": {

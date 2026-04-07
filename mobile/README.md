@@ -25,6 +25,7 @@ TaxBridge Mobile is a **production-ready React Native application** that brings 
 This codebase implements **TaxBridge V13 Mobile Blueprint v9**, the single authoritative patch superseding all prior versions (v1–v8). It enforces **14 absolute constraints** for architecture, dependencies, storage, UI, navigation, and compliance, and delivers two net-new systems on top of v8’s zero-blank-screen foundation:
 
 **SYSTEM-A — Receipt Scanner**
+
 - `expo-camera` capture → ML Kit OCR pipeline → expense classification (7 categories)
 - VAT input credit extraction, SHA-256 duplicate detection
 - SQLite persistence: `receipts`, `vat_credits`, `vat_returns` tables
@@ -33,6 +34,7 @@ This codebase implements **TaxBridge V13 Mobile Blueprint v9**, the single autho
 - Receipt scanner replaces invoices as the primary tab
 
 **SYSTEM-B — Tax Engine v2 (pure TypeScript)**
+
 - VAT: 7.5% output, input credit netting, net payable, nil-return detection
 - CIT: 3-tier (0% ≤₦25M • 20% ≤₦100M • 30% >₦100M) per NRS 2026
 - WHT: 22 rate codes per FIRS schedule
@@ -52,20 +54,20 @@ This codebase implements **TaxBridge V13 Mobile Blueprint v9**, the single autho
 - ✅ **SQLite** without GENERATED columns, with versioned migrations
 - ✅ **Navigation** via `router.replace()` (no `navigationRef.reset`)
 - ✅ **Animated API pulse only** for skeleton loaders; no `withSpring`/`withTiming` on step transitions
-- ✅ **Compliance events** logged for `onboarding_complete`, `tin_verified`, `invoice_submitted`
+- ✅ **Compliance events** logged for `onboarding_complete`, `tin_verified`, `receipt_scanned`
 - ✅ **NRS 2026** phased e-invoicing rules, CIT 0% relief, PIT zero band ₦800K
 - ✅ **SSE** event streaming — `tin_verified`, `admin_alert`, `obligation_override`, `tin_manual_verify`, `payment_confirmed`
 - ✅ **i18n** with English and Nigerian Pidgin (205+ keys)
 - ✅ **SafeAreaView** from `react-native-safe-area-context` only
 - ✅ **No reanimated plugins** in `babel.config.js`
 - ✅ **Remita RRR** immediately persisted to `tax_payments` on API response
-- ✅ **Exactly 5 NativeTabs** entries: dashboard, invoices, tax-calendar, compliance, settings
+- ✅ **Exactly 5 NativeTabs** entries: dashboard, receipts, tax-calendar, compliance, settings
 
 ### ✨ Core Features
 
 #### 🔌 Offline-First Architecture
 
-- **Local-first storage**: Create invoices without internet connection using SQLite
+- **Local-first storage**: Scan and save receipts without internet connection using SQLite
 - **Intelligent sync**: Automatic background sync when connectivity is restored
 - **Queue depth display**: `OfflineIndicator` shows pending count + "Sync now" CTA
 - **Conflict resolution**: Smart merge strategies for concurrent edits
@@ -142,14 +144,14 @@ This codebase implements **TaxBridge V13 Mobile Blueprint v9**, the single autho
 - **Performance**:
   - React.memo for 6 onboarding components
   - useCallback/useMemo hooks throughout
-  - Virtualized lists for invoice rendering
+  - Virtualized lists for receipt rendering
   - Debounced search inputs
   - Optimistic UI updates
 - **Code Quality**:
   - ESLint + Prettier configured
   - Pre-commit hooks (Husky)
   - Automated testing (Jest)
-  - **139 tests across 7 suites (100% passing)**
+  - **378 tests across 31 suites (100% passing)**
 - **i18n Support**:
   - 205+ translation keys
   - English + Nigerian Pidgin
@@ -167,15 +169,18 @@ mobile/
 │   ├── index.tsx            # Entry redirect
 │   ├── (onboarding)/        # Onboarding route group
 │   │   ├── _layout.tsx      # Onboarding guard (redirect if done)
-│   │   ├── index.tsx        # Welcome screen + language toggle
+│   │   ├── index.tsx        # Entry redirect to welcome
+│   │   ├── welcome.tsx      # Welcome screen + language toggle
 │   │   ├── business-type.tsx
-│   │   ├── income.tsx
-│   │   ├── tin.tsx
-│   │   └── review.tsx
+│   │   ├── tin-verify.tsx
+│   │   ├── vat-setup.tsx
+│   │   ├── einvoice.tsx
+│   │   ├── community.tsx
+│   │   └── _shared.tsx      # Shared step components
 │   └── (tabs)/              # Main tab group (5 NativeTabs)
 │       ├── _layout.tsx      # Tab guard (sync previewMode read — RC-B fix)
 │       ├── index.tsx        # Dashboard (MODE A preview / MODE B full)
-│       ├── invoices.tsx
+│       ├── receipts.tsx
 │       ├── tax-calendar.tsx
 │       ├── compliance.tsx
 │       └── settings.tsx
@@ -263,7 +268,7 @@ mobile/
 >
    > This sets `EXPO_NO_DOCTOR=1` to skip the dependency health check.
 
-4. **Run on device/simulator**:
+1. **Run on device/simulator**:
 
    ```bash
    # Android emulator

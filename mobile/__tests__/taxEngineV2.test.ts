@@ -112,4 +112,17 @@ describe('computeTaxEngine', () => {
     expect(result.scoreBrackets.find((entry) => entry.factor === 'tin_verified')?.earned).toBe(20);
     expect(result.scoreBrackets.find((entry) => entry.factor === 'e_invoice_compliant')?.earned).toBe(0);
   });
+
+  test('citEstimatedNgn is zero when annualProfit is absent (Blueprint v9 §CIT-decision)', () => {
+    // When profit is not explicitly provided by the user, we must not infer it.
+    // The engine should return zero to avoid false precision — confirmed intentional.
+    const { annualProfit: _omit, ...inputWithoutProfit } = baseInput;
+    const result = computeTaxEngine(inputWithoutProfit);
+
+    expect(result.citEstimatedNgn).toBe(0);
+    // Rate and band still computed from turnover
+    expect(result.citRate).toBe(0.2);
+    expect(result.citBand).toBe('medium');
+    expect(result.citExempt).toBe(false);
+  });
 });

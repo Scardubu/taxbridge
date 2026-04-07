@@ -21,6 +21,8 @@ export function ReceiptReviewForm({ draft, ocrFailed, processing, onSave, onReta
   const [vat, setVat] = useState(draft.vatAmountNgn > 0 ? String(draft.vatAmountNgn) : '');
   const [date, setDate] = useState(draft.date);
   const [category, setCategory] = useState<ExpenseCategory>(draft.category);
+  const [vendorError, setVendorError] = useState(false);
+  const [amountError, setAmountError] = useState(false);
 
   const fieldStyle = {
     backgroundColor: Colors.ui.surface,
@@ -45,7 +47,12 @@ export function ReceiptReviewForm({ draft, ocrFailed, processing, onSave, onReta
     const amountNgn = parseFloat(amount.replace(/,/g, '')) || 0;
     const vatAmountNgn = parseFloat(vat.replace(/,/g, '')) || 0;
 
-    if (!vendor.trim()) {
+    const hasVendorError = !vendor.trim();
+    const hasAmountError = amountNgn <= 0;
+    setVendorError(hasVendorError);
+    setAmountError(hasAmountError);
+
+    if (hasVendorError || hasAmountError) {
       return;
     }
 
@@ -94,27 +101,49 @@ export function ReceiptReviewForm({ draft, ocrFailed, processing, onSave, onReta
 
         <Text style={labelStyle}>{t('receipts.vendor')} *</Text>
         <TextInput
-          style={fieldStyle}
+          style={[
+            fieldStyle,
+            vendorError ? { borderColor: Colors.status.dangerBorder } : undefined,
+          ]}
           value={vendor}
-          onChangeText={setVendor}
+          onChangeText={(text) => { setVendor(text); if (vendorError) setVendorError(false); }}
           placeholder={t('receipts.vendorPlaceholder')}
           placeholderTextColor={Colors.ui.textDim}
           accessibilityLabel={t('receipts.vendor')}
           autoCapitalize="words"
           returnKeyType="next"
         />
+        {vendorError ? (
+          <Text
+            style={{ ...Typography.micro, color: Colors.status.dangerText, marginTop: -Spacing.sm, marginBottom: Spacing.md }}
+            accessibilityRole="alert"
+          >
+            {t('receipts.vendorRequired')}
+          </Text>
+        ) : null}
 
         <Text style={labelStyle}>{t('receipts.amount')} *</Text>
         <TextInput
-          style={fieldStyle}
+          style={[
+            fieldStyle,
+            amountError ? { borderColor: Colors.status.dangerBorder } : undefined,
+          ]}
           value={amount}
-          onChangeText={setAmount}
+          onChangeText={(text) => { setAmount(text); if (amountError) setAmountError(false); }}
           placeholder="0"
           placeholderTextColor={Colors.ui.textDim}
           keyboardType="numeric"
           accessibilityLabel={t('receipts.amount')}
           returnKeyType="next"
         />
+        {amountError ? (
+          <Text
+            style={{ ...Typography.micro, color: Colors.status.dangerText, marginTop: -Spacing.sm, marginBottom: Spacing.md }}
+            accessibilityRole="alert"
+          >
+            {t('receipts.amountRequired')}
+          </Text>
+        ) : null}
 
         <Text style={labelStyle}>{t('receipts.vatAmount')}</Text>
         <TextInput
@@ -174,11 +203,11 @@ export function ReceiptReviewForm({ draft, ocrFailed, processing, onSave, onReta
 
         <Pressable
           onPress={() => void handleConfirm()}
-          disabled={processing || !vendor.trim()}
+          disabled={processing}
           accessibilityRole="button"
           accessibilityLabel={t('receipts.confirm')}
           style={{
-            backgroundColor: vendor.trim() ? Colors.brand.primary : Colors.ui.border,
+            backgroundColor: processing ? Colors.ui.border : Colors.brand.primary,
             borderRadius: Radii.lg,
             paddingVertical: 18,
             alignItems: 'center',

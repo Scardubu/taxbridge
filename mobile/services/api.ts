@@ -231,6 +231,8 @@ export interface ReceiptPayload {
   raw_ocr_text?: string | null;
   image_hash?: string | null;
   client_receipt_id: string;
+  /** Client-generated UUID used for server-side idempotent deduplication on retry. */
+  idempotency_key: string;
 }
 
 export interface VatReturnPayload {

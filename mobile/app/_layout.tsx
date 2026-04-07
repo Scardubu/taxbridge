@@ -54,6 +54,12 @@ function waitForHydration(): Promise<void> {
 
     setTimeout(() => {
       unsub();
+      // Safety-net timeout fired before _hasHydrated — possible previewMode KV race.
+      // This is non-fatal but should be investigated if seen in production telemetry.
+      Sentry.captureMessage(
+        'waitForHydration resolved via 4s timeout — previewMode KV read may not have completed',
+        'warning'
+      );
       resolve();
     }, 4000);
   });

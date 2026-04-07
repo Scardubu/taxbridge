@@ -86,7 +86,7 @@ interface OnboardingStore {
   isSyncing: boolean;
   _hasHydrated: boolean;
   previewMode: boolean;
-  setPreviewMode(val: boolean): void;
+  setPreviewMode(val: boolean): Promise<void>;
   goNext(): Promise<void>;
   goPrev(): void;
   skipAllOptional(): Promise<void>;
@@ -105,9 +105,9 @@ export const useOnboardingStore = create<OnboardingStore>()(
       isSyncing: false,
       _hasHydrated: false,
       previewMode: false,
-      setPreviewMode: (val) => {
+      setPreviewMode: async (val) => {
         set({ previewMode: val });
-        void AppKV.flags.setPreviewMode(val);
+        await AppKV.flags.setPreviewMode(val);
       },
       migrateIfNeeded: () => {
         const { currentStepId, completedSteps, schemaVersion } = get();

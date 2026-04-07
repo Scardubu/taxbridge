@@ -37,7 +37,7 @@ TaxBridge Mobile v1.4.0 satisfies all 14 Blueprint v6 absolute constraints, Phas
 - ✅ Zustand + `expo-sqlite/kv-store` async persistence — `storage/kv.ts`
 - ✅ SQLite WAL, no `GENERATED` columns, migrations v1–v3 — `services/database.ts`
 - ✅ Declarative `<Redirect>` routing guards — `app/(onboarding)/_layout.tsx`, `app/(tabs)/_layout.tsx`
-- ✅ Exactly five NativeTabs: index, invoices, tax-calendar, compliance, settings
+- ✅ Exactly five NativeTabs: index, receipts, tax-calendar, compliance, settings
 - ✅ CSS transitions for `StepContainer` — `components/StepContainer.tsx`
 - ✅ Immediate Remita RRR persistence in `tax_payments` — `services/paymentService.ts`
 - ✅ Three mandatory compliance events logged — `services/complianceEventService.ts`
@@ -74,7 +74,7 @@ TaxBridge Mobile v1.4.0 satisfies all 14 Blueprint v6 absolute constraints, Phas
 | `app/(onboarding)/business-type.tsx` | `OPTIONS` replaced with `OPTION_VALUES` + `t()` lookup, `accessibilityState={{ selected }}` |
 | `app/(onboarding)/tin-verify.tsx` | `accessibilityLabel`, `accessibilityHint` on `TextInput`; `accessibilityRole="button"` on `Pressable`; `Alert` text i18n'd |
 | `app/(onboarding)/shared.tsx` | `accessibilityRole="button"` + `accessibilityLabel` on primary & secondary `Pressable` |
-| `app/(tabs)/invoices.tsx` | All text via `t()`, `useTranslation` added, `accessibilityRole="button"` on CTA |
+| `app/(tabs)/receipts.tsx` | All text via `t()`, `useTranslation` added, `accessibilityRole="button"` on CTA |
 | `app/(tabs)/compliance.tsx` | `useTranslation` added, all row labels/values via `t()` |
 | `app/(tabs)/settings.tsx` | Single `useTranslation` hook, all text via `t()`, `Switch` has `accessibilityRole="switch"` |
 | `app/(tabs)/tax-calendar.tsx` | Real `useBusinessProfileStore` profile, i18n for date/days-away via `t('calendar.daysAway', { date, count })` |
@@ -89,7 +89,7 @@ TaxBridge Mobile v1.4.0 satisfies all 14 Blueprint v6 absolute constraints, Phas
 | `services/api.ts` | Added request timeout via `AbortController` so stalled backend calls cannot block boot or sync forever |
 | `tailwind.config.js` | Limited content scan to active `app/` and `components/` trees |
 | `package.json` | Added `export:android-smoke` for repeatable local Metro export verification |
-| `i18n/en.json` | Added: `skipStep`, `onboarding.welcome.featureTitle/Body`, `businessType.options.*`, `invoices.*`, `compliance.*`, `settings.*`, `calendar.*`, `offline.*`, `error.*` |
+| `i18n/en.json` | Added: `skipStep`, `onboarding.welcome.featureTitle/Body`, `businessType.options.*`, `receipts.*`, `expenses.*`, `taxCalc.*`, `compliance.*`, `settings.*`, `calendar.*`, `offline.*`, `error.*` |
 | `i18n/pidgin.json` | Full EN parity for all new keys in authentic Nigerian Pidgin |
 
 ---
@@ -213,7 +213,7 @@ TaxBridge Mobile v1.4.0 satisfies all 14 Blueprint v6 absolute constraints, Phas
 | Test Suite | Tests | Status | Coverage Area |
 |------------|-------|--------|---------------|
 | taxEngine.test.ts | 32 | ✅ | PIT/VAT/CIT/PAYE/CGT/anomaly/i18n |
-| taxEngineV2.test.ts | 18 | ✅ | VAT 7.5%, CIT 3-tier, WHT 22 codes, e-invoice, score v2 (T35–T40) |
+| taxEngineV2.test.ts | 18 | ✅ | VAT 7.5%, CIT 3-tier, WHT 22 codes, e-invoice, score v2, CIT absent-profit rule (T35–T40) |
 | onboardingStore.test.ts | 19 | ✅ | Step config, migration, ordering |
 | nrsCompliance.test.ts | 22 | ✅ | Obligations engine, e-invoice phases |
 | otpService.test.ts | 15 | ✅ | Three-branch phone normalisation |
@@ -221,10 +221,10 @@ TaxBridge Mobile v1.4.0 satisfies all 14 Blueprint v6 absolute constraints, Phas
 | payment.e2e.test.tsx | 16 | ✅ | Payment E2E |
 | receiptService.test.ts | 12 | ✅ | Save/dedupe/VAT credit/offline queue (T31–T33) |
 | receiptsScreen.test.tsx | 8 | ✅ | Camera flow, isDone gate, OCR mock (T29–T30) |
-| appIndex.preview.test.tsx | 6 | ✅ | Preview mode gate on app index |
+| appIndex.preview.test.tsx | 5 | ✅ | Preview mode gate + cold-start rehydration scenarios |
 | screens/mobileV7Dashboard.test.tsx | 9 | ✅ | Dashboard v9 with receipt/tax mocks |
 | e2e.test.tsx | 19 | ✅ | Core E2E |
-| Legacy (OnboardingSystem, invoices, sync) | 27 | ✅ | Full 6-step flow, invoice creation |
+| Legacy (OnboardingSystem, receipts, sync) | 27 | ✅ | Full 6-step flow, receipt scan/save |
 | **Total** | **167** | ✅ | All passing |
 
 ### Unit Tests (✅ Complete)
@@ -371,7 +371,7 @@ TaxBridge Mobile v1.4.0 satisfies all 14 Blueprint v6 absolute constraints, Phas
 
 #### Testing ⏳
 
-- [x] Unit tests written (90+ cases)
+- [x] Unit tests written (378 cases, 31 suites)
 - [x] Unit tests executed (100% pass rate)
 - [x] Integration tests (onboarding flow)
 - [x] Accessibility audit (WCAG AA)
