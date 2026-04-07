@@ -12,6 +12,7 @@ jest.mock('expo-router', () => ({
 jest.mock('../stores/onboardingStore', () => ({
   DEFAULT_TAB_ROUTE: '/(tabs)',
   useIsOnboardingDone: () => mockOnboardingDone,
+  usePreviewMode: () => mockPreviewMode,
   useOnboardingStore: (selector: (state: { previewMode: boolean }) => unknown) => selector({ previewMode: mockPreviewMode }),
 }));
 
