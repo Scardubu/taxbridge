@@ -4,6 +4,7 @@ import * as Sentry from '@sentry/react-native';
 import { TokenService } from './tokenService';
 import { useAuthStore } from '../stores/authStore';
 import { getDatabase } from './database';
+import type { TaxCalculationResult } from '../types/taxEngine';
 
 type JsonRecord = Record<string, unknown>;
 
@@ -219,6 +220,39 @@ export interface AdminAlert {
   action_url?: string;
 }
 
+export interface ReceiptPayload {
+  business_id: string;
+  vendor_name: string;
+  vendor_tin?: string | null;
+  amount_ngn: number;
+  vat_amount_ngn: number;
+  date: string;
+  category: string;
+  raw_ocr_text?: string | null;
+  image_hash?: string | null;
+  client_receipt_id: string;
+}
+
+export interface VatReturnPayload {
+  business_id: string;
+  period_month: number;
+  period_year: number;
+  output_vat_ngn: number;
+  input_vat_credits_ngn: number;
+  net_vat_payable_ngn: number;
+  receipt_ids: string[];
+}
+
+export interface TaxCalculationRequest {
+  business_id?: string;
+  annual_turnover: number;
+  monthly_sales?: number;
+  vat_input_credits_ngn?: number;
+  employee_count?: number;
+  vat_registered?: boolean;
+  tin_verified?: boolean;
+}
+
 /**
  * Partially update the authenticated user's business profile.
  * @param payload Partial profile fields to update.
@@ -350,4 +384,56 @@ export async function verifyTin(
  */
 export async function getAlerts(): Promise<AdminAlert[]> {
   return apiRequest<AdminAlert[]>('/api/v1/alerts');
+}
+
+/**
+ * Submit a scanned receipt for backend validation and VAT credit processing.
+ */
+export async function submitReceipt(
+  payload: ReceiptPayload,
+): Promise<{ id: string; vat_credit_ngn?: number; status: string }> {
+  try {
+    return await apiRequest<{ id: string; vat_credit_ngn?: number; status: string }>('/api/v1/receipts', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  } catch (error) {
+    if (!(error instanceof ApiError)) {
+      const { offlineQueue } = await import('./offlineQueue');
+      await offlineQueue.enqueue('RECEIPT_SUBMIT', payload as unknown as Record<string, unknown>);
+    }
+    throw error;
+  }
+}
+
+/**
+ * Submit a VAT return payload.
+ */
+export async function submitVatReturn(
+  payload: VatReturnPayload,
+): Promise<{ id: string; firs_ref: string; period: string }> {
+  try {
+    return await apiRequest<{ id: string; firs_ref: string; period: string }>('/api/v1/vat-returns', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  } catch (error) {
+    if (!(error instanceof ApiError)) {
+      const { offlineQueue } = await import('./offlineQueue');
+      await offlineQueue.enqueue('VAT_RETURN', payload as unknown as Record<string, unknown>);
+    }
+    throw error;
+  }
+}
+
+/**
+ * Request a server-side tax calculation for validation.
+ */
+export async function calculateTax(
+  payload: TaxCalculationRequest,
+): Promise<TaxCalculationResult> {
+  return apiRequest<TaxCalculationResult>('/api/v1/tax/calculate', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
 }

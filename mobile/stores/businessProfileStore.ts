@@ -3,6 +3,7 @@ import { getDatabase } from '../services/database';
 import { patchBusinessProfile } from '../services/api';
 
 interface BusinessProfile {
+  businessId: string | null;
   businessName: string;
   tradingName: string;
   tin: string;
@@ -43,12 +44,13 @@ export const useBusinessProfileStore = create<Store>()((set, get) => {
       await db.withExclusiveTransactionAsync(async (tx) => {
         await tx.runAsync(
           `INSERT OR REPLACE INTO business_profiles (
-             id, business_name, trading_name, tin, rc_number, sector, business_type,
+             id, server_business_id, business_name, trading_name, tin, rc_number, sector, business_type,
              annual_turnover, monthly_revenue, total_fixed_assets, employee_count,
              is_vat_registered, vat_number, lga, state, phone, email, has_valid_tin,
              updated_at)
-           VALUES (1,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,datetime('now'))`,
+           VALUES (1,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,datetime('now'))`,
           [
+            s.businessId,
             s.businessName,
             s.tradingName,
             s.tin,
@@ -74,6 +76,7 @@ export const useBusinessProfileStore = create<Store>()((set, get) => {
   };
 
   return {
+    businessId: null,
     businessName: '',
     tradingName: '',
     tin: '',
@@ -99,6 +102,7 @@ export const useBusinessProfileStore = create<Store>()((set, get) => {
       const row = await db.getFirstAsync<any>('SELECT * FROM business_profiles WHERE id = 1');
       if (row) {
         set({
+          businessId: row.server_business_id ?? null,
           businessName: row.business_name ?? '',
           tradingName: row.trading_name ?? '',
           tin: row.tin ?? '',
@@ -133,8 +137,13 @@ export const useBusinessProfileStore = create<Store>()((set, get) => {
     syncToBackend: async () => {
       if (!get().isDirty) return;
       try {
-        await patchBusinessProfile(get().getProfileSnapshot());
-        set({ lastSyncedAt: new Date().toISOString(), isDirty: false });
+        const response = await patchBusinessProfile(get().getProfileSnapshot());
+        const db = await getDatabase();
+        await db.runAsync(
+          'UPDATE business_profiles SET server_business_id = ?, updated_at = datetime(\'now\') WHERE id = 1',
+          [response.id]
+        );
+        set({ businessId: response.id, lastSyncedAt: new Date().toISOString(), isDirty: false });
       } catch {}
     },
     getProfileSnapshot: () => {

@@ -1,6 +1,7 @@
 // mobile/storage/kv.ts
 // B-01, C-01, SDK-10 fixes: dual API — async for Zustand, sync for components
 import Storage from 'expo-sqlite/kv-store';
+import type { DraftReceipt } from '../types/receipt';
 
 // ── Async adapter ── required by Zustand createJSONStorage (SDK-10 fix) ─
 export const zustandKvStorage = {
@@ -38,7 +39,10 @@ export const AppKV = {
       Storage.setItem('flags:previewMode', JSON.stringify(val)),
     getPreviewMode: async (): Promise<boolean> => {
       const raw = await Storage.getItem('flags:previewMode');
-      return raw !== null ? JSON.parse(raw) : false;
+      if (raw === null) {
+        return false;
+      }
+      return JSON.parse(raw) as boolean;
     },
     clearPreviewMode: (): Promise<void> =>
       Storage.removeItem('flags:previewMode'),
@@ -47,5 +51,27 @@ export const AppKV = {
       const raw = await Storage.getItem('flags:storeReady');
       return raw === 'true';
     },
+  },
+  receipt: {
+    setLastScanTimestamp: (ts: number): Promise<void> =>
+      Storage.setItem('receipt:lastScan', JSON.stringify(ts)),
+    getLastScanTimestamp: async (): Promise<number | null> => {
+      const raw = await Storage.getItem('receipt:lastScan');
+      if (raw === null) {
+        return null;
+      }
+      return JSON.parse(raw) as number;
+    },
+    setDraftReceipt: (draft: DraftReceipt): Promise<void> =>
+      Storage.setItem('receipt:draft', JSON.stringify(draft)),
+    getDraftReceipt: async (): Promise<DraftReceipt | null> => {
+      const raw = await Storage.getItem('receipt:draft');
+      if (raw === null) {
+        return null;
+      }
+      return JSON.parse(raw) as DraftReceipt;
+    },
+    clearDraftReceipt: (): Promise<void> =>
+      Storage.removeItem('receipt:draft'),
   },
 };

@@ -69,8 +69,8 @@ const SECURITY_CONFIG = {
 
 // Rate limiting helper
 export async function checkRateLimit(
-  identifier: string, 
-  type: keyof typeof RATE_LIMITS, 
+  identifier: string,
+  type: keyof typeof RATE_LIMITS,
   ip?: string
 ): Promise<{ allowed: boolean; remaining: number; resetTime?: Date; blocked?: boolean }> {
   const redis = getRedis();
@@ -81,36 +81,36 @@ export async function checkRateLimit(
 
   const config = RATE_LIMITS[type];
   const key = `rate_limit:${type}:${identifier}`;
-  
+
   try {
     const now = Date.now();
     const windowStart = now - (config.window * 1000);
-    
+
     // Get existing requests with scores
     const requests = await redis.zrangebyscore(key, windowStart, '+inf');
-    
+
     // Count valid requests (already filtered by score range)
     const validRequests = requests;
-    
+
     // Check if rate limit exceeded
     if (validRequests.length >= config.max) {
       const blocked = await redis.get(`blocked:${identifier}`);
       if (blocked) {
         return { allowed: false, remaining: 0, blocked: true };
       }
-      
+
       // Block the identifier
       await redis.setex(`blocked:${identifier}`, config.blockDuration, '1');
       return { allowed: false, remaining: 0, blocked: true };
     }
-    
+
     // Add current request
     await redis.zadd(key, now, `${now}-${Math.random()}`);
     await redis.expire(key, config.window);
-    
+
     const remaining = config.max - validRequests.length - 1;
     const resetTime = new Date(now + (config.window * 1000));
-    
+
     return { allowed: true, remaining, resetTime };
   } catch (error) {
     log.error('Rate limit check failed', { error, identifier, type });
@@ -122,7 +122,7 @@ export async function checkRateLimit(
 // Input sanitization
 export function sanitizeInput(input: string): string {
   if (!input) return '';
-  
+
   return input
     .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
     .replace(/<[^>]*>/g, '')
@@ -133,27 +133,27 @@ export function sanitizeInput(input: string): string {
 // Password validation
 export function validatePassword(password: string): { isValid: boolean; errors: string[] } {
   const errors: string[] = [];
-  
+
   if (password.length < SECURITY_CONFIG.passwordMinLength) {
     errors.push(`Password must be at least ${SECURITY_CONFIG.passwordMinLength} characters`);
   }
-  
+
   if (SECURITY_CONFIG.passwordRequireUppercase && !/[A-Z]/.test(password)) {
     errors.push('Password must contain at least one uppercase letter');
   }
-  
+
   if (SECURITY_CONFIG.passwordRequireLowercase && !/[a-z]/.test(password)) {
     errors.push('Password must contain at least one lowercase letter');
   }
-  
+
   if (SECURITY_CONFIG.passwordRequireNumbers && !/\d/.test(password)) {
     errors.push('Password must contain at least one number');
   }
-  
+
   if (SECURITY_CONFIG.passwordRequireSpecialChars && !/[!@#$%^&*(),.?":{}|<>]/.test(password)) {
     errors.push('Password must contain at least one special character');
   }
-  
+
   return {
     isValid: errors.length === 0,
     errors
@@ -169,7 +169,7 @@ export function generateSecureToken(length: number = 32): string {
 export function hashPassword(password: string, salt?: string): { hash: string; salt: string } {
   const generatedSalt = salt || crypto.randomBytes(16).toString('hex');
   const hash = crypto.pbkdf2Sync(password, generatedSalt, 100000, 64, 'sha512').toString('hex');
-  
+
   return { hash, salt: generatedSalt };
 }
 
@@ -214,28 +214,28 @@ export async function blockIP(ip: string, duration: number = 3600): Promise<void
 // Security middleware for Fastify
 export function securityMiddleware(options: { enableRateLimit?: boolean; enableInputSanitization?: boolean } = {}) {
   const { enableRateLimit = true, enableInputSanitization = true } = options;
-  
+
   return async (request: any, reply: any) => {
     const ip = request.ip || request.headers['x-forwarded-for'] || 'unknown';
-    
+
     // Check IP block
     if (await isIPBlocked(ip)) {
       reply.code(403).send({ error: 'IP blocked' });
       return;
     }
-    
+
     // Rate limiting
     if (enableRateLimit) {
       const rateLimitResult = await checkRateLimit(ip, 'api', ip);
       if (!rateLimitResult.allowed) {
-        reply.code(429).send({ 
+        reply.code(429).send({
           error: 'Rate limit exceeded',
-          resetTime: rateLimitResult.resetTime 
+          resetTime: rateLimitResult.resetTime
         });
         return;
       }
     }
-    
+
     // Input sanitization
     if (enableInputSanitization && request.body) {
       if (typeof request.body === 'string') {
@@ -252,11 +252,11 @@ function sanitizeObject(obj: any): any {
   if (typeof obj !== 'object' || obj === null) {
     return obj;
   }
-  
+
   if (Array.isArray(obj)) {
     return obj.map(sanitizeObject);
   }
-  
+
   const sanitized: any = {};
   for (const [key, value] of Object.entries(obj)) {
     if (typeof value === 'string') {
@@ -267,7 +267,7 @@ function sanitizeObject(obj: any): any {
       sanitized[key] = value;
     }
   }
-  
+
   return sanitized;
 }
 
@@ -285,7 +285,7 @@ export async function logSecurityEvent(
       timestamp: new Date().toISOString(),
       ip: details.ip || 'unknown'
     };
-    
+
     // Log to console/file
     if (severity === 'critical' || severity === 'error') {
       log.error('Security event', eventData);
@@ -294,7 +294,7 @@ export async function logSecurityEvent(
     } else {
       log.info('Security event', eventData);
     }
-    
+
     // Store in Redis for quick access (expires in 24 hours)
     const redis = getRedis();
     if (redis) {

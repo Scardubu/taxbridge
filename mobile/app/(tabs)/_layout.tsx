@@ -31,7 +31,7 @@ const makeSF = (d: string, s: string): SFProp =>
 // Exactly 5 NativeTabs entries — constraint #12
 const TABS: TabEntry[] = [
   { name: 'index',        sfSymbol: makeSF('house',     'house.fill'),     drawable: 'ic_home',     labelKey: 'dashboard' },
-  { name: 'invoices',     sfSymbol: makeSF('doc.text',  'doc.text.fill'),  drawable: 'ic_document', labelKey: 'invoices'  },
+  { name: 'receipts',     sfSymbol: makeSF('camera',    'camera.fill'),    drawable: 'ic_camera',   labelKey: 'receipts'  },
   { name: 'tax-calendar', sfSymbol: makeSF('calendar',  'calendar'),       drawable: 'ic_calendar', labelKey: 'calendar'  },
   { name: 'compliance',   sfSymbol: makeSF('shield',    'shield.fill'),    drawable: 'ic_shield',   labelKey: 'compliance'},
   { name: 'settings',     sfSymbol: makeSF('gearshape', 'gearshape.fill'), drawable: 'ic_settings', labelKey: 'settings'  },
@@ -40,7 +40,7 @@ const TABS: TabEntry[] = [
 type IoniconName = React.ComponentProps<typeof Ionicons>['name'];
 const FALLBACK_ICONS: Record<string, IoniconName> = {
   index:          'home',
-  invoices:       'document-text',
+  receipts:       'camera',
   'tax-calendar': 'calendar',
   compliance:     'shield-checkmark',
   settings:       'settings',
