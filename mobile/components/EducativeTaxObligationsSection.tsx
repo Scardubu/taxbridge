@@ -105,7 +105,7 @@ export function EducativeTaxObligationsSection({ obligations, isPreviewMode }: R
                           <Pressable
                             onPress={() => void Linking.openURL(TAX_AUTHORITY.portalUrl)}
                             accessibilityRole="link"
-                            accessibilityLabel={t('obligations.tapToLearn')}
+                            accessibilityLabel={t('accessibility.openFirsPortal')}
                             style={{ marginTop: Spacing.xs }}
                           >
                             <Text style={{ ...Typography.micro, color: Colors.brand.accent }}>

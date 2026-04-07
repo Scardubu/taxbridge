@@ -7,6 +7,7 @@ export type OpType =
   | 'TIN_VERIFY'
   | 'VAT_REGISTER'
   | 'EINVOICE_SUBMIT'
+  | 'INVOICE_SUBMIT'
   | 'PROFILE_SYNC'
   | 'PAYMENT_INITIATE'
   | 'COMPLIANCE_EVENT';

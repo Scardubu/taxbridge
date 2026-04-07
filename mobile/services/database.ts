@@ -132,5 +132,53 @@ async function runMigrations(db: SQLite.SQLiteDatabase): Promise<void> {
         PRAGMA user_version = 3;
       `);
     });
+    v = 3;
+  }
+
+  if (v < 4) {
+    await db.withExclusiveTransactionAsync(async tx => {
+      await tx.execAsync(`
+        ALTER TABLE compliance_events ADD COLUMN source TEXT NOT NULL DEFAULT 'mobile';
+        ALTER TABLE compliance_events ADD COLUMN business_id TEXT;
+        ALTER TABLE compliance_events ADD COLUMN metadata TEXT;
+        ALTER TABLE offline_operations RENAME TO offline_operations_legacy;
+        CREATE TABLE offline_operations (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          client_id TEXT NOT NULL UNIQUE,
+          type TEXT NOT NULL CHECK(type IN (
+            'TIN_VERIFY','VAT_REGISTER','EINVOICE_SUBMIT','INVOICE_SUBMIT',
+            'PROFILE_SYNC','PAYMENT_INITIATE','COMPLIANCE_EVENT')),
+          payload TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'pending'
+            CHECK(status IN ('pending','syncing','done','failed','dead')),
+          retry_count INTEGER NOT NULL DEFAULT 0,
+          max_retries INTEGER NOT NULL DEFAULT 5,
+          error_msg TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          synced_at TEXT
+        );
+        INSERT INTO offline_operations (
+          id, client_id, type, payload, status, retry_count, max_retries, error_msg, created_at, synced_at
+        )
+        SELECT
+          id,
+          client_id,
+          CASE WHEN type = 'EINVOICE_SUBMIT' THEN 'INVOICE_SUBMIT' ELSE type END,
+          payload,
+          status,
+          retry_count,
+          max_retries,
+          error_msg,
+          created_at,
+          synced_at
+        FROM offline_operations_legacy;
+        DROP TABLE offline_operations_legacy;
+        CREATE INDEX IF NOT EXISTS idx_offline_ops
+          ON offline_operations (status, created_at);
+        CREATE INDEX IF NOT EXISTS idx_compliance_source
+          ON compliance_events (source, created_at);
+        PRAGMA user_version = 4;
+      `);
+    });
   }
 }

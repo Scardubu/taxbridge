@@ -1,5 +1,6 @@
 import { getDatabase } from './database';
 import { offlineQueue } from './offlineQueue';
+import { postComplianceEvent } from './api';
 
 export type ComplianceEventType =
   | 'onboarding_complete'
@@ -13,24 +14,51 @@ export type ComplianceEventType =
   | 'tax_payment_successful'
   | 'tax_payment_failed'
   | 'deadline_approaching'
-  | 'deadline_missed';
+  | 'deadline_missed'
+  | 'admin_alert_received'
+  | 'obligation_override';
+
+export interface ComplianceEventContext {
+  source?: 'mobile' | 'admin' | 'firs' | 'system';
+  businessId?: string;
+  actionUrl?: string;
+}
 
 export async function logComplianceEvent(
   type: ComplianceEventType,
   description: string,
   severity: 'info' | 'warning' | 'critical',
-  metadata?: Record<string, unknown>
+  metadata?: Record<string, unknown>,
+  context?: ComplianceEventContext,
 ): Promise<void> {
   const db = await getDatabase();
   await db.runAsync(
-    'INSERT INTO compliance_events (event_type, description, severity) VALUES (?,?,?)',
-    [type, description, severity]
+    `INSERT INTO compliance_events (event_type, description, severity, source, business_id, metadata, action_url)
+     VALUES (?,?,?,?,?,?,?)`,
+    [
+      type,
+      description,
+      severity,
+      context?.source ?? 'mobile',
+      context?.businessId ?? null,
+      JSON.stringify(metadata ?? {}),
+      context?.actionUrl ?? null,
+    ]
   );
 
-  await offlineQueue.enqueue('COMPLIANCE_EVENT', {
-    eventType: type,
-    description,
-    severity,
-    metadata: metadata ?? {},
-  });
+  try {
+    await postComplianceEvent({
+      event_type: type,
+      business_id: context?.businessId,
+      metadata: {
+        description,
+        severity,
+        ...(metadata ?? {}),
+      },
+      client_timestamp: new Date().toISOString(),
+      source: context?.source ?? 'mobile',
+    });
+  } catch {
+    // postComplianceEvent already handles offline queue fallback for transport errors.
+  }
 }

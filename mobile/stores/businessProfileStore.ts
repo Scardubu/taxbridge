@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { getDatabase } from '../services/database';
-import { apiRequest } from '../services/api';
+import { patchBusinessProfile } from '../services/api';
 
 interface BusinessProfile {
   businessName: string;
@@ -69,7 +69,7 @@ export const useBusinessProfileStore = create<Store>()((set, get) => {
           ]
         );
       });
-      set({ isDirty: false });
+      void get().syncToBackend();
     }, 800);
   };
 
@@ -133,10 +133,7 @@ export const useBusinessProfileStore = create<Store>()((set, get) => {
     syncToBackend: async () => {
       if (!get().isDirty) return;
       try {
-        await apiRequest('/api/v1/business-profile', {
-          method: 'PATCH',
-          body: JSON.stringify(get().getProfileSnapshot()),
-        });
+        await patchBusinessProfile(get().getProfileSnapshot());
         set({ lastSyncedAt: new Date().toISOString(), isDirty: false });
       } catch {}
     },
@@ -159,6 +156,7 @@ export const useBusinessProfileStore = create<Store>()((set, get) => {
         state: s.state,
         phone: s.phone,
         email: s.email,
+        hasValidTIN: s.hasValidTIN,
       };
     },
   };

@@ -1,15 +1,46 @@
 import React from 'react';
-import { render } from '@testing-library/react-native';
+import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
+import { Linking } from 'react-native';
 import mockEn from '../../i18n/en.json';
 import mockPidgin from '../../i18n/pidgin.json';
 import DashboardTab from '../../app/(tabs)/index';
 
-const mockComputeObligations = jest.fn();
-const mockGenerateNudges = jest.fn((_profile: unknown, _obligations: unknown) => []);
+type TestNudge = {
+  id: string;
+  title: string;
+  body: string;
+  severity: 'info' | 'warning' | 'critical';
+  priority: 'critical' | 'warning' | 'opportunity';
+  actionLabel: string;
+  route: string;
+  external?: boolean;
+};
 
+const mockComputeObligations = jest.fn();
+const mockGenerateNudges = jest.fn((_profile: unknown, _obligations: unknown): TestNudge[] => []);
+const mockGetAlerts = jest.fn(() => Promise.resolve([]));
+const mockLogComplianceEvent = jest.fn(() => Promise.resolve(undefined));
+const mockMarkPaymentConfirmed = jest.fn(() => Promise.resolve(undefined));
+const mockHydrate = jest.fn(() => Promise.resolve(undefined));
+const mockUpdateField = jest.fn();
+const mockRouterPush = jest.fn();
+const mockRegisteredHandlers = new Map<string, (payload: Record<string, unknown>) => void>();
+
+let mockAccessToken: string | null = null;
 let mockCurrentLanguage: 'en' | 'pidgin' = 'en';
 let mockPreviewMode = true;
 let mockOnboardingDone = false;
+let mockEventNudges: Array<{
+  id: string;
+  title: string;
+  body: string;
+  severity: 'info' | 'warning' | 'critical';
+  priority: 'critical' | 'warning' | 'opportunity';
+  actionLabel: string;
+  route: string;
+  external?: boolean;
+  source: 'admin' | 'system';
+}> = [];
 let mockBusinessState = {
   businessName: '',
   annualTurnover: null,
@@ -20,6 +51,8 @@ let mockBusinessState = {
   hasValidTIN: false,
   monthlyRevenue: null,
   isHydrated: true,
+  hydrate: mockHydrate,
+  updateField: mockUpdateField,
 };
 
 function mockResolveTranslation(source: Record<string, unknown>, key: string, values?: Record<string, unknown>) {
@@ -38,6 +71,57 @@ function mockResolveTranslation(source: Record<string, unknown>, key: string, va
   return resolved.replace(/\{\{\s*(\w+)\s*\}\}/g, (_, token) => String(values?.[token] ?? ''));
 }
 
+const useBusinessProfileStoreMock = ((selector: (state: typeof mockBusinessState) => unknown) =>
+  selector(mockBusinessState)) as unknown as {
+  (selector: (state: typeof mockBusinessState) => unknown): unknown;
+  getState: () => typeof mockBusinessState;
+};
+useBusinessProfileStoreMock.getState = () => mockBusinessState;
+
+const useNudgeStoreMock = ((selector: (state: {
+  eventNudges: typeof mockEventNudges;
+  prependNudge: (nudge: (typeof mockEventNudges)[number]) => void;
+  dismissNudge: (id: string) => void;
+  clearEventNudges: () => void;
+}) => unknown) =>
+  selector({
+    eventNudges: mockEventNudges,
+    prependNudge: (nudge) => {
+      mockEventNudges = [nudge, ...mockEventNudges.filter((existing) => existing.id !== nudge.id)];
+    },
+    dismissNudge: (id) => {
+      mockEventNudges = mockEventNudges.filter((nudge) => nudge.id !== id);
+    },
+    clearEventNudges: () => {
+      mockEventNudges = [];
+    },
+  })) as unknown as {
+  (selector: (state: {
+    eventNudges: typeof mockEventNudges;
+    prependNudge: (nudge: (typeof mockEventNudges)[number]) => void;
+    dismissNudge: (id: string) => void;
+    clearEventNudges: () => void;
+  }) => unknown): unknown;
+  getState: () => {
+    eventNudges: typeof mockEventNudges;
+    prependNudge: (nudge: (typeof mockEventNudges)[number]) => void;
+    dismissNudge: (id: string) => void;
+    clearEventNudges: () => void;
+  };
+};
+useNudgeStoreMock.getState = () => ({
+  eventNudges: mockEventNudges,
+  prependNudge: (nudge) => {
+    mockEventNudges = [nudge, ...mockEventNudges.filter((existing) => existing.id !== nudge.id)];
+  },
+  dismissNudge: (id) => {
+    mockEventNudges = mockEventNudges.filter((nudge) => nudge.id !== id);
+  },
+  clearEventNudges: () => {
+    mockEventNudges = [];
+  },
+});
+
 jest.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, values?: Record<string, unknown>) =>
@@ -51,6 +135,12 @@ jest.mock('react-i18next', () => ({
   initReactI18next: {
     type: '3rdParty',
     init: jest.fn(),
+  },
+}));
+
+jest.mock('expo-router', () => ({
+  router: {
+    push: (...args: unknown[]) => mockRouterPush(...args),
   },
 }));
 
@@ -69,7 +159,11 @@ jest.mock('../../stores/onboardingStore', () => ({
 }));
 
 jest.mock('../../stores/businessProfileStore', () => ({
-  useBusinessProfileStore: (selector: (state: typeof mockBusinessState) => unknown) => selector(mockBusinessState),
+  useBusinessProfileStore: useBusinessProfileStoreMock,
+}));
+
+jest.mock('../../stores/nudgeStore', () => ({
+  useNudgeStore: useNudgeStoreMock,
 }));
 
 jest.mock('../../services/nrsCompliance', () => ({
@@ -83,6 +177,19 @@ jest.mock('../../services/nudgeEngine', () => ({
 
 jest.mock('../../services/offlineQueue', () => ({
   offlineQueue: { flush: jest.fn().mockResolvedValue(undefined) },
+}));
+
+jest.mock('../../services/api', () => ({
+  getAlerts: () => mockGetAlerts(),
+}));
+
+jest.mock('../../services/complianceEventService', () => ({
+  logComplianceEvent: (type: string, description: string, severity: string, metadata?: Record<string, unknown>, context?: Record<string, unknown>) =>
+    mockLogComplianceEvent(type, description, severity, metadata, context),
+}));
+
+jest.mock('../../services/paymentService', () => ({
+  markPaymentConfirmed: (remitaRrr: string) => mockMarkPaymentConfirmed(remitaRrr),
 }));
 
 jest.mock('../../components/TaxShieldRing', () => ({
@@ -110,7 +217,7 @@ jest.mock('../../components/OnboardingProgressBanner', () => ({
 
 jest.mock('../../services/tokenService', () => ({
   TokenService: {
-    getAccessToken: jest.fn().mockResolvedValue(null),
+    getAccessToken: jest.fn(() => Promise.resolve(mockAccessToken)),
     setAccessToken: jest.fn().mockResolvedValue(undefined),
     clearAccessToken: jest.fn().mockResolvedValue(undefined),
   },
@@ -120,15 +227,21 @@ jest.mock('../../services/sseService', () => ({
   sseService: {
     connect: jest.fn(),
     disconnect: jest.fn(),
-    on: jest.fn().mockReturnValue(() => undefined),
+    on: jest.fn((eventName: string, handler: (payload: Record<string, unknown>) => void) => {
+      mockRegisteredHandlers.set(eventName, handler);
+      return () => mockRegisteredHandlers.delete(eventName);
+    }),
   },
 }));
 
-describe('mobile v7 dashboard', () => {
+describe('mobile v8 dashboard', () => {
   beforeEach(() => {
+    mockAccessToken = null;
     mockCurrentLanguage = 'en';
     mockPreviewMode = true;
     mockOnboardingDone = false;
+    mockEventNudges = [];
+    mockRegisteredHandlers.clear();
     mockBusinessState = {
       businessName: '',
       annualTurnover: null,
@@ -139,6 +252,8 @@ describe('mobile v7 dashboard', () => {
       hasValidTIN: false,
       monthlyRevenue: null,
       isHydrated: true,
+      hydrate: mockHydrate,
+      updateField: mockUpdateField,
     };
     mockComputeObligations.mockReturnValue({
       vatRegistrationRequired: false,
@@ -157,6 +272,13 @@ describe('mobile v7 dashboard', () => {
       annualTaxBurden: 0,
     });
     mockGenerateNudges.mockReturnValue([]);
+    mockGetAlerts.mockResolvedValue([]);
+    mockHydrate.mockClear();
+    mockUpdateField.mockClear();
+    mockLogComplianceEvent.mockClear();
+    mockMarkPaymentConfirmed.mockClear();
+    mockRouterPush.mockClear();
+    (Linking.openURL as jest.Mock).mockClear();
   });
 
   test('renders preview mode with a zero score and neutral shield copy', () => {
@@ -212,5 +334,103 @@ describe('mobile v7 dashboard', () => {
     expect(screen.getByText(mockEn.compliance.excellent)).toBeTruthy();
     expect(screen.getByText('🏆')).toBeTruthy();
     expect(screen.getByText('ring:85')).toBeTruthy();
+  });
+
+  test('hydrates business profile when tin_verified SSE fires', async () => {
+    mockPreviewMode = false;
+    mockOnboardingDone = true;
+    mockAccessToken = 'token';
+
+    render(<DashboardTab />);
+
+    await waitFor(() => expect(mockRegisteredHandlers.has('tin_verified')).toBe(true));
+
+    await act(async () => {
+      mockRegisteredHandlers.get('tin_verified')?.({});
+    });
+
+    expect(mockHydrate).toHaveBeenCalled();
+  });
+
+  test('prepends admin alert nudges from SSE and logs the event', async () => {
+    mockPreviewMode = false;
+    mockOnboardingDone = true;
+    mockAccessToken = 'token';
+
+    render(<DashboardTab />);
+
+    await waitFor(() => expect(mockRegisteredHandlers.has('admin_alert')).toBe(true));
+
+    await act(async () => {
+      mockRegisteredHandlers.get('admin_alert')?.({
+        id: 'evt-1',
+        message: 'Urgent compliance review required',
+        severity: 'critical',
+        action_url: 'https://einvoice.firs.gov.ng',
+      });
+    });
+
+    expect(useNudgeStoreMock.getState().eventNudges[0]).toMatchObject({
+      id: 'evt-1',
+      body: 'Urgent compliance review required',
+      priority: 'critical',
+      route: 'https://einvoice.firs.gov.ng',
+      source: 'admin',
+    });
+    expect(mockLogComplianceEvent).toHaveBeenCalled();
+  });
+
+  test('renders event nudges ahead of generated nudges and opens external routes', () => {
+    mockPreviewMode = false;
+    mockOnboardingDone = true;
+    mockEventNudges = [
+      {
+        id: 'admin-alert-1',
+        title: 'Admin alert',
+        body: 'Review your e-invoice setup',
+        severity: 'critical',
+        priority: 'critical',
+        actionLabel: 'Open details',
+        route: 'https://einvoice.firs.gov.ng',
+        external: true,
+        source: 'admin',
+      },
+    ];
+    mockGenerateNudges.mockReturnValue([
+      {
+        id: 'missing-tin',
+        title: 'Verify your TIN',
+        body: 'Body',
+        severity: 'critical' as const,
+        priority: 'critical' as const,
+        actionLabel: 'Verify',
+        route: '/(tabs)/compliance',
+      },
+    ]);
+
+    const screen = render(<DashboardTab />);
+
+    expect(screen.getByText('Review your e-invoice setup')).toBeTruthy();
+
+    fireEvent.press(screen.getByLabelText('Admin alert'));
+
+    expect(Linking.openURL).toHaveBeenCalledWith('https://einvoice.firs.gov.ng');
+  });
+
+  test('marks payments confirmed when payment_confirmed SSE fires', async () => {
+    mockPreviewMode = false;
+    mockOnboardingDone = true;
+    mockAccessToken = 'token';
+
+    render(<DashboardTab />);
+
+    await waitFor(() => expect(mockRegisteredHandlers.has('payment_confirmed')).toBe(true));
+
+    await act(async () => {
+      mockRegisteredHandlers.get('payment_confirmed')?.({ remita_rrr: '220000111' });
+    });
+
+    expect(mockMarkPaymentConfirmed).toHaveBeenCalledWith('220000111');
+    expect(mockHydrate).toHaveBeenCalled();
   });
 });

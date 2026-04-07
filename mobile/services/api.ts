@@ -192,6 +192,7 @@ export interface ComplianceEventPayload {
   metadata?: Record<string, unknown>;
   client_timestamp?: string;
   idempotency_key?: string;
+  source?: 'mobile' | 'admin' | 'firs' | 'system';
 }
 
 export interface InvoicePayload {
@@ -259,6 +260,7 @@ export async function postComplianceEvent(
         business_id: event.business_id,
         metadata: event.metadata ?? {},
         client_timestamp: event.client_timestamp ?? new Date().toISOString(),
+        source: event.source ?? 'mobile',
       });
     }
     throw error;
@@ -272,10 +274,32 @@ export async function postComplianceEvent(
 export async function postInvoice(
   invoice: InvoicePayload,
 ): Promise<{ id: string; firs_ref?: string; status: string }> {
-  return apiRequest<{ id: string; firs_ref?: string; status: string }>('/api/v1/invoices', {
-    method: 'POST',
-    body: JSON.stringify(invoice),
-  });
+  try {
+    const response = await apiRequest<{ id: string; firs_ref?: string; status: string }>('/api/v1/invoices', {
+      method: 'POST',
+      body: JSON.stringify(invoice),
+    });
+
+    await postComplianceEvent({
+      event_type: 'invoice_submitted',
+      metadata: {
+        invoice_id: response.id,
+        firs_ref: response.firs_ref,
+        status: response.status,
+      },
+      client_timestamp: new Date().toISOString(),
+      idempotency_key: `${invoice.idempotency_key}:event`,
+      source: 'mobile',
+    }).catch(() => undefined);
+
+    return response;
+  } catch (error) {
+    if (!(error instanceof ApiError)) {
+      const { offlineQueue } = await import('./offlineQueue');
+      await offlineQueue.enqueue('INVOICE_SUBMIT', invoice as unknown as Record<string, unknown>);
+    }
+    throw error;
+  }
 }
 
 /**
@@ -285,19 +309,27 @@ export async function postInvoice(
 export async function initiatePayment(
   payload: PaymentPayload,
 ): Promise<{ remita_rrr: string; checkout_url: string }> {
-  const response = await apiRequest<{ remita_rrr: string; checkout_url: string }>('/api/v1/payments/initiate', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  });
+  try {
+    const response = await apiRequest<{ remita_rrr: string; checkout_url: string }>('/api/v1/payments/initiate', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
 
-  const db = await getDatabase();
-  await db.runAsync(
-    `INSERT INTO tax_payments (provider, remita_rrr, amount, currency, status)
-     VALUES ('remita', ?, ?, 'NGN', 'pending')`,
-    [response.remita_rrr, payload.amount]
-  );
+    const db = await getDatabase();
+    await db.runAsync(
+      `INSERT INTO tax_payments (provider, remita_rrr, amount, currency, status)
+       VALUES ('remita', ?, ?, 'NGN', 'pending')`,
+      [response.remita_rrr, payload.amount]
+    );
 
-  return response;
+    return response;
+  } catch (error) {
+    if (!(error instanceof ApiError)) {
+      const { offlineQueue } = await import('./offlineQueue');
+      await offlineQueue.enqueue('PAYMENT_INITIATE', payload as unknown as Record<string, unknown>);
+    }
+    throw error;
+  }
 }
 
 /**
