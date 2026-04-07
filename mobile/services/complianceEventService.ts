@@ -6,6 +6,8 @@ export type ComplianceEventType =
   | 'onboarding_complete'
   | 'tin_verified'
   | 'tin_failed'
+  | 'receipt_scanned'
+  | 'receipt_submitted'
   | 'vat_registration_attempted'
   | 'einvoice_submitted'
   | 'invoice_submitted'
@@ -16,7 +18,8 @@ export type ComplianceEventType =
   | 'deadline_approaching'
   | 'deadline_missed'
   | 'admin_alert_received'
-  | 'obligation_override';
+  | 'obligation_override'
+  | 'vat_return_submitted';
 
 export interface ComplianceEventContext {
   source?: 'mobile' | 'admin' | 'firs' | 'system';

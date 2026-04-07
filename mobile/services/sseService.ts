@@ -11,14 +11,18 @@ export type SSEEventName =
   | 'invoice_submitted'
   | 'admin_alert'
   | 'obligation_override'
-  | 'tin_manual_verify';
+  | 'tin_manual_verify'
+  | 'receipt_processed'
+  | 'receipt_flagged'
+  | 'vat_return_accepted'
+  | 'tax_assessment_issued';
 
 type EventHandler = (payload: Record<string, unknown>) => void;
 type SSEPayload = { type?: SSEEventName; payload?: Record<string, unknown> };
 
 class SSEService {
   private source: EventSource<string> | null = null;
-  private handlers = new Map<SSEEventName, Set<EventHandler>>();
+  private readonly handlers = new Map<SSEEventName, Set<EventHandler>>();
   private reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
   private token: string | null = null;
 
@@ -33,7 +37,7 @@ class SSEService {
       },
     });
 
-    const handleEvent = (event: { data?: string | null | undefined }) => {
+    const handleEvent = (event: { data?: string | null }) => {
       try {
         const rawData = event.data;
         if (typeof rawData !== 'string') return;
@@ -58,7 +62,8 @@ class SSEService {
       this.source?.addEventListener(name as any, handleEvent as any);
     ['message', 'tin_verified', 'tin_failed', 'vat_registered',
       'einvoice_alert', 'compliance_deadline', 'payment_confirmed', 'invoice_submitted',
-      'admin_alert', 'obligation_override', 'tin_manual_verify',
+      'admin_alert', 'obligation_override', 'tin_manual_verify', 'receipt_processed',
+      'receipt_flagged', 'vat_return_accepted', 'tax_assessment_issued',
     ].forEach(addListener);
     this.source.addEventListener('error', () => {
       this.source?.close();

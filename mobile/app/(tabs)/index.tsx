@@ -9,21 +9,28 @@ import { TaxShieldRing } from '../../components/TaxShieldRing';
 import { OfflineIndicator } from '../../components/OfflineIndicator';
 import { OnboardingProgressBanner } from '../../components/OnboardingProgressBanner';
 import { EducativeTaxObligationsSection } from '../../components/EducativeTaxObligationsSection';
+import { ExpenseSummaryCard } from '../../components/ExpenseSummaryCard';
 import { SkeletonDashboard } from '../../components/SkeletonDashboard';
+import { TaxCalculationSummary } from '../../components/TaxCalculationSummary';
 import { Colors, Spacing, Radii, Typography } from '../../components/design-system/tokens';
 import { computeObligations } from '../../services/nrsCompliance';
 import { type ComplianceNudge, generateNudges } from '../../services/nudgeEngine';
 import { offlineQueue } from '../../services/offlineQueue';
+import { RECEIPT_FALLBACK_BUSINESS_ID } from '../../services/receiptService';
 import { sseService } from '../../services/sseService';
 import { getAlerts } from '../../services/api';
 import { logComplianceEvent } from '../../services/complianceEventService';
 import { markPaymentConfirmed } from '../../services/paymentService';
 import { TokenService } from '../../services/tokenService';
+import { useTaxEngine } from '../../hooks/useTaxEngine';
 import { useBusinessProfileStore } from '../../stores/businessProfileStore';
 import { type EventNudge, useNudgeStore } from '../../stores/nudgeStore';
-import { useCurrentStepId, useIsOnboardingDone, useOnboardingStore, STEP_ROUTES } from '../../stores/onboardingStore';
+import { useReceiptStore } from '../../stores/receiptStore';
+import { useCurrentStepId, useIsOnboardingDone, usePreviewMode, STEP_ROUTES } from '../../stores/onboardingStore';
 
 const PREVIEW_PROFILE = {
+  businessName: 'TaxBridge Demo Shop',
+  employeeCount: 0,
   businessType: 'sole_trader',
   sector: 'retail',
   annualTurnover: 8_500_000,
@@ -118,14 +125,18 @@ export default function DashboardTab() {
   const { t } = useTranslation();
   const isDone = useIsOnboardingDone();
   const currentStepId = useCurrentStepId();
-  const previewMode = useOnboardingStore((state) => state.previewMode);
+  const previewMode = usePreviewMode();
   const eventNudges = useNudgeStore((state) => state.eventNudges);
+  const hydrateReceiptStats = useReceiptStore((state) => state.hydrate);
+  const receiptStats = useReceiptStore((state) => state.stats);
   const snapshot = useBusinessProfileStore((state) => ({
+    businessId: state.businessId,
     businessName: state.businessName,
     annualTurnover: state.annualTurnover,
     totalFixedAssets: state.totalFixedAssets,
     sector: state.sector,
     businessType: state.businessType,
+    employeeCount: state.employeeCount,
     isVatRegistered: state.isVatRegistered,
     hasValidTIN: state.hasValidTIN,
     monthlyRevenue: state.monthlyRevenue,
@@ -233,6 +244,57 @@ export default function DashboardTab() {
       }
       void useBusinessProfileStore.getState().hydrate();
     });
+    const offReceiptProcessed = sseService.on('receipt_processed', (payload) => {
+      const clientReceiptId = typeof payload.client_receipt_id === 'string' ? payload.client_receipt_id : null;
+      const serverId = typeof payload.server_id === 'string' ? payload.server_id : null;
+      const vatCredit = typeof payload.vat_credit_ngn === 'number' ? payload.vat_credit_ngn : undefined;
+
+      if (clientReceiptId && serverId) {
+        void useReceiptStore.getState().markServerConfirmed(clientReceiptId, serverId, vatCredit);
+      }
+    });
+    const offReceiptFlagged = sseService.on('receipt_flagged', (payload) => {
+      const clientReceiptId = typeof payload.client_receipt_id === 'string' ? payload.client_receipt_id : null;
+      const reason = typeof payload.reason === 'string' ? payload.reason : 'review_needed';
+
+      if (clientReceiptId) {
+        void useReceiptStore.getState().markFlagged(clientReceiptId);
+      }
+
+      useNudgeStore.getState().prependNudge({
+        id: `receipt-flagged-${clientReceiptId ?? Date.now()}`,
+        title: t('dashboard.nudgeCards.adminAlert.title'),
+        body: t('receipts.flaggedBody', { reason }),
+        severity: 'warning',
+        priority: 'warning',
+        actionLabel: t('dashboard.nudgeCards.adminAlert.action'),
+        route: '/(tabs)/receipts',
+        source: 'admin',
+      });
+    });
+    const offVatReturnAccepted = sseService.on('vat_return_accepted', (payload) => {
+      void logComplianceEvent(
+        'vat_return_submitted',
+        'VAT return accepted by admin workflow',
+        'info',
+        payload,
+      );
+    });
+    const offTaxAssessmentIssued = sseService.on('tax_assessment_issued', (payload) => {
+      useNudgeStore.getState().prependNudge({
+        id: `tax-assessment-${String(payload.firs_ref ?? Date.now())}`,
+        title: t('dashboard.nudgeCards.deadline.title'),
+        body: t('receipts.taxAssessmentBody', {
+          amount: typeof payload.amount_ngn === 'number' ? payload.amount_ngn.toLocaleString('en-NG') : '0',
+          dueDate: typeof payload.due_date === 'string' ? payload.due_date : 'N/A',
+        }),
+        severity: 'critical',
+        priority: 'critical',
+        actionLabel: t('dashboard.nudgeCards.adminAlert.action'),
+        route: '/(tabs)/compliance',
+        source: 'admin',
+      });
+    });
     return () => {
       offTinVerified();
       offDeadline();
@@ -241,10 +303,27 @@ export default function DashboardTab() {
       offAdminAlert();
       offObligationOverride();
       offTinManualVerify();
+      offReceiptProcessed();
+      offReceiptFlagged();
+      offVatReturnAccepted();
+      offTaxAssessmentIssued();
       useNudgeStore.getState().clearEventNudges();
       sseService.disconnect();
     };
   }, [isDone, t]);
+
+  useEffect(() => {
+    if (!isDone || !snapshot.isHydrated) {
+      return;
+    }
+
+    const now = new Date();
+    void hydrateReceiptStats(
+      snapshot.businessId ?? RECEIPT_FALLBACK_BUSINESS_ID,
+      now.getMonth() + 1,
+      now.getFullYear()
+    );
+  }, [hydrateReceiptStats, isDone, snapshot.businessId, snapshot.isHydrated]);
 
   const profile = useMemo(() => {
     if (previewMode && !snapshot.businessType) {
@@ -263,6 +342,7 @@ export default function DashboardTab() {
   }, [previewMode, snapshot]);
 
   const obligations = useMemo(() => computeObligations(profile), [profile]);
+  const taxCalc = useTaxEngine(profile, receiptStats.totalVatCreditNgn);
   const nudges = useMemo<DashboardNudge[]>(() => {
     const generated = generateNudges(profile, obligations).map((nudge) => ({
       ...nudge,
@@ -369,6 +449,17 @@ export default function DashboardTab() {
           </View>
         ) : null}
 
+        {isDone ? (
+          <ExpenseSummaryCard
+            totalExpenses={receiptStats.totalAmountNgn}
+            vatCredits={receiptStats.totalVatCreditNgn}
+            receiptCount={receiptStats.count}
+            onScanPress={() => router.push('/(tabs)/receipts')}
+          />
+        ) : null}
+
+        <TaxCalculationSummary calculation={taxCalc} isPreviewMode={previewMode} />
+
         <View style={{ paddingHorizontal: Spacing.xxl, marginTop: Spacing.section }}>
           <Text style={{ ...Typography.section, color: Colors.ui.textMuted, marginBottom: Spacing.md }}>{t('dashboard.nudges.title')}</Text>
           {nudges.length > 0 ? (
@@ -419,7 +510,7 @@ export default function DashboardTab() {
           <Text style={{ ...Typography.section, color: Colors.ui.textMuted, marginBottom: Spacing.md }}>{t('dashboard.quickActions')}</Text>
           <View style={{ flexDirection: 'row', gap: Spacing.md }}>
             {[
-              { icon: 'document-text' as const, label: t('dashboard.invoices'), route: '/(tabs)/invoices' },
+              { icon: 'document-text' as const, label: t('dashboard.invoices'), route: '/invoices' },
               { icon: 'calendar' as const, label: t('dashboard.calendar'), route: '/(tabs)/tax-calendar' },
               { icon: 'shield-checkmark' as const, label: t('dashboard.compliance'), route: '/(tabs)/compliance' },
             ].map((action) => (

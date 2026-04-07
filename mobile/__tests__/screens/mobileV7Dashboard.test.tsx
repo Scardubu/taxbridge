@@ -19,8 +19,10 @@ type TestNudge = {
 const mockComputeObligations = jest.fn();
 const mockGenerateNudges = jest.fn((_profile: unknown, _obligations: unknown): TestNudge[] => []);
 const mockGetAlerts = jest.fn(() => Promise.resolve([]));
-const mockLogComplianceEvent = jest.fn(() => Promise.resolve(undefined));
-const mockMarkPaymentConfirmed = jest.fn(() => Promise.resolve(undefined));
+const mockLogComplianceEvent = jest.fn(
+  (_type?: string, _description?: string, _severity?: string, _metadata?: Record<string, unknown>, _context?: Record<string, unknown>) => Promise.resolve(undefined)
+);
+const mockMarkPaymentConfirmed = jest.fn((_remitaRrr?: string) => Promise.resolve(undefined));
 const mockHydrate = jest.fn(() => Promise.resolve(undefined));
 const mockUpdateField = jest.fn();
 const mockRouterPush = jest.fn();
@@ -147,6 +149,7 @@ jest.mock('expo-router', () => ({
 jest.mock('../../stores/onboardingStore', () => ({
   useOnboardingStore: (selector: (state: { previewMode: boolean }) => unknown) => selector({ previewMode: mockPreviewMode }),
   useIsOnboardingDone: () => mockOnboardingDone,
+  usePreviewMode: () => mockPreviewMode,
   useCurrentStepId: () => 'welcome',
   STEP_ROUTES: {
     welcome: '/(onboarding)',
@@ -156,6 +159,30 @@ jest.mock('../../stores/onboardingStore', () => ({
     einvoice: '/(onboarding)/einvoice',
     community: '/(onboarding)/community',
   },
+}));
+
+jest.mock('../../stores/receiptStore', () => ({
+  useReceiptStore: (selector: (state: { hydrate: jest.Mock; stats: { count: number; totalAmountNgn: number; totalVatCreditNgn: number } }) => unknown) =>
+    selector({
+      hydrate: jest.fn().mockResolvedValue(undefined),
+      stats: { count: 0, totalAmountNgn: 0, totalVatCreditNgn: 0 },
+    }),
+}));
+
+jest.mock('../../services/receiptService', () => ({
+  RECEIPT_FALLBACK_BUSINESS_ID: 'local-business',
+}));
+
+jest.mock('../../hooks/useTaxEngine', () => ({
+  useTaxEngine: () => null,
+}));
+
+jest.mock('../../components/ExpenseSummaryCard', () => ({
+  ExpenseSummaryCard: () => null,
+}));
+
+jest.mock('../../components/TaxCalculationSummary', () => ({
+  TaxCalculationSummary: () => null,
 }));
 
 jest.mock('../../stores/businessProfileStore', () => ({

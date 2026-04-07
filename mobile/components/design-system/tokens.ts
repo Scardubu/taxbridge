@@ -39,6 +39,14 @@ export const Colors = {
     score20: '#DC2626',
     score0: '#374151',
   },
+  receipt: {
+    vatCredit: '#059669',
+    vatCreditBg: '#022C22',
+    unverified: '#B45309',
+    unverifiedBg: '#1C1000',
+    duplicate: '#9333EA',
+    duplicateBg: '#1A0533',
+  },
 } as const;
 
 export const Spacing = {
@@ -67,6 +75,8 @@ export const Typography = {
   caption: { fontSize: 13, fontWeight: '400' as const, lineHeight: 19 },
   micro: { fontSize: 11, fontWeight: '500' as const, letterSpacing: 0.5 },
   label: { fontSize: 12, fontWeight: '500' as const, letterSpacing: 0.8 },
+  mono: { fontSize: 15, fontFamily: 'SpaceMono' as const, fontWeight: '400' as const },
+  monoSm: { fontSize: 13, fontFamily: 'SpaceMono' as const, fontWeight: '400' as const },
 } as const;
 
 export const palette = {
@@ -116,6 +126,8 @@ export const typography = {
   caption: Typography.caption,
   label: { fontSize: 11, fontWeight: '600' as const, lineHeight: 16, letterSpacing: 0.5 },
   naira: { fontSize: 22, fontWeight: '700' as const, lineHeight: 30 },
+  mono: Typography.mono,
+  monoSm: Typography.monoSm,
 } as const;
 
 export const radius = {

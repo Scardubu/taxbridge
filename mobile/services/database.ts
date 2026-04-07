@@ -180,5 +180,98 @@ async function runMigrations(db: SQLite.SQLiteDatabase): Promise<void> {
         PRAGMA user_version = 4;
       `);
     });
+    v = 4;
+  }
+
+  if (v < 5) {
+    await db.withExclusiveTransactionAsync(async tx => {
+      await tx.execAsync(`
+        ALTER TABLE business_profiles ADD COLUMN server_business_id TEXT;
+      `).catch(() => undefined);
+
+      await tx.execAsync(`
+        CREATE TABLE IF NOT EXISTS receipts (
+          id TEXT PRIMARY KEY,
+          server_id TEXT,
+          business_id TEXT NOT NULL,
+          vendor_name TEXT NOT NULL,
+          vendor_tin TEXT,
+          amount_ngn REAL NOT NULL,
+          vat_amount_ngn REAL NOT NULL DEFAULT 0,
+          date TEXT NOT NULL,
+          category TEXT NOT NULL,
+          image_hash TEXT,
+          raw_ocr_text TEXT,
+          status TEXT NOT NULL DEFAULT 'pending'
+            CHECK(status IN ('pending','synced','duplicate','flagged')),
+          vat_credit_id TEXT,
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_receipts_business_period
+          ON receipts (business_id, date, status);
+        CREATE INDEX IF NOT EXISTS idx_receipts_image_hash
+          ON receipts (image_hash);
+
+        CREATE TABLE IF NOT EXISTS vat_credits (
+          id TEXT PRIMARY KEY,
+          receipt_id TEXT NOT NULL REFERENCES receipts(id),
+          business_id TEXT NOT NULL,
+          amount_ngn REAL NOT NULL,
+          period_month INTEGER NOT NULL,
+          period_year INTEGER NOT NULL,
+          status TEXT NOT NULL DEFAULT 'unverified'
+            CHECK(status IN ('unverified','verified','applied')),
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_vat_credits_period
+          ON vat_credits (business_id, period_year, period_month, status);
+
+        CREATE TABLE IF NOT EXISTS vat_returns (
+          id TEXT PRIMARY KEY,
+          business_id TEXT NOT NULL,
+          period_month INTEGER NOT NULL,
+          period_year INTEGER NOT NULL,
+          output_vat_ngn REAL NOT NULL,
+          input_credits_ngn REAL NOT NULL,
+          net_payable_ngn REAL NOT NULL,
+          firs_ref TEXT,
+          status TEXT NOT NULL DEFAULT 'draft'
+            CHECK(status IN ('draft','submitted','accepted')),
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_vat_returns_period
+          ON vat_returns (business_id, period_year, period_month, status);
+
+        ALTER TABLE offline_operations RENAME TO offline_operations_v4;
+        CREATE TABLE offline_operations (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          client_id TEXT NOT NULL UNIQUE,
+          type TEXT NOT NULL CHECK(type IN (
+            'TIN_VERIFY','VAT_REGISTER','EINVOICE_SUBMIT','INVOICE_SUBMIT',
+            'PROFILE_SYNC','PAYMENT_INITIATE','COMPLIANCE_EVENT',
+            'RECEIPT_SUBMIT','VAT_RETURN')),
+          payload TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'pending'
+            CHECK(status IN ('pending','syncing','done','failed','dead')),
+          retry_count INTEGER NOT NULL DEFAULT 0,
+          max_retries INTEGER NOT NULL DEFAULT 5,
+          error_msg TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          synced_at TEXT
+        );
+        INSERT INTO offline_operations (
+          id, client_id, type, payload, status, retry_count, max_retries, error_msg, created_at, synced_at
+        )
+        SELECT id, client_id, type, payload, status, retry_count, max_retries, error_msg, created_at, synced_at
+        FROM offline_operations_v4;
+        DROP TABLE offline_operations_v4;
+        CREATE INDEX IF NOT EXISTS idx_offline_ops
+          ON offline_operations (status, created_at);
+        PRAGMA user_version = 5;
+      `);
+    });
   }
 }

@@ -4,17 +4,21 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { Colors, Radii, Spacing } from './design-system/tokens';
 
-function SkeletonBox({
-  width,
-  height,
-  borderRadius = Radii.sm,
-  opacity,
-}: {
+type SkeletonBoxProps = Readonly<{
   width: number | `${number}%`;
   height: number;
   borderRadius?: number;
   opacity: Animated.Value;
-}) {
+}>;
+
+function SkeletonBox(props: SkeletonBoxProps) {
+  const {
+    width,
+    height,
+    borderRadius = Radii.sm,
+    opacity,
+  } = props;
+
   return (
     <Animated.View
       style={{
@@ -76,6 +80,13 @@ export function SkeletonDashboard() {
 
       <View style={{ marginHorizontal: Spacing.xxl, marginTop: Spacing.xl }}>
         <SkeletonBox width="100%" height={80} borderRadius={Radii.lg} opacity={pulse} />
+      </View>
+
+      <View style={{ marginHorizontal: Spacing.xxl, marginTop: Spacing.section }}>
+        <SkeletonBox width={160} height={14} opacity={pulse} />
+        <View style={{ marginTop: Spacing.md }}>
+          <SkeletonBox width="100%" height={96} borderRadius={Radii.lg} opacity={pulse} />
+        </View>
       </View>
 
       <View style={{ paddingHorizontal: Spacing.xxl, marginTop: Spacing.section }}>
