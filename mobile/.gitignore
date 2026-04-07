@@ -28,6 +28,10 @@ npm-debug.*
 yarn-debug.*
 yarn-error.*
 
+# AI assistant metadata
+.serena/
+**/.serena/
+
 # macOS
 .DS_Store
 *.pem
