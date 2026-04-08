@@ -1,6 +1,6 @@
 {
   "name": "mobile",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "main": "expo-router/entry",
   "packageManager": "npm@10.9.2",
   "scripts": {

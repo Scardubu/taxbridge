@@ -2,13 +2,13 @@
 
 **Date:** April 7, 2026
 **Status:** ✅ **PRODUCTION READY — Blueprint v9 FINAL (Receipt Scanner + Tax Engine v2)**
-**Version:** 1.4.0 (versionCode 14)
+**Version:** 1.4.1 (versionCode 15)
 
 ---
 
 ## 🎯 Executive Summary
 
-TaxBridge Mobile v1.4.0 satisfies all 14 Blueprint v6 absolute constraints, Phase C Final UI Lockdown, Blueprint v8 zero-blank-screen guarantees, **and** the full Blueprint v9 SYSTEM-A (Receipt Scanner) + SYSTEM-B (Tax Engine v2) integration. All screens are i18n-complete (EN + Pidgin parity), accessibility-compliant, and hardcoded-string-free. `tsc --noEmit` exits 0. **31/31 test suites pass, 378 tests passing, 1 skipped.**
+TaxBridge Mobile v1.4.1 satisfies all 14 Blueprint v6 absolute constraints, Phase C Final UI Lockdown, Blueprint v8 zero-blank-screen guarantees, **and** the full Blueprint v9 SYSTEM-A (Receipt Scanner) + SYSTEM-B (Tax Engine v2) integration. All screens are i18n-complete (EN + Pidgin parity), accessibility-compliant, and hardcoded-string-free. `tsc --noEmit` exits 0. **31/31 test suites pass, 382 tests passing, 1 skipped (383 total).**
 
 ### 🆕 Blueprint v9 Additions (April 7, 2026)
 
@@ -28,7 +28,7 @@ TaxBridge Mobile v1.4.0 satisfies all 14 Blueprint v6 absolute constraints, Phas
 | Tabs layout: receipts replaces invoices as visible tab | ✅ | `app/(tabs)/_layout.tsx` |
 | i18n: receipts + expenses + taxCalc namespaces | ✅ | `i18n/en.json`, `i18n/pidgin.json` |
 | Tests T29–T40 (receipt scanner + tax engine v2) | ✅ | `__tests__/taxEngineV2.test.ts`, etc. |
-| app.json v1.4.0, versionCode 14, camera permissions | ✅ | `app.json` |
+| app.json v1.4.1, versionCode 15, camera permissions | ✅ | `app.json` |
 
 **Blueprint v6 — all 14 constraints verified:**
 

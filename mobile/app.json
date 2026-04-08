@@ -2,7 +2,7 @@
   "expo": {
     "name": "TaxBridge",
     "slug": "taxbridge",
-    "version": "1.4.0",
+    "version": "1.4.1",
     "sdkVersion": "54.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -23,7 +23,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "ng.taxbridge.app",
-      "buildNumber": "4",
+      "buildNumber": "5",
       "infoPlist": {
         "NSCameraUsageDescription": "TaxBridge uses your camera to scan receipts and extract VAT input credits automatically.",
         "NSPhotoLibraryUsageDescription": "TaxBridge can read receipt images from your photo library.",
@@ -57,7 +57,7 @@
         "backgroundColor": "#0A0A0A"
       },
       "package": "ng.taxbridge.mobile",
-      "versionCode": 14,
+      "versionCode": 15,
       "permissions": [
         "CAMERA",
         "READ_EXTERNAL_STORAGE",

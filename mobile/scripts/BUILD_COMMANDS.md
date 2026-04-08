@@ -4,6 +4,51 @@
 > The root `eas.json` is for workspace-level tooling only. Mobile builds use `mobile/eas.json`
 > which includes zero-cache settings, Gradle flags, and production API URLs.
 
+---
+
+## ✅ Preferred Path: CI-Triggered EAS Build (GitHub Actions)
+
+The **recommended** way to trigger an EAS build is a push to `master`. GitHub Actions handles
+the EAS CLI invocation from a CI environment with guaranteed internet access — no local DNS
+or network restrictions apply.
+
+### How it works
+
+```
+git push origin master
+  → GitHub Actions: mobile-ci.yml
+    → Job 1: ci   — typecheck + lint + test (ubuntu-latest)
+    → Job 2: eas-build (only on master push, after ci passes)
+        → expo/expo-github-action@v8
+        → eas build --platform android --profile production-apk --no-wait
+```
+
+### Required GitHub Secret
+
+Set `EXPO_TOKEN` in **Settings → Secrets and variables → Actions** on the GitHub repository:
+
+```
+Name:  EXPO_TOKEN
+Value: <your EAS access token — run `eas whoami --json` locally to confirm account,
+        then create a token at https://expo.dev/accounts/[username]/settings/access-tokens>
+```
+
+### Manual trigger from any machine with internet access
+
+```bash
+# From any machine that can reach api.expo.dev:
+cd mobile
+eas build --platform android --profile production-apk --non-interactive --no-wait \
+  --message "v1.4.1 Blueprint v9 production hardening"
+```
+
+### If local machine has no internet access to api.expo.dev
+
+Commit and push — the CI job will trigger automatically. Monitor at:
+`https://github.com/Scardubu/taxbridge/actions`
+
+---
+
 ## Development Build (Internal Testing)
 
 ```bash
@@ -174,4 +219,19 @@ eas build --platform android --profile production-apk --clear-cache --no-wait
 
 # To:
 "runtimeVersion": "1.0.1"  # Increment on every asset change
+```
+
+### `ENOTFOUND api.expo.dev` / `getaddrinfo ENOTFOUND`
+
+**Cause:** Local machine DNS cannot resolve `api.expo.dev`. EAS CLI requires internet access to
+Expo's GraphQL API to queue a cloud build.
+
+**Solution:** Push to `master` and let GitHub Actions trigger the build (see section above).
+The CI runner has unrestricted internet access. No local fix is possible when the DNS block
+is at the OS/network level.
+
+```bash
+# Verify the commit is pushed, then monitor CI:
+git log --oneline origin/master -3
+# Open: https://github.com/Scardubu/taxbridge/actions
 ```

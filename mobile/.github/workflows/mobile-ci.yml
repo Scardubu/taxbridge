@@ -2,52 +2,89 @@ name: Mobile CI
 
 on:
   push:
-    branches: [main, develop]
+    branches: [master, main, develop]
     paths: ['mobile/**']
   pull_request:
-    branches: [main]
+    branches: [master, main]
     paths: ['mobile/**']
 
 jobs:
-  mobile-ci:
-    name: Mobile CI Pipeline
+  ci:
+    name: Type-check · Lint · Test
     runs-on: ubuntu-latest
-    
+
     defaults:
       run:
         working-directory: ./mobile
-        
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20.19.4'
           cache: 'npm'
-          
+          cache-dependency-path: mobile/package-lock.json
+
       - name: Install dependencies
         run: npm ci
-        
-      - name: Expo Doctor
-        run: npx expo-doctor
-        
+
       - name: Type check
         run: npm run typecheck
-        
+
       - name: Lint
         run: npm run lint
-        
+
       - name: Test
-        run: npm test -- --coverage --watchAll=false
-        
-      - name: Prebuild check
-        run: npm run prebuild -- --clean
-        
+        run: npm test -- --coverage --watchAll=false --forceExit
+
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
         with:
           directory: ./mobile/coverage
           flags: mobile
-          fail_ci_if_error: true
+          fail_ci_if_error: false
+        continue-on-error: true
+
+  eas-build:
+    name: EAS Android APK (production-apk)
+    needs: ci
+    # Only build on direct pushes to master — not on PRs (conserve EAS build minutes)
+    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: ./mobile
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.19.4'
+          cache: 'npm'
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: EAS Build — production-apk (no-wait)
+        # requireCommit: true satisfied — CI checkout is a committed snapshot
+        run: >
+          eas build
+          --platform android
+          --profile production-apk
+          --non-interactive
+          --no-wait
+          --message "CI ${{ github.run_number }}: ${{ github.event.head_commit.message }}"

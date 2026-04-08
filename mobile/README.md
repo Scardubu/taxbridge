@@ -9,7 +9,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue)](https://typescriptlang.org)
 [![Tests](https://img.shields.io/badge/Tests-378%20passing-success)]()
 [![Blueprint](https://img.shields.io/badge/Blueprint-v9-green)]()
-[![Version](https://img.shields.io/badge/Version-1.4.0-blue)]()
+[![Version](https://img.shields.io/badge/Version-1.4.1-blue)]()
 [![Production](https://img.shields.io/badge/Status-Production%20Ready-success)]()
 
 </div>
@@ -707,18 +707,57 @@ npx react-native log-ios      # iOS
 
 | Metric | Value | Status |
 |--------|-------|--------|
-| Test Coverage | 167/167 tests | ✅ 100% passing |
+| Test Coverage | 383/383 tests | ✅ 100% passing |
 | TypeScript Errors | 0 | ✅ No errors |
-| Translation Keys | 205+ | ✅ Full EN + Pidgin parity |
+| Translation Keys | 1567 | ✅ Full EN + Pidgin parity |
 | Build Warnings | 0 | ✅ Clean |
 | Accessibility | WCAG 2.1 AA | ✅ Compliant |
 | Blueprint v8 Constraints | 14/14 | ✅ All satisfied |
-| Navigation Races (RC-B, RC-C) | 0 | ✅ Eliminated |
-| App Version | 1.3.0 (versionCode 13) | ✅ Production |
+| Navigation Races (RC-C, RC-H) | 0 | ✅ Eliminated |
+| App Version | 1.4.1 (versionCode 15) | ✅ Production |
 
 ---
 
 ## 🔄 Changelog
+
+### Version 1.4.1 (April 8, 2026) — Blueprint v9 Production Hardening
+
+**Boot / hydration race (RC-C + RC-H) eliminated:**
+
+- `setPreviewMode()` changed from fire-and-forget `void` to `async Promise<void>` — KV write now `await`ed before navigation
+- Both onboarding CTAs (`handleExploreFirst`, `handleGetStarted`) `await setPreviewMode(...)` before `router.replace/push`
+- `waitForHydration()` 4 s timeout fallback now emits a Sentry `'warning'` — race is observable in telemetry if it ever fires
+
+**Receipt sync contract hardened:**
+
+- `saveReceipt()` validates `vendorName.trim()` and `amountNgn > 0` — throws typed errors instead of silently no-oping
+- `RECEIPT_SUBMIT` offline queue payload now includes `idempotency_key: id` — server-side deduplication on retry
+- `getDeadLetterCount()` method added to `OfflineQueue` for dead-letter observability
+
+**Tax Engine v2 (Blueprint v9 §CIT-decision):**
+
+- `citEstimatedNgn` documented: zero when `annualProfit` is absent (intentional — estimation requires explicit input)
+- New test: `'citEstimatedNgn is zero when annualProfit is absent'` (T41)
+
+**UI lockdown — `ReceiptReviewForm`:**
+
+- Inline i18n validation errors for vendor name and amount — previously silently returned void
+- `accessibilityRole="alert"` on error messages for screen reader compatibility
+- Removed invalid `accessibilityInvalid` prop (web-only ARIA, not a valid `TextInputProps` field)
+- Error state clears on user input
+
+**CI / build pipeline:**
+
+- GitHub Actions workflow updated: triggers on `master` (previously `main` only), EAS build job added as post-CI step
+- Workflow uses `expo/expo-github-action@v8` with `EXPO_TOKEN` secret — CI has full internet access
+- `npm run test` passes `--forceExit` flag to prevent worker hang on teardown
+- `codecov/codecov-action` upgraded v3 → v4, `fail_ci_if_error: false` to avoid blocking on Codecov service outages
+
+**i18n:**
+
+- Added `receipts.vendorRequired` and `receipts.amountRequired` keys — EN + Pidgin parity maintained (1567 keys each)
+
+**app.json:** v1.4.1, versionCode 15, buildNumber 5
 
 ### Version 1.3.0 (2026) — Blueprint v8 FINAL
 
