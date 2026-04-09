@@ -7,6 +7,7 @@ on:
   pull_request:
     branches: [master, main]
     paths: ['mobile/**']
+  workflow_dispatch:
 
 jobs:
   ci:
@@ -51,7 +52,6 @@ jobs:
   eas-build:
     name: EAS Android APK (production-apk)
     needs: ci
-    # Only build on direct pushes to master — not on PRs (conserve EAS build minutes)
     if: github.ref == 'refs/heads/master' && github.event_name == 'push'
     runs-on: ubuntu-latest
 
@@ -80,7 +80,6 @@ jobs:
           token: ${{ secrets.EXPO_TOKEN }}
 
       - name: EAS Build — production-apk (no-wait)
-        # requireCommit: true satisfied — CI checkout is a committed snapshot
         run: >
           eas build
           --platform android
