@@ -32,13 +32,17 @@
         "CFBundleAllowMixedLocalizations": true
       },
       "entitlements": {
-        "com.apple.developer.associated-domains": ["applinks:taxbridge.ng"]
+        "com.apple.developer.associated-domains": [
+          "applinks:taxbridge.ng"
+        ]
       },
       "privacyManifests": {
         "NSPrivacyAccessedAPITypes": [
           {
             "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryUserDefaults",
-            "NSPrivacyAccessedAPITypeReasons": ["CA92.1"]
+            "NSPrivacyAccessedAPITypeReasons": [
+              "CA92.1"
+            ]
           }
         ]
       },
@@ -59,16 +63,17 @@
       "package": "ng.taxbridge.mobile",
       "versionCode": 15,
       "permissions": [
-        "CAMERA",
-        "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE",
-        "READ_MEDIA_IMAGES",
-        "INTERNET",
-        "ACCESS_NETWORK_STATE",
-        "RECEIVE_BOOT_COMPLETED",
-        "VIBRATE",
-        "USE_BIOMETRIC",
-        "USE_FINGERPRINT"
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.INTERNET",
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.VIBRATE",
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT",
+        "android.permission.RECORD_AUDIO"
       ],
       "intentFilters": [
         {
@@ -81,7 +86,10 @@
               "pathPrefix": "/app"
             }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ],
       "edgeToEdgeEnabled": true,
@@ -170,13 +178,15 @@
       "checkAutomatically": "ON_LOAD"
     },
     "extra": {
-      "router": { "origin": false },
-      "eas": {
-        "projectId": "292108c3-5c50-4a57-a79d-1648ef5e2e03"
+      "router": {
+        "origin": false
       },
       "apiUrl": "https://taxbridge-api-ker8.onrender.com",
       "sentryDsn": "",
-      "environment": "production"
+      "environment": "production",
+      "eas": {
+        "projectId": "5e13f10b-f095-4994-9203-979dc67243fb"
+      }
     }
   }
 }
