@@ -5,11 +5,13 @@ on:
     branches: [master, main, develop]
     paths:
       - 'mobile/**'
+      - 'packages/contracts/**'
       - '.github/workflows/mobile-ci.yml'
   pull_request:
     branches: [master, main]
     paths:
       - 'mobile/**'
+      - 'packages/contracts/**'
       - '.github/workflows/mobile-ci.yml'
   workflow_dispatch:
 
