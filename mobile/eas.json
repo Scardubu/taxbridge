@@ -13,8 +13,6 @@
       },
       "env": {
         "EAS_BUILD_DISABLE_NPM_CACHE": "1",
-        "EAS_BUILD_DISABLE_MAVEN_CACHE": "1",
-        "EAS_BUILD_DISABLE_GRADLE_CACHE": "1",
         "METRO_CACHE_DISABLED": "1",
         "CI": "1"
       },
