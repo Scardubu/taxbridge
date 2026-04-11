@@ -81,6 +81,10 @@ infra/terraform/.terraform.lock.hcl
 *.key
 google-play-service-account.json
 service-account.json
+mobile/credentials.json
+mobile/keystores/*.jks
+mobile/keystores/*.keystore
+!mobile/keystores/debug.keystore
 
 # Load test results
 load-test-results.json
