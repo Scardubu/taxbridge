@@ -52,13 +52,15 @@ export default function WelcomeScreen() {
   const handleExploreFirst = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setPreviewMode(true);
-    router.replace(DEFAULT_TAB_ROUTE);
+    // Defer navigation to next tick to ensure layout guards see updated state
+    setTimeout(() => router.replace(DEFAULT_TAB_ROUTE), 0);
   }, [setPreviewMode]);
 
-  const handleGetStarted = useCallback(async () => {
+  const handleGetStarted = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setPreviewMode(false);
-    router.push('/(onboarding)/business-type');
+    // Defer navigation to next tick to ensure layout guards see updated state
+    setTimeout(() => router.push('/(onboarding)/business-type'), 0);
   }, [setPreviewMode]);
 
   const handleLanguageToggle = useCallback((lang: 'en' | 'pidgin') => {

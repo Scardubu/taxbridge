@@ -66,11 +66,16 @@ describe('onboarding preview mode', () => {
   });
 
   test('complete clears preview mode before navigating to tabs', async () => {
+    jest.useFakeTimers();
     await useOnboardingStore.getState().complete();
 
     expect(useOnboardingStore.getState().previewMode).toBe(false);
     expect(mockClearPreviewModeFlag).toHaveBeenCalled();
     expect(mockLogComplianceEvent).toHaveBeenCalled();
+
+    // Flush the setTimeout that defers router.replace
+    jest.runAllTimers();
     expect(mockReplace).toHaveBeenCalledWith('/(tabs)/');
+    jest.useRealTimers();
   });
 });

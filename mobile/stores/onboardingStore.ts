@@ -195,7 +195,8 @@ export const useOnboardingStore = create<OnboardingStore>()(
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         logComplianceEvent('onboarding_complete', 'User skipped onboarding for now', 'info', { skipped: true }).catch(() => undefined);
 
-        router.replace(DEFAULT_TAB_ROUTE);
+        // Defer navigation to next tick to ensure layout guards see updated state
+        setTimeout(() => router.replace(DEFAULT_TAB_ROUTE), 0);
       },
       complete: async () => {
         const { currentStepId, completedSteps } = get();
@@ -210,7 +211,8 @@ export const useOnboardingStore = create<OnboardingStore>()(
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         apiRequest('/api/v1/onboarding/complete', { method: 'POST' }).catch(() => undefined);
         await logComplianceEvent('onboarding_complete', 'User completed onboarding', 'info').catch(() => undefined);
-        router.replace(DEFAULT_TAB_ROUTE);
+        // Defer navigation to next tick to ensure layout guards see updated state
+        setTimeout(() => router.replace(DEFAULT_TAB_ROUTE), 0);
       },
     }),
     {
