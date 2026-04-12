@@ -45,22 +45,32 @@ function waitForHydration(): Promise<void> {
       return;
     }
 
+    let settled = false;
+    let timeoutId: ReturnType<typeof setTimeout>;
+    const finish = () => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      clearTimeout(timeoutId);
+      resolve();
+    };
+
     const unsub = useOnboardingStore.subscribe((state) => {
       if (state._hasHydrated) {
         unsub();
-        resolve();
+        finish();
       }
     });
 
-    setTimeout(() => {
+    timeoutId = setTimeout(() => {
+      useOnboardingStore.setState({ _hasHydrated: true });
       unsub();
-      // Safety-net timeout fired before _hasHydrated — possible previewMode KV race.
-      // This is non-fatal but should be investigated if seen in production telemetry.
       Sentry.captureMessage(
         'waitForHydration resolved via 4s timeout — previewMode KV read may not have completed',
         'warning'
       );
-      resolve();
+      finish();
     }, 4000);
   });
 }

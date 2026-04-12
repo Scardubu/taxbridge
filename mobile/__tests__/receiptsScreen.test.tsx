@@ -23,6 +23,7 @@ jest.mock('expo-haptics', () => ({
 }));
 
 jest.mock('../stores/onboardingStore', () => ({
+  DEFAULT_TAB_ROUTE: '/(tabs)/',
   useIsOnboardingDone: () => mockOnboardingDone,
 }));
 

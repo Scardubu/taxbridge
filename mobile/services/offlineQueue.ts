@@ -67,8 +67,9 @@ export class OfflineQueue {
         type: string;
         payload: string;
         retry_count: number;
+        max_retries: number;
       }>(
-        `SELECT id, client_id, type, payload, retry_count
+        `SELECT id, client_id, type, payload, retry_count, max_retries
          FROM offline_operations
          WHERE status = 'pending' AND retry_count < max_retries
          ORDER BY created_at ASC
@@ -96,7 +97,7 @@ export class OfflineQueue {
           const retryCount = operation.retry_count + 1;
           await db.runAsync(
             'UPDATE offline_operations SET status=?, retry_count=?, error_msg=? WHERE id=?',
-            [retryCount >= 5 ? 'dead' : 'pending', retryCount, String(error), operation.id]
+            [retryCount >= operation.max_retries ? 'dead' : 'pending', retryCount, String(error), operation.id]
           );
         }
       }

@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { CameraView, useCameraPermissions } from 'expo-camera';
@@ -11,7 +11,7 @@ import { Colors, Radii, Spacing, Typography } from '../../components/design-syst
 import { processReceiptImage } from '../../services/receiptOcr';
 import { DuplicateReceiptError, RECEIPT_FALLBACK_BUSINESS_ID, receiptService } from '../../services/receiptService';
 import { useBusinessProfileStore } from '../../stores/businessProfileStore';
-import { useIsOnboardingDone } from '../../stores/onboardingStore';
+import { DEFAULT_TAB_ROUTE, useIsOnboardingDone } from '../../stores/onboardingStore';
 import { useReceiptStore } from '../../stores/receiptStore';
 import type { DraftReceipt } from '../../types/receipt';
 
@@ -176,7 +176,7 @@ export default function ReceiptsScreen() {
         >
           <Text style={{ color: Colors.ui.white, fontWeight: '700' }}>{t('receipts.scanAgain')}</Text>
         </Pressable>
-        <Pressable onPress={() => router.replace('/(tabs)')} accessibilityRole="button" style={{ marginTop: Spacing.lg, paddingVertical: Spacing.md }}>
+        <Pressable onPress={() => router.replace(DEFAULT_TAB_ROUTE)} accessibilityRole="button" style={{ marginTop: Spacing.lg, paddingVertical: Spacing.md }}>
           <Text style={{ color: Colors.ui.textDim, ...Typography.body }}>{t('receipts.backToDashboard')}</Text>
         </Pressable>
       </SafeAreaView>

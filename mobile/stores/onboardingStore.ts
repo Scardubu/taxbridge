@@ -19,7 +19,7 @@ export const STEP_IDS = {
 
 export type StepId = typeof STEP_IDS[keyof typeof STEP_IDS];
 
-export const DEFAULT_TAB_ROUTE = '/(tabs)' as const;
+export const DEFAULT_TAB_ROUTE = '/(tabs)/' as const;
 
 export const STEP_ROUTES: Record<StepId, `/(onboarding)${string}`> = {
   welcome: '/(onboarding)',
@@ -86,7 +86,7 @@ interface OnboardingStore {
   isSyncing: boolean;
   _hasHydrated: boolean;
   previewMode: boolean;
-  setPreviewMode(val: boolean): Promise<void>;
+  setPreviewMode(val: boolean): void;
   goNext(): Promise<void>;
   goPrev(): void;
   skipAllOptional(): Promise<void>;
@@ -105,9 +105,9 @@ export const useOnboardingStore = create<OnboardingStore>()(
       isSyncing: false,
       _hasHydrated: false,
       previewMode: false,
-      setPreviewMode: async (val) => {
+      setPreviewMode: (val) => {
         set({ previewMode: val });
-        await AppKV.flags.setPreviewMode(val);
+        void AppKV.flags.setPreviewMode(val);
       },
       migrateIfNeeded: () => {
         const { currentStepId, completedSteps, schemaVersion } = get();

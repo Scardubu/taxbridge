@@ -71,6 +71,6 @@ describe('onboarding preview mode', () => {
     expect(useOnboardingStore.getState().previewMode).toBe(false);
     expect(mockClearPreviewModeFlag).toHaveBeenCalled();
     expect(mockLogComplianceEvent).toHaveBeenCalled();
-    expect(mockReplace).toHaveBeenCalledWith('/(tabs)');
+    expect(mockReplace).toHaveBeenCalledWith('/(tabs)/');
   });
 });

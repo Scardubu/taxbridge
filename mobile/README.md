@@ -7,7 +7,7 @@
 [![Expo](https://img.shields.io/badge/Expo-54.0.31-blue)](https://expo.dev)
 [![React Native](https://img.shields.io/badge/React%20Native-0.81.5-blue)](https://reactnative.dev)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue)](https://typescriptlang.org)
-[![Tests](https://img.shields.io/badge/Tests-378%20passing-success)]()
+[![Tests](https://img.shields.io/badge/Tests-382%20passing-success)]()
 [![Blueprint](https://img.shields.io/badge/Blueprint-v9-green)]()
 [![Version](https://img.shields.io/badge/Version-1.4.1-blue)]()
 [![Production](https://img.shields.io/badge/Status-Production%20Ready-success)]()
@@ -42,7 +42,7 @@ This codebase implements **TaxBridge V13 Mobile Blueprint v9**, the single autho
 - Compliance score v2: 6-factor weighted (max 100 pts)
 - `useTaxEngine` memoised hook; `TaxCalculationSummary` on dashboard
 
-**Tests: 31/31 suites • 378 passing • 0 failing • TypeScript: 0 errors**
+**Tests: 31/31 suites • 382 passing • 0 failing • 1 skipped • TypeScript: 0 errors**
 
 #### Key Constraints Applied
 
@@ -56,7 +56,7 @@ This codebase implements **TaxBridge V13 Mobile Blueprint v9**, the single autho
 - ✅ **Animated API pulse only** for skeleton loaders; no `withSpring`/`withTiming` on step transitions
 - ✅ **Compliance events** logged for `onboarding_complete`, `tin_verified`, `receipt_scanned`
 - ✅ **NRS 2026** phased e-invoicing rules, CIT 0% relief, PIT zero band ₦800K
-- ✅ **SSE** event streaming — `tin_verified`, `admin_alert`, `obligation_override`, `tin_manual_verify`, `payment_confirmed`
+- ✅ **SSE** event streaming — 14 event types: `tin_verified`, `admin_alert`, `obligation_override`, `tin_manual_verify`, `payment_confirmed`, `receipt_processed`, `receipt_flagged`, `vat_return_accepted`, `tax_assessment_issued` + Sentry-captured parse errors
 - ✅ **i18n** with English and Nigerian Pidgin (205+ keys)
 - ✅ **SafeAreaView** from `react-native-safe-area-context` only
 - ✅ **No reanimated plugins** in `babel.config.js`
@@ -71,7 +71,7 @@ This codebase implements **TaxBridge V13 Mobile Blueprint v9**, the single autho
 - **Intelligent sync**: Automatic background sync when connectivity is restored
 - **Queue depth display**: `OfflineIndicator` shows pending count + "Sync now" CTA
 - **Conflict resolution**: Smart merge strategies for concurrent edits
-- **Queue management**: Resilient retry with dead-letter after 5 attempts
+- **Queue management**: Resilient retry with configurable per-operation `max_retries` (DB-stored, default 5); dead-letter observability via `getDeadLetterCount()`
 - **Network indicators**: Real-time connection status with visual feedback
 
 #### 📊 Tax Compliance & Education
@@ -151,7 +151,7 @@ This codebase implements **TaxBridge V13 Mobile Blueprint v9**, the single autho
   - ESLint + Prettier configured
   - Pre-commit hooks (Husky)
   - Automated testing (Jest)
-  - **378 tests across 31 suites (100% passing)**
+  - **382 tests across 31 suites (100% passing, 1 skipped)**
 - **i18n Support**:
   - 205+ translation keys
   - English + Nigerian Pidgin
@@ -656,7 +656,7 @@ npx react-native log-ios      # iOS
 
 ### ✅ Completed Features
 
-- [x] **All 139 tests passing** (100% success rate)
+- [x] **All 382 tests passing** (100% success rate)
 - [x] **Offline-first architecture** with SQLite persistence
 - [x] **Multi-language support** (English + Nigerian Pidgin, 205+ keys)
 - [x] **Enhanced onboarding** with skip functionality and progress tracking
@@ -707,18 +707,37 @@ npx react-native log-ios      # iOS
 
 | Metric | Value | Status |
 |--------|-------|--------|
-| Test Coverage | 383/383 tests | ✅ 100% passing |
+| Test Coverage | 383 total · 382 passed · 1 skipped | ✅ 100% passing |
 | TypeScript Errors | 0 | ✅ No errors |
 | Translation Keys | 1567 | ✅ Full EN + Pidgin parity |
 | Build Warnings | 0 | ✅ Clean |
 | Accessibility | WCAG 2.1 AA | ✅ Compliant |
-| Blueprint v8 Constraints | 14/14 | ✅ All satisfied |
+| Blueprint v9 Constraints | 14/14 | ✅ All satisfied |
 | Navigation Races (RC-C, RC-H) | 0 | ✅ Eliminated |
 | App Version | 1.4.1 (versionCode 15) | ✅ Production |
 
 ---
 
 ## 🔄 Changelog
+
+### Version 1.4.1 patch (April 12, 2026) — v9 Integration Finalization
+
+**Bug fixes and type-safety hardening:**
+
+- `services/taxEngine.ts` — Fixed `whtRemitted` default logic: `whtBreakdown.length > 0` incorrectly defaulted to `true` ("transactions exist → remitted"). Now correctly defaults to `true` only when `whtTotalNgn === 0`, so compliance score bracket `wht_remitted` is no longer falsely awarded when WHT transactions have not been explicitly confirmed as remitted.
+- `app/(tabs)/receipts.tsx` — Added `React` import (parity with all other tab files); replaced hardcoded `router.replace('/(tabs)')` with `router.replace(DEFAULT_TAB_ROUTE)` so "Back to dashboard" stays in sync with the `onboardingStore` constant.
+- `services/offlineQueue.ts` — Dead-letter threshold now reads `operation.max_retries` from the DB row (`SELECT … max_retries`) instead of the hardcoded literal `5`; retry limit is now fully per-operation configurable.
+- `stores/businessProfileStore.ts` — Removed `getFirstAsync<any>` on the `business_profiles` row; replaced with a typed `ProfileRow` interface that precisely mirrors the table schema; `business_type` cast safely to the `businessType` union at the read boundary.
+- `services/sseService.ts` — SSE parse error handler now calls `Sentry.captureException(err, { tags: { source: 'sse_parse' } })` instead of swallowing the error silently.
+
+**Test alignment:**
+
+- `__tests__/onboardingPreviewMode.test.ts` — `router.replace` expectation updated from `'/(tabs)'` → `'/(tabs)/'` to match `DEFAULT_TAB_ROUTE`.
+- `__tests__/receiptsScreen.test.tsx` — Added `DEFAULT_TAB_ROUTE: '/(tabs)/'` to the `onboardingStore` mock so the screen can call `router.replace` with a defined value.
+
+**Verification:** `tsc --noEmit` → 0 errors · Jest → 31/31 suites, 382 passed, 1 pre-existing skip.
+
+---
 
 ### Version 1.4.1 (April 8, 2026) — Blueprint v9 Production Hardening
 

@@ -1,4 +1,5 @@
 import EventSource from 'react-native-sse';
+import * as Sentry from '@sentry/react-native';
 import { logComplianceEvent } from './complianceEventService';
 
 export type SSEEventName =
@@ -54,7 +55,9 @@ class SSEService {
         if (parsed.type === 'invoice_submitted') {
           logComplianceEvent('invoice_submitted', 'Invoice submitted successfully', 'info', payload).catch(() => undefined);
         }
-      } catch {}
+      } catch (err) {
+        Sentry.captureException(err, { tags: { source: 'sse_parse' } });
+      }
     };
 
     const addListener = (name: string) =>

@@ -33,6 +33,27 @@ interface Store extends BusinessProfile {
   getProfileSnapshot(): Partial<BusinessProfile>;
 }
 
+interface ProfileRow {
+  server_business_id: string | null;
+  business_name: string | null;
+  trading_name: string | null;
+  tin: string | null;
+  rc_number: string | null;
+  sector: string | null;
+  business_type: string | null;
+  annual_turnover: number | null;
+  monthly_revenue: number | null;
+  total_fixed_assets: number | null;
+  employee_count: number | null;
+  is_vat_registered: number;
+  vat_number: string | null;
+  lga: string | null;
+  state: string | null;
+  phone: string | null;
+  email: string | null;
+  has_valid_tin: number;
+}
+
 export const useBusinessProfileStore = create<Store>()((set, get) => {
   let flushTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -99,7 +120,7 @@ export const useBusinessProfileStore = create<Store>()((set, get) => {
     lastSyncedAt: null,
     hydrate: async () => {
       const db = await getDatabase();
-      const row = await db.getFirstAsync<any>('SELECT * FROM business_profiles WHERE id = 1');
+      const row = await db.getFirstAsync<ProfileRow>('SELECT * FROM business_profiles WHERE id = 1');
       if (row) {
         set({
           businessId: row.server_business_id ?? null,
@@ -108,7 +129,7 @@ export const useBusinessProfileStore = create<Store>()((set, get) => {
           tin: row.tin ?? '',
           rcNumber: row.rc_number ?? '',
           sector: row.sector ?? '',
-          businessType: row.business_type ?? '',
+          businessType: (row.business_type as BusinessProfile['businessType']) ?? '',
           annualTurnover: row.annual_turnover ?? null,
           monthlyRevenue: row.monthly_revenue ?? null,
           totalFixedAssets: row.total_fixed_assets ?? null,

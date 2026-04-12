@@ -9,7 +9,7 @@ import { AppKV } from '../../storage/kv';
 import { OnboardingErrorBoundary } from '../../components/OnboardingErrorBoundary';
 import { OnboardingProgressBar } from '../../components/OnboardingProgressBar';
 import { Colors, Typography, Spacing, Radii } from '../../components/design-system/tokens';
-import { useOnboardingStore } from '../../stores/onboardingStore';
+import { DEFAULT_TAB_ROUTE, useOnboardingStore } from '../../stores/onboardingStore';
 
 const FEATURES = [
   {
@@ -49,15 +49,15 @@ export default function WelcomeScreen() {
     }
   }, [i18n]);
 
-  const handleExploreFirst = useCallback(async () => {
+  const handleExploreFirst = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    await setPreviewMode(true);
-    router.replace('/(tabs)');
+    setPreviewMode(true);
+    router.replace(DEFAULT_TAB_ROUTE);
   }, [setPreviewMode]);
 
   const handleGetStarted = useCallback(async () => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    await setPreviewMode(false);
+    setPreviewMode(false);
     router.push('/(onboarding)/business-type');
   }, [setPreviewMode]);
 

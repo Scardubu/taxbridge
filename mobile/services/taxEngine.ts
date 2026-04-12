@@ -124,7 +124,7 @@ export function computeTaxEngine(input: TaxEngineInput): TaxCalculationResult {
 
   const eInvoiceCompliant = input.eInvoiceCompliant ?? (eInvoicePhase === 'small' || eInvoicePhase === 'not_applicable');
   const vatFiledMonthly = input.vatFiledMonthly ?? false;
-  const whtRemitted = input.whtRemitted ?? (whtTotalNgn === 0 || whtBreakdown.length > 0);
+  const whtRemitted = input.whtRemitted ?? whtTotalNgn === 0;
   const citFiled = input.citFiled ?? false;
 
   const scoreBrackets: ScoreBracket[] = [
