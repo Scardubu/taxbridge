@@ -1,7 +1,7 @@
 import 'react-native-reanimated';
 
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, View } from 'react-native';
+import { ActivityIndicator, AppState, AppStateStatus, View } from 'react-native';
 import { isRunningInExpoGo } from 'expo';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -11,7 +11,7 @@ import * as Sentry from '@sentry/react-native';
 import { Slot } from 'expo-router';
 import { I18nextProvider } from 'react-i18next';
 import i18n, { initializeI18n } from '../i18n';
-import { initDatabase } from '../services/database';
+import { closeDatabase, initDatabase } from '../services/database';
 import { migrateFromAsyncStorage as runStorageMigration } from '../services/storageMigration';
 import { offlineQueue } from '../services/offlineQueue';
 import { useBusinessProfileStore } from '../stores/businessProfileStore';
@@ -93,12 +93,29 @@ function RootLayout() {
         Sentry.captureException(error);
       } finally {
         setIsAppReady(true);
+        // Always hide splash screen, even on error, to prevent hang on restart
         await SplashScreen.hideAsync().catch(() => undefined);
         void offlineQueue.flush().catch((error) => {
           Sentry.captureException(error);
         });
       }
     })();
+
+    // Cleanup resources when app goes to background/closed to prevent locks on restart
+    const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
+      if (nextAppState === 'background' || nextAppState === 'inactive') {
+        void (async () => {
+          try {
+            offlineQueue.destroy();
+            await closeDatabase();
+          } catch (error) {
+            Sentry.captureException(error);
+          }
+        })();
+      }
+    });
+
+    return () => subscription.remove();
   }, [hydrateProfile]);
 
   return (

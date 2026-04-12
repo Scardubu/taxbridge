@@ -31,6 +31,15 @@ export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
   return _dbPromise;
 }
 
+/** Close the database connection. Call this on app exit to prevent locks and corruption. */
+export async function closeDatabase(): Promise<void> {
+  if (_db) {
+    await _db.closeAsync();
+    _db = null;
+  }
+  _dbPromise = null;
+}
+
 async function runMigrations(db: SQLite.SQLiteDatabase): Promise<void> {
   const row = await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version');
   let v = row?.user_version ?? 0;
