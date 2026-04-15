@@ -1,0 +1,40 @@
+{
+  "optimizations": [
+    {
+      "id": "OPT_REANIMATED_PROGRESS_BAR",
+      "impact": "MEDIUM",
+      "area": "Animation Smoothness",
+      "current": "OnboardingProgressBar likely uses React state or View style for progress — JS thread bound.",
+      "recommendation": "Migrate progress bar fill to Reanimated 3: useSharedValue(percent) + useAnimatedStyle with withTiming(percent, { duration: 350, easing: Easing.out(Easing.cubic) }). This shifts the animation to the UI thread, eliminating frame drops during API sync calls."
+    },
+    {
+      "id": "OPT_REPLACE_SETTIMEOUT_WITH_INTERACTIONMANAGER",
+      "impact": "MEDIUM",
+      "area": "Navigation Reliability",
+      "current": "setTimeout(fn, 0) used to defer navigation in welcome.tsx and skipForNow().",
+      "recommendation": "Replace setTimeout(fn, 0) with InteractionManager.runAfterInteractions(fn). InteractionManager waits for all active animations and gesture interactions to complete before running the callback — more reliable than a 0 ms timer under JS thread pressure. Import from react-native: `import { InteractionManager } from \"react-native\"`."
+    },
+    {
+      "id": "OPT_SKELETON_ON_SYNC",
+      "impact": "MEDIUM",
+      "area": "Perceived Performance",
+      "current": "isSyncing state exists in store but no loading skeleton is shown during backend sync steps.",
+      "recommendation": "Subscribe to isSyncing in the OnboardingFrame. When true, overlay a subtle inline skeleton or disable the primary CTA with a spinner instead of blocking the entire screen. This gives immediate feedback on the 60–80% of Nigerian users on sub-5 Mbps connections."
+    },
+    {
+      "id": "OPT_HYDRATION_TIMEOUT_REDUCE",
+      "impact": "LOW",
+      "area": "Cold Start UX",
+      "current": "waitForHydration() timeout is 4 000 ms — user sees spinner for up to 4 s on cold launch.",
+      "recommendation": "Reduce timeout to 2 500 ms and upgrade the Sentry warning to an error so it is tracked. Additionally, consider showing a branded splash content screen (logo + tagline) rather than a plain ActivityIndicator during the hydration wait — improves perceived load time perception."
+    },
+    {
+      "id": "OPT_STEP_EARLY_COMPLETE_GUARD",
+      "impact": "LOW",
+      "area": "Navigation Safety",
+      "current": "advanceToNext() calls router.replace(STEP_ROUTES[next.id]) after goNext() resolves. If goNext() calls complete() (last step), router.replace is skipped (next is undefined), but this relies on STEPS array order being stable.",
+      "recommendation": "Add an explicit guard: if the current stepId is the last STEP before calling advanceToNext, skip the router.replace entirely and let the layout Redirect handle navigation. Document this contract with a code comment to prevent regression during future step additions."
+    }
+  ],
+  "analyzedAt": "2026-04-15T08:13:35.679Z"
+}

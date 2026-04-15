@@ -9,7 +9,7 @@ import { AppKV } from '../../storage/kv';
 import { OnboardingErrorBoundary } from '../../components/OnboardingErrorBoundary';
 import { OnboardingProgressBar } from '../../components/OnboardingProgressBar';
 import { Colors, Typography, Spacing, Radii } from '../../components/design-system/tokens';
-import { DEFAULT_TAB_ROUTE, useOnboardingStore } from '../../stores/onboardingStore';
+import { useOnboardingStore } from '../../stores/onboardingStore';
 
 const FEATURES = [
   {
@@ -32,6 +32,7 @@ const FEATURES = [
 export default function WelcomeScreen() {
   const { t, i18n } = useTranslation();
   const setPreviewMode = useOnboardingStore((state) => state.setPreviewMode);
+  const enterPreviewMode = useOnboardingStore((state) => state.enterPreviewMode);
 
   useEffect(() => {
     useOnboardingStore.setState({ currentStepId: 'welcome' });
@@ -50,17 +51,17 @@ export default function WelcomeScreen() {
   }, [i18n]);
 
   const handleExploreFirst = useCallback(() => {
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setPreviewMode(true);
-    // Defer navigation to next tick to ensure layout guards see updated state
-    setTimeout(() => router.replace(DEFAULT_TAB_ROUTE), 0);
-  }, [setPreviewMode]);
+    // enterPreviewMode sets isComplete=true, which causes the layout guard
+    // in (onboarding)/_layout.tsx to fire <Redirect href={DEFAULT_TAB_ROUTE} />.
+    // Do NOT call router.replace here — the layout guard is the single navigation authority.
+    void enterPreviewMode();
+  }, [enterPreviewMode]);
 
   const handleGetStarted = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setPreviewMode(false);
-    // Defer navigation to next tick to ensure layout guards see updated state
-    setTimeout(() => router.push('/(onboarding)/business-type'), 0);
+    // 16ms defer ensures Reanimated worklets and layout guards settle before navigation.
+    setTimeout(() => router.push('/(onboarding)/business-type'), 16);
   }, [setPreviewMode]);
 
   const handleLanguageToggle = useCallback((lang: 'en' | 'pidgin') => {

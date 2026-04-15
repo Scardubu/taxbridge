@@ -14,6 +14,7 @@ import i18n, { initializeI18n } from '../i18n';
 import { closeDatabase, initDatabase } from '../services/database';
 import { migrateFromAsyncStorage as runStorageMigration } from '../services/storageMigration';
 import { offlineQueue } from '../services/offlineQueue';
+import { AppKV } from '../storage/kv';
 import { useBusinessProfileStore } from '../stores/businessProfileStore';
 import { useOnboardingStore } from '../stores/onboardingStore';
 import { Colors } from '../components/design-system/tokens';
@@ -64,13 +65,19 @@ function waitForHydration(): Promise<void> {
     });
 
     timeoutId = setTimeout(() => {
-      useOnboardingStore.setState({ _hasHydrated: true });
       unsub();
       Sentry.captureMessage(
         'waitForHydration resolved via 4s timeout — previewMode KV read may not have completed',
         'warning'
       );
-      finish();
+      AppKV.flags.getPreviewMode()
+        .then((previewMode) => {
+          useOnboardingStore.setState({ _hasHydrated: true, previewMode: previewMode ?? false });
+        })
+        .catch(() => {
+          useOnboardingStore.setState({ _hasHydrated: true });
+        })
+        .finally(() => finish());
     }, 4000);
   });
 }
@@ -103,7 +110,16 @@ function RootLayout() {
 
     // Cleanup resources when app goes to background/closed to prevent locks on restart
     const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
-      if (nextAppState === 'background' || nextAppState === 'inactive') {
+      if (nextAppState === 'active' && isAppReady) {
+        void (async () => {
+          try {
+            await initDatabase();
+            offlineQueue.start();
+          } catch (error) {
+            Sentry.captureException(error);
+          }
+        })();
+      } else if (nextAppState === 'background' || nextAppState === 'inactive') {
         void (async () => {
           try {
             offlineQueue.destroy();

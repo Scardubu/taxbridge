@@ -1,0 +1,26 @@
+{
+  "flags": [
+    {
+      "id": "NAV_SETTIMEOUT_FRAGILE",
+      "severity": "MEDIUM",
+      "file": "app/(onboarding)/index.tsx + stores/onboardingStore.ts",
+      "description": "Multiple setTimeout(fn, 0) deferred navigations as a workaround for Zustand/Expo Router state-update/render ordering. setTimeout is not a reliable synchronization primitive.",
+      "predictedFailure": "Under heavy JS thread load, setTimeout callback can fire before the store subscriber re-renders the layout guard, causing momentary flash of onboarding screen after redirect."
+    },
+    {
+      "id": "ANIM_NO_REANIMATED_WORKLETS",
+      "severity": "LOW",
+      "file": "components/OnboardingProgressBar.tsx",
+      "description": "OnboardingProgressBar has no detected Reanimated 3 worklet usage for progress animation.",
+      "predictedFailure": "Progress animations run on the JS thread. Frame drops visible on mid-range Android devices when JS thread is busy during onboarding API calls."
+    },
+    {
+      "id": "HYDRATION_TIMEOUT_4S",
+      "severity": "LOW",
+      "file": "app/_layout.tsx",
+      "description": "waitForHydration() falls back to 4 000 ms timeout. On cold launch on slow devices, this extends the app black-screen period.",
+      "predictedFailure": "Sentry \"waitForHydration resolved via 4s timeout\" warning on ~5% of Nigerian 2G devices. User sees loading spinner for 4 s before any content."
+    }
+  ],
+  "scannedAt": "2026-04-15T07:56:24.084Z"
+}

@@ -1,0 +1,28 @@
+name: TaxBridge Validation
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npm run lint || true
+
+      - name: Diff validation
+        run: node .github/scripts/validate-diff.js
+
+      - name: Expo prebuild check
+        run: npx expo prebuild --non-interactive

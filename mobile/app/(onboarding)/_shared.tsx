@@ -43,6 +43,11 @@ export function advanceToNext(stepId: StepId) {
   const index = STEPS.findIndex((step) => step.id === stepId);
   const next = STEPS[index + 1];
   return state.goNext().then(() => {
+    // CONTRACT: when stepId is the last step, goNext() calls complete() which sets
+    // isComplete=true. The (onboarding)/_layout.tsx guard then emits <Redirect href={DEFAULT_TAB_ROUTE} />.
+    // Do NOT call router.replace here in that case — the layout owns that navigation.
+    // For all intermediate steps, next is defined and isComplete remains false, so
+    // the layout guard does not fire and we drive navigation explicitly below.
     if (next) {
       router.replace(STEP_ROUTES[next.id]);
     }
@@ -160,7 +165,7 @@ export function OnboardingFrame({
                 alignItems: 'center',
               }}
             >
-              <Text style={{ ...typography.label, color: palette.nrsGreen }}>{current}/{STEPS.length}</Text>
+              <Text style={{ ...typography.label, color: palette.nrsGreen }}>{t('stepCount', { current, total: STEPS.length })}</Text>
             </View>
           </View>
         </View>

@@ -1,0 +1,7 @@
+{
+  "rules": {
+    "ship_if": "score >= 0.75",
+    "iterate_if": "0.5 <= score < 0.75",
+    "kill_if": "score < 0.5"
+  }
+}

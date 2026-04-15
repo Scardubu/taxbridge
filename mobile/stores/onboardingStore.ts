@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import * as Sentry from '@sentry/react-native';
 import { AppKV, zustandKvStorage } from '../storage/kv';
@@ -87,6 +86,7 @@ interface OnboardingStore {
   _hasHydrated: boolean;
   previewMode: boolean;
   setPreviewMode(val: boolean): void;
+  enterPreviewMode(): Promise<void>;
   goNext(): Promise<void>;
   goPrev(): void;
   skipAllOptional(): Promise<void>;
@@ -109,6 +109,15 @@ export const useOnboardingStore = create<OnboardingStore>()(
         set({ previewMode: val });
         void AppKV.flags.setPreviewMode(val);
       },
+      enterPreviewMode: async () => {
+        // Sets isComplete so the layout guard in (onboarding)/_layout.tsx fires
+        // <Redirect href={DEFAULT_TAB_ROUTE} /> — do NOT call router.replace here.
+        set({ isComplete: true, previewMode: true });
+        await AppKV.flags.setPreviewMode(true);
+        mirrorOnboardingState(get().currentStepId as StepId, true);
+        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        logComplianceEvent('onboarding_preview_enter', 'User entered preview mode', 'info').catch(() => undefined);
+      },
       migrateIfNeeded: () => {
         const { currentStepId, completedSteps, schemaVersion } = get();
         const migratedStepId = migrateLegacyStepId(currentStepId);
@@ -128,8 +137,9 @@ export const useOnboardingStore = create<OnboardingStore>()(
         mirrorOnboardingState(migratedStepId, get().isComplete);
       },
       goNext: async () => {
-        const { currentStepId, completedSteps } = get();
+        const { currentStepId, completedSteps, isSyncing } = get();
         if (currentStepId === 'done') return;
+        if (isSyncing) return;
         const idx = STEPS.findIndex((step) => step.id === currentStepId);
         const newCompleted = completedSteps.includes(currentStepId)
           ? completedSteps
@@ -195,8 +205,9 @@ export const useOnboardingStore = create<OnboardingStore>()(
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         logComplianceEvent('onboarding_complete', 'User skipped onboarding for now', 'info', { skipped: true }).catch(() => undefined);
 
-        // Defer navigation to next tick to ensure layout guards see updated state
-        setTimeout(() => router.replace(DEFAULT_TAB_ROUTE), 0);
+        // Navigation is owned by the (onboarding)/_layout.tsx guard:
+        // setting isComplete=true above triggers its <Redirect href={DEFAULT_TAB_ROUTE} />
+        // — do NOT call router.replace here to avoid a double-navigation crash.
       },
       complete: async () => {
         const { currentStepId, completedSteps } = get();
@@ -209,10 +220,22 @@ export const useOnboardingStore = create<OnboardingStore>()(
         await AppKV.flags.clearPreviewMode();
         mirrorOnboardingState(STEP_IDS.COMMUNITY, true);
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        apiRequest('/api/v1/onboarding/complete', { method: 'POST' }).catch(() => undefined);
+        apiRequest('/api/v1/onboarding/complete', { method: 'POST' }).catch(async () => {
+          try {
+            const db = await getDatabase();
+            await db.runAsync(
+              `INSERT OR IGNORE INTO offline_operations (client_id, type, payload)
+               VALUES (?, 'ONBOARDING_COMPLETE', ?)`,
+              [`onboarding_complete_${Date.now()}`, JSON.stringify({ completedAt: new Date().toISOString() })]
+            );
+          } catch {
+            // DB unavailable — Sentry will capture via global handler
+          }
+        });
         await logComplianceEvent('onboarding_complete', 'User completed onboarding', 'info').catch(() => undefined);
-        // Defer navigation to next tick to ensure layout guards see updated state
-        setTimeout(() => router.replace(DEFAULT_TAB_ROUTE), 0);
+        // Navigation is owned by the (onboarding)/_layout.tsx guard:
+        // setting isComplete=true above triggers its <Redirect href={DEFAULT_TAB_ROUTE} />
+        // — do NOT call router.replace here to avoid a double-navigation crash.
       },
     }),
     {
@@ -225,20 +248,20 @@ export const useOnboardingStore = create<OnboardingStore>()(
         schemaVersion: state.schemaVersion,
       }),
       onRehydrateStorage: () => async (state, error) => {
-        if (!error) {
-          try {
-            state?.migrateIfNeeded();
-            const persisted = await AppKV.flags.getPreviewMode();
-            useOnboardingStore.setState({
-              _hasHydrated: true,
-              previewMode: persisted,
-            });
-          } catch {
-            useOnboardingStore.setState({ _hasHydrated: true });
-          }
-        } else {
+        if (error) {
           useOnboardingStore.setState({ _hasHydrated: true });
           Sentry.captureException(error);
+          return;
+        }
+        try {
+          state?.migrateIfNeeded();
+          const persisted = await AppKV.flags.getPreviewMode();
+          useOnboardingStore.setState({
+            _hasHydrated: true,
+            previewMode: persisted,
+          });
+        } catch {
+          useOnboardingStore.setState({ _hasHydrated: true });
         }
       },
     }

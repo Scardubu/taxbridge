@@ -65,17 +65,16 @@ describe('onboarding preview mode', () => {
     expect(mockSetPreviewModeFlag).toHaveBeenCalledWith(true);
   });
 
-  test('complete clears preview mode before navigating to tabs', async () => {
-    jest.useFakeTimers();
+  test('complete clears preview mode and sets isComplete for layout guard', async () => {
     await useOnboardingStore.getState().complete();
 
+    // Navigation contract: complete() sets isComplete=true so the layout guard
+    // in (onboarding)/_layout.tsx fires <Redirect href="/(tabs)/" />.
+    // complete() must NOT call router.replace directly — that caused the double-navigation crash.
+    expect(useOnboardingStore.getState().isComplete).toBe(true);
     expect(useOnboardingStore.getState().previewMode).toBe(false);
     expect(mockClearPreviewModeFlag).toHaveBeenCalled();
     expect(mockLogComplianceEvent).toHaveBeenCalled();
-
-    // Flush the setTimeout that defers router.replace
-    jest.runAllTimers();
-    expect(mockReplace).toHaveBeenCalledWith('/(tabs)/');
-    jest.useRealTimers();
+    expect(mockReplace).not.toHaveBeenCalled();
   });
 });

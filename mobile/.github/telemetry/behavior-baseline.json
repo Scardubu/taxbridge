@@ -1,0 +1,6 @@
+{
+  "avg_onboarding_time": 4.2,
+  "dropoff_step": "business_type",
+  "avg_transition_latency": 280,
+  "rage_tap_threshold": 3
+}

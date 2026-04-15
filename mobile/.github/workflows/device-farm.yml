@@ -1,0 +1,27 @@
+name: Real Device Farm Validation
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  device-farm:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build release-ready artifact
+        run: npx expo prebuild --clean
+
+      - name: Upload artifact to device farm
+        run: node .github/scripts/upload-to-device-farm.js
+
+      - name: Run onboarding flow on real device
+        run: node .github/scripts/run-device-farm-tests.js
+
+      - name: Collect artifacts
+        run: node .github/scripts/collect-device-farm-artifacts.js

@@ -1,0 +1,8 @@
+{
+  "weights": {
+    "retention": 0.35,
+    "revenue": 0.25,
+    "stability": 0.2,
+    "user_experience": 0.2
+  }
+}

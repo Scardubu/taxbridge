@@ -1,0 +1,36 @@
+{
+  "regions": [
+    {
+      "name": "Nigeria",
+      "economy": "emerging",
+      "payment_behavior": "low_subscription",
+      "device_profile": "low_mid_android",
+      "trust_level": "low",
+      "network": "unstable"
+    },
+    {
+      "name": "Kenya",
+      "economy": "emerging",
+      "payment_behavior": "mobile_money_friendly",
+      "device_profile": "mid_android",
+      "trust_level": "medium",
+      "network": "moderate"
+    },
+    {
+      "name": "India",
+      "economy": "emerging_scale",
+      "payment_behavior": "price_sensitive",
+      "device_profile": "wide_range",
+      "trust_level": "medium",
+      "network": "variable"
+    },
+    {
+      "name": "UK",
+      "economy": "developed",
+      "payment_behavior": "subscription_ok",
+      "device_profile": "high_end",
+      "trust_level": "high",
+      "network": "stable"
+    }
+  ]
+}

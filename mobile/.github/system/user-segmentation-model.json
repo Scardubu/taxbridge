@@ -1,0 +1,10 @@
+{
+  "segments": [
+    "new_user",
+    "explorer",
+    "power_user",
+    "at_risk",
+    "churned",
+    "high_value"
+  ]
+}

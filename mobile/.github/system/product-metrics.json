@@ -1,0 +1,6 @@
+{
+  "retention_weight": 0.4,
+  "revenue_weight": 0.3,
+  "user_value_weight": 0.2,
+  "engineering_cost_weight": 0.1
+}

@@ -1,0 +1,13 @@
+{
+  "weights": {
+    "adoption": 0.4,
+    "revenue": 0.25,
+    "competition": 0.2,
+    "operational_risk": 0.15
+  },
+  "thresholds": {
+    "enter": 0.7,
+    "delay": 0.5,
+    "avoid": 0.3
+  }
+}

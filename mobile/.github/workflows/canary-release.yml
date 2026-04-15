@@ -1,0 +1,17 @@
+name: Canary Release
+
+on:
+  workflow_dispatch:
+
+jobs:
+  canary:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy to 10% users
+        run: node .github/scripts/canary-deploy.js 10
+
+      - name: Start monitoring
+        run: node .github/scripts/monitor-production.js

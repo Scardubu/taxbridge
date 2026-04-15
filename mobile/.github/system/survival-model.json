@@ -1,0 +1,9 @@
+{
+  "weights": {
+    "retention": 0.3,
+    "revenue": 0.3,
+    "stability": 0.2,
+    "user_experience": 0.2
+  },
+  "elimination_threshold": 0.55
+}

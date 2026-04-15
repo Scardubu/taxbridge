@@ -1,0 +1,22 @@
+name: E2E Tests
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+jobs:
+  detox:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build Android debug APK
+        run: cd android && ./gradlew assembleDebug
+
+      - name: Run Detox tests
+        run: npx detox test --configuration android

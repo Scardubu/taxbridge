@@ -1,0 +1,6 @@
+{
+  "crash_rate_max": 0.02,
+  "completion_rate_min": 0.88,
+  "navigation_error_rate_max": 0.01,
+  "transition_time_max": 350
+}

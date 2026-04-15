@@ -1,9 +1,9 @@
 import { getDatabase } from './database';
-import { offlineQueue } from './offlineQueue';
 import { postComplianceEvent } from './api';
 
 export type ComplianceEventType =
   | 'onboarding_complete'
+  | 'onboarding_preview_enter'
   | 'tin_verified'
   | 'tin_failed'
   | 'receipt_scanned'
@@ -56,7 +56,7 @@ export async function logComplianceEvent(
       metadata: {
         description,
         severity,
-        ...(metadata ?? {}),
+        ...metadata,
       },
       client_timestamp: new Date().toISOString(),
       source: context?.source ?? 'mobile',

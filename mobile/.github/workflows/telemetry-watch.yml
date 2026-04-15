@@ -1,0 +1,22 @@
+name: Telemetry Watch
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/30 * * * *'
+
+jobs:
+  telemetry:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Analyze telemetry
+        run: node .github/scripts/telemetry-analyze.js
+
+      - name: Emit incident signal if regression detected
+        run: node .github/scripts/open-auto-fix-pr.js

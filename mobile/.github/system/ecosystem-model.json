@@ -1,0 +1,19 @@
+{
+  "products": [
+    {
+      "name": "TaxBridge",
+      "category": "fintech_tax",
+      "primary_users": "SMEs"
+    },
+    {
+      "name": "FutureProductA",
+      "category": "invoicing",
+      "primary_users": "SMEs"
+    },
+    {
+      "name": "FutureProductB",
+      "category": "payments",
+      "primary_users": "SMEs"
+    }
+  ]
+}

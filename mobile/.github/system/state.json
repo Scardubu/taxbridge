@@ -1,0 +1,9 @@
+{
+  "phase": "idle",
+  "completed": [],
+  "failed": [],
+  "last_agent": null,
+  "requires_rollback": false,
+  "device_farm_passed": false,
+  "telemetry_stable": false
+}

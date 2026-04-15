@@ -1,0 +1,6 @@
+{
+  "animation_complexity_weight": 0.35,
+  "layout_density_weight": 0.25,
+  "state_dependency_weight": 0.25,
+  "device_performance_weight": 0.15
+}

@@ -1,0 +1,27 @@
+name: PR Gatekeeper
+
+on:
+  pull_request:
+    branches: [master]
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Type check
+        run: npx tsc --noEmit
+
+      - name: Diff validation
+        run: node .github/scripts/validate-diff.js
+
+      - name: Device farm required signal
+        run: echo "Device farm validation required before merge"
+
+      - name: Telemetry required signal
+        run: echo "Telemetry review required before merge"

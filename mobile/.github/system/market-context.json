@@ -1,0 +1,16 @@
+{
+  "region": "Nigeria",
+  "target_users": "SMEs",
+  "constraints": {
+    "network": "unstable",
+    "devices": "low_to_mid_range_android",
+    "trust": "low_for_fintech",
+    "payment_behavior": "reluctant_subscription"
+  },
+  "opportunities": [
+    "offline-first UX",
+    "trust-driven onboarding",
+    "simple language UI",
+    "pay-as-you-go pricing"
+  ]
+}

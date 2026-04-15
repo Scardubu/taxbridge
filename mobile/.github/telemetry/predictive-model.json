@@ -1,0 +1,14 @@
+{
+  "high_risk_patterns": [
+    "multiple_navigation_calls",
+    "missing_useShallow",
+    "js_thread_animation",
+    "no_prefetch_tabs"
+  ],
+  "risk_weights": {
+    "navigation_race": 0.4,
+    "render_instability": 0.3,
+    "animation_block": 0.2,
+    "cold_start_delay": 0.1
+  }
+}

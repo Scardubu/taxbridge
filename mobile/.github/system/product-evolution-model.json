@@ -1,0 +1,13 @@
+{
+  "signals": {
+    "retention": 0.35,
+    "conversion": 0.25,
+    "engagement_depth": 0.2,
+    "dropoff_rate": 0.2
+  },
+  "decision_thresholds": {
+    "auto_ship": 0.75,
+    "auto_iterate": 0.5,
+    "auto_kill": 0.3
+  }
+}

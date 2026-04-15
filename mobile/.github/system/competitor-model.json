@@ -1,0 +1,14 @@
+{
+  "competitors": [
+    {
+      "name": "Local Tax Apps",
+      "strengths": ["simplicity", "local trust"],
+      "weaknesses": ["poor UX", "limited features"]
+    },
+    {
+      "name": "Global SaaS Tools",
+      "strengths": ["powerful features", "scalability"],
+      "weaknesses": ["complexity", "not localized"]
+    }
+  ]
+}

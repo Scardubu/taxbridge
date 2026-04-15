@@ -1,0 +1,21 @@
+name: Auto-Fix PR
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["Telemetry Watch", "Real Device Farm Validation"]
+    types:
+      - completed
+
+jobs:
+  autofix:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prepare auto-fix branch
+        run: node .github/scripts/open-auto-fix-pr.js
+
+      - name: Create PR payload
+        run: echo "Auto-fix PR ready"

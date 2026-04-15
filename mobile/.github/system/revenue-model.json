@@ -1,0 +1,13 @@
+{
+  "conversion_points": [
+    "post_onboarding",
+    "first_success_action",
+    "feature_unlock",
+    "return_visit_3"
+  ],
+  "monetization_strategies": [
+    "value_based_unlock",
+    "contextual_upgrade_prompt",
+    "workflow_completion upsell"
+  ]
+}

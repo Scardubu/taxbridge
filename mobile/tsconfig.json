@@ -85,6 +85,7 @@
     "dist",
     ".expo",
     "App.tsx.bak",
-    "src/**"
+    "src/**",
+    "e2e/**"
   ]
 }

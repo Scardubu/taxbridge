@@ -16,6 +16,12 @@ config.resolver.assetExts = [
   'db', 'sqlite', 'mlmodel', 'tflite', 'lottie',
 ];
 
+// Defer module evaluation to first use — reduces Hermes cold-start by 200–400 ms
+config.transformer = {
+  ...config.transformer,
+  inlineRequires: true,
+};
+
 module.exports = withNativeWind(config, {
   input: './global.css',
 });

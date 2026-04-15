@@ -1,0 +1,8 @@
+{
+  "friction_factors": {
+    "onboarding_complexity": 0.3,
+    "trust_barrier": 0.3,
+    "network_latency": 0.2,
+    "device_performance": 0.2
+  }
+}
