@@ -56,16 +56,18 @@
     },
     "production-apk": {
       "extends": "base",
-      "channel": "production-apk",
-      "credentialsSource": "local",
+      "channel": "production",
+      "credentialsSource": "remote",
       "cache": {
         "disabled": true
       },
       "distribution": "internal",
       "android": {
-        "buildType": "apk"
+        "buildType": "apk",
+        "gradleCommand": ":app:assembleRelease"
       },
       "env": {
+        "NODE_ENV": "production",
         "EXPO_PUBLIC_ENV": "production",
         "EXPO_PUBLIC_API_URL": "https://taxbridge-api-ker8.onrender.com",
         "SENTRY_DSN": "SET_VIA_EAS_SECRET",
