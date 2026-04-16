@@ -9,7 +9,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue)](https://typescriptlang.org)
 [![Tests](https://img.shields.io/badge/Tests-382%20passing-success)]()
 [![Blueprint](https://img.shields.io/badge/Blueprint-v9-green)]()
-[![Version](https://img.shields.io/badge/Version-1.4.1-blue)]()
+[![Version](https://img.shields.io/badge/Version-1.4.2-blue)]()
 [![Production](https://img.shields.io/badge/Status-Production%20Ready-success)]()
 
 </div>
@@ -719,6 +719,32 @@ npx react-native log-ios      # iOS
 ---
 
 ## 🔄 Changelog
+
+### Version 1.4.2 (April 16, 2026) — Phase C UI Lockdown + Onboarding Stability
+
+**Onboarding crash fix (final):**
+
+- `app/(onboarding)/community.tsx` — `completedSteps` selector wrapped with `useShallow` from `zustand/react/shallow` to prevent re-renders on referentially-new but content-identical arrays.
+- `app/(onboarding)/index.tsx` — Welcome "Get Started" CTA changed from `router.push` to `router.replace` — prevents back-navigation returning to welcome after business-type screen.
+- `components/StepContainer.tsx` — `OnboardingProgressBar` rewritten with Reanimated 3 worklets (`useSharedValue` + `useAnimatedStyle` + `withTiming`) — progress animation now runs on UI thread, eliminating frame drops during onboarding API calls.
+
+**Design token consistency (Phase C compliance):**
+
+- Replaced all magic `paddingVertical` numbers across 6 files with `Spacing.*` / `spacing.*` tokens: `_shared.tsx`, `index.tsx` (welcome), `vat-setup.tsx`, `receipts.tsx`, `tax-calendar.tsx`, `TaxCalculationSummary.tsx`, `EducativeTaxObligationsSection.tsx`, `ReceiptReviewForm.tsx`.
+
+**Accessibility (CRITICAL fixes):**
+
+- `app/(tabs)/receipts.tsx` — Added `accessibilityLabel` to all 4 Pressable buttons (Get Started, Enable Camera, Scan Again, Back to Dashboard).
+- `components/ReceiptReviewForm.tsx` — Added `accessibilityLabel` to retake-photo button.
+
+**Lint & tooling:**
+
+- `components/StepContainer.tsx` — Removed unused `radius` import; marked component props as `Readonly`.
+- `.github/scripts/predict-failures.js` — Updated to `node:fs`/`node:path` imports; fixed `replaceAll` lint; extracted nested ternary to lookup object; corpus now includes `StepContainer.tsx` for accurate Reanimated detection.
+
+**Verification:** `tsc --noEmit` → 0 errors · Jest → 31/31 suites, 382 passed · i18n parity: 100% (1567 keys EN/Pidgin) · Predictive risk: 0 HIGH, 0 MEDIUM, 1 LOW.
+
+---
 
 ### Version 1.4.1 patch (April 12, 2026) — v9 Integration Finalization
 

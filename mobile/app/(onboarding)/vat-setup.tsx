@@ -92,7 +92,7 @@ export default function VatSetupScreen() {
               backgroundColor: palette.nrsGreen,
               borderRadius: radius.full,
               paddingHorizontal: spacing.sm,
-              paddingVertical: 2,
+              paddingVertical: spacing.xs,
             }}
           >
             <Text style={{ ...typography.label, color: palette.white, fontSize: 10 }}>
@@ -138,7 +138,7 @@ export default function VatSetupScreen() {
               backgroundColor: filingExempt ? palette.nrsGreenLight : palette.amber50,
               borderRadius: radius.full,
               paddingHorizontal: spacing.sm,
-              paddingVertical: 2,
+              paddingVertical: spacing.xs,
             }}
           >
             <Text style={{ ...typography.label, color: filingExempt ? palette.nrsGreen : palette.amber600, fontSize: 10 }}>

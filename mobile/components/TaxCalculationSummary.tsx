@@ -44,7 +44,7 @@ export function TaxCalculationSummary({ calculation, isPreviewMode }: Readonly<P
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
             {isPreviewMode ? (
-              <View style={{ backgroundColor: Colors.ui.surfaceAlt, borderRadius: Radii.pill, paddingHorizontal: Spacing.sm, paddingVertical: 2 }}>
+              <View style={{ backgroundColor: Colors.ui.surfaceAlt, borderRadius: Radii.pill, paddingHorizontal: Spacing.sm, paddingVertical: Spacing.xs }}>
                 <Text style={{ ...Typography.micro, color: Colors.ui.textDim }}>{t('preview.data')}</Text>
               </View>
             ) : null}
@@ -125,7 +125,7 @@ export function TaxCalculationSummary({ calculation, isPreviewMode }: Readonly<P
                 {t('taxCalc.enforcementDate', { date: calculation.eInvoiceEnforcementDate })}
               </Text>
             </View>
-            <View style={{ backgroundColor: Colors.brand.badgeBg, borderRadius: Radii.pill, paddingHorizontal: Spacing.md, paddingVertical: 3 }}>
+            <View style={{ backgroundColor: Colors.brand.badgeBg, borderRadius: Radii.pill, paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs }}>
               <Text style={{ ...Typography.micro, color: Colors.brand.badge, textTransform: 'capitalize' }}>{calculation.eInvoicePhase}</Text>
             </View>
           </View>

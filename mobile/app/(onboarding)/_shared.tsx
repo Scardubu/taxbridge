@@ -229,7 +229,7 @@ export function OnboardingFrame({
                   style={({ pressed }) => ({
                     backgroundColor: pressed ? palette.nrsGreenDim : palette.nrsGreen,
                     borderRadius: radius.xl,
-                    paddingVertical: 16,
+                    paddingVertical: spacing.lg,
                     alignItems: 'center',
                     flexDirection: 'row',
                     justifyContent: 'center',
@@ -248,7 +248,7 @@ export function OnboardingFrame({
                     accessibilityLabel={secondaryLabel}
                     style={{
                       borderRadius: radius.xl,
-                      paddingVertical: 14,
+                      paddingVertical: spacing.md,
                       alignItems: 'center',
                     }}
                   >

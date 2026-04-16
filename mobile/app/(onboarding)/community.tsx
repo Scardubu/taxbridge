@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { OnboardingFrame, InfoCard, completeOptionalFlow, skipSetupForNow } from './_shared';
 import { palette, radius, spacing, typography, useTokens } from '../../components/design-system/tokens';
+import { useShallow } from 'zustand/react/shallow';
 import { STEPS, useOnboardingStore } from '../../stores/onboardingStore';
 
 const CHECKLIST_ICONS: Record<string, string> = {
@@ -17,7 +18,7 @@ const CHECKLIST_ICONS: Record<string, string> = {
 export default function CommunityScreen() {
   const { t } = useTranslation();
   const tokens = useTokens();
-  const completedSteps = useOnboardingStore((state) => state.completedSteps);
+  const completedSteps = useOnboardingStore(useShallow((state) => state.completedSteps));
 
   // Steps the user completed before reaching this screen
   const previousSteps = STEPS.filter((s) => s.id !== 'community');

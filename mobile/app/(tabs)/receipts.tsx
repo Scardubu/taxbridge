@@ -105,7 +105,8 @@ export default function ReceiptsScreen() {
             router.push('/(onboarding)/business-type');
           }}
           accessibilityRole="button"
-          style={{ backgroundColor: Colors.brand.primary, borderRadius: Radii.lg, paddingVertical: 16, paddingHorizontal: Spacing.xxl }}
+          accessibilityLabel={t('onboarding.getStarted')}
+          style={{ backgroundColor: Colors.brand.primary, borderRadius: Radii.lg, paddingVertical: Spacing.md, paddingHorizontal: Spacing.xxl }}
         >
           <Text style={{ color: Colors.ui.white, fontWeight: '700' }}>{t('onboarding.getStarted')} →</Text>
         </Pressable>
@@ -131,7 +132,8 @@ export default function ReceiptsScreen() {
         <Pressable
           onPress={() => void requestPermission()}
           accessibilityRole="button"
-          style={{ backgroundColor: Colors.brand.primary, borderRadius: Radii.lg, paddingVertical: 16, paddingHorizontal: Spacing.xxl }}
+          accessibilityLabel={t('receipts.enableCamera')}
+          style={{ backgroundColor: Colors.brand.primary, borderRadius: Radii.lg, paddingVertical: Spacing.md, paddingHorizontal: Spacing.xxl }}
         >
           <Text style={{ color: Colors.ui.white, fontWeight: '700' }}>{t('receipts.enableCamera')}</Text>
         </Pressable>
@@ -172,11 +174,12 @@ export default function ReceiptsScreen() {
             setPhase('camera');
           }}
           accessibilityRole="button"
-          style={{ backgroundColor: Colors.brand.primary, borderRadius: Radii.lg, paddingVertical: 16, paddingHorizontal: Spacing.xxl }}
+          accessibilityLabel={t('receipts.scanAgain')}
+          style={{ backgroundColor: Colors.brand.primary, borderRadius: Radii.lg, paddingVertical: Spacing.md, paddingHorizontal: Spacing.xxl }}
         >
           <Text style={{ color: Colors.ui.white, fontWeight: '700' }}>{t('receipts.scanAgain')}</Text>
         </Pressable>
-        <Pressable onPress={() => router.replace(DEFAULT_TAB_ROUTE)} accessibilityRole="button" style={{ marginTop: Spacing.lg, paddingVertical: Spacing.md }}>
+        <Pressable onPress={() => router.replace(DEFAULT_TAB_ROUTE)} accessibilityRole="button" accessibilityLabel={t('receipts.backToDashboard')} style={{ marginTop: Spacing.lg, paddingVertical: Spacing.md }}>
           <Text style={{ color: Colors.ui.textDim, ...Typography.body }}>{t('receipts.backToDashboard')}</Text>
         </Pressable>
       </SafeAreaView>

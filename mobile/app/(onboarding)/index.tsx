@@ -60,8 +60,10 @@ export default function WelcomeScreen() {
   const handleGetStarted = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setPreviewMode(false);
-    // 16ms defer ensures Reanimated worklets and layout guards settle before navigation.
-    setTimeout(() => router.push('/(onboarding)/business-type'), 16);
+    // router.replace avoids stack buildup — back-navigation from business-type
+    // should not return to welcome. The 16 ms defer lets the Haptics worklet settle
+    // before Expo Router processes the navigation event.
+    setTimeout(() => router.replace('/(onboarding)/business-type'), 16);
   }, [setPreviewMode]);
 
   const handleLanguageToggle = useCallback((lang: 'en' | 'pidgin') => {
@@ -135,7 +137,7 @@ export default function WelcomeScreen() {
                   accessibilityState={{ selected: active }}
                   style={{
                     flex: 1,
-                    paddingVertical: 14,
+                    paddingVertical: Spacing.md,
                     borderRadius: Radii.pill,
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -179,7 +181,7 @@ export default function WelcomeScreen() {
                   backgroundColor: Colors.brand.badgeBg,
                   borderRadius: Radii.pill,
                   paddingHorizontal: Spacing.md,
-                  paddingVertical: 3,
+                  paddingVertical: Spacing.xs,
                 }}
               >
                 <Text style={{ color: Colors.brand.badge, ...Typography.micro }}>{t('onboarding.welcome.featureBadge')}</Text>
@@ -251,7 +253,7 @@ export default function WelcomeScreen() {
             style={{
               backgroundColor: Colors.brand.primary,
               borderRadius: Radii.lg,
-              paddingVertical: 18,
+              paddingVertical: Spacing.lg,
               alignItems: 'center',
               marginBottom: Spacing.md,
             }}

@@ -56,7 +56,7 @@ export function EducativeTaxObligationsSection({ obligations, isPreviewMode }: R
           {t('dashboard.taxObligations')}
         </Text>
         {isPreviewMode ? (
-          <View style={{ backgroundColor: Colors.ui.surface, borderRadius: Radii.pill, paddingHorizontal: Spacing.sm, paddingVertical: 3 }}>
+          <View style={{ backgroundColor: Colors.ui.surface, borderRadius: Radii.pill, paddingHorizontal: Spacing.sm, paddingVertical: Spacing.xs }}>
             <Text style={{ ...Typography.micro, color: Colors.ui.textDim }}>{t('dashboard.previewData')}</Text>
           </View>
         ) : null}

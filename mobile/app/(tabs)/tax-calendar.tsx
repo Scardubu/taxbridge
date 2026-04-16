@@ -57,7 +57,7 @@ export default function TaxCalendarTab() {
                 </View>
                 <Text style={{ ...typography.bodyBold, color: tokens.textPrimary, flex: 1 }}>{deadline.title}</Text>
                 {deadline.daysAway <= 7 && (
-                  <View style={{ backgroundColor: urgencyColor + '18', borderRadius: radius.full, paddingHorizontal: spacing.sm, paddingVertical: 2 }}>
+                  <View style={{ backgroundColor: urgencyColor + '18', borderRadius: radius.full, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs }}>
                     <Text style={{ ...typography.label, color: urgencyColor }}>{deadline.daysAway <= 0 ? t('calendar.overdue') : t('calendar.urgent')}</Text>
                   </View>
                 )}

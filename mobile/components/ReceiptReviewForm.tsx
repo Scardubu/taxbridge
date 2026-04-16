@@ -209,7 +209,7 @@ export function ReceiptReviewForm({ draft, ocrFailed, processing, onSave, onReta
           style={{
             backgroundColor: processing ? Colors.ui.border : Colors.brand.primary,
             borderRadius: Radii.lg,
-            paddingVertical: 18,
+            paddingVertical: Spacing.lg,
             alignItems: 'center',
             marginBottom: Spacing.md,
           }}
@@ -217,7 +217,7 @@ export function ReceiptReviewForm({ draft, ocrFailed, processing, onSave, onReta
           {processing ? <ActivityIndicator color={Colors.ui.white} /> : <Text style={{ color: Colors.ui.white, fontWeight: '700' }}>{t('receipts.confirm')}</Text>}
         </Pressable>
 
-        <Pressable onPress={onRetake} accessibilityRole="button" style={{ paddingVertical: Spacing.md, alignItems: 'center' }}>
+        <Pressable onPress={onRetake} accessibilityRole="button" accessibilityLabel={t('receipts.retakePhoto')} style={{ paddingVertical: Spacing.md, alignItems: 'center' }}>
           <Text style={{ ...Typography.body, color: Colors.ui.textDim }}>{t('receipts.retakePhoto')}</Text>
         </Pressable>
       </ScrollView>

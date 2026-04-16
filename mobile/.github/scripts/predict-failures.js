@@ -10,8 +10,8 @@
  * Exit 0 = no HIGH risks. Exit 1 = HIGH risk detected.
  */
 
-const fs = require('fs');
-const path = require('path');
+const fs = require('node:fs');
+const path = require('node:path');
 
 const ROOT = path.resolve(__dirname, '../..');
 
@@ -29,7 +29,7 @@ function has(content, pattern) {
 }
 
 function occurrences(content, pattern) {
-  const re = typeof pattern === 'string' ? new RegExp(pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g') : pattern;
+  const re = typeof pattern === 'string' ? new RegExp(pattern.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`), 'g') : pattern;
   return (content.match(re) || []).length;
 }
 
@@ -45,7 +45,8 @@ const corpus = {
   appIndex:           read('app/index.tsx'),
   metroConfig:        read('metro.config.js'),
   appJson:            read('app.json'),
-  progressBar:        read('components/OnboardingProgressBar.tsx'),
+  // OnboardingProgressBar re-exports from StepContainer — scan both for Reanimated usage.
+  progressBar:        read('components/OnboardingProgressBar.tsx') + read('components/StepContainer.tsx'),
   progressBanner:     read('components/OnboardingProgressBanner.tsx'),
 };
 
@@ -172,8 +173,8 @@ console.log(`Found: ${highs.length} HIGH  |  ${mediums.length} MEDIUM  |  ${lows
 console.log('');
 
 for (const flag of flags) {
-  const badge = flag.severity === 'HIGH' ? '🔴 HIGH  ' :
-                flag.severity === 'MEDIUM' ? '🟡 MEDIUM' : '🔵 LOW   ';
+  const SEVERITY_BADGES = { HIGH: '🔴 HIGH  ', MEDIUM: '🟡 MEDIUM', LOW: '🔵 LOW   ' };
+  const badge = SEVERITY_BADGES[flag.severity] ?? '🔵 LOW   ';
   console.log(`${badge}  [${flag.id}]`);
   console.log(`         File   : ${flag.file}`);
   console.log(`         Risk   : ${flag.description}`);
