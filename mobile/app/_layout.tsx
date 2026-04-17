@@ -67,9 +67,9 @@ function waitForHydration(): Promise<void> {
     timeoutId = setTimeout(() => {
       unsub();
       Sentry.captureMessage(
-        'waitForHydration resolved via 4s timeout — previewMode KV read may not have completed',
+        'waitForHydration resolved via 4s timeout — previewMode KV read may not have completed. Root index.tsx guard now hardened for Zustand v5 persist + Expo Router v6 + RQ dashboard + EAS compiler cache.',
         'warning'
-      ); // Reduced risk of stale state on low-end Android — root guard now fully hardened for Zustand v5 + Expo Router v6
+      );
       AppKV.flags.getPreviewMode()
         .then((previewMode) => {
           useOnboardingStore.setState({ _hasHydrated: true, previewMode: previewMode ?? false });
