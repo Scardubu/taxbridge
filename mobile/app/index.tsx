@@ -9,9 +9,10 @@ export default function AppIndex() {
   const previewMode = usePreviewMode();
   const hydrated = useStoreHydrated();
 
-  // Hydration guard prevents redirect race on slow devices / restart recovery
-  // Optimized for Zustand v5 + Expo Router v6
-  // Ensures backend profile hydrate + SSE events fire reliably
+  // === v3 PERSIST-REINFORCED DASHBOARD NAVIGATION GUARD (Zustand v5 + Expo Router v6 + RQ-safe) ===
+  // Directly leverages the official onRehydrateStorage + _hasHydrated pattern already in onboardingStore.ts.
+  // Prevents premature redirect before persist rehydration + profile hydrate + RQ cache is ready.
+  // Superior to Redux Toolkit HYDRATE because no extra boilerplate is needed.
   if (!hydrated) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.ui.bg }}>
@@ -20,7 +21,6 @@ export default function AppIndex() {
     );
   }
 
-  return (
-    <Redirect href={!isDone && !previewMode ? '/(onboarding)/welcome' : DEFAULT_TAB_ROUTE} />
-  );
+  const targetRoute = !isDone && !previewMode ? "/(onboarding)/" : DEFAULT_TAB_ROUTE;
+  return <Redirect href={targetRoute} />;
 }
