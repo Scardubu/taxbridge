@@ -166,8 +166,8 @@ function InvoicesScreen() {
             </Text>
           </View>
           {pendingCount > 0 && (
-            <Pressable 
-              style={[styles.syncButton, (isSyncing || !online) && styles.syncButtonDisabled]} 
+            <Pressable
+              style={[styles.syncButton, (isSyncing || !online) && styles.syncButtonDisabled]}
               onPress={handleSync}
               disabled={isSyncing || !online}
               accessibilityRole="button"
@@ -244,7 +244,7 @@ function InvoicesScreen() {
             <EmptyState
               icon={activeFilter === 'failed' ? 'checkmark-circle-outline' : 'document-outline'}
               title={
-                activeFilter === 'all' 
+                activeFilter === 'all'
                   ? t('invoices.empty')
                   : activeFilter === 'pending'
                   ? t('invoices.noInvoicesPending')

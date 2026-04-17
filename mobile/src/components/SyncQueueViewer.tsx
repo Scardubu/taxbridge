@@ -1,14 +1,14 @@
 /**
  * SyncQueueViewer Component
- * 
+ *
  * Phase 7: User Flow Optimizations
- * 
+ *
  * Modal/sheet component that displays pending sync items with:
  * - Visual status indicators (pending, syncing, failed, success)
  * - Optimistic UI with rollback capability
  * - Manual retry actions
  * - Conflict resolution preview
- * 
+ *
  * Features:
  * - Real-time sync progress
  * - Haptic feedback on state changes
@@ -209,9 +209,9 @@ const QueueItem = memo(({ item, onRetry, onResolve, onDiscard }: QueueItemProps)
   const { t } = useTranslation();
   const statusConfig = STATUS_CONFIG[item.status];
   const typeIcon = TYPE_ICONS[item.type];
-  
+
   const rotateAnimation = useSharedValue(0);
-  
+
   React.useEffect(() => {
     if (item.status === 'syncing') {
       const FULL_TURN = 360; // degrees — not a timing value
@@ -242,7 +242,7 @@ const QueueItem = memo(({ item, onRetry, onResolve, onDiscard }: QueueItemProps)
         <View style={[styles.typeIconContainer, { backgroundColor: statusConfig.bgColor }]}>
           <Text style={styles.typeIcon}>{typeIcon}</Text>
         </View>
-        
+
         <View style={styles.queueItemContent}>
           <View style={styles.queueItemHeader}>
             <Text style={styles.queueItemTitle} numberOfLines={1}>{item.title}</Text>
@@ -255,16 +255,16 @@ const QueueItem = memo(({ item, onRetry, onResolve, onDiscard }: QueueItemProps)
               </Text>
             </View>
           </View>
-          
+
           <Text style={styles.queueItemSubtitle} numberOfLines={1}>{item.subtitle}</Text>
-          
+
           <View style={styles.queueItemMeta}>
             <Text style={styles.queueItemAction}>
               {t(`syncQueue.action.${item.action}`)}
             </Text>
             <Text style={styles.queueItemTime}>{formatTime(item.timestamp)}</Text>
           </View>
-          
+
           {item.errorMessage && (
             <View style={styles.errorContainer}>
               <Text style={styles.errorText}>{item.errorMessage}</Text>
@@ -331,7 +331,7 @@ function SyncQueueViewer({
   const { t } = useTranslation();
   const { syncState, progress, conflictCount, retrySync } = useSync();
   const progressPercent = progress && progress.total > 0 ? (progress.current / progress.total) * 100 : 0;
-  
+
   const handleRetryItem = useCallback((itemId: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     trackEvent('sync', 'retry_item', itemId);
@@ -384,7 +384,7 @@ function SyncQueueViewer({
     >
       <View style={styles.overlay}>
         <Pressable style={styles.overlayBackground} onPress={handleClose} />
-        
+
         <Animated.View
           entering={SlideInDown.springify().damping(18)}
           exiting={SlideOutDown.springify().damping(18)}

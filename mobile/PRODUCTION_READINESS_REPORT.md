@@ -39,7 +39,7 @@
 ### Rebuild / Cache Discipline
 
 - Android rebuild submitted with explicit no-cache path:
-	- `npx eas build --platform android --profile production-apk --clear-cache --non-interactive`
+ 	- `npx eas build --platform android --profile production-apk --clear-cache --non-interactive`
 - Build terminal completed with exit code 0.
 
 ---
