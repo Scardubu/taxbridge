@@ -392,7 +392,7 @@ export default function DashboardTab() {
         <View style={{ paddingHorizontal: Spacing.xxl, paddingTop: Spacing.xl, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <View style={{ flex: 1, marginRight: Spacing.md }}>
             <Text style={{ ...Typography.label, color: Colors.ui.textDim }}>{t('dashboard.greeting')}</Text>
-            <Text style={{ fontSize: 32, fontWeight: '800', lineHeight: 36, color: Colors.ui.white }}>{businessLabel}</Text>
+            <Text style={{ ...Typography.displaySm }}>{businessLabel}</Text>
           </View>
           <TaxShieldRing score={score} size={88} />
         </View>
@@ -405,8 +405,8 @@ export default function DashboardTab() {
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.md }}>
             <Text style={{ fontSize: 28 }}>{shieldMeta.icon}</Text>
             <View style={{ flex: 1 }}>
-              <Text style={{ color: shieldMeta.textColor, fontWeight: '700', fontSize: 16 }}>{shieldMeta.label}</Text>
-              <Text style={{ color: shieldMeta.textColor, opacity: 0.75, fontSize: 13, marginTop: 4 }}>
+              <Text style={{ ...Typography.sectionBold, color: shieldMeta.textColor }}>{shieldMeta.label}</Text>
+              <Text style={{ ...Typography.caption, color: shieldMeta.textColor, opacity: 0.75, marginTop: Spacing.xs }}>
                 {t('shield.percentProtected', { score })}
               </Text>
             </View>
@@ -429,9 +429,9 @@ export default function DashboardTab() {
           >
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
               <Text style={{ fontSize: 24 }}>🚀</Text>
-              <Text style={{ color: Colors.brand.accent, fontWeight: '700', fontSize: 16 }}>{t('dashboard.finishSetupTitle')}</Text>
+              <Text style={{ ...Typography.sectionBold, color: Colors.brand.accent }}>{t('dashboard.finishSetupTitle')}</Text>
             </View>
-            <Text style={{ color: Colors.ui.textDim, marginTop: Spacing.sm, fontSize: 14 }}>{t('dashboard.finishSetupBody')}</Text>
+            <Text style={{ ...Typography.caption, color: Colors.ui.textDim, marginTop: Spacing.sm }}>{t('dashboard.finishSetupBody')}</Text>
             <Pressable
               onPress={handleExitPreview}
               accessibilityRole="button"
@@ -440,11 +440,11 @@ export default function DashboardTab() {
                 marginTop: Spacing.lg,
                 backgroundColor: Colors.brand.primary,
                 borderRadius: Radii.md,
-                paddingVertical: 14,
+                paddingVertical: Spacing.lg,
                 alignItems: 'center',
               }}
             >
-              <Text style={{ color: Colors.ui.white, fontWeight: '700' }}>{t('dashboard.continueSetup')}</Text>
+              <Text style={{ ...Typography.bodyBold, color: Colors.ui.white }}>{t('dashboard.continueSetup')}</Text>
             </Pressable>
           </View>
         ) : null}
@@ -492,7 +492,7 @@ export default function DashboardTab() {
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={{ ...Typography.body, color: Colors.ui.text, fontWeight: '600' }}>{nudge.title}</Text>
-                    <Text style={{ ...Typography.caption, color: Colors.ui.textDim, marginTop: 4 }}>{nudge.body}</Text>
+                    <Text style={{ ...Typography.caption, color: Colors.ui.textDim, marginTop: Spacing.xs }}>{nudge.body}</Text>
                     <Text style={{ ...Typography.caption, color: Colors.brand.accent, fontWeight: '600', marginTop: Spacing.sm }}>{nudge.actionLabel}</Text>
                   </View>
                 </View>
@@ -501,7 +501,7 @@ export default function DashboardTab() {
           ) : (
             <View style={{ backgroundColor: Colors.ui.surface, borderRadius: Radii.lg, padding: Spacing.xl }}>
               <Text style={{ ...Typography.body, color: Colors.ui.text, fontWeight: '600' }}>{t('dashboard.emptyState.title')}</Text>
-              <Text style={{ ...Typography.caption, color: Colors.ui.textDim, marginTop: 6 }}>{t('dashboard.emptyState.body')}</Text>
+              <Text style={{ ...Typography.caption, color: Colors.ui.textDim, marginTop: Spacing.xs }}>{t('dashboard.emptyState.body')}</Text>
             </View>
           )}
         </View>

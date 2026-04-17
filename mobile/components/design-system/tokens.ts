@@ -69,8 +69,11 @@ export const Radii = {
 
 export const Typography = {
   headline: { fontSize: 38, fontWeight: '800' as const, lineHeight: 42 },
+  displaySm: { fontSize: 32, fontWeight: '800' as const, lineHeight: 36 },
   title: { fontSize: 22, fontWeight: '700' as const, lineHeight: 28 },
+  sectionBold: { fontSize: 16, fontWeight: '700' as const, lineHeight: 22 },
   section: { fontSize: 16, fontWeight: '600' as const },
+  bodyBold: { fontSize: 15, fontWeight: '700' as const, lineHeight: 22 },
   body: { fontSize: 15, fontWeight: '400' as const, lineHeight: 22 },
   caption: { fontSize: 13, fontWeight: '400' as const, lineHeight: 19 },
   micro: { fontSize: 11, fontWeight: '500' as const, letterSpacing: 0.5 },

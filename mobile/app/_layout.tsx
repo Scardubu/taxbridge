@@ -1,6 +1,6 @@
 import 'react-native-reanimated';
 
-import React, { useEffect, useRef, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, AppState, AppStateStatus, View } from 'react-native';
 import { isRunningInExpoGo } from 'expo';
 import { StatusBar } from 'expo-status-bar';
@@ -87,9 +87,6 @@ function RootLayout() {
   // Ref mirrors state so the AppState event listener never closes over a stale `false`.
   // The effect runs once; without the ref, resume never triggers db/queue re-init.
   const isAppReadyRef = useRef(false);
-  // Ref mirrors state so the AppState event listener never closes over a stale `false`.
-  // The effect runs once; without the ref, resume never triggers db/queue re-init.
-  const isAppReadyRef = useRef(false);
   const hydrateProfile = useBusinessProfileStore((state) => state.hydrate);
 
   useEffect(() => {
@@ -102,8 +99,7 @@ function RootLayout() {
         await waitForHydration();
         await hydrateProfile();
         offlineQueue.start();
-      } isAppReadyRef.current = true;
-        catch (error) {
+      } catch (error) {
         Sentry.captureException(error);
       } finally {
         isAppReadyRef.current = true;
@@ -114,7 +110,7 @@ function RootLayout() {
           Sentry.captureException(error);
         });
       }
-    })();Ref.current
+    })();
 
     // Cleanup resources when app goes to background/closed to prevent locks on restart
     const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {

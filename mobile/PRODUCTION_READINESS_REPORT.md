@@ -50,7 +50,7 @@ TaxBridge Mobile v1.4.1 satisfies all 14 Blueprint v6 absolute constraints, Phas
 **Phase C UI Lockdown — all gates passed:**
 
 - ✅ Zero hardcoded user-facing strings across all app/ screens and components
-- ✅ Full EN + Nigerian Pidgin i18n parity (240+ keys each)
+- ✅ Full EN + Nigerian Pidgin i18n parity (365+ keys each)
 - ✅ NativeTabs `sf` prop correctly typed — `SFSymbols7_0` via `makeSF()` helper
 - ✅ UX-05: Prominent language toggle on welcome screen, auto-detects Nigerian locale
 - ✅ Real business profile used in tax-calendar (not stub)
@@ -62,6 +62,39 @@ TaxBridge Mobile v1.4.1 satisfies all 14 Blueprint v6 absolute constraints, Phas
 - ✅ `tsc --noEmit` → 0 errors | `eslint` → exit 0
 - ✅ Metro bundling stabilized for EAS Android builds by removing unused NativeWind runtime wiring and reducing non-app scan overhead
 - ✅ Splash-screen startup stabilized by decoupling `offlineQueue.flush()` from splash hide and adding API/startup timeouts
+
+---
+
+## 🆕 Phase C2 — Final Typography & i18n Polish (April 2026)
+
+**Root layout corruption fix:**
+
+- `app/_layout.tsx` had duplicate `isAppReadyRef` declarations and mangled try/catch/finally from a prior automated patch — fully reconstructed and verified
+
+**Design token additions:**
+
+- `Typography.displaySm` (32/800/36) — business name display
+- `Typography.sectionBold` (16/700/22) — banner & card titles
+- `Typography.bodyBold` (15/700/22) — CTA button labels
+
+**Dashboard token compliance (`app/(tabs)/index.tsx`):**
+
+- Business name: inline `fontSize: 32, fontWeight: '800'` → `...Typography.displaySm`
+- Shield banner label: inline `fontSize: 16, fontWeight: '700'` → `...Typography.sectionBold`
+- Shield sublabel: inline `fontSize: 13, marginTop: 4` → `...Typography.caption` + `Spacing.xs`
+- Finish-setup title: inline `fontSize: 16, fontWeight: '700'` → `...Typography.sectionBold`
+- Finish-setup body: inline `fontSize: 14` → `...Typography.caption`
+- CTA button padding: inline `paddingVertical: 14` → `Spacing.lg`
+- CTA button text: inline `fontWeight: '700'` → `...Typography.bodyBold`
+- Nudge card body: inline `marginTop: 4` / `marginTop: 6` → `Spacing.xs`
+
+**Receipt scanner token compliance (`app/(tabs)/receipts.tsx`):**
+
+- 3 CTA button labels: inline `fontWeight: '700'` → `...Typography.bodyBold`
+
+**i18n parity fix:**
+
+- Added `obligations.vatFilingNested` and `obligations.citNested` to `pidgin.json` (365/365 key parity)
 
 ---
 
@@ -121,8 +154,8 @@ TaxBridge Mobile v1.4.1 satisfies all 14 Blueprint v6 absolute constraints, Phas
 | Infrastructure | Status | Purpose |
 |----------------|--------|---------|
 | Sentry Integration | ✅ | Error tracking & analytics |
-| i18n (English) | ✅ | 230+ translation keys |
-| i18n (Pidgin) | ✅ | 230+ keys — full EN parity |
+| i18n (English) | ✅ | 365+ translation keys |
+| i18n (Pidgin) | ✅ | 365+ keys — full EN parity |
 | expo-sqlite/kv-store | ✅ | Offline-first persistence (replaces AsyncStorage) |
 | Declarative routing guards | ✅ | Expo Router `<Redirect>` |
 | Offline queue + NetInfo | ✅ | Auto-flush on reconnect |

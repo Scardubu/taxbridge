@@ -274,11 +274,21 @@
       "threshold": "You go need am when annual turnover pass ₦25 million.",
       "action": "If your turnover never reach ₦25M, you no need register yet."
     },
+    "vatFilingNested": {
+      "title": "VAT Filing",
+      "threshold": "If you done register for VAT, you must file before 21st every month.",
+      "action": "Submit through FIRS e-invoice portal or your TaxBridge dashboard."
+    },
     "vatFiling": "VAT Filing",
     "eInvoicing": {
       "title": "E-Invoicing Phase",
       "threshold": "Big taxpayers: enforcement from April 2026. Medium: July 2026. Small: July 2027.",
       "action": "Check your phase from your turnover and begin issue FIRS-compliant e-invoices."
+    },
+    "citNested": {
+      "title": "Company Income Tax (CIT)",
+      "threshold": "Company wey turnover no reach ₦25M dey pay 0% CIT — small company exemption.",
+      "action": "File annual return with FIRS before June 30 after your financial year end."
     },
     "cit": "Company Income Tax (CIT)",
     "vatReg": "VAT Registration",

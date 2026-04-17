@@ -108,7 +108,7 @@ export default function ReceiptsScreen() {
           accessibilityLabel={t('onboarding.getStarted')}
           style={{ backgroundColor: Colors.brand.primary, borderRadius: Radii.lg, paddingVertical: Spacing.md, paddingHorizontal: Spacing.xxl }}
         >
-          <Text style={{ color: Colors.ui.white, fontWeight: '700' }}>{t('onboarding.getStarted')} →</Text>
+          <Text style={{ ...Typography.bodyBold, color: Colors.ui.white }}>{t('onboarding.getStarted')} →</Text>
         </Pressable>
       </SafeAreaView>
     );
@@ -135,7 +135,7 @@ export default function ReceiptsScreen() {
           accessibilityLabel={t('receipts.enableCamera')}
           style={{ backgroundColor: Colors.brand.primary, borderRadius: Radii.lg, paddingVertical: Spacing.md, paddingHorizontal: Spacing.xxl }}
         >
-          <Text style={{ color: Colors.ui.white, fontWeight: '700' }}>{t('receipts.enableCamera')}</Text>
+          <Text style={{ ...Typography.bodyBold, color: Colors.ui.white }}>{t('receipts.enableCamera')}</Text>
         </Pressable>
       </SafeAreaView>
     );
@@ -177,7 +177,7 @@ export default function ReceiptsScreen() {
           accessibilityLabel={t('receipts.scanAgain')}
           style={{ backgroundColor: Colors.brand.primary, borderRadius: Radii.lg, paddingVertical: Spacing.md, paddingHorizontal: Spacing.xxl }}
         >
-          <Text style={{ color: Colors.ui.white, fontWeight: '700' }}>{t('receipts.scanAgain')}</Text>
+          <Text style={{ ...Typography.bodyBold, color: Colors.ui.white }}>{t('receipts.scanAgain')}</Text>
         </Pressable>
         <Pressable onPress={() => router.replace(DEFAULT_TAB_ROUTE)} accessibilityRole="button" accessibilityLabel={t('receipts.backToDashboard')} style={{ marginTop: Spacing.lg, paddingVertical: Spacing.md }}>
           <Text style={{ color: Colors.ui.textDim, ...Typography.body }}>{t('receipts.backToDashboard')}</Text>
