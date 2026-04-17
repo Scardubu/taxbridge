@@ -278,7 +278,6 @@ const styles = StyleSheet.create({
     fontWeight:  '700',
     color:       '#111827',
     fontVariant: ['tabular-nums'],
-    minWidth:    36,
     textAlign:   'right',
   },
 });

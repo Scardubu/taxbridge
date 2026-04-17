@@ -176,6 +176,7 @@ const s = StyleSheet.create({
   tab: {
     flex:           1,
     alignItems:     'center',
+    minHeight:      44,
     paddingVertical: spacing[2],
     gap:            3,
   },
@@ -197,12 +198,11 @@ const s = StyleSheet.create({
     position:     'absolute',
     top:          -4,
     right:        -7,
-    minWidth:     16,
-    height:       16,
-    borderRadius: 8,
+    borderRadius: radii.full,
     alignItems:   'center',
     justifyContent: 'center',
     paddingHorizontal: 3,
+    paddingVertical: 1,
   },
   badgeText: {
     color:      dsColors.gray[0],

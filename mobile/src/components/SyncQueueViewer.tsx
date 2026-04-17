@@ -571,7 +571,6 @@ const styles = StyleSheet.create({
   progressText: {
     ...typography.caption,
     color: colors.textMuted,
-    minWidth: 36,
     textAlign: 'right',
   },
   statsContainer: {

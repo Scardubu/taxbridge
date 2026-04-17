@@ -346,7 +346,6 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 6,
     paddingVertical: 2,
-    minWidth: 20,
     alignItems: 'center',
   },
   filterBadgeActive: {

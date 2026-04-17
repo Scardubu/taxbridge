@@ -6,6 +6,44 @@
 
 ---
 
+## Hotfix Addendum — April 17, 2026
+
+### Incident
+
+- Crash persisted for non-onboarded users on cold start due to invalid Expo Router path `/(onboarding)/welcome/welcome`.
+
+### Root Cause
+
+- Prior multi-replace automation duplicated the onboarding route segment and produced a non-existent route.
+
+### Code Fixes Applied
+
+| File | Change |
+|---|---|
+| `app/index.tsx` | Redirect fallback corrected to `/(onboarding)/welcome` |
+| `stores/onboardingStore.ts` | `STEP_ROUTES.welcome` standardized to `/(onboarding)/welcome` |
+| `app/(tabs)/_layout.tsx` | onboarding redirect standardized to explicit welcome route |
+| `src/components/BottomNavigation.tsx` | improved minimum tab touch size (`minHeight: 44`) and removed undersized badge constraints |
+| `src/components/dashboard/DonutChart.tsx` | removed narrow width constraint flagged by accessibility audit |
+| `src/components/SyncQueueViewer.tsx` | removed narrow width constraint flagged by accessibility audit |
+| `src/screens/InvoicesScreen.tsx` | removed narrow width constraint flagged by accessibility audit |
+
+### Validation Evidence
+
+- `npm run lint` -> pass
+- `npm run type-check` -> pass
+- `node scripts/verify-i18n.js` -> EN keys: 1567, Pidgin keys: 1567, parity: 100%
+- `node scripts/accessibility-audit.js` -> no remaining touch-target warnings after patch
+- `npx jest --runInBand __tests__/onboardingPreviewMode.test.ts __tests__/onboardingStore.test.ts __tests__/OnboardingSystem.integration.test.tsx` -> 3/3 suites pass
+
+### Rebuild / Cache Discipline
+
+- Android rebuild submitted with explicit no-cache path:
+	- `npx eas build --platform android --profile production-apk --clear-cache --non-interactive`
+- Build terminal completed with exit code 0.
+
+---
+
 ## 🎯 Executive Summary
 
 TaxBridge Mobile v1.4.1 satisfies all 14 Blueprint v6 absolute constraints, Phase C Final UI Lockdown, Blueprint v8 zero-blank-screen guarantees, **and** the full Blueprint v9 SYSTEM-A (Receipt Scanner) + SYSTEM-B (Tax Engine v2) integration. All screens are i18n-complete (EN + Pidgin parity), accessibility-compliant, and hardcoded-string-free. `tsc --noEmit` exits 0. **31/31 test suites pass, 382 tests passing, 1 skipped (383 total).**
