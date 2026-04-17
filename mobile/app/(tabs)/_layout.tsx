@@ -82,7 +82,7 @@ export default function TabsLayout() {
     );
   }
 
-  if (!isDone && !previewMode) return <Redirect href="/(onboarding)/" />;
+  if (!isDone && !previewMode) return <Redirect href="/(onboarding)/welcome" />;
 
   if (USE_NATIVE_TABS) {
     return (

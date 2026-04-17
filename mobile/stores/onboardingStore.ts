@@ -21,7 +21,7 @@ export type StepId = typeof STEP_IDS[keyof typeof STEP_IDS];
 export const DEFAULT_TAB_ROUTE = '/(tabs)/' as const;
 
 export const STEP_ROUTES: Record<StepId, `/(onboarding)${string}`> = {
-  welcome: '/(onboarding)',
+  welcome: '/(onboarding)/welcome',
   'business-type': '/(onboarding)/business-type',
   'tin-verify': '/(onboarding)/tin-verify',
   'vat-setup': '/(onboarding)/vat-setup',

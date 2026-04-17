@@ -20,5 +20,5 @@ export default function AppIndex() {
     );
   }
 
-  return <Redirect href={isDone || previewMode ? DEFAULT_TAB_ROUTE : '/(onboarding)/welcome/welcome'} />;
+  return <Redirect href={isDone || previewMode ? DEFAULT_TAB_ROUTE : '/(onboarding)/welcome'} />;
 }
