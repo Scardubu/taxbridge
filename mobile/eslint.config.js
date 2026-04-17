@@ -55,6 +55,7 @@ module.exports = [
   {
     files: [
       'scripts/**/*.js',
+      '.github/scripts/**/*.js',
       'metro.config.js',
       'metro.config.*.js',
       'babel.config.js',

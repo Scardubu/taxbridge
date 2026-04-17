@@ -1,5 +1,4 @@
 /* eslint-env node */
-/* global console */
 console.log("Propagating high-performing features across ecosystem...");
 
 // Identify top features

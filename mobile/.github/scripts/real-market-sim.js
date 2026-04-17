@@ -1,5 +1,4 @@
 /* eslint-env node */
-/* global console */
 console.log("Simulating real-world adoption...");
 
 // Evaluate:

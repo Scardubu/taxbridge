@@ -30,7 +30,7 @@ const store         = read('stores/onboardingStore.ts');
 const metro         = read('metro.config.js');
 const welcome       = read('app/(onboarding)/index.tsx');
 const progressBar   = read('components/OnboardingProgressBar.tsx');
-const onboardLayout = read('app/(onboarding)/_layout.tsx');
+const _onboardLayout = read('app/(onboarding)/_layout.tsx');
 
 // ── optimizations ─────────────────────────────────────────────────────────────
 

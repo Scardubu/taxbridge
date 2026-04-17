@@ -1,5 +1,4 @@
 /* eslint-env node */
-/* global console */
 console.log("Running product evolution cycle...");
 
 // 1. ingest telemetry

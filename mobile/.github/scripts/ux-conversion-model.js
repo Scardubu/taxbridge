@@ -1,5 +1,4 @@
 /* eslint-env node */
-/* global console */
 
 console.log("Simulating UX → conversion flow impact");
 
