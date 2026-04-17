@@ -10,15 +10,17 @@ export default function AppIndex() {
   const hydrated = useStoreHydrated();
 
   // Hydration guard prevents redirect race on slow devices / restart recovery
-  // Optimized for Zustand v5 + Expo Router v6 (matches (onboarding)/_layout.tsx)
+  // Optimized for Zustand v5 + Expo Router v6
   // Ensures backend profile hydrate + SSE events fire reliably
   if (!hydrated) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.brand.primaryDim }}>
-        <ActivityIndicator size="large" color={Colors.brand.accent} />
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.ui.bg }}>
+        <ActivityIndicator size="large" color={Colors.brand.primary} />
       </View>
     );
   }
 
-  return <Redirect href={isDone || previewMode ? DEFAULT_TAB_ROUTE : '/(onboarding)/welcome'} />;
+  return (
+    <Redirect href={!isDone && !previewMode ? '/(onboarding)/welcome' : DEFAULT_TAB_ROUTE} />
+  );
 }
