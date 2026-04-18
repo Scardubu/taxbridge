@@ -248,11 +248,28 @@ export const useOnboardingStore = create<OnboardingStore>()(
         schemaVersion: state.schemaVersion,
       }),
       onRehydrateStorage: () => async (state, error) => {
+        const _t0 = Date.now();
+        console.log('[HYDRATION] onRehydrateStorage start', { timestamp: _t0 });
+        Sentry.addBreadcrumb({
+          category: 'hydration',
+          message: 'onRehydrateStorage start',
+          level: 'info',
+          data: { timestamp: _t0 },
+        });
+
         if (error) {
-          useOnboardingStore.setState({ _hasHydrated: true });
           Sentry.captureException(error);
+          // Hardening v5: even on persist error, attempt KV read so previewMode is correct.
+          try {
+            const previewMode = await AppKV.flags.getPreviewMode();
+            useOnboardingStore.setState({ _hasHydrated: true, previewMode: previewMode ?? false });
+          } catch {
+            useOnboardingStore.setState({ _hasHydrated: true });
+          }
+          console.log('[HYDRATION] onRehydrateStorage error path resolved', { elapsed: Date.now() - _t0 });
           return;
         }
+
         try {
           state?.migrateIfNeeded();
           const persisted = await AppKV.flags.getPreviewMode();
@@ -260,8 +277,27 @@ export const useOnboardingStore = create<OnboardingStore>()(
             _hasHydrated: true,
             previewMode: persisted,
           });
+          const elapsed = Date.now() - _t0;
+          console.log('[HYDRATION] onRehydrateStorage complete', {
+            isComplete: state?.isComplete,
+            previewMode: persisted,
+            elapsed,
+          });
+          Sentry.addBreadcrumb({
+            category: 'hydration',
+            message: 'onRehydrateStorage complete',
+            level: 'info',
+            data: { isComplete: state?.isComplete, previewMode: persisted, elapsed },
+          });
         } catch {
-          useOnboardingStore.setState({ _hasHydrated: true });
+          // Hardening v5: catch path also attempts KV read before marking hydrated.
+          try {
+            const previewMode = await AppKV.flags.getPreviewMode();
+            useOnboardingStore.setState({ _hasHydrated: true, previewMode: previewMode ?? false });
+          } catch {
+            useOnboardingStore.setState({ _hasHydrated: true });
+          }
+          console.log('[HYDRATION] onRehydrateStorage catch fallback', { elapsed: Date.now() - _t0 });
         }
       },
     }
