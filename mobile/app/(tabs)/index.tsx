@@ -144,40 +144,54 @@ export default function DashboardTab() {
   }));
   const [refreshing, setRefreshing] = useState(false);
 
+  // [TRACE] Dashboard mount — store snapshot for crash investigation
+  useEffect(() => {
+    console.log('[DASHBOARD] DashboardTab mounted', {
+      isDone,
+      previewMode,
+      isProfileHydrated: snapshot.isHydrated,
+      businessId: snapshot.businessId,
+      timestamp: Date.now(),
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // SSE: only connect in MODE B (onboarding complete)
   useEffect(() => {
     if (!isDone) return;
-    void TokenService.getAccessToken().then((token) => {
+
+    void (async () => {
+      const token = await TokenService.getAccessToken();
       if (!token) return;
 
       sseService.connect(token);
-      void getAlerts()
-        .then((alerts) => {
-          alerts
-            .slice()
-            .reverse()
-            .forEach((alert) => {
-              useNudgeStore.getState().prependNudge({
-                id: `admin-alert-${alert.id}`,
-                title: t('dashboard.nudgeCards.adminAlert.title'),
-                body: alert.message,
-                severity: alert.severity,
-                priority: mapSeverityToPriority(alert.severity),
-                actionLabel: t('dashboard.nudgeCards.adminAlert.action'),
-                route: alert.action_url ?? '/(tabs)/compliance',
-                external: typeof alert.action_url === 'string' && /^https?:\/\//.test(alert.action_url),
-                source: 'admin',
-              });
-            });
-        })
-        .catch(() => undefined);
-    });
+
+      try {
+        const alerts = await getAlerts();
+        alerts.slice().reverse().forEach((alert) => {
+          useNudgeStore.getState().prependNudge({
+            id: `admin-alert-${alert.id}`,
+            title: t('dashboard.nudgeCards.adminAlert.title'),
+            body: alert.message,
+            severity: alert.severity,
+            priority: mapSeverityToPriority(alert.severity),
+            actionLabel: t('dashboard.nudgeCards.adminAlert.action'),
+            route: alert.action_url ?? '/(tabs)/compliance',
+            external: typeof alert.action_url === 'string' && /^https?:\/\//.test(alert.action_url),
+            source: 'admin',
+          });
+        });
+      } catch {
+        // alerts fetch is non-critical; SSE still connects
+      }
+    })();
     const offTinVerified = sseService.on('tin_verified', () => {
       void useBusinessProfileStore.getState().hydrate();
     });
     const offDeadline = sseService.on('compliance_deadline', (payload) => {
       useNudgeStore.getState().prependNudge({
-        id: String(payload.id ?? `deadline-${Date.now()}`),
+        id: typeof payload.id === 'string' || typeof payload.id === 'number' ? String(payload.id) : `deadline-${Date.now()}`,
+
         title: typeof payload.title === 'string' ? payload.title : t('dashboard.nudgeCards.deadline.title'),
         body: typeof payload.body === 'string' ? payload.body : t('dashboard.nudgeCards.deadline.body'),
         severity: 'critical',
@@ -210,7 +224,8 @@ export default function DashboardTab() {
     const offAdminAlert = sseService.on('admin_alert', (payload) => {
       const severity = payload.severity === 'critical' || payload.severity === 'warning' ? payload.severity : 'info';
       useNudgeStore.getState().prependNudge({
-        id: String(payload.id ?? `admin-alert-${Date.now()}`),
+        id: typeof payload.id === 'string' || typeof payload.id === 'number' ? String(payload.id) : `admin-alert-${Date.now()}`,
+
         title: t('dashboard.nudgeCards.adminAlert.title'),
         body: typeof payload.message === 'string' ? payload.message : t('dashboard.nudgeCards.adminAlert.body'),
         severity,
@@ -240,7 +255,7 @@ export default function DashboardTab() {
     });
     const offTinManualVerify = sseService.on('tin_manual_verify', (payload) => {
       if (typeof payload.status === 'string') {
-        void useBusinessProfileStore.getState().updateField('hasValidTIN', payload.status === 'verified');
+        useBusinessProfileStore.getState().updateField('hasValidTIN', payload.status === 'verified');
       }
       void useBusinessProfileStore.getState().hydrate();
     });
@@ -282,7 +297,8 @@ export default function DashboardTab() {
     });
     const offTaxAssessmentIssued = sseService.on('tax_assessment_issued', (payload) => {
       useNudgeStore.getState().prependNudge({
-        id: `tax-assessment-${String(payload.firs_ref ?? Date.now())}`,
+        id: `tax-assessment-${typeof payload.firs_ref === 'string' || typeof payload.firs_ref === 'number' ? String(payload.firs_ref) : Date.now()}`,
+
         title: t('dashboard.nudgeCards.deadline.title'),
         body: t('receipts.taxAssessmentBody', {
           amount: typeof payload.amount_ngn === 'number' ? payload.amount_ngn.toLocaleString('en-NG') : '0',
@@ -365,7 +381,7 @@ export default function DashboardTab() {
 
   const handleExitPreview = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    const route = (currentStepId !== 'done' ? STEP_ROUTES[currentStepId] : null) ?? '/(onboarding)/business-type';
+    const route = (currentStepId === 'done' ? null : STEP_ROUTES[currentStepId]) ?? '/(onboarding)/business-type';
     router.push(route);
   }, [currentStepId]);
 
