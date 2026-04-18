@@ -41,6 +41,8 @@ export default function TaxCalendarTab() {
           return (
             <View
               key={deadline.id}
+              accessibilityRole="summary"
+              accessibilityLabel={`${deadline.title}: ${deadline.description}. ${deadline.daysAway <= 0 ? t('calendar.overdue') : t('calendar.daysAway', { date: '', count: deadline.daysAway })}`}
               style={{
                 backgroundColor: tokens.bgCard,
                 borderRadius: radius.xl,

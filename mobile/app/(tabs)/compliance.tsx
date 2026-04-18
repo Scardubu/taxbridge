@@ -79,7 +79,7 @@ export default function ComplianceTab() {
           }}
         >
           {rows.map((row, index) => (
-            <View key={row.key} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingTop: index > 0 ? spacing.sm : 0, borderTopWidth: index > 0 ? 1 : 0, borderTopColor: tokens.border }}>
+            <View key={row.key} accessibilityRole="summary" accessibilityLabel={`${row.label}: ${row.value}`} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingTop: index > 0 ? spacing.sm : 0, borderTopWidth: index > 0 ? 1 : 0, borderTopColor: tokens.border }}>
               <View style={{ width: 36, height: 36, borderRadius: radius.lg, backgroundColor: palette.nrsGreenLight, alignItems: 'center', justifyContent: 'center' }}>
                 <Ionicons name={OBLIGATION_ICONS[row.key] ?? 'information-circle'} size={18} color={palette.nrsGreen} />
               </View>

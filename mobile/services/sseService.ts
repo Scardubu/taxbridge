@@ -1,6 +1,7 @@
 import EventSource from 'react-native-sse';
 import * as Sentry from '@sentry/react-native';
 import { logComplianceEvent } from './complianceEventService';
+import { TokenService } from './tokenService';
 
 export type SSEEventName =
   | 'tin_verified'
@@ -26,10 +27,14 @@ class SSEService {
   private readonly handlers = new Map<SSEEventName, Set<EventHandler>>();
   private reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
   private token: string | null = null;
+  private reconnectAttempts = 0;
+  private static readonly MAX_RECONNECT_ATTEMPTS = 8;
+  private static readonly BASE_DELAY_MS = 2000;
 
   connect(token: string) {
     this.token = token;
     if (this.source) return;
+    this.reconnectAttempts = 0;
 
     this.source = new EventSource(`${process.env.EXPO_PUBLIC_API_URL ?? 'https://api.taxbridge.ng'}/api/v1/events`, {
       headers: {
@@ -74,13 +79,23 @@ class SSEService {
       if (this.reconnectTimeout) {
         clearTimeout(this.reconnectTimeout);
       }
-      if (this.token) {
-        this.reconnectTimeout = setTimeout(() => {
-          if (this.token) {
-            this.connect(this.token);
-          }
-        }, 5000);
+      if (this.reconnectAttempts >= SSEService.MAX_RECONNECT_ATTEMPTS) {
+        Sentry.captureMessage('SSE max reconnect attempts reached — giving up', 'warning');
+        return;
       }
+      const jitter = Math.random() * 1000;
+      const delay = Math.min(SSEService.BASE_DELAY_MS * Math.pow(2, this.reconnectAttempts), 60000) + jitter;
+      this.reconnectAttempts++;
+      this.reconnectTimeout = setTimeout(() => {
+        void (async () => {
+          const freshToken = await TokenService.getAccessToken();
+          if (freshToken) {
+            this.token = freshToken;
+            this.source = null;
+            this.connect(freshToken);
+          }
+        })();
+      }, delay);
     });
   }
 

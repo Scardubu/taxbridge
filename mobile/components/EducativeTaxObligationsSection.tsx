@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Linking, Pressable, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { Ionicons } from '@expo/vector-icons';
 import { TAX_AUTHORITY, computeObligations } from '../services/nrsCompliance';
 import { Colors, Typography, Spacing, Radii } from './design-system/tokens';
 
@@ -50,7 +51,7 @@ export function EducativeTaxObligationsSection({ obligations, isPreviewMode }: R
   );
 
   return (
-    <View style={{ paddingHorizontal: Spacing.xxl, marginTop: 28 }}>
+    <View style={{ paddingHorizontal: Spacing.xxl, marginTop: Spacing.section }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: Spacing.md }}>
         <Text style={{ ...Typography.section, color: Colors.ui.textMuted }}>
           {t('dashboard.taxObligations')}
@@ -83,7 +84,7 @@ export function EducativeTaxObligationsSection({ obligations, isPreviewMode }: R
                     <Text style={{ ...Typography.micro, color: Colors.ui.textMuted, letterSpacing: 0.5 }}>
                       {row.title}
                     </Text>
-                    <Text style={{ color: Colors.ui.textDim, fontSize: 16 }}>{isOpen ? '↑' : '›'}</Text>
+                    <Ionicons name={isOpen ? 'chevron-up' : 'chevron-forward'} size={16} color={Colors.ui.textDim} />
                   </View>
                   <Text style={{ ...Typography.body, color: Colors.ui.text, fontWeight: '600', marginTop: 4 }}>
                     {row.status}
