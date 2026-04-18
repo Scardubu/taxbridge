@@ -27,9 +27,12 @@ export function OfflineIndicator() {
       void offlineQueue.getPendingCount().then(setQueueDepth);
     };
     refresh();
-    const interval = setInterval(refresh, 5000);
-    return () => clearInterval(interval);
-  }, []);
+    if (!isOnline || queueDepth > 0) {
+      const interval = setInterval(refresh, 5000);
+      return () => clearInterval(interval);
+    }
+    return undefined;
+  }, [isOnline, queueDepth > 0]);
 
   const handleSync = async () => {
     setIsSyncing(true);

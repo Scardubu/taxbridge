@@ -511,6 +511,8 @@
     "english": "English",
     "pidgin": "Pidgin",
     "voiceGuidance": "Pidgin voice guidance",
-    "darkMode": "Dark mode preference"
+    "darkMode": "Dark mode preference",
+    "completed": "Done finish",
+    "skipped": "Skip am"
   }
 }

@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import * as Sentry from '@sentry/react-native';
 import { getDatabase } from '../services/database';
 import { patchBusinessProfile } from '../services/api';
 
@@ -165,7 +166,9 @@ export const useBusinessProfileStore = create<Store>()((set, get) => {
           [response.id]
         );
         set({ businessId: response.id, lastSyncedAt: new Date().toISOString(), isDirty: false });
-      } catch {}
+      } catch (error) {
+        Sentry.captureException(error, { tags: { source: 'businessProfileStore.syncToBackend' } });
+      }
     },
     getProfileSnapshot: () => {
       const s = get();

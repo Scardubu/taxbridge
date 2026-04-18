@@ -106,6 +106,8 @@ export default function EInvoiceScreen() {
               </View>
               {/* Phase card */}
               <View
+                accessibilityRole="summary"
+                accessibilityLabel={`${t(`onboarding.einvoice.phases.${phase.key}.label`)}, ${phase.date}${isUserPhase ? `, ${t('onboarding.einvoice.yourPhase')}` : ''}`}
                 style={{
                   flex: 1,
                   backgroundColor: isUserPhase ? palette.nrsGreenLight : tokens.bgCard,

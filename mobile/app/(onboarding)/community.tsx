@@ -64,6 +64,8 @@ export default function CommunityScreen() {
           return (
             <View
               key={step.id}
+              accessibilityRole="summary"
+              accessibilityLabel={`${t(step.titleKey)}: ${done ? t('common.completed') : t('common.skipped')}`}
               style={{
                 flexDirection: 'row',
                 alignItems: 'center',

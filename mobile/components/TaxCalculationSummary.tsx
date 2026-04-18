@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Linking, Pressable, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { Ionicons } from '@expo/vector-icons';
 import { Colors, Radii, Spacing, Typography } from './design-system/tokens';
 import type { TaxCalculationResult } from '../types/taxEngine';
 
@@ -48,7 +49,7 @@ export function TaxCalculationSummary({ calculation, isPreviewMode }: Readonly<P
                 <Text style={{ ...Typography.micro, color: Colors.ui.textDim }}>{t('preview.data')}</Text>
               </View>
             ) : null}
-            <Text style={{ color: Colors.ui.textDim, fontSize: 18 }}>{expanded ? '↑' : '↓'}</Text>
+            <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={18} color={Colors.ui.textDim} />
           </View>
         </View>
 
