@@ -102,7 +102,10 @@ async function processJob(job: { id: string; receipt_evidence_id: string; attemp
     const bytes = await readBounded(object.Body);
     if (bytes.length !== receipt.byteSize) throw new Error('RECEIPT_SIZE_MISMATCH');
     const scan = await scanWithClamAv(bytes);
-    await prisma.receiptScanResult.create({ data: {
+    await prisma.receiptScanResult.upsert({
+      where: { receiptEvidenceId: receipt.id },
+      update: {},
+      create: {
       receiptEvidenceId: receipt.id, sha256: receipt.sha256, engine: scan.engine,
       engineVersion: scan.version, verdict: scan.verdict, findings: scan.findings,
     } });
@@ -117,7 +120,7 @@ async function processJob(job: { id: string; receipt_evidence_id: string; attemp
       return;
     }
     if (!object.ETag) throw new Error('RECEIPT_OBJECT_VERSION_UNAVAILABLE');
-    const cleanStorageKey = `receipts/clean/${receipt.organizationId}/${randomUUID()}`;
+    const cleanStorageKey = receipt.cleanStorageKey ?? `receipts/clean/${receipt.organizationId}/${receipt.id}`;
     await client.send(new CopyObjectCommand({
       Bucket: bucket, Key: cleanStorageKey, CopySource: `${bucket}/${receipt.storageKey}`,
       CopySourceIfMatch: object.ETag, MetadataDirective: 'COPY',
@@ -128,13 +131,15 @@ async function processJob(job: { id: string; receipt_evidence_id: string; attemp
     });
     try {
       const ocr = await extractEvidenceText(bytes);
-      await prisma.receiptOcrExtraction.create({ data: {
+      await prisma.receiptOcrExtraction.upsert({
+        where: { receiptEvidenceId: receipt.id }, update: {}, create: {
         receiptEvidenceId: receipt.id, sha256: receipt.sha256, provider: ocr.provider,
         providerVersion: ocr.version, status: 'SUCCEEDED', extractedText: ocr.text,
         meanConfidence: ocr.confidence, fieldCandidates: {},
       } });
     } catch {
-      await prisma.receiptOcrExtraction.create({ data: {
+      await prisma.receiptOcrExtraction.upsert({
+        where: { receiptEvidenceId: receipt.id }, update: {}, create: {
         receiptEvidenceId: receipt.id, sha256: receipt.sha256, provider: 'google-cloud-vision',
         providerVersion: 'documentTextDetection', status: 'UNAVAILABLE',
         fieldCandidates: { reviewRequired: true },
