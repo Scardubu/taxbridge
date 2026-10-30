@@ -37,14 +37,18 @@ function storageConfig() {
   return { endpoint, accessKeyId, secretAccessKey, bucket };
 }
 
-function createStorageClient(): S3Client {
+let storageClient: S3Client | null = null;
+
+function getStorageClient(): S3Client {
+  if (storageClient) return storageClient;
   const config = storageConfig();
-  return new S3Client({
+  storageClient = new S3Client({
     endpoint: config.endpoint,
     region: 'auto',
     forcePathStyle: true,
     credentials: { accessKeyId: config.accessKeyId, secretAccessKey: config.secretAccessKey },
   });
+  return storageClient;
 }
 
 function retentionDate(): Date {
@@ -97,7 +101,7 @@ export default async function receiptRoutes(app: FastifyInstance): Promise<void>
 
     try {
       const config = storageConfig();
-      const client = createStorageClient();
+      const client = getStorageClient();
       const command = new PutObjectCommand({
         Bucket: config.bucket,
         Key: storageKey,
