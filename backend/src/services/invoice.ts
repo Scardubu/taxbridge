@@ -66,6 +66,7 @@ export interface UpdateInvoiceInput {
 export interface InvoiceListFilters {
   userId: string;
   businessId?: string;
+  organizationId?: string;
   status?: string;
   fromDate?: string;
   toDate?: string;
@@ -327,9 +328,13 @@ export class InvoiceService {
   /**
    * Get invoice by ID with full details
    */
-  async getInvoice(invoiceId: string, userId: string) {
+  async getInvoice(invoiceId: string, userId: string, organizationId?: string) {
     const invoice = await this.prisma.invoice.findFirst({
-      where: { id: invoiceId, userId },
+      where: {
+        id: invoiceId,
+        userId,
+        ...(organizationId ? { business: { is: { organizationId } } } : {}),
+      },
       include: {
         business: {
           select: { id: true, name: true, tin: true, email: true, phone: true },
@@ -396,6 +401,7 @@ export class InvoiceService {
 
     const where: any = {
       userId: filters.userId,
+      ...(filters.organizationId ? { business: { is: { organizationId: filters.organizationId } } } : {}),
     };
 
     if (filters.businessId) where.businessId = filters.businessId;
@@ -618,8 +624,11 @@ export class InvoiceService {
   /**
    * Get invoice statistics for a user/business
    */
-  async getInvoiceStats(userId: string, businessId?: string) {
-    const where: any = { userId };
+  async getInvoiceStats(userId: string, businessId?: string, organizationId?: string) {
+    const where: any = {
+      userId,
+      ...(organizationId ? { business: { is: { organizationId } } } : {}),
+    };
     if (businessId) where.businessId = businessId;
 
     const [total, draft, sent, paid, overdue, cancelled] = await Promise.all([
