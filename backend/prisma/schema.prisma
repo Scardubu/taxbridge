@@ -93,6 +93,7 @@ model User {
   devices                Device[]
   adminActions           AdminAction[]
   businesses             Business[]
+  receiptEvidence        ReceiptEvidence[]
   streakRecord           StreakRecord?
   pillarScores           PillarScore[]
   pushDevices            UserDevice[]
