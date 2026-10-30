@@ -253,6 +253,17 @@ deviceSyncWorker.on('failed', (job, err) => {
 });
 
 async function shutdown() {
+  clearInterval(outboxTimer);
+  try {
+    await operationWorker.close();
+  } catch {
+    // ignore
+  }
+  try {
+    await closeOutboxDispatcher();
+  } catch {
+    // ignore
+  }
   try {
     await invoiceSyncWorker.close();
   } catch {
