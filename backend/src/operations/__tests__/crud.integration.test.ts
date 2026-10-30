@@ -123,6 +123,26 @@ describeDatabase('Phase 1C expense operation — PostgreSQL integration', () => 
     expect(await prisma.expense.count({ where: { businessId: businessB } })).toBe(0);
   });
 
+  it('rejects execution after organization membership has been revoked', async () => {
+    const context = contextFor();
+    await prisma.orgMember.update({
+      where: { orgId_userId: { orgId: orgA, userId: userA } },
+      data: { status: 'suspended' },
+    });
+    try {
+      await expect(handleCrudOperation(context)).rejects.toMatchObject({
+        code: 'ORG_MEMBERSHIP_REVOKED',
+        retryable: false,
+      });
+      expect(await prisma.operationEffect.count({ where: { operationId: context.operationId } })).toBe(0);
+    } finally {
+      await prisma.orgMember.update({
+        where: { orgId_userId: { orgId: orgA, userId: userA } },
+        data: { status: 'active' },
+      });
+    }
+  });
+
   it('survives concurrent duplicate delivery with only one committed domain effect', async () => {
     const before = await prisma.expense.count({ where: { businessId: businessA } });
     const context = contextFor();

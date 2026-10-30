@@ -26,6 +26,14 @@ export async function handleCrudOperation(context: OperationContext): Promise<Op
         return { result: priorEffect.result as Record<string, unknown> };
       }
 
+      const membership = await tx.orgMember.findFirst({
+        where: { orgId: context.organizationId, userId: context.userId, status: 'active' },
+        select: { id: true },
+      });
+      if (!membership) {
+        throw new OperationFailure('Active organization membership is required', 'ORG_MEMBERSHIP_REVOKED', false);
+      }
+
       const business = await tx.business.findFirst({
         where: {
           id: data.businessId,
