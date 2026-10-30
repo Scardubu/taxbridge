@@ -100,3 +100,11 @@ export const InvoiceCreateOperationPayloadSchema = z.object({
     }
   }),
 }).strict();
+
+export const ReceiptAttachOperationPayloadSchema = z.object({
+  action: z.literal('RECEIPT_ATTACH'),
+  data: z.object({
+    receiptEvidenceId: z.string().uuid(),
+    expenseId: z.string().uuid(),
+  }).strict(),
+}).strict();
