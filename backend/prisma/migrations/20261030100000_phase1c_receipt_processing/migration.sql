@@ -1,11 +1,18 @@
 -- Phase 1C.4: quarantine scanning and evidence-only OCR processing.
 ALTER TABLE "receipt_evidence"
   ADD COLUMN "clean_storage_key" TEXT,
+  ADD COLUMN "review_status" TEXT NOT NULL DEFAULT 'PENDING',
+  ADD COLUMN "reviewed_by" UUID,
+  ADD COLUMN "reviewed_at" TIMESTAMP(3),
   DROP CONSTRAINT "receipt_evidence_status_check",
   ADD CONSTRAINT "receipt_evidence_status_check"
     CHECK ("status" IN ('PENDING_UPLOAD','UPLOADED','QUARANTINED','SCANNING','CLEAN','INFECTED','SCAN_FAILED','ATTACHED','REJECTED','EXPIRED'));
 
 CREATE UNIQUE INDEX "receipt_evidence_clean_storage_key_key" ON "receipt_evidence"("clean_storage_key");
+ALTER TABLE "receipt_evidence" ADD CONSTRAINT "receipt_evidence_review_status_check"
+  CHECK ("review_status" IN ('PENDING','REQUIRED','ACCEPTED','REJECTED'));
+ALTER TABLE "receipt_evidence" ADD CONSTRAINT "receipt_evidence_reviewed_by_fkey"
+  FOREIGN KEY ("reviewed_by") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 CREATE TABLE "receipt_processing_jobs" (
   "id" UUID NOT NULL DEFAULT gen_random_uuid(),
