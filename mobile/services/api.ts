@@ -4,7 +4,6 @@ import * as Sentry from '@sentry/react-native';
 import { TokenService } from './tokenService';
 import { useAuthStore } from '../stores/authStore';
 import { getDatabase } from './database';
-import type { TaxCalculationResult } from '../types/taxEngine';
 
 type JsonRecord = Record<string, unknown>;
 
@@ -263,24 +262,76 @@ export interface ReceiptPayload {
   idempotency_key: string;
 }
 
+/**
+ * Internal VAT return preparation input. This creates a TaxBridge filing
+ * record; it is not an NRS submission and does not issue an NRS reference.
+ * Receipt IDs are rejected until server-verified evidence can be linked to a
+ * return without trusting client-side receipt identifiers.
+ */
 export interface VatReturnPayload {
-  business_id: string;
   period_month: number;
   period_year: number;
   output_vat_ngn: number;
   input_vat_credits_ngn: number;
-  net_vat_payable_ngn: number;
   receipt_ids: string[];
 }
 
-export interface TaxCalculationRequest {
-  business_id?: string;
-  annual_turnover: number;
-  monthly_sales?: number;
-  vat_input_credits_ngn?: number;
-  employee_count?: number;
-  vat_registered?: boolean;
-  tin_verified?: boolean;
+export type TaxCalculationRequest =
+  | {
+      taxType: 'PIT';
+      grossIncome: number;
+      reliefs?: {
+        pension?: number;
+        nhf?: number;
+        lifeInsurance?: number;
+        annualRent?: number;
+      };
+    }
+  | { taxType: 'VAT'; amount: number; category?: string }
+  | {
+      taxType: 'CIT';
+      revenue: number;
+      expenses: number;
+      employeeCount?: number;
+      digitalIncome?: number;
+    }
+  | {
+      taxType: 'CGT';
+      proceeds: number;
+      costBasis: number;
+      assetType: 'shares' | 'property' | 'crypto' | 'other';
+      holdingPeriodMonths?: number;
+    }
+  | {
+      taxType: 'WHT';
+      amount: number;
+      type:
+        | 'dividend' | 'interest' | 'rent' | 'royalty'
+        | 'consultancy' | 'construction' | 'contractServices'
+        | 'professionalFees';
+    }
+  | {
+      taxType: 'PAYE';
+      grossSalary: number;
+      allowances?: {
+        housing?: number;
+        transport?: number;
+        meal?: number;
+        others?: number;
+      };
+    };
+
+export interface ServerTaxCalculationResponse {
+  success: true;
+  data: Record<string, unknown>;
+}
+
+export interface PreparedVatReturnResponse {
+  filingReference: string;
+  period: string;
+  taxType: 'VAT';
+  netPayable: number;
+  creditCarryover: number;
 }
 
 /**
@@ -483,35 +534,75 @@ export async function getAlerts(): Promise<AdminAlert[]> {
 /**
  * Submit a scanned receipt for backend validation and VAT credit processing.
  */
+/**
+ * Legacy OCR-only receipt submission is intentionally disabled. Use
+ * uploadReceiptEvidence() from receiptEvidence.ts to create a signed upload,
+ * verify the uploaded bytes, scan for malware and complete human review.
+ */
 export async function submitReceipt(
-  payload: ReceiptPayload,
-): Promise<{ id: string; vat_credit_ngn?: number; status: string }> {
-  return apiRequest<{ id: string; vat_credit_ngn?: number; status: string }>('/api/v1/receipts', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  });
+  _payload: ReceiptPayload,
+): Promise<never> {
+  throw new ApiError(
+    410,
+    'RECEIPT_EVIDENCE_WORKFLOW_REQUIRED',
+    'Legacy OCR-only receipt submission is disabled. Use the verified receipt-evidence upload workflow.',
+  );
 }
 
 /**
  * Submit a VAT return payload.
  */
-export async function submitVatReturn(
+/**
+ * Create an internal TaxBridge VAT return record. This does not file with NRS.
+ */
+export async function prepareVatReturn(
   payload: VatReturnPayload,
-): Promise<{ id: string; firs_ref: string; period: string }> {
-  return apiRequest<{ id: string; firs_ref: string; period: string }>('/api/v1/vat-returns', {
+): Promise<PreparedVatReturnResponse> {
+  if (payload.receipt_ids.length > 0) {
+    throw new ApiError(
+      422,
+      'RECEIPT_EVIDENCE_LINKING_NOT_SUPPORTED',
+      'Receipt attachments must be linked through server-verified evidence before they can support a VAT return.',
+    );
+  }
+  if (
+    !Number.isInteger(payload.period_month) ||
+    payload.period_month < 1 ||
+    payload.period_month > 12 ||
+    !Number.isInteger(payload.period_year) ||
+    payload.period_year < 2000 ||
+    payload.period_year > 2200
+  ) {
+    throw new ApiError(400, 'INVALID_VAT_PERIOD', 'VAT period must contain a valid month and year.');
+  }
+
+  return apiRequest<PreparedVatReturnResponse>('/api/v1/filings/vat', {
     method: 'POST',
-    body: JSON.stringify(payload),
+    headers: { 'Idempotency-Key': 'vat-return:' + payload.period_year + '-' + String(payload.period_month).padStart(2, '0') },
+    body: JSON.stringify({
+      period: payload.period_year + '-' + String(payload.period_month).padStart(2, '0'),
+      outputVAT: payload.output_vat_ngn,
+      inputVAT: payload.input_vat_credits_ngn,
+    }),
   });
 }
 
 /**
  * Request a server-side tax calculation for validation.
  */
+/**
+ * Run one of the server's explicit tax calculators. The taxType discriminator
+ * is part of the request contract and selects the matching backend schema.
+ */
 export async function calculateTax(
   payload: TaxCalculationRequest,
-): Promise<TaxCalculationResult> {
-  return apiRequest<TaxCalculationResult>('/api/v1/tax/calculate', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  });
+): Promise<ServerTaxCalculationResponse> {
+  const { taxType, ...body } = payload;
+  return apiRequest<ServerTaxCalculationResponse>(
+    '/api/v1/tax/calculate/' + taxType.toLowerCase(),
+    {
+      method: 'POST',
+      body: JSON.stringify(body),
+    },
+  );
 }

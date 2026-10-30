@@ -99,6 +99,7 @@ export default async function taxRoutes(app: FastifyInstance) {
   app.post(
     '/api/v1/tax/calculate/pit',
     {
+      preHandler: [app.authenticate],
       schema: {
         body: PITBodySchema,
         response: {
@@ -122,6 +123,7 @@ export default async function taxRoutes(app: FastifyInstance) {
   app.post(
     '/api/v1/tax/calculate/vat',
     {
+      preHandler: [app.authenticate],
       schema: {
         body: VATBodySchema,
         response: {
@@ -148,6 +150,7 @@ export default async function taxRoutes(app: FastifyInstance) {
   app.post(
     '/api/v1/tax/calculate/cit',
     {
+      preHandler: [app.authenticate],
       schema: {
         body: CITBodySchema,
         response: {
@@ -175,6 +178,7 @@ export default async function taxRoutes(app: FastifyInstance) {
   app.post(
     '/api/v1/tax/calculate/cgt',
     {
+      preHandler: [app.authenticate],
       schema: {
         body: CGTBodySchema,
         response: {
@@ -209,6 +213,7 @@ export default async function taxRoutes(app: FastifyInstance) {
   app.post(
     '/api/v1/tax/calculate/wht',
     {
+      preHandler: [app.authenticate],
       schema: {
         body: WHTBodySchema,
         response: {
@@ -245,6 +250,7 @@ export default async function taxRoutes(app: FastifyInstance) {
   app.post(
     '/api/v1/tax/calculate/paye',
     {
+      preHandler: [app.authenticate],
       schema: {
         body: PAYEBodySchema,
         response: {

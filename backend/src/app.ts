@@ -53,6 +53,7 @@ import invoicesRoutes           from './routes/invoices';
 import invoiceManagementRoutes  from './routes/invoiceManagement';
 import paymentRoutes            from './routes/payments';
 import businessRoutes           from './routes/business';
+import taxRoutes                from './routes/tax';
 import cryptoRoutes             from './routes/crypto';
 import reconciliationRoutes     from './routes/reconciliation';
 import syncRoutes                from './routes/sync';
@@ -181,6 +182,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   await fastify.register(invoiceManagementRoutes, { prisma });
   await fastify.register(paymentRoutes,       { prisma });
   await fastify.register(businessRoutes,      { prisma });
+  await fastify.register(taxRoutes);
   await fastify.register(cryptoRoutes,        { prisma });
   await fastify.register(reconciliationRoutes, { prisma });
   // sync.ts owns its explicit /api/v1 paths; register exactly once.
