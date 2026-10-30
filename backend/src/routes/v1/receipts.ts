@@ -262,7 +262,7 @@ export default async function receiptRoutes(app: FastifyInstance): Promise<void>
     });
     if (!receipt) return reply.code(404).send({ error: 'RECEIPT_NOT_FOUND' });
     return reply.send({
-      receiptEvidenceId: receipt.id, status: receipt.status,
+      receiptEvidenceId: receipt.id, status: receipt.status, reviewStatus: receipt.reviewStatus,
       verifiedAt: receipt.verifiedAt?.toISOString() ?? null,
       malwareScan: receipt.scanResult,
       ocr: ['CLEAN', 'ATTACHED'].includes(receipt.status) ? receipt.ocrExtraction : null,
