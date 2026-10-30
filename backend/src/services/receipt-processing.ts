@@ -96,9 +96,9 @@ async function processJob(job: { id: string; receipt_evidence_id: string; attemp
     await prisma.receiptProcessingJob.update({ where: { id: job.id }, data: { status: 'COMPLETED', lockedAt: null } });
     return;
   }
-  const { client, bucket } = storage();
   await prisma.receiptEvidence.update({ where: { id: receipt.id }, data: { status: 'SCANNING' } });
   try {
+    const { client, bucket } = storage();
     const object = await client.send(new GetObjectCommand({ Bucket: bucket, Key: receipt.storageKey }));
     const bytes = await readBounded(object.Body);
     if (bytes.length !== receipt.byteSize) throw new Error('RECEIPT_SIZE_MISMATCH');
