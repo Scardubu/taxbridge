@@ -404,6 +404,13 @@ export default async function adminSyncRoutes(app: FastifyInstance) {
         return reply.status(400).send({ error: 'Conflict already resolved' });
       }
 
+      if (conflict.invoice?.businessId) {
+        return reply.status(409).send({
+          error: 'INVOICE_LIFECYCLE_REQUIRED',
+          message: 'Administrator conflict resolution cannot mutate a business-bound invoice. Revise it through the governed invoice lifecycle.',
+        });
+      }
+
       // Determine final data based on resolution strategy
       let finalData: any;
       let resolutionStatus: string;
