@@ -25,6 +25,7 @@ const CreateIntentSchema = z.object({
 }).strict();
 
 const ReceiptParamsSchema = z.object({ id: z.string().uuid() });
+const ReceiptReviewSchema = z.object({ decision: z.enum(['ACCEPT', 'REJECT']) }).strict();
 
 function storageConfig() {
   const endpoint = process.env.R2_ENDPOINT;
@@ -247,7 +248,7 @@ export default async function receiptRoutes(app: FastifyInstance): Promise<void>
     const receipt = await prisma.receiptEvidence.findFirst({
       where: { id: params.data.id, userId, organizationId: orgId },
       select: {
-        id: true, status: true, verifiedAt: true,
+        id: true, status: true, reviewStatus: true, verifiedAt: true,
         scanResult: { select: { verdict: true, engine: true, engineVersion: true, scannedAt: true } },
         ocrExtraction: { select: { status: true, extractedText: true, meanConfidence: true, provider: true, createdAt: true } },
       },
@@ -259,6 +260,39 @@ export default async function receiptRoutes(app: FastifyInstance): Promise<void>
       malwareScan: receipt.scanResult,
       ocr: ['CLEAN', 'ATTACHED'].includes(receipt.status) ? receipt.ocrExtraction : null,
     });
+  });
+
+
+  app.post<{ Params: { id: string } }>('/receipts/:id/review', {
+    preHandler: [app.authenticate, app.resolveOrgContext],
+  }, async (request, reply) => {
+    const params = ReceiptParamsSchema.safeParse(request.params);
+    const body = ReceiptReviewSchema.safeParse(request.body);
+    if (!params.success || !body.success) return reply.code(400).send({ error: 'INVALID_RECEIPT_REVIEW' });
+    const userId = (request as any).user.userId as string;
+    const orgId = (request as any).orgContext.orgId as string;
+    const receipt = await prisma.receiptEvidence.findFirst({
+      where: { id: params.data.id, userId, organizationId: orgId },
+      select: { id: true, status: true, reviewStatus: true },
+    });
+    if (!receipt) return reply.code(404).send({ error: 'RECEIPT_NOT_FOUND' });
+    if (receipt.status !== 'CLEAN' || receipt.reviewStatus !== 'REQUIRED') {
+      return reply.code(409).send({ error: 'RECEIPT_NOT_REVIEWABLE', message: 'Only clean evidence awaiting review can be reviewed' });
+    }
+    const accepted = body.data.decision === 'ACCEPT';
+    const now = new Date();
+    const updated = await prisma.receiptEvidence.updateMany({
+      where: { id: receipt.id, userId, organizationId: orgId, status: 'CLEAN', reviewStatus: 'REQUIRED' },
+      data: { reviewStatus: accepted ? 'ACCEPTED' : 'REJECTED', reviewedBy: userId, reviewedAt: now },
+    });
+    if (updated.count !== 1) return reply.code(409).send({ error: 'RECEIPT_REVIEW_CONFLICT' });
+    await prisma.auditEvent.create({ data: {
+      orgId, userId, action: accepted ? 'RECEIPT_REVIEW_ACCEPTED' : 'RECEIPT_REVIEW_REJECTED',
+      resource: 'ReceiptEvidence', resourceId: receipt.id,
+      metadata: { decision: body.data.decision },
+      ipAddress: request.ip ?? null, userAgent: request.headers['user-agent'] ?? null,
+    } });
+    return reply.send({ receiptEvidenceId: receipt.id, reviewStatus: accepted ? 'ACCEPTED' : 'REJECTED' });
   });
 
 }
