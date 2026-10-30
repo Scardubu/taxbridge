@@ -1,4 +1,4 @@
-import { createExpenseOperationEnvelope } from '../services/operationEnvelope';
+import { createExpenseOperationEnvelope, createInvoiceOperationEnvelope } from '../services/operationEnvelope';
 
 describe('Mobile Phase 1C operation envelope', () => {
   const clientId = '8f9b9d3a-8a4b-4f2a-9d20-3b5f14e8b7a1';
@@ -34,5 +34,33 @@ describe('Mobile Phase 1C operation envelope', () => {
 
   it('rejects non-UUID client IDs rather than generating unstable replacement IDs', () => {
     expect(() => createExpenseOperationEnvelope('not-a-uuid', expense, createdAt)).toThrow();
+  });
+});
+
+describe('Mobile Phase 1C.2 invoice envelope', () => {
+  const clientId = '8f9b9d3a-8a4b-4f2a-9d20-3b5f14e8b7a1';
+  const createdAt = '2026-10-30T10:00:00.000Z';
+  const invoice = {
+    businessId: '0f9b9d3a-8a4b-4f2a-9d20-3b5f14e8b7a1',
+    customerName: 'Example Customer',
+    items: [{ description: 'Consulting', quantity: 2, unitPrice: 5000 }],
+    subtotal: 10000,
+    vat: 750,
+    total: 10750,
+    template: 'professional',
+  };
+
+  it('builds a stable CRUD envelope for an invoice draft', () => {
+    expect(createInvoiceOperationEnvelope(clientId, invoice, createdAt)).toMatchObject({
+      operationId: clientId,
+      idempotencyKey: clientId,
+      operationType: 'crud',
+      schemaVersion: 1,
+      payload: { action: 'INVOICE_CREATE', data: invoice },
+    });
+  });
+
+  it('rejects inconsistent invoice totals before queue transmission', () => {
+    expect(() => createInvoiceOperationEnvelope(clientId, { ...invoice, total: 9999 }, createdAt)).toThrow();
   });
 });
