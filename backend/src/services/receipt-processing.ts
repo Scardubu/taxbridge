@@ -7,12 +7,14 @@ import { prisma } from '../lib/prisma';
 const MAX_BYTES = 10 * 1024 * 1024;
 const MAX_ATTEMPTS = 5;
 const scannerTimeoutMs = 30_000;
+let cachedStorageClient: S3Client | null = null;
 
 function storage() {
   const endpoint = process.env.R2_ENDPOINT, accessKeyId = process.env.R2_ACCESS_KEY_ID;
   const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY, bucket = process.env.R2_BUCKET_NAME;
   if (!endpoint || !accessKeyId || !secretAccessKey || !bucket) throw new Error('RECEIPT_STORAGE_UNAVAILABLE');
-  return { bucket, client: new S3Client({ endpoint, region: 'auto', forcePathStyle: true, credentials: { accessKeyId, secretAccessKey } }) };
+  cachedStorageClient ??= new S3Client({ endpoint, region: 'auto', forcePathStyle: true, credentials: { accessKeyId, secretAccessKey } });
+  return { bucket, client: cachedStorageClient };
 }
 
 async function readBounded(body: any): Promise<Buffer> {
