@@ -151,7 +151,7 @@ export default function ReceiptsScreen() {
           } catch (uploadError) {
             setEvidenceStatus('UPLOAD_RETRY');
             setEvidenceError(String(uploadError));
-            Sentry.captureException(uploadError, { tags: { source: 'receiptEvidence.upload' } });
+            Sentry.captureMessage('Receipt upload failed; the local recovery session was retained', 'warning');
           }
         } catch (stageError) {
           setEvidenceError(`Secure evidence could not be staged: ${String(stageError)}`);
