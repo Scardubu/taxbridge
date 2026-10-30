@@ -276,22 +276,24 @@ export default async function receiptRoutes(app: FastifyInstance): Promise<void>
       select: { id: true, status: true, reviewStatus: true },
     });
     if (!receipt) return reply.code(404).send({ error: 'RECEIPT_NOT_FOUND' });
-    if (receipt.status !== 'CLEAN' || receipt.reviewStatus !== 'REQUIRED') {
+    if (!['CLEAN', 'ATTACHED'].includes(receipt.status) || receipt.reviewStatus !== 'REQUIRED') {
       return reply.code(409).send({ error: 'RECEIPT_NOT_REVIEWABLE', message: 'Only clean evidence awaiting review can be reviewed' });
     }
     const accepted = body.data.decision === 'ACCEPT';
     const now = new Date();
-    const updated = await prisma.receiptEvidence.updateMany({
-      where: { id: receipt.id, userId, organizationId: orgId, status: 'CLEAN', reviewStatus: 'REQUIRED' },
-      data: { reviewStatus: accepted ? 'ACCEPTED' : 'REJECTED', reviewedBy: userId, reviewedAt: now },
+    const updated = await prisma.$transaction(async (tx) => {
+      const result = await tx.receiptEvidence.updateMany({
+        where: { id: receipt.id, userId, organizationId: orgId, status: receipt.status, reviewStatus: 'REQUIRED' },
+        data: { reviewStatus: accepted ? 'ACCEPTED' : 'REJECTED', reviewedBy: userId, reviewedAt: now },
+      });
+      if (result.count === 1) await tx.auditEvent.create({ data: {
+        orgId, userId, action: accepted ? 'RECEIPT_REVIEW_ACCEPTED' : 'RECEIPT_REVIEW_REJECTED',
+        resource: 'ReceiptEvidence', resourceId: receipt.id, metadata: { decision: body.data.decision },
+        ipAddress: request.ip ?? null, userAgent: request.headers['user-agent'] ?? null,
+      } });
+      return result.count;
     });
-    if (updated.count !== 1) return reply.code(409).send({ error: 'RECEIPT_REVIEW_CONFLICT' });
-    await prisma.auditEvent.create({ data: {
-      orgId, userId, action: accepted ? 'RECEIPT_REVIEW_ACCEPTED' : 'RECEIPT_REVIEW_REJECTED',
-      resource: 'ReceiptEvidence', resourceId: receipt.id,
-      metadata: { decision: body.data.decision },
-      ipAddress: request.ip ?? null, userAgent: request.headers['user-agent'] ?? null,
-    } });
+    if (updated !== 1) return reply.code(409).send({ error: 'RECEIPT_REVIEW_CONFLICT' });
     return reply.send({ receiptEvidenceId: receipt.id, reviewStatus: accepted ? 'ACCEPTED' : 'REJECTED' });
   });
 
