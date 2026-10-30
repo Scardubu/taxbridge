@@ -1,10 +1,15 @@
 import { ExpenseCreateOperationPayloadSchema } from '@taxbridge/contracts';
+import { handleInvoiceCreateOperation } from './invoice';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { OperationContext, OperationFailure, OperationResult } from '../registry';
 
 /** First approved offline CRUD operation with tenant-bound, transactional idempotency. */
 export async function handleCrudOperation(context: OperationContext): Promise<OperationResult> {
+  if (context.payload && typeof context.payload === 'object' &&
+      (context.payload as { action?: unknown }).action === 'INVOICE_CREATE') {
+    return handleInvoiceCreateOperation(context);
+  }
   if (context.schemaVersion !== 1) {
     throw new OperationFailure('Unsupported CRUD operation schema version', 'UNSUPPORTED_SCHEMA_VERSION', false);
   }
