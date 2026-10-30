@@ -148,7 +148,7 @@ export default async function receiptRoutes(app: FastifyInstance): Promise<void>
     }
 
     const config = storageConfig();
-    const client = createStorageClient();
+    const client = getStorageClient();
     let object;
     try {
       object = await client.send(new GetObjectCommand({ Bucket: config.bucket, Key: record.storageKey }));
