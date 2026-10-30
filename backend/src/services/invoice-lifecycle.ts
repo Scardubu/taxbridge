@@ -160,6 +160,16 @@ function assertInternalDraft(invoice: Awaited<ReturnType<typeof requireGovernedI
   }
 }
 
+function canonicalize(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(canonicalize);
+  if (value instanceof Date) return value.toISOString();
+  if (value && typeof value === 'object') {
+    const record = value as Record<string, unknown>;
+    return Object.fromEntries(Object.keys(record).sort().map((key) => [key, canonicalize(record[key])]));
+  }
+  return value;
+}
+
 function sameDraft(invoice: Awaited<ReturnType<typeof requireGovernedInvoice>>, draft: DraftContent): boolean {
   const canonical = {
     customerName: invoice.customerName ?? '',
@@ -185,11 +195,11 @@ function sameDraft(invoice: Awaited<ReturnType<typeof requireGovernedInvoice>>, 
     subtotal: draft.subtotal,
     vat: draft.vat,
     total: draft.total,
-    dueDate: draft.dueDate ?? null,
+    dueDate: draft.dueDate ? new Date(draft.dueDate).toISOString() : null,
     template: draft.template,
     notes: draft.notes ?? null,
   };
-  return JSON.stringify(canonical) === JSON.stringify(candidate);
+  return JSON.stringify(canonicalize(canonical)) === JSON.stringify(canonicalize(candidate));
 }
 
 export async function updateInvoiceDraft(input: {
