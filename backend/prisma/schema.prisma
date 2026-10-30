@@ -240,6 +240,9 @@ model ReceiptEvidence {
   byteSize          Int       @map("byte_size")
   sha256            String    @db.Char(64)
   status            String    @default("PENDING_UPLOAD")
+  reviewStatus      String    @default("PENDING") @map("review_status")
+  reviewedBy        String?   @map("reviewed_by") @db.Uuid
+  reviewedAt        DateTime? @map("reviewed_at")
   uploadExpiresAt   DateTime  @map("upload_expires_at")
   verifiedAt        DateTime? @map("verified_at")
   retentionUntil    DateTime  @map("retention_until")
