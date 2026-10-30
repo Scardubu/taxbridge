@@ -19,7 +19,7 @@ const ALLOWED_CONTENT_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'applica
 const CreateIntentSchema = z.object({
   clientUploadId: z.string().uuid().optional(),
   businessId: z.string().uuid(),
-  filename: z.string().trim().min(1).max(255).refine((value) => !/[\\/\\0-\\x1f\\x7f]/.test(value), 'Filename contains invalid characters'),
+  filename: z.string().trim().min(1).max(255).refine((value) => !/[\/\\\0-\x1f\x7f]/.test(value), 'Filename contains invalid characters'),
   contentType: z.enum(ALLOWED_CONTENT_TYPES),
   byteSize: z.number().int().positive().max(MAX_RECEIPT_BYTES),
   sha256: z.string().regex(/^[a-f0-9]{64}$/i),
