@@ -31,6 +31,7 @@ export default function ReceiptsScreen() {
   const [draft, setDraft] = useState<DraftReceipt | null>(null);
   const [ocrFailed, setOcrFailed] = useState(false);
   const [capturedUri, setCapturedUri] = useState<string | null>(null);
+  const [capturedContentType, setCapturedContentType] = useState('image/jpeg');
   const [evidenceClientUploadId, setEvidenceClientUploadId] = useState<string | null>(null);
   const [evidenceStatus, setEvidenceStatus] = useState<string | null>(null);
   const [evidenceReviewStatus, setEvidenceReviewStatus] = useState<string | null>(null);
@@ -51,6 +52,7 @@ export default function ReceiptsScreen() {
       });
 
       setCapturedUri(photo.uri);
+      setCapturedContentType('image/jpeg');
       const { draft: parsedDraft } = await processReceiptImage(photo.uri);
       if (!parsedDraft.amountNgn && !parsedDraft.vendorName) {
         setOcrFailed(true);
@@ -91,7 +93,7 @@ export default function ReceiptsScreen() {
           const localUploadId = await prepareReceiptEvidence({
             uri: capturedUri,
             filename: `receipt-${Date.now()}.jpg`,
-            contentType: 'image/jpeg',
+            contentType: capturedContentType,
             businessId,
           });
           setEvidenceClientUploadId(localUploadId);
@@ -101,6 +103,7 @@ export default function ReceiptsScreen() {
             const server = await refreshReceiptEvidenceStatus(localUploadId);
             setEvidenceReviewStatus(server.reviewStatus ?? null);
           } catch (uploadError) {
+            setEvidenceStatus('UPLOAD_RETRY');
             setEvidenceError(String(uploadError));
             Sentry.captureException(uploadError, { tags: { source: 'receiptEvidence.upload' } });
           }
@@ -124,7 +127,7 @@ export default function ReceiptsScreen() {
     } finally {
       setProcessing(false);
     }
-  }, [addReceipt, businessId, t]);
+  }, [addReceipt, businessId, capturedContentType, capturedUri, t]);
 
   if (!isDone) {
     return (
@@ -188,6 +191,7 @@ export default function ReceiptsScreen() {
         onRetake={() => {
           setDraft(null);
           setCapturedUri(null);
+          setCapturedContentType('image/jpeg');
           setOcrFailed(false);
           setPhase('camera');
         }}
@@ -266,6 +270,7 @@ export default function ReceiptsScreen() {
           onPress={() => {
             setDraft(null);
             setCapturedUri(null);
+            setCapturedContentType('image/jpeg');
             setEvidenceClientUploadId(null);
             setEvidenceStatus(null);
             setEvidenceReviewStatus(null);
@@ -322,7 +327,14 @@ export default function ReceiptsScreen() {
               const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.85 });
               if (result.canceled || !result.assets[0]?.uri || processing) return;
               setProcessing(true);
-              setCapturedUri(result.assets[0].uri);
+              const selected = result.assets[0];
+              const contentType = selected.mimeType ?? 'image/jpeg';
+              if (!['image/jpeg', 'image/png', 'image/webp'].includes(contentType)) {
+                Alert.alert(t('common.error'), 'Choose a JPEG, PNG or WebP receipt image.');
+                return;
+              }
+              setCapturedUri(selected.uri);
+              setCapturedContentType(contentType);
               try {
                 const { draft: parsedDraft } = await processReceiptImage(result.assets[0].uri);
                 setDraft(parsedDraft);
@@ -340,7 +352,10 @@ export default function ReceiptsScreen() {
               } finally {
                 setProcessing(false);
               }
-            })();
+            })().catch((error) => {
+              Sentry.captureException(error);
+              Alert.alert(t('common.error'), String(error));
+            });
           }}
           accessibilityRole="button"
           accessibilityLabel="Choose receipt from photo library"
