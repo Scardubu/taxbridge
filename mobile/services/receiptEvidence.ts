@@ -1,5 +1,6 @@
 import * as Crypto from 'expo-crypto';
 import * as FileSystem from 'expo-file-system/legacy';
+import NetInfo from '@react-native-community/netinfo';
 import { getDatabase } from './database';
 import { apiRequest } from './api';
 
@@ -8,7 +9,7 @@ const MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'applicatio
 const RECOVERABLE_STATES = ['STAGED', 'INTENT_CREATED', 'UPLOADING', 'UPLOAD_RETRY', 'VERIFY_PENDING'] as const;
 
 export type ReceiptEvidenceStatus =
-  | 'PENDING_UPLOAD' | 'QUARANTINED' | 'SCANNING' | 'CLEAN' | 'INFECTED'
+  | 'PENDING_UPLOAD' | 'UPLOADED' | 'QUARANTINED' | 'SCANNING' | 'CLEAN' | 'INFECTED'
   | 'SCAN_FAILED' | 'ATTACHED' | 'REJECTED' | 'EXPIRED';
 
 export interface ReceiptUploadSession {
@@ -224,7 +225,7 @@ export async function resumeReceiptEvidenceUpload(clientUploadId: string): Promi
       throw new Error(`Receipt object upload failed with status ${upload.status}`);
     }
   } catch (error) {
-    await updateSession(clientUploadId, { status: 'UPLOAD_RETRY', last_error: String(error) });
+    await updateSession(clientUploadId, { status: 'UPLOAD_RETRY', last_error: String(error), next_attempt_at: new Date(Date.now() + Math.min(6 * 60 * 60 * 1000, 5000 * (2 ** Math.min(session.retry_count + 1, 12)))).toISOString() });
     throw new Error(`Receipt upload is saved for retry. Recovery ID: ${clientUploadId}. ${String(error)}`);
   }
 
@@ -241,7 +242,7 @@ export async function resumeReceiptEvidenceUpload(clientUploadId: string): Promi
     } catch {
       // Preserve local evidence and server ID for an explicit or automatic retry.
     }
-    await updateSession(clientUploadId, { status: 'VERIFY_PENDING', last_error: String(error) });
+    await updateSession(clientUploadId, { status: 'VERIFY_PENDING', last_error: String(error), next_attempt_at: new Date(Date.now() + Math.min(6 * 60 * 60 * 1000, 5000 * (2 ** Math.min(session.retry_count + 1, 12)))).toISOString() });
     throw new Error(`Receipt verification is pending. Recovery ID: ${clientUploadId}. ${String(error)}`);
   }
 
@@ -266,6 +267,8 @@ export async function uploadReceiptEvidence(input: {
 }
 
 export async function resumePendingReceiptEvidenceUploads(): Promise<void> {
+  const network = await NetInfo.fetch();
+  if (!network.isConnected || network.isInternetReachable === false) return;
   const db = await getDatabase();
   const placeholders = RECOVERABLE_STATES.map(() => '?').join(',');
   const sessions = await db.getAllAsync<{ client_upload_id: string }>(
