@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { createConnection } from 'node:net';
 import { S3Client, GetObjectCommand, CopyObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { ImageAnnotatorClient } from '@google-cloud/vision';
@@ -40,7 +41,7 @@ async function scanWithClamAv(bytes: Buffer): Promise<{ verdict: 'CLEAN' | 'INFE
     socket.on('data', (data) => chunks.push(Buffer.from(data)));
     socket.on('end', () => {
       clearTimeout(timer);
-      const response = Buffer.concat(chunks).toString('utf8').replace(/\\0$/, '').trim();
+      const response = Buffer.concat(chunks).toString('utf8').replace(/\0$/, '').trim();
       const match = response.match(/^stream: (.+) FOUND$/);
       if (match) return finish(undefined, { verdict: 'INFECTED', engine: 'ClamAV', version: 'daemon', findings: [match[1]] });
       if (/^stream: OK$/.test(response)) return finish(undefined, { verdict: 'CLEAN', engine: 'ClamAV', version: 'daemon', findings: [] });
@@ -101,6 +102,7 @@ async function processJob(job: { id: string; receipt_evidence_id: string; attemp
     const object = await client.send(new GetObjectCommand({ Bucket: bucket, Key: receipt.storageKey }));
     const bytes = await readBounded(object.Body);
     if (bytes.length !== receipt.byteSize) throw new Error('RECEIPT_SIZE_MISMATCH');
+    if (createHash('sha256').update(bytes).digest('hex') !== receipt.sha256) throw new Error('RECEIPT_SHA256_MISMATCH');
     const scan = await scanWithClamAv(bytes);
     await prisma.receiptScanResult.upsert({
       where: { receiptEvidenceId: receipt.id },
