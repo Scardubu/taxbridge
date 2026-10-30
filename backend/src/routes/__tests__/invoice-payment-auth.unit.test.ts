@@ -249,6 +249,110 @@ describe('Invoice and payment route security boundaries', () => {
     expect(mockPaymentInitialize).not.toHaveBeenCalled();
   });
 
+  it('reserves the invoice before contacting the gateway and blocks concurrent attempts', async () => {
+    paymentApp = await createPaymentApp();
+    mockPrisma.invoice.findFirst.mockResolvedValue({
+      id: 'f10fceaa-c7c4-4d9a-b15b-c2b2f9c9097e',
+      userId: 'user-a',
+      status: 'stamped',
+      total: { toString: () => '1250.00' },
+    });
+
+    let releaseProvider: ((value: {
+      success: boolean;
+      gateway: 'remita';
+      reference: string;
+      paymentUrl: string;
+    }) => void) | undefined;
+    let providerStarted: (() => void) | undefined;
+    const started = new Promise<void>((resolve) => { providerStarted = resolve; });
+    const providerResult = new Promise<{
+      success: boolean;
+      gateway: 'remita';
+      reference: string;
+      paymentUrl: string;
+    }>((resolve) => { releaseProvider = resolve; });
+    mockPaymentInitialize.mockImplementation(() => {
+      providerStarted?.();
+      return providerResult;
+    });
+
+    const firstRequest = paymentApp.inject({
+      method: 'POST',
+      url: '/api/v1/payments/generate',
+      headers: { authorization: 'Bearer user-a', 'idempotency-key': 'attempt-one' },
+      payload: {
+        invoiceId: 'f10fceaa-c7c4-4d9a-b15b-c2b2f9c9097e',
+        payerName: 'Payer',
+        payerEmail: 'payer@example.com',
+        payerPhone: '08000000000',
+      },
+    });
+
+    await started;
+    expect(mockPrisma.payment.create).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ status: 'processing' }),
+    }));
+
+    mockPrisma.payment.findFirst.mockResolvedValue({
+      id: 'payment-reservation',
+      status: 'processing',
+    });
+    const secondResponse = await paymentApp.inject({
+      method: 'POST',
+      url: '/api/v1/payments/generate',
+      headers: { authorization: 'Bearer user-a', 'idempotency-key': 'attempt-two' },
+      payload: {
+        invoiceId: 'f10fceaa-c7c4-4d9a-b15b-c2b2f9c9097e',
+        payerName: 'Payer',
+        payerEmail: 'payer@example.com',
+        payerPhone: '08000000000',
+      },
+    });
+
+    expect(secondResponse.statusCode).toBe(409);
+    expect(mockPaymentInitialize).toHaveBeenCalledTimes(1);
+
+    releaseProvider?.({
+      success: true,
+      gateway: 'remita',
+      reference: 'rrr-concurrent',
+      paymentUrl: 'https://payments.example/concurrent',
+    });
+    const firstResponse = await firstRequest;
+    expect(firstResponse.statusCode).toBe(200);
+    expect(mockPrisma.payment.update).toHaveBeenCalledWith(expect.objectContaining({
+      where: { id: 'payment-reservation' },
+      data: expect.objectContaining({ status: 'pending', rrr: 'rrr-concurrent' }),
+    }));
+  });
+
+  it('requires ownership to read payment status', async () => {
+    paymentApp = await createPaymentApp();
+    const anonymous = await paymentApp.inject({
+      method: 'GET',
+      url: '/api/v1/payments/f10fceaa-c7c4-4d9a-b15b-c2b2f9c9097e/status',
+    });
+    expect(anonymous.statusCode).toBe(401);
+
+    mockPrisma.payment.findFirst.mockResolvedValue(null);
+    const response = await paymentApp.inject({
+      method: 'GET',
+      url: '/api/v1/payments/f10fceaa-c7c4-4d9a-b15b-c2b2f9c9097e/status',
+      headers: { authorization: 'Bearer user-a' },
+    });
+
+    expect(response.statusCode).toBe(404);
+    expect(mockPrisma.payment.findFirst).toHaveBeenCalledWith({
+      where: {
+        invoiceId: 'f10fceaa-c7c4-4d9a-b15b-c2b2f9c9097e',
+        invoice: { userId: 'user-a' },
+      },
+      orderBy: { createdAt: 'desc' },
+      include: { invoice: true },
+    });
+  });
+
   it('scopes payment idempotency keys by authenticated user', async () => {
     paymentApp = await createPaymentApp();
     mockPrisma.invoice.findFirst.mockResolvedValue({

@@ -316,11 +316,12 @@ export default async function paymentRoutes(app: FastifyInstance, opts: { prisma
   // Legacy endpoint (backward compatibility)
   app.post('/webhooks/remita/payment', remitaWebhookHandler);
 
-  app.get('/api/v1/payments/:invoiceId/status', async (req, reply) => {
+  app.get('/api/v1/payments/:invoiceId/status', { preHandler: [app.authenticate] }, async (req, reply) => {
     const { invoiceId } = req.params as { invoiceId: string };
+    const userId = req.user.userId;
 
     const payment = await prisma.payment.findFirst({
-      where: { invoiceId },
+      where: { invoiceId, invoice: { userId } },
       orderBy: { createdAt: 'desc' },
       include: { invoice: true },
     });
