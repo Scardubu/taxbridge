@@ -45,3 +45,15 @@ Payment initiation and filing operations must never be automatically replayed af
 
 ## Release gate
 The pipeline is not production-ready until remaining handlers, audited resolution controls, contract compatibility tests, and PostgreSQL-backed end-to-end integration tests pass.
+
+### Phase 1C.4 receipt quarantine, malware scanning and OCR
+
+The completion endpoint now promotes byte-verified uploads into a private quarantine key and creates a durable PostgreSQL processing job in the same transaction as the `QUARANTINED` state transition. The processing worker claims jobs with `FOR UPDATE SKIP LOCKED`, retries transient infrastructure failures with bounded exponential backoff, and dead-letters after five attempts. An absent or unreachable ClamAV daemon is never interpreted as a clean verdict.
+
+The worker scans the exact SHA-256-bound bytes using ClamAV INSTREAM. A clean result is recorded once in `receipt_scan_results`; only then is the object conditionally copied to a separate opaque clean key and evidence marked `CLEAN`. Infected evidence is marked `INFECTED`, audited and deleted from quarantine on a best-effort basis. Attachment now requires `CLEAN`, preventing pending, failed or infected documents from entering expense records.
+
+After a clean scan, Google Cloud Vision document OCR may persist a bounded text extraction and mean block confidence in `receipt_ocr_extractions`. OCR is evidence extraction only: no tax classification, VAT eligibility, tax computation, invoice mutation or NRS submission is performed. OCR provider failure is recorded as `UNAVAILABLE` for human review and does not change the malware verdict. Scan and OCR records are append-only by unique receipt key; raw provider output is not retained.
+
+Required worker configuration: `CLAMAV_HOST` and optional `CLAMAV_PORT` (default 3310), plus Google Application Default Credentials for OCR. Until the scanner is reachable, evidence remains quarantined and cannot be attached. The clean object key is server-only; no public download route is introduced.
+
+Operational prerequisites before production: deploy the migration, provision a private R2 bucket policy separating quarantine and clean prefixes, allow the worker to access both prefixes, test ClamAV EICAR detection and clean fixtures, validate Google Vision credential isolation/data residency, and exercise worker lease recovery and retry/dead-letter behavior. OCR data contains potentially sensitive receipt content and must be protected by the same tenant access controls and retention policy as the source evidence.
