@@ -2,6 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import {
+  CopyObjectCommand,
   DeleteObjectCommand,
   GetObjectCommand,
   PutObjectCommand,
@@ -80,7 +81,8 @@ export default async function receiptRoutes(app: FastifyInstance): Promise<void>
     }
 
     const id = randomUUID();
-    const storageKey = `receipts/${orgId}/${id}`;
+    const storageKey = `receipts/evidence/${orgId}/${id}`;
+    const uploadKey = `receipts/staging/${orgId}/${id}`;
     const uploadExpiresAt = new Date(Date.now() + UPLOAD_URL_TTL_SECONDS * 1000);
     const record = await prisma.receiptEvidence.create({
       data: {
@@ -89,6 +91,7 @@ export default async function receiptRoutes(app: FastifyInstance): Promise<void>
         userId,
         businessId,
         storageKey,
+        uploadKey,
         originalFilename: filename,
         contentType,
         byteSize,
@@ -105,7 +108,7 @@ export default async function receiptRoutes(app: FastifyInstance): Promise<void>
       const client = getStorageClient();
       const command = new PutObjectCommand({
         Bucket: config.bucket,
-        Key: storageKey,
+        Key: uploadKey,
         ContentType: contentType,
         ContentLength: byteSize,
         Metadata: { sha256: sha256.toLowerCase() },
@@ -152,7 +155,7 @@ export default async function receiptRoutes(app: FastifyInstance): Promise<void>
     const client = getStorageClient();
     let object;
     try {
-      object = await client.send(new GetObjectCommand({ Bucket: config.bucket, Key: record.storageKey }));
+      object = await client.send(new GetObjectCommand({ Bucket: config.bucket, Key: record.uploadKey }));
     } catch {
       return reply.code(409).send({ error: 'UPLOAD_NOT_FOUND', message: 'The uploaded object could not be verified' });
     }
@@ -191,6 +194,15 @@ export default async function receiptRoutes(app: FastifyInstance): Promise<void>
       return reply.code(422).send({ error: 'RECEIPT_OBJECT_MISMATCH', message: 'Uploaded object metadata does not match the signed upload intent' });
     }
 
+    // Promote the verified staging object to a server-only key. The presigned
+    // URL can still overwrite staging until expiry, but cannot mutate evidence.
+    await client.send(new CopyObjectCommand({
+      Bucket: config.bucket,
+      Key: record.storageKey,
+      CopySource: `${config.bucket}/${record.uploadKey}`,
+      MetadataDirective: 'COPY',
+    }));
+
     const verifiedAt = new Date();
     const updated = await prisma.$transaction(async (tx) => {
       const result = await tx.receiptEvidence.updateMany({
@@ -216,6 +228,7 @@ export default async function receiptRoutes(app: FastifyInstance): Promise<void>
       }
       return reply.code(409).send({ error: 'RECEIPT_STATE_CONFLICT' });
     }
+    await client.send(new DeleteObjectCommand({ Bucket: config.bucket, Key: record.uploadKey })).catch(() => undefined);
     return reply.send({ receiptEvidenceId: record.id, status: 'UPLOADED', verifiedAt: verifiedAt.toISOString() });
   });
 }
