@@ -63,7 +63,7 @@ CREATE UNIQUE INDEX "receipt_ocr_extractions_receipt_key" ON "receipt_ocr_extrac
 
 -- Existing Phase 1C.3 UPLOADED rows have only passed byte/signature checks.
 -- Re-quarantine them and enqueue a scan before allowing future attachment.
-UPDATE "receipt_evidence" SET "status" = 'QUARANTINED' WHERE "status" = 'UPLOADED';
+UPDATE "receipt_evidence" SET "status" = 'QUARANTINED' WHERE "status" IN ('UPLOADED','ATTACHED');
 INSERT INTO "receipt_processing_jobs" ("receipt_evidence_id", "status", "updated_at")
 SELECT "id", 'PENDING', CURRENT_TIMESTAMP
 FROM "receipt_evidence"
