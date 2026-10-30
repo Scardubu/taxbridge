@@ -27,7 +27,7 @@ export async function handleReceiptAttachOperation(context: OperationContext): P
       }
 
       const membership = await tx.orgMember.findFirst({
-        where: { orgId: context.organizationId, userId: context.userId, status: 'active', removedAt: null },
+        where: { orgId: context.organizationId, userId: context.userId, status: 'active', removedAt: null, org: { is: { status: 'active' } } },
         select: { id: true },
       });
       if (!membership) {
@@ -111,7 +111,7 @@ export async function handleReceiptAttachOperation(context: OperationContext): P
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
       throw new OperationFailure('Concurrent receipt attachment; safe to retry', 'OPERATION_EXECUTION_RACE', true);
     }
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2034') {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && (error.code === 'P2034' || error.code === 'P2028')) {
       throw new OperationFailure('Transient receipt transaction conflict', 'DATABASE_TRANSACTION_RETRY', true);
     }
     throw error;
