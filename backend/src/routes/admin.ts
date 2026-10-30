@@ -542,6 +542,14 @@ export async function adminRoutes(app: FastifyInstance, options: { prisma: Prism
         return;
       }
 
+            if (invoice.businessId &&
+          (invoice.approvalStatus !== 'APPROVED' || invoice.approvedVersion !== invoice.version)) {
+        return reply.code(409).send({
+          error: 'INVOICE_APPROVAL_REQUIRED',
+          message: 'Business-bound invoice requires approval of its current revision before NRS resubmission.',
+        });
+      }
+
       // Generate UBL XML (simplified version - in real implementation, use proper UBL generator)
       const ublXml = generateUBLXml(invoice);
 
