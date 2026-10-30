@@ -66,7 +66,7 @@ export type OperationResult = z.infer<typeof OperationResultSchema>;
 export type ApiError = z.infer<typeof ApiErrorSchema>;
 
 
-const invoiceMoney = moneyAmount;
+const invoiceMoney = moneyAmount.max(9_999_999_999.99);
 export const InvoiceCreateOperationPayloadSchema = z.object({
   action: z.literal('INVOICE_CREATE'),
   data: z.object({
