@@ -74,7 +74,7 @@ async function sha256File(uri: string): Promise<string> {
 
 function safeErrorMessage(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error);
-  return message.replace(/https?:\\/\\/[^\\s)]+/gi, '[redacted-url]').slice(0, 500);
+  return message.replace(/https?:\/\/[^\s)]+/gi, '[redacted-url]').slice(0, 500);
 }
 
 function validateInput(input: { filename: string; contentType: string }): void {
