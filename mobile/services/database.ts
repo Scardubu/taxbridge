@@ -375,4 +375,41 @@ async function runMigrations(db: SQLite.SQLiteDatabase): Promise<void> {
     });
     v = 8;
   }
+
+  if (v < 9) {
+    await db.withExclusiveTransactionAsync(async tx => {
+      await tx.execAsync(`
+        ALTER TABLE offline_operations RENAME TO offline_operations_v8;
+        CREATE TABLE offline_operations (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          client_id TEXT NOT NULL UNIQUE,
+          type TEXT NOT NULL CHECK(type IN (
+            'EXPENSE_CREATE','INVOICE_CREATE','RECEIPT_ATTACH','TIN_VERIFY','VAT_REGISTER',
+            'EINVOICE_SUBMIT','INVOICE_SUBMIT','PROFILE_SYNC','PAYMENT_INITIATE',
+            'COMPLIANCE_EVENT','RECEIPT_SUBMIT','VAT_RETURN')),
+          payload TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'pending'
+            CHECK(status IN ('pending','syncing','done','failed','dead')),
+          retry_count INTEGER NOT NULL DEFAULT 0,
+          max_retries INTEGER NOT NULL DEFAULT 5,
+          error_msg TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          synced_at TEXT,
+          next_attempt_at TEXT
+        );
+        INSERT INTO offline_operations (
+          id, client_id, type, payload, status, retry_count, max_retries,
+          error_msg, created_at, synced_at, next_attempt_at
+        )
+        SELECT id, client_id, type, payload, status, retry_count, max_retries,
+          error_msg, created_at, synced_at, next_attempt_at
+        FROM offline_operations_v8;
+        DROP TABLE offline_operations_v8;
+        CREATE INDEX IF NOT EXISTS idx_offline_ops_due
+          ON offline_operations (status, next_attempt_at, created_at);
+        PRAGMA user_version = 9;
+      `);
+    });
+    v = 9;
+  }
 }
