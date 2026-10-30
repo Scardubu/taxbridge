@@ -8,6 +8,7 @@ import * as Sentry from '@sentry/react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { ReceiptReviewForm } from '../../components/ReceiptReviewForm';
+import { ReceiptEvidenceQueue } from '../../components/ReceiptEvidenceQueue';
 import { Colors, Radii, Spacing, Typography } from '../../components/design-system/tokens';
 import { processReceiptImage } from '../../services/receiptOcr';
 import { getReceiptEvidencePreviewUrl, prepareReceiptEvidence, refreshReceiptEvidenceStatus, resumeReceiptEvidenceUpload, reviewReceiptEvidence } from '../../services/receiptEvidence';
@@ -338,6 +339,7 @@ export default function ReceiptsScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: Colors.ui.bg }}>
+      <ReceiptEvidenceQueue businessId={businessId} />
       <CameraView ref={cameraRef} style={{ flex: 1 }} facing="back" ratio="4:3" />
       <View
         style={{
