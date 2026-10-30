@@ -1,31 +1,14 @@
-import { z } from 'zod';
+import { ExpenseCreateOperationPayloadSchema } from '@taxbridge/contracts';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { OperationContext, OperationFailure, OperationResult } from '../registry';
-
-const ExpenseCreatePayloadSchema = z.object({
-  action: z.literal('EXPENSE_CREATE'),
-  data: z.object({
-    businessId: z.string().uuid(),
-    amount: z.number().finite().positive(),
-    category: z.enum([
-      'office-supplies', 'travel', 'meals', 'utilities', 'rent', 'fuel',
-      'maintenance', 'professional-services', 'telecommunications',
-      'insurance', 'marketing', 'equipment', 'other',
-    ]),
-    description: z.string().trim().min(1).max(500),
-    date: z.string().datetime({ offset: true }),
-    vatAmount: z.number().finite().min(0),
-    vatEligible: z.boolean(),
-  }).strict(),
-}).strict();
 
 /** First approved offline CRUD operation with tenant-bound, transactional idempotency. */
 export async function handleCrudOperation(context: OperationContext): Promise<OperationResult> {
   if (context.schemaVersion !== 1) {
     throw new OperationFailure('Unsupported CRUD operation schema version', 'UNSUPPORTED_SCHEMA_VERSION', false);
   }
-  const parsed = ExpenseCreatePayloadSchema.safeParse(context.payload);
+  const parsed = ExpenseCreateOperationPayloadSchema.safeParse(context.payload);
   if (!parsed.success) {
     throw new OperationFailure('Unsupported or invalid CRUD operation payload', 'INVALID_CRUD_OPERATION', false);
   }

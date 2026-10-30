@@ -1,10 +1,10 @@
 import * as Crypto from 'expo-crypto';
 import NetInfo from '@react-native-community/netinfo';
-import { OperationEnvelopeSchema, OperationResultSchema } from '@taxbridge/contracts';
+import { ExpenseCreateOperationPayloadSchema, OperationEnvelopeSchema, OperationResultSchema } from '@taxbridge/contracts';
 import { getDatabase } from './database';
 import { ApiError, apiRequest } from './api';
 
-export type OpType = 'TIN_VERIFY' | 'VAT_REGISTER' | 'EINVOICE_SUBMIT' | 'INVOICE_SUBMIT' | 'RECEIPT_SUBMIT' | 'VAT_RETURN' | 'PROFILE_SYNC' | 'COMPLIANCE_EVENT';
+export type OpType = 'EXPENSE_CREATE' | 'TIN_VERIFY' | 'VAT_REGISTER' | 'EINVOICE_SUBMIT' | 'INVOICE_SUBMIT' | 'RECEIPT_SUBMIT' | 'VAT_RETURN' | 'PROFILE_SYNC' | 'COMPLIANCE_EVENT';
 
 const MAX_BACKOFF_MS = 6 * 60 * 60 * 1000;
 const BASE_BACKOFF_MS = 5_000;
@@ -18,6 +18,7 @@ function asIsoUtc(sqliteDate: string): string {
   return new Date(withZone).toISOString();
 }
 function toOperationType(type: OpType): 'crud' | 'sync' | 'filing' {
+  if (type === 'EXPENSE_CREATE') return 'crud';
   if (type === 'VAT_RETURN' || type === 'EINVOICE_SUBMIT' || type === 'INVOICE_SUBMIT') return 'filing';
   if (type === 'PROFILE_SYNC' || type === 'COMPLIANCE_EVENT') return 'sync';
   return 'crud';
@@ -82,12 +83,16 @@ export class OfflineQueue {
       for (const operation of operations) {
         await db.runAsync("UPDATE offline_operations SET status='syncing' WHERE id=? AND status='pending'", [operation.id]);
         try {
+          const rawPayload = { action: operation.type, data: JSON.parse(operation.payload) as Record<string, unknown> };
+          const operationPayload = operation.type === 'EXPENSE_CREATE'
+            ? ExpenseCreateOperationPayloadSchema.parse(rawPayload)
+            : rawPayload;
           const envelope = OperationEnvelopeSchema.parse({
             operationId: operation.client_id,
             idempotencyKey: operation.client_id,
             operationType: toOperationType(operation.type),
             schemaVersion: 1,
-            payload: { action: operation.type, data: JSON.parse(operation.payload) as Record<string, unknown> },
+            payload: operationPayload,
             createdAt: asIsoUtc(operation.created_at),
           });
           const response = await apiRequest<unknown>('/api/v1/sync/operations', {

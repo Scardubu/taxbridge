@@ -30,6 +30,7 @@ jobs:
       DATABASE_URL: postgresql://taxbridge:taxbridge@localhost:5432/taxbridge_ci
       DIRECT_URL: postgresql://taxbridge:taxbridge@localhost:5432/taxbridge_ci
       NODE_ENV: test
+      PHASE1C_DATABASE_TESTS: '1'
       JWT_SECRET: taxbridge-ci-only-secret-at-least-32-characters
       ALLOWED_ORIGINS: http://localhost:3000
       REDIS_URL: redis://localhost:6379
@@ -51,6 +52,8 @@ jobs:
         run: npm run prisma:migrate:deploy --workspace=@taxbridge/backend
       - name: Build backend
         run: npm run build --workspace=@taxbridge/backend
+      - name: Verify Phase 1C transactional handler against PostgreSQL
+        run: npm run test:phase1c --workspace=@taxbridge/backend
       - name: Type-check admin dashboard
         run: npm run type-check --workspace=admin-dashboard
       - name: Install mobile dependencies
