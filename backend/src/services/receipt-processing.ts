@@ -127,17 +127,13 @@ async function processJob(job: { id: string; receipt_evidence_id: string; attemp
       Bucket: bucket, Key: cleanStorageKey, CopySource: `${bucket}/${receipt.storageKey}`,
       CopySourceIfMatch: object.ETag, MetadataDirective: 'COPY',
     }));
-    await prisma.receiptEvidence.update({
-      where: { id: receipt.id },
-      data: { cleanStorageKey, status: receipt.expenseId ? 'ATTACHED' : 'CLEAN' },
-    });
     try {
       const ocr = await extractEvidenceText(bytes);
       await prisma.receiptOcrExtraction.upsert({
         where: { receiptEvidenceId: receipt.id }, update: {}, create: {
         receiptEvidenceId: receipt.id, sha256: receipt.sha256, provider: ocr.provider,
         providerVersion: ocr.version, status: 'SUCCEEDED', extractedText: ocr.text,
-        meanConfidence: ocr.confidence, fieldCandidates: {},
+        meanConfidence: ocr.confidence, fieldCandidates: { reviewRequired: true },
       } });
     } catch {
       await prisma.receiptOcrExtraction.upsert({
