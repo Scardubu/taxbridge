@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto';
 import { Prisma, PrismaClient } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { InvoiceDraftContentSchema } from '@taxbridge/contracts';
@@ -80,7 +79,15 @@ export async function appendInvoiceRevision(
     notes: invoice.notes,
     invoiceStatus: invoice.status,
   };
-  const contentHash = createHash('sha256').update(JSON.stringify(snapshot)).digest('hex');
+  // Hash the exact PostgreSQL JSONB representation used by the migration backfill.
+  // This keeps legacy and newly-appended revisions on one canonical digest algorithm.
+  const hashRows = await tx.$queryRaw<Array<{ contentHash: string }>>`
+    SELECT encode(digest(${JSON.stringify(snapshot)}::jsonb::text, 'sha256'), 'hex') AS "contentHash"
+  `;
+  const contentHash = hashRows[0]?.contentHash;
+  if (!contentHash || !/^[a-f0-9]{64}$/.test(contentHash)) {
+    throw new Error('Could not compute canonical invoice revision hash');
+  }
   await tx.invoiceVersion.create({
     data: {
       invoiceId: invoice.id,
