@@ -38,6 +38,7 @@ import nrsStatusRoutes from './routes/nrs-status';
 import teamRoutes            from './routes/v1/team';
 import notifRoutes           from './routes/v1/notifications';
 import payrollRoutes         from './routes/payroll';
+import privacyRoutes          from './routes/privacy';
 
 // V2 Route imports
 import monitoringRoutes      from './routes/v2/monitoring';
@@ -157,6 +158,8 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   // ── Route plugins ───────────────────────────────────────────────────────────
   await fastify.register(authRoutes,         { prefix: '/api/v1/auth' });
+  // Privacy routes declare complete /api/v1 paths and enforce authenticated ownership.
+  await fastify.register(privacyRoutes);
   await fastify.register(totpRoutes,         { prefix: '/api/v1/auth/totp' });
   await fastify.register(dashboardRoutes,    { prefix: '/api/v1' });
   await fastify.register(onboardingRoutes,   { prefix: '/api/v1/onboarding' });

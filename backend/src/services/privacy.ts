@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import { prisma } from '../lib/prisma';
 import { createLogger } from '../lib/logger';
+import { bumpAuthVersion, revokeUserRefreshSessions } from './session-revocation';
 
 const log = createLogger('privacy');
 
@@ -51,39 +52,62 @@ export class PrivacyService {
   }
 
   async deleteUserData(userId: string, reason: string): Promise<void> {
-    await prisma.auditLog.create({
-      data: {
-        action: 'user_data_deletion',
-        userId,
-        metadata: { reason }
-      }
-    });
-
     const anonPhone = `+234${crypto.randomInt(1000000000, 9999999999)}`;
 
-    await prisma.user.update({
-      where: { id: userId },
-      data: {
-        name: `[DELETED-${userId.slice(0, 8)}]`,
-        phone: anonPhone,
-        email: null,
-        passwordHash: null,
-        tin: null,
-        nin: null,
-        duploClientId: null,
-        duploClientSecret: null,
-        remitaMerchantId: null,
-        remitaApiKey: null,
-        ecdsaPrivateKey: null,
-        deleted: true,
-        deletedAt: new Date()
-      }
+    // Erasure, audit evidence and auth-version increment commit atomically.
+    // The JWT verifier checks authVersion on every request, so a committed
+    // erasure immediately invalidates every previously issued access token.
+    await prisma.$transaction(async (tx) => {
+      const user = await tx.user.findUnique({
+        where: { id: userId },
+        select: { id: true, deleted: true },
+      });
+      if (!user) throw new Error('User not found');
+      if (user.deleted) return;
+
+      await tx.auditLog.create({
+        data: {
+          action: 'user_data_deletion',
+          userId,
+          metadata: { reason },
+        },
+      });
+
+      await tx.user.update({
+        where: { id: userId },
+        data: {
+          name: `[DELETED-${userId.slice(0, 8)}]`,
+          phone: anonPhone,
+          email: null,
+          passwordHash: null,
+          tin: null,
+          nin: null,
+          duploClientId: null,
+          duploClientSecret: null,
+          remitaMerchantId: null,
+          remitaApiKey: null,
+          ecdsaPrivateKey: null,
+          verificationToken: null,
+          verificationTokenExpiry: null,
+          mfaSecret: null,
+          mfaTempSecret: null,
+          mfaEnabled: false,
+          deleted: true,
+          deletedAt: new Date(),
+        },
+      });
+
+      await tx.invoice.updateMany({
+        where: { userId },
+        data: { customerName: '[REDACTED]' },
+      });
+
+      await bumpAuthVersion(tx, userId);
     });
 
-    await prisma.invoice.updateMany({
-      where: { userId },
-      data: { customerName: '[REDACTED]' }
-    });
+    // PostgreSQL authVersion is authoritative; Redis indexes are cleanup only.
+    await revokeUserRefreshSessions(userId);
+    log.info('User data erased and sessions invalidated', { userId });
   }
 
   async exportPortableData(userId: string): Promise<Buffer> {
