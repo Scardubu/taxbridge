@@ -16,9 +16,19 @@ export async function idempotency(
   reply:   FastifyReply,
 ): Promise<void> {
   const key = request.headers['x-idempotency-key'] as string | undefined;
-  if (!key) return; // No header — skip (not required for all routes)
+  if (!key) return; // Optional for routes that do not require request replay protection.
+  if (key.length > 128 || !/^[A-Za-z0-9._:-]+$/.test(key)) {
+    return reply.code(400).send({ error: 'INVALID_IDEMPOTENCY_KEY' });
+  }
 
-  const redisKey = `idem:${key}`;
+  const userId = request.user?.userId;
+  const orgId = (request as any).orgContext?.orgId as string | undefined;
+  if (!userId || !orgId) {
+    return reply.code(401).send({ error: 'IDEMPOTENCY_REQUIRES_AUTHENTICATED_ORG' });
+  }
+
+  // Never share idempotency cache entries across users or organizations.
+  const redisKey = `idem:${orgId}:${userId}:${key}`;
 
   // Try to get cached response
   const cached = await redis.get(redisKey).catch(() => null);

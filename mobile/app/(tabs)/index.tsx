@@ -165,10 +165,6 @@ export default function DashboardTab() {
 
       sseService.connect(token);
 
-      // Tenant-facing admin alerts are delivered by the authenticated SSE
-      // stream; the database alerts table contains global system events. catch {
-        // alerts fetch is non-critical; SSE still connects
-      }
     })();
     const offTinVerified = sseService.on('tin_verified', () => {
       void useBusinessProfileStore.getState().hydrate();

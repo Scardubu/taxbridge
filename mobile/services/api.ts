@@ -566,7 +566,7 @@ export async function prepareVatReturn(
 
   return apiRequest<PreparedVatReturnResponse>('/api/v1/filings/vat', {
     method: 'POST',
-    headers: { 'Idempotency-Key': 'vat-return:' + payload.period_year + '-' + String(payload.period_month).padStart(2, '0') },
+    headers: { 'X-Idempotency-Key': 'vat-return:' + payload.period_year + '-' + String(payload.period_month).padStart(2, '0') },
     body: JSON.stringify({
       period: payload.period_year + '-' + String(payload.period_month).padStart(2, '0'),
       outputVAT: payload.output_vat_ngn,
