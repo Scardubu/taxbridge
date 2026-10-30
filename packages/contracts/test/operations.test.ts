@@ -1,4 +1,4 @@
-import { ExpenseCreateOperationPayloadSchema, InvoiceCreateOperationPayloadSchema, OperationEnvelopeSchema } from '../src/operations';
+import { ExpenseCreateOperationPayloadSchema, InvoiceCreateOperationPayloadSchema, ReceiptAttachOperationPayloadSchema, OperationEnvelopeSchema } from '../src/operations';
 
 describe('Phase 1C operation contracts', () => {
   const validPayload = {
@@ -79,6 +79,25 @@ describe('Phase 1C.2 invoice draft contract', () => {
   it('rejects client-controlled invoice status, identity and NRS fields', () => {
     expect(InvoiceCreateOperationPayloadSchema.safeParse({
       ...invoice, data: { ...invoice.data, status: 'stamped', userId: 'other', nrsIRN: 'fake' },
+    }).success).toBe(false);
+  });
+});
+
+describe('Phase 1C.3 receipt attachment contract', () => {
+  const valid = {
+    action: 'RECEIPT_ATTACH',
+    data: {
+      receiptEvidenceId: '8f9b9d3a-8a4b-4f2a-9d20-3b5f14e8b7a1',
+      expenseId: '0f9b9d3a-8a4b-4f2a-9d20-3b5f14e8b7a1',
+    },
+  };
+  it('accepts a receipt-to-expense attachment', () => {
+    expect(ReceiptAttachOperationPayloadSchema.safeParse(valid).success).toBe(true);
+  });
+  it('rejects caller-controlled storage keys and tenant identity', () => {
+    expect(ReceiptAttachOperationPayloadSchema.safeParse({
+      ...valid,
+      data: { ...valid.data, storageKey: 'receipts/other-tenant/object', organizationId: 'other' },
     }).success).toBe(false);
   });
 });
