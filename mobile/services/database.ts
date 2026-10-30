@@ -412,4 +412,38 @@ async function runMigrations(db: SQLite.SQLiteDatabase): Promise<void> {
     });
     v = 9;
   }
+  if (v < 10) {
+    await db.withExclusiveTransactionAsync(async tx => {
+      await tx.execAsync(`
+        CREATE TABLE IF NOT EXISTS receipt_upload_sessions (
+          client_upload_id TEXT PRIMARY KEY,
+          business_id TEXT NOT NULL,
+          filename TEXT NOT NULL,
+          content_type TEXT NOT NULL CHECK(content_type IN ('image/jpeg','image/png','image/webp','application/pdf')),
+          local_uri TEXT NOT NULL,
+          byte_size INTEGER NOT NULL CHECK(byte_size > 0 AND byte_size <= 10485760),
+          sha256 TEXT NOT NULL CHECK(length(sha256) = 64),
+          server_receipt_id TEXT UNIQUE,
+          status TEXT NOT NULL DEFAULT 'STAGED'
+            CHECK(status IN ('STAGED','INTENT_CREATED','UPLOADING','UPLOAD_RETRY','VERIFY_PENDING','QUARANTINED','SCANNING','CLEAN','INFECTED','SCAN_FAILED','REJECTED','EXPIRED','ATTACHED','FAILED')),
+          server_status TEXT,
+          review_status TEXT,
+          scan_verdict TEXT,
+          ocr_status TEXT,
+          retry_count INTEGER NOT NULL DEFAULT 0,
+          next_attempt_at TEXT,
+          last_error TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_receipt_upload_recovery
+          ON receipt_upload_sessions (status, next_attempt_at, created_at);
+        CREATE INDEX IF NOT EXISTS idx_receipt_upload_business
+          ON receipt_upload_sessions (business_id, created_at);
+        PRAGMA user_version = 10;
+      `);
+    });
+    v = 10;
+  }
+
 }
