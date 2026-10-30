@@ -106,6 +106,11 @@ export default async function receiptRoutes(app: FastifyInstance): Promise<void>
         Metadata: { sha256: sha256.toLowerCase() },
       });
       const uploadUrl = await getSignedUrl(client, command, { expiresIn: UPLOAD_URL_TTL_SECONDS });
+      await prisma.auditEvent.create({ data: {
+        orgId, userId, action: 'RECEIPT_UPLOAD_INTENT_CREATED', resource: 'ReceiptEvidence',
+        resourceId: record.id, metadata: { businessId, contentType, byteSize, sha256: sha256.toLowerCase() },
+        ipAddress: request.ip ?? null, userAgent: request.headers['user-agent'] ?? null,
+      } });
       return reply.code(201).send({
         receiptEvidenceId: record.id,
         uploadUrl,
@@ -179,13 +184,31 @@ export default async function receiptRoutes(app: FastifyInstance): Promise<void>
       return reply.code(422).send({ error: 'RECEIPT_OBJECT_MISMATCH', message: 'Uploaded object metadata does not match the signed upload intent' });
     }
 
-    const updated = await prisma.receiptEvidence.updateMany({
-      where: { id: record.id, userId, organizationId: orgId, status: 'PENDING_UPLOAD' },
-      data: { status: 'UPLOADED', verifiedAt: new Date() },
+    const verifiedAt = new Date();
+    const updated = await prisma.$transaction(async (tx) => {
+      const result = await tx.receiptEvidence.updateMany({
+        where: { id: record.id, userId, organizationId: orgId, status: 'PENDING_UPLOAD' },
+        data: { status: 'UPLOADED', verifiedAt },
+      });
+      if (result.count === 1) {
+        await tx.auditEvent.create({ data: {
+          orgId, userId, action: 'RECEIPT_UPLOAD_VERIFIED', resource: 'ReceiptEvidence',
+          resourceId: record.id, metadata: { businessId: record.businessId, byteSize: record.byteSize, sha256: record.sha256 },
+          ipAddress: request.ip ?? null, userAgent: request.headers['user-agent'] ?? null,
+        } });
+      }
+      return result.count;
     });
-    if (updated.count !== 1) {
+    if (updated !== 1) {
+      const current = await prisma.receiptEvidence.findFirst({
+        where: { id: record.id, userId, organizationId: orgId },
+        select: { status: true, verifiedAt: true },
+      });
+      if (current?.status === 'UPLOADED' || current?.status === 'ATTACHED') {
+        return reply.send({ receiptEvidenceId: record.id, status: current.status, verifiedAt: current.verifiedAt?.toISOString() ?? null });
+      }
       return reply.code(409).send({ error: 'RECEIPT_STATE_CONFLICT' });
     }
-    return reply.send({ receiptEvidenceId: record.id, status: 'UPLOADED' });
+    return reply.send({ receiptEvidenceId: record.id, status: 'UPLOADED', verifiedAt: verifiedAt.toISOString() });
   });
 }
