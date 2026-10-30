@@ -34,7 +34,7 @@ export async function handleCrudOperation(context: OperationContext): Promise<Op
       }
 
       const membership = await tx.orgMember.findFirst({
-        where: { orgId: context.organizationId, userId: context.userId, status: 'active', removedAt: null },
+        where: { orgId: context.organizationId, userId: context.userId, status: 'active', removedAt: null, org: { is: { status: 'active' } } },
         select: { id: true },
       });
       if (!membership) {
