@@ -110,10 +110,10 @@ async function getSession(clientUploadId: string): Promise<ReceiptUploadSession>
 }
 
 async function applyServerStatus(clientUploadId: string, status: ReceiptEvidenceServerStatus): Promise<void> {
-  const localStatus = status.status === 'PENDING_UPLOAD' ? 'UPLOAD_RETRY' : status.status;
+  const localStatus = status.status === 'PENDING_UPLOAD' ? 'UPLOAD_RETRY' : status.status === 'UPLOADED' ? 'QUARANTINED' : status.status;
   await updateSession(clientUploadId, {
     status: localStatus,
-    server_status: status.status,
+    server_status: status.status === 'UPLOADED' ? 'QUARANTINED' : status.status,
     review_status: status.reviewStatus ?? null,
     scan_verdict: status.malwareScan?.verdict ?? null,
     ocr_status: status.ocr?.status ?? null,
