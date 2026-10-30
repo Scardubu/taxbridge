@@ -351,9 +351,10 @@ export async function initiatePayment(
     );
 
     const db = await getDatabase();
+    const provider = response.gateway ?? payload.gateway ?? 'remita';
     await db.runAsync(
-      "INSERT INTO tax_payments (provider, remita_rrr, amount, currency, status) VALUES (?, ?, ?, 'NGN', 'pending')",
-      [response.gateway ?? payload.gateway ?? 'remita', response.rrr, response.amount],
+      "INSERT INTO tax_payments (provider, provider_ref, remita_rrr, amount, currency, status) VALUES (?, ?, ?, ?, 'NGN', 'pending')",
+      [provider, response.rrr, provider === 'remita' ? response.rrr : null, response.amount],
     );
     return response;
   } catch (error) {

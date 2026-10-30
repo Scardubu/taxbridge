@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import type { FastifyInstance } from 'fastify';
 
@@ -78,67 +79,137 @@ export default async function paymentRoutes(app: FastifyInstance, opts: { prisma
       return reply.status(error.statusCode).send(formatErrorResponse(error));
     }
 
-    const { invoiceId, payerName, payerEmail, payerPhone } = parsed.data;
+    const { invoiceId, payerName, payerEmail, payerPhone, gateway: requestedGateway, callbackUrl } = parsed.data;
 
-    const invoice = await prisma.invoice.findFirst({ where: { id: invoiceId, userId } });
-    if (!invoice) {
+    // Serialize all payment-initiation requests for this invoice across API
+    // instances. The reservation is committed before contacting a gateway.
+    const reservation = await prisma.$transaction(async (tx) => {
+      await tx.$queryRawUnsafe(
+        'SELECT pg_advisory_xact_lock(hashtextextended($1, 0))',
+        invoiceId,
+      );
+
+      const invoice = await tx.invoice.findFirst({ where: { id: invoiceId, userId } });
+      if (!invoice) return { kind: 'not_found' as const };
+
+      if (invoice.status !== 'stamped') {
+        return { kind: 'invoice_not_ready' as const, invoiceStatus: invoice.status };
+      }
+
+      const existingPayment = await tx.payment.findFirst({
+        where: { invoiceId, status: { in: ['paid', 'pending', 'processing'] } },
+      });
+      if (existingPayment) {
+        return {
+          kind: existingPayment.status === 'paid' ? 'already_paid' as const : 'already_pending' as const,
+          paymentId: existingPayment.id,
+        };
+      }
+
+      const payment = await tx.payment.create({
+        data: {
+          invoiceId,
+          gateway: requestedGateway ?? 'remita',
+          // Temporary internal reference. It is replaced by the gateway
+          // reference before a successful response is returned to the client.
+          rrr: 'INIT-' + randomUUID(),
+          amount: invoice.total,
+          status: 'processing',
+          payerName,
+          payerEmail,
+          payerPhone,
+          metadata: { initializationState: 'REQUESTED' },
+        },
+        select: { id: true },
+      });
+
+      return { kind: 'reserved' as const, invoice, paymentId: payment.id };
+    });
+
+    if (reservation.kind === 'not_found') {
       const error = new NotFoundError('Invoice', invoiceId);
       return reply.status(error.statusCode).send(formatErrorResponse(error));
     }
-
-    if (invoice.status !== 'stamped') {
-      const error = new ValidationError('Invoice must be NRS-stamped before payment', { invoiceStatus: invoice.status });
+    if (reservation.kind === 'invoice_not_ready') {
+      const error = new ValidationError('Invoice must be NRS-stamped before payment', {
+        invoiceStatus: reservation.invoiceStatus,
+      });
       return reply.status(error.statusCode).send(formatErrorResponse(error));
     }
-
-    const existingPayment = await prisma.payment.findFirst({ where: { invoiceId } });
-    if (existingPayment?.status === 'paid') {
-      const error = new ValidationError('Invoice already paid', { paymentId: existingPayment.id });
+    if (reservation.kind === 'already_paid') {
+      const error = new ValidationError('Invoice already paid', { paymentId: reservation.paymentId });
       return reply.status(error.statusCode).send(formatErrorResponse(error));
     }
-    if (existingPayment?.status === 'pending' || existingPayment?.status === 'processing') {
+    if (reservation.kind === 'already_pending') {
       return reply.code(409).send({
         error: 'PAYMENT_ALREADY_PENDING',
         message: 'A payment attempt already exists for this invoice. Check its status before starting another.',
-        paymentId: existingPayment.id,
+        paymentId: reservation.paymentId,
       });
     }
 
-    const { gateway: requestedGateway, callbackUrl } = parsed.data;
-
-    const initResult = await paymentGateway.initializePayment({
-      invoiceId,
-      amount: parseFloat(invoice.total.toString()),
-      payerName,
-      payerEmail,
-      payerPhone,
-      gateway: requestedGateway as GatewayName | undefined,
-      callbackUrl,
-    });
-
-    if (!initResult.success) {
-      const error = new RemitaError(`Payment initialization failed: ${initResult.error}`, true, { operation: 'INIT_PAYMENT', gateway: initResult.gateway });
-      return reply.status(error.statusCode).send(formatErrorResponse(error));
-    }
-
-    await prisma.payment.create({
-      data: {
+    let initResult;
+    try {
+      initResult = await paymentGateway.initializePayment({
         invoiceId,
-        gateway: initResult.gateway,
-        rrr: initResult.reference,
-        amount: invoice.total,
-        status: 'pending',
+        amount: Number(reservation.invoice.total.toString()),
         payerName,
         payerEmail,
-        payerPhone
-      }
+        payerPhone,
+        gateway: requestedGateway as GatewayName | undefined,
+        callbackUrl,
+      });
+    } catch (error) {
+      // A timeout or circuit-breaker failure can occur after a provider has
+      // accepted the request. Keep the reservation in processing so another
+      // client request cannot create a second gateway session.
+      await prisma.payment.update({
+        where: { id: reservation.paymentId },
+        data: { metadata: { initializationState: 'OUTCOME_UNKNOWN' } },
+      }).catch((persistenceError) => {
+        req.log.error({ err: persistenceError, paymentId: reservation.paymentId }, 'Failed to annotate payment initialization outcome');
+      });
+      req.log.error({ err: error, paymentId: reservation.paymentId }, 'Payment initialization outcome is unknown');
+      return reply.code(503).send({
+        error: 'PAYMENT_INITIALIZATION_OUTCOME_UNKNOWN',
+        paymentId: reservation.paymentId,
+        message: 'The payment provider outcome must be reconciled before another attempt is allowed.',
+      });
+    }
+
+    if (!initResult.success || !initResult.reference) {
+      await prisma.payment.update({
+        where: { id: reservation.paymentId },
+        data: {
+          metadata: {
+            initializationState: 'OUTCOME_UNKNOWN',
+            provider: initResult.gateway,
+          },
+        },
+      });
+      return reply.code(502).send({
+        error: 'PAYMENT_INITIALIZATION_OUTCOME_UNKNOWN',
+        paymentId: reservation.paymentId,
+        message: 'The payment provider outcome must be reconciled before another attempt is allowed.',
+      });
+    }
+
+    // Finalize the durable reservation only after a provider reference exists.
+    await prisma.payment.update({
+      where: { id: reservation.paymentId },
+      data: {
+        gateway: initResult.gateway,
+        rrr: initResult.reference,
+        status: 'pending',
+        metadata: { initializationState: 'SUCCEEDED' },
+      },
     });
 
     const responseBody = {
       rrr: initResult.reference,
       paymentUrl: initResult.paymentUrl,
-      amount: parseFloat(invoice.total.toString()),
-      gateway: initResult.gateway
+      amount: Number(reservation.invoice.total.toString()),
+      gateway: initResult.gateway,
     };
 
     if (scopedIdempotencyKey) {
@@ -149,8 +220,8 @@ export default async function paymentRoutes(app: FastifyInstance, opts: { prisma
           method: req.method,
           path: req.url,
           statusCode: 200,
-          responseBody
-        }
+          responseBody,
+        },
       });
     }
 

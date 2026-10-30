@@ -14,7 +14,9 @@ const mockPrisma = {
   payment: {
     create: jest.fn(),
     findFirst: jest.fn(),
+    update: jest.fn(),
   },
+  $transaction: jest.fn(),
   idempotencyCache: {
     create: jest.fn(),
     findUnique: jest.fn(),
@@ -100,7 +102,13 @@ describe('Invoice and payment route security boundaries', () => {
     mockPrisma.invoice.findUnique.mockResolvedValue(null);
     mockPrisma.invoice.update.mockResolvedValue({});
     mockPrisma.payment.findFirst.mockResolvedValue(null);
-    mockPrisma.payment.create.mockResolvedValue({});
+    mockPrisma.payment.create.mockResolvedValue({ id: 'payment-reservation' });
+    mockPrisma.payment.update.mockResolvedValue({});
+    mockPrisma.$transaction.mockImplementation(async (callback: (tx: any) => Promise<unknown>) => callback({
+      $queryRawUnsafe: jest.fn().mockResolvedValue([]),
+      invoice: mockPrisma.invoice,
+      payment: mockPrisma.payment,
+    }));
   });
 
   afterEach(async () => {
@@ -264,11 +272,10 @@ describe('Invoice and payment route security boundaries', () => {
         status: 'stamped', total: { toString: () => '1250.00' },
       })
       .mockResolvedValueOnce({
-        id: 'f10fceaa-c7c4-4d9a-b15b-c2b2f9c9097e', userId: 'user-b',
+        id: 'a20fceaa-c7c4-4d9a-b15b-c2b2f9c9097e', userId: 'user-b',
         status: 'stamped', total: { toString: () => '1250.00' },
       });
 
-    // A distinct tenant is represented by a distinct owned invoice in the real DB.
     const payload = {
       invoiceId: 'f10fceaa-c7c4-4d9a-b15b-c2b2f9c9097e',
       payerName: 'Payer',
@@ -281,15 +288,15 @@ describe('Invoice and payment route security boundaries', () => {
       payload,
     });
     expect(first.statusCode).toBe(200);
-    // The payment now exists for the invoice; clear the fake lookup for the second tenant
-    // because this test focuses on the idempotency key namespace.
-    mockPrisma.payment.findFirst.mockResolvedValue(null);
     const second = await paymentApp.inject({
       method: 'POST', url: '/api/v1/payments/generate',
       headers: { authorization: 'Bearer user-b', 'idempotency-key': 'same-client-key' },
-      payload,
+      payload: { ...payload, invoiceId: 'a20fceaa-c7c4-4d9a-b15b-c2b2f9c9097e' },
     });
     expect(second.statusCode).toBe(200);
+    expect(mockPrisma.payment.create).toHaveBeenCalledTimes(2);
+    expect(mockPrisma.payment.create.mock.calls.every(([call]) => call.data.status === 'processing')).toBe(true);
+    expect(mockPrisma.payment.update).toHaveBeenCalledTimes(2);
     expect(mockPrisma.idempotencyCache.create.mock.calls.map(([call]) => call.data.key)).toEqual([
       'payment:user-a:same-client-key',
       'payment:user-b:same-client-key',
