@@ -57,6 +57,7 @@ import cryptoRoutes             from './routes/crypto';
 import reconciliationRoutes     from './routes/reconciliation';
 import syncRoutes                from './routes/sync';
 import syncOperationRoutes        from './routes/syncOperations';
+import adminSyncRoutes            from './routes/adminSync';
 
 // Webhook Route imports
 import flutterwaveWebhook    from './routes/webhooks/flutterwave';
@@ -185,9 +186,9 @@ export async function buildApp(): Promise<FastifyInstance> {
   // sync.ts owns its explicit /api/v1 paths; register exactly once.
   await fastify.register(syncRoutes);
   await fastify.register(syncOperationRoutes);
-  // adminSyncRoutes intentionally remains unregistered until its dashboard
-  // server proxy supplies a verified JWT principal. The legacy module relies
-  // on a browser-visible API key and caller-controlled actor headers.
+  // Protected device-sync admin endpoints are reached only through the
+  // same-origin Next.js server proxy; actor identity comes from app.authenticate.
+  await fastify.register(adminSyncRoutes);
   await fastify.register(flutterwaveWebhook,  { prefix: '/webhooks' });
   await fastify.register(paystackWebhook,     { prefix: '/webhooks' });
   await fastify.register(remitaWebhook,       { prefix: '/webhooks' });

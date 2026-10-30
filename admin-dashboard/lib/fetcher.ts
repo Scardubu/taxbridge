@@ -46,14 +46,26 @@ async function safeReadJson(response: Response): Promise<unknown> {
   }
 }
 
+function readCsrfCookie(): string | null {
+  if (typeof document === 'undefined') return null;
+  const entry = document.cookie.split(';').map(value => value.trim())
+    .find(value => value.startsWith('csrf_token='));
+  return entry ? decodeURIComponent(entry.slice('csrf_token='.length)) : null;
+}
+
 export async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
   const headers = withTaxBridgeHeaders(options?.headers || {});
-  if (!headers.has('Accept')) {
-    headers.set('Accept', 'application/json');
+  if (!headers.has('Accept')) headers.set('Accept', 'application/json');
+
+  const method = (options?.method ?? 'GET').toUpperCase();
+  if (['POST', 'PATCH', 'PUT', 'DELETE'].includes(method) && !headers.has('X-CSRF-Token')) {
+    const csrfToken = readCsrfCookie();
+    if (csrfToken) headers.set('X-CSRF-Token', csrfToken);
   }
 
   const response = await fetch(url, {
     ...options,
+    credentials: options?.credentials ?? 'same-origin',
     headers,
   });
 

@@ -6,13 +6,9 @@
  * Body: { email: string; password: string }
  */
 import { NextRequest, NextResponse } from 'next/server';
+import { randomUUID } from 'node:crypto';
 
-const BACKEND_URL =
-  process.env.BACKEND_URL ??
-  process.env.BACKEND_API_URL ??
-  'https://taxbridge-api-ker8.onrender.com';
-
-const COOKIE_MAX_AGE_SECONDS = 60 * 60 * 8; // 8 hours
+const BACKEND_URL = process.env.BACKEND_API_URL ?? process.env.BACKEND_URL ?? '';
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
   let email: string | undefined;
@@ -35,6 +31,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       { status: 400 },
     );
   }
+
+  if (!BACKEND_URL) return NextResponse.json({ error: 'BACKEND_NOT_CONFIGURED' }, { status: 503 });
 
   // ── Proxy to backend login endpoint ────────────────────────────────────────
   let backendRes: Response;
@@ -73,7 +71,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   }
 
   const accessToken = typeof data.accessToken === 'string' ? data.accessToken : null;
-  if (!accessToken) {
+  const refreshToken = typeof data.refreshToken === 'string' ? data.refreshToken : null;
+  if (!accessToken || !refreshToken) {
     return NextResponse.json(
       { error: 'NO_TOKEN', message: 'Authentication service did not return a token.' },
       { status: 502 },
@@ -83,16 +82,28 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   // ── Set HttpOnly cookie and return success ──────────────────────────────────
   const response = NextResponse.json(
     { success: true, message: 'Logged in successfully.' },
-    { status: 200 },
+    { status: 200, headers: { 'Cache-Control': 'no-store' } },
   );
-
   response.cookies.set('admin_token', accessToken, {
     httpOnly: true,
-    secure:   process.env.NODE_ENV === 'production',
+    secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
-    maxAge:   COOKIE_MAX_AGE_SECONDS,
-    path:     '/',
+    maxAge: 15 * 60,
+    path: '/',
   });
-
+  response.cookies.set('admin_refresh_token', refreshToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: 7 * 24 * 60 * 60,
+    path: '/',
+  });
+  response.cookies.set('csrf_token', randomUUID(), {
+    httpOnly: false,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: 7 * 24 * 60 * 60,
+    path: '/',
+  });
   return response;
 }
