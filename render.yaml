@@ -99,7 +99,7 @@ services:
     envVars:
       # Node Environment
       - key: NODE_VERSION
-        value: 20.19.4
+        value: 26.0.0
       - key: NODE_ENV
         value: production
       - key: LOG_LEVEL

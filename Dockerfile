@@ -1,5 +1,5 @@
 # Canonical TaxBridge API image. Render builds from the repository root.
-FROM node:20-alpine AS builder
+FROM node:26-alpine AS builder
 WORKDIR /app
 
 RUN apk add --no-cache python3 make g++ openssl libc6-compat curl
@@ -10,7 +10,7 @@ RUN npm run build --workspace=@taxbridge/contracts
 RUN npm run ubl:download-xsd --workspace=@taxbridge/backend
 RUN npm run build --workspace=@taxbridge/backend
 
-FROM node:20-alpine AS runner
+FROM node:26-alpine AS runner
 WORKDIR /app
 
 RUN apk add --no-cache openssl libc6-compat wget \
