@@ -88,6 +88,7 @@ model User {
   updatedAt              DateTime @updatedAt @map("updated_at")
 
   invoices               Invoice[]
+  invoiceLifecycleEvents InvoiceLifecycleEvent[] @relation("InvoiceLifecycleActor")
   auditLogs              AuditLog[]
   consents               UserConsent[]
   devices                Device[]
@@ -319,7 +320,15 @@ model Invoice {
   qrCode             String?  @map("qr_code") @db.Text
   pdfUrl             String?  @map("pdf_url")
   notes              String?  @db.Text
-  version            Int      @default(1) // For conflict detection
+  version            Int      @default(1) // Optimistic concurrency and immutable revision number
+  approvalStatus     String   @default("DRAFT") @map("approval_status")
+  submittedForApprovalAt DateTime? @map("submitted_for_approval_at")
+  approvedBy         String?  @map("approved_by") @db.Uuid
+  approvedAt         DateTime? @map("approved_at")
+  approvedVersion    Int?     @map("approved_version")
+  rejectedBy         String?  @map("rejected_by") @db.Uuid
+  rejectedAt         DateTime? @map("rejected_at")
+  rejectionReason    String?  @map("rejection_reason") @db.Text
   sentAt             DateTime? @map("sent_at")
   createdAt          DateTime @default(now()) @map("created_at")
   updatedAt          DateTime @updatedAt @map("updated_at")
@@ -330,6 +339,7 @@ model Invoice {
   syncQueue    SyncQueue[]
   payments     Payment[]
   versions     InvoiceVersion[]
+  lifecycleEvents InvoiceLifecycleEvent[]
   conflicts    Conflict[]
   syncJobs     SyncJob[]
 
@@ -580,6 +590,7 @@ model InvoiceVersion {
   data        Json
   changedBy   String?  @map("changed_by")
   createdAt   DateTime @default(now()) @map("created_at")
+  contentHash String?  @map("content_hash") @db.Char(64)
 
   invoice     Invoice  @relation(fields: [invoiceId], references: [id])
 
@@ -587,6 +598,31 @@ model InvoiceVersion {
   @@index([invoiceId])
   @@index([createdAt])
   @@map("invoice_versions")
+}
+
+/// Append-only internal approval and revision governance events.
+/// This ledger is not evidence of NRS submission, tax filing, or payment.
+model InvoiceLifecycleEvent {
+  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  invoiceId           String   @map("invoice_id") @db.Uuid
+  organizationId      String   @map("organization_id") @db.Uuid
+  actorUserId         String   @map("actor_user_id") @db.Uuid
+  eventType           String   @map("event_type")
+  fromApprovalStatus  String?  @map("from_approval_status")
+  toApprovalStatus    String   @map("to_approval_status")
+  revision            Int
+  reason              String?  @db.Text
+  metadata            Json     @default("{}")
+  occurredAt          DateTime @default(now()) @map("occurred_at")
+
+  invoice             Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+  organization        Org      @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  actor               User     @relation("InvoiceLifecycleActor", fields: [actorUserId], references: [id], onDelete: Restrict)
+
+  @@index([invoiceId, occurredAt], map: "invoice_lifecycle_invoice_occurred_idx")
+  @@index([organizationId, occurredAt], map: "invoice_lifecycle_org_occurred_idx")
+  @@index([actorUserId, occurredAt], map: "invoice_lifecycle_actor_occurred_idx")
+  @@map("invoice_lifecycle_events")
 }
 
 model OCRJob {
@@ -975,6 +1011,7 @@ model Org {
   businesses      Business[]
   receiptEvidence ReceiptEvidence[]
   auditEvents     AuditEvent[]
+  invoiceLifecycleEvents InvoiceLifecycleEvent[]
 
   @@index([tin])
   @@map("orgs")
