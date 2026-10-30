@@ -1,5 +1,4 @@
 import { createConnection } from 'node:net';
-import { randomUUID } from 'node:crypto';
 import { S3Client, GetObjectCommand, CopyObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { ImageAnnotatorClient } from '@google-cloud/vision';
 import { prisma } from '../lib/prisma';
@@ -41,14 +40,14 @@ async function scanWithClamAv(bytes: Buffer): Promise<{ verdict: 'CLEAN' | 'INFE
     socket.on('data', (data) => chunks.push(Buffer.from(data)));
     socket.on('end', () => {
       clearTimeout(timer);
-      const response = Buffer.concat(chunks).toString('utf8').trim();
+      const response = Buffer.concat(chunks).toString('utf8').replace(/\\0$/, '').trim();
       const match = response.match(/^stream: (.+) FOUND$/);
       if (match) return finish(undefined, { verdict: 'INFECTED', engine: 'ClamAV', version: 'daemon', findings: [match[1]] });
       if (/^stream: OK$/.test(response)) return finish(undefined, { verdict: 'CLEAN', engine: 'ClamAV', version: 'daemon', findings: [] });
       finish(new Error('MALWARE_SCANNER_INVALID_RESPONSE'));
     });
     socket.on('connect', () => {
-      socket.write('zINSTREAM\\0');
+      socket.write('zINSTREAM\0');
       for (let offset = 0; offset < bytes.length; offset += 64 * 1024) {
         const part = bytes.subarray(offset, Math.min(offset + 64 * 1024, bytes.length));
         const size = Buffer.alloc(4); size.writeUInt32BE(part.length); socket.write(size); socket.write(part);
@@ -60,6 +59,7 @@ async function scanWithClamAv(bytes: Buffer): Promise<{ verdict: 'CLEAN' | 'INFE
 }
 
 async function extractEvidenceText(bytes: Buffer): Promise<{ text: string; confidence: number | null; provider: string; version: string }> {
+  if (bytes.subarray(0, 5).toString('ascii') === '%PDF-') throw new Error('OCR_PDF_REQUIRES_ASYNC_DOCUMENT_PROCESSOR');
   const client = new ImageAnnotatorClient();
   const [result] = await client.documentTextDetection({ image: { content: bytes } });
   const annotation = result.fullTextAnnotation;
@@ -127,7 +127,7 @@ async function processJob(job: { id: string; receipt_evidence_id: string; attemp
     }));
     await prisma.receiptEvidence.update({
       where: { id: receipt.id },
-      data: { cleanStorageKey, status: 'CLEAN' },
+      data: { cleanStorageKey, status: receipt.expenseId ? 'ATTACHED' : 'CLEAN' },
     });
     try {
       const ocr = await extractEvidenceText(bytes);
