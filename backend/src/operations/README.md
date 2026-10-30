@@ -73,3 +73,29 @@ A failed or interrupted single-object PUT is retried from byte zero with a renew
 The receipt screen now supports camera and image-library capture, displays quarantine/scanning state, supports explicit status refresh, opens a short-lived clean-only preview, and requires the user to accept or reject the scanned evidence. Receipt attachment continues to require the backend's CLEAN scan and ACCEPTED review state. Local accounting receipt records and their existing offline sync remain separate from server evidence verification; a local receipt save is not proof of a malware-cleared evidence record.
 
 SQLite v10 creates the durable recovery table without rebuilding or rewriting the existing offline-operation queue. Migration tests must exercise v9 to v10 and confirm existing receipts, offline operation IDs, retry counters and next-attempt timestamps remain unchanged.
+
+
+### Phase 1C.6 invoice lifecycle governance
+
+Business-bound invoices now have an internal approval state independent from the operational invoice status and NRS fields:
+
+- `DRAFT`: editable only through the tenant-scoped, expected-version draft endpoint.
+- `PENDING_APPROVAL`: content is frozen while an authorized reviewer decides.
+- `APPROVED`: records the reviewer and the exact approved invoice revision.
+- `REJECTED`: records a mandatory reason; the draft must be substantively changed, creating a new immutable revision, before resubmission.
+
+The API is mounted under `/api/v1`:
+- `PATCH /invoices/:id/draft` — full replacement of the validated financial/document fields with `expectedVersion`.
+- `POST /invoices/:id/submit-for-approval` — freezes the current revision for review.
+- `POST /invoices/:id/approve` and `POST /invoices/:id/reject` — owner/admin-only maker-checker transitions. The creator cannot review their own invoice.
+- `GET /invoices/:id/lifecycle` — tenant-scoped revision and event history.
+
+Each content revision is stored in `invoice_versions` with a SHA-256 content hash. Lifecycle events are stored separately in `invoice_lifecycle_events`; PostgreSQL triggers reject updates and deletes to both history tables. Draft mutation, revision creation, and lifecycle event append commit in one serializable transaction. Transition updates use compare-and-swap on the invoice version and approval state. A stale revision returns a conflict rather than silently overwriting concurrent work.
+
+The Phase 1C operation handler and the authenticated invoice-management create route now create business-bound invoices as internal drafts with an initial revision/event. The legacy invoice update route, device-sync worker/conflict resolver, and bulk invoice mutation paths cannot modify business-bound invoices. Legacy invoice-management edit/cancel/send/NRS routes are fenced; the direct Duplo resubmission endpoint and admin NRS retry path require approval of the exact current revision. The NRS submission service independently rechecks the same approval/version condition before external submission, including forced retries.
+
+Approval is not NRS compliance, stamping, submission, delivery, payment authorization, or tax filing. This phase does not initiate an external provider call or set `nrsCompliant=true`. Existing legacy invoices receive a revision snapshot where one is missing and a `LEGACY_IMPORTED` event only when their business is already organization-bound; prior approval is never inferred from a legacy operational status or NRS reference.
+
+The approval endpoint currently requires owner/admin membership and rejects self-approval. Draft editing is allowed to the creator or an owner/admin; accountants may submit drafts for approval. Business-bound invoices without an active, unambiguous organization binding remain outside this lifecycle and fail closed. Cancellation, delegated approval matrices, NRS submission authorization scopes, PDF/UBL artifact versioning, and approval notifications are not part of this milestone.
+
+Validation required before production: Prisma validate/generate and migration deployment against a clean PostgreSQL database; lifecycle integration tests covering maker-checker, rejected-revision resubmission, stale versions, tenant isolation and immutable-history triggers; regression tests for all legacy mutation/submit paths; and full backend/mobile CI. The migration and tests have been authored but not executed in the current environment.
