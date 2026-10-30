@@ -79,7 +79,7 @@ function safeErrorMessage(error: unknown): string {
 
 function validateInput(input: { filename: string; contentType: string }): void {
   if (!MIME_TYPES.has(input.contentType)) throw new Error('Unsupported receipt file type');
-  if (!input.filename.trim() || input.filename.length > 255 || /[\\/\\0-\\x1f\\x7f]/.test(input.filename)) {
+  if (!input.filename.trim() || input.filename.length > 255 || /[\/\\\0-\x1f\x7f]/.test(input.filename)) {
     throw new Error('Receipt filename is invalid');
   }
 }
