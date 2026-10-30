@@ -214,7 +214,7 @@ model Expense {
   updatedAt       DateTime  @updatedAt @map("updated_at")
 
   business        Business  @relation(fields: [businessId], references: [id])
-  receiptEvidence ReceiptEvidence?
+  receiptEvidence ReceiptEvidence[]
 
   @@index([businessId])
   @@index([category])
@@ -230,7 +230,7 @@ model ReceiptEvidence {
   organizationId    String    @map("organization_id") @db.Uuid
   userId            String    @map("user_id") @db.Uuid
   businessId        String    @map("business_id") @db.Uuid
-  expenseId         String?   @unique @map("expense_id") @db.Uuid
+  expenseId         String?   @map("expense_id") @db.Uuid
   storageKey        String    @unique @map("storage_key")
   originalFilename  String    @map("original_filename")
   contentType       String    @map("content_type")
