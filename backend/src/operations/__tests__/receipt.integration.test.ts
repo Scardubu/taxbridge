@@ -6,7 +6,7 @@ import type { OperationContext } from '../registry';
 const enabled = process.env.PHASE1C_DATABASE_TESTS === '1';
 const describeDatabase = enabled ? describe : describe.skip;
 
-describeDatabase('Phase 1C.3 receipt evidence attachment — PostgreSQL integration', () => {
+describeDatabase('Phase 1C.4 clean receipt evidence attachment — PostgreSQL integration', () => {
   const suffix = randomUUID();
   let userId: string;
   let orgId: string;
@@ -57,7 +57,7 @@ describeDatabase('Phase 1C.3 receipt evidence attachment — PostgreSQL integrat
         contentType: 'application/pdf',
         byteSize: 1024,
         sha256: 'a'.repeat(64),
-        status: 'UPLOADED',
+        status: 'CLEAN',
         uploadExpiresAt: new Date(Date.now() + 300_000),
         verifiedAt: new Date(),
         retentionUntil: new Date(Date.now() + 7 * 365 * 24 * 60 * 60 * 1000),
@@ -114,6 +114,13 @@ describeDatabase('Phase 1C.3 receipt evidence attachment — PostgreSQL integrat
     const second = await handleReceiptAttachOperation(context);
     expect(second).toEqual(first);
     expect(await prisma.operationEffect.count({ where: { operationId: context.operationId } })).toBe(1);
+  });
+
+  it('rejects quarantined evidence until malware scanning is clean', async () => {
+    const quarantined = await prisma.receiptEvidence.create({
+      data: { organizationId: orgId, userId, businessId, storageKey: `receipts/${orgId}/${randomUUID()}`, uploadKey: `receipts/staging/${orgId}/${randomUUID()}`, originalFilename: 'quarantined.pdf', contentType: 'application/pdf', byteSize: 512, sha256: 'd'.repeat(64), status: 'QUARANTINED', uploadExpiresAt: new Date(Date.now() + 300_000), verifiedAt: new Date(), retentionUntil: new Date(Date.now() + 7 * 365 * 24 * 60 * 60 * 1000) }, select: { id: true },
+    });
+    await expect(handleReceiptAttachOperation(contextFor(randomUUID(), quarantined.id))).rejects.toMatchObject({ code: 'RECEIPT_NOT_CLEAN', retryable: false });
   });
 
   it('rejects unverified upload intents', async () => {
