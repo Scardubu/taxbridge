@@ -356,6 +356,13 @@ export default async function invoicesRoutes(app: FastifyInstance, opts: { prism
         return reply.status(404).send({ error: `Invoice with ID '${id}' not found` });
       }
 
+      if (existing.businessId) {
+        return reply.status(409).send({
+          error: 'INVOICE_LIFECYCLE_REQUIRED',
+          message: 'Business-bound invoices must be edited through the tenant-scoped, versioned invoice lifecycle API.',
+        });
+      }
+
       if (existing.status === 'stamped' || existing.status === 'processing') {
         return reply.status(409).send({ error: `Cannot edit invoice in status '${existing.status}'` });
       }
