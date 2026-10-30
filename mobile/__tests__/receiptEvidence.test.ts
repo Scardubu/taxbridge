@@ -152,4 +152,22 @@ describe('Phase 1C.5 durable receipt evidence upload', () => {
     expect(FileSystem.deleteAsync).not.toHaveBeenCalled();
   });
 
+  it('does not upload again when the server already verified the evidence', async () => {
+    mockDb.getFirstAsync.mockResolvedValue({ ...validSession, server_receipt_id: 'server-receipt-uuid' });
+    (apiRequest as jest.Mock).mockResolvedValueOnce({
+      receiptEvidenceId: 'server-receipt-uuid',
+      status: 'QUARANTINED',
+      reviewStatus: 'PENDING',
+      verifiedAt: '2026-10-30T10:01:00.000Z',
+      malwareScan: null,
+      ocr: null,
+    });
+
+    const result = await resumeReceiptEvidenceUpload('client-upload-uuid');
+
+    expect(result.status).toBe('QUARANTINED');
+    expect(FileSystem.uploadAsync).not.toHaveBeenCalled();
+    expect(apiRequest).toHaveBeenCalledTimes(1);
+  });
+
 });
