@@ -267,7 +267,7 @@ export async function uploadReceiptEvidence(input: {
   try {
     return await resumeReceiptEvidenceUpload(clientUploadId);
   } catch (error) {
-    throw new Error(`Receipt upload recovery ID: ${clientUploadId}. ${String(error)}`);
+    throw new Error(`Receipt upload recovery ID: ${clientUploadId}. ${safeErrorMessage(error)}`);
   }
 }
 
