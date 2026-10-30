@@ -6,6 +6,7 @@ CREATE TABLE "receipt_evidence" (
   "business_id" UUID NOT NULL,
   "expense_id" UUID,
   "storage_key" TEXT NOT NULL,
+  "upload_key" TEXT NOT NULL,
   "original_filename" TEXT NOT NULL,
   "content_type" TEXT NOT NULL,
   "byte_size" INTEGER NOT NULL,
@@ -24,6 +25,7 @@ CREATE TABLE "receipt_evidence" (
 );
 
 CREATE UNIQUE INDEX "receipt_evidence_storage_key_key" ON "receipt_evidence"("storage_key");
+CREATE UNIQUE INDEX "receipt_evidence_upload_key_key" ON "receipt_evidence"("upload_key");
 CREATE INDEX "receipt_evidence_expense_id_idx" ON "receipt_evidence"("expense_id");
 CREATE INDEX "receipt_evidence_org_business_created_idx" ON "receipt_evidence"("organization_id","business_id","created_at");
 CREATE INDEX "receipt_evidence_user_created_idx" ON "receipt_evidence"("user_id","created_at");
