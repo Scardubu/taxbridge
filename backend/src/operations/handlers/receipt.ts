@@ -39,13 +39,13 @@ export async function handleReceiptAttachOperation(context: OperationContext): P
           id: receiptEvidenceId,
           organizationId: context.organizationId,
           userId: context.userId,
-          status: 'UPLOADED',
+          status: 'CLEAN',
           verifiedAt: { not: null },
         },
         select: { id: true, businessId: true, expenseId: true, status: true },
       });
       if (!receipt) {
-        throw new OperationFailure('Verified receipt evidence not found', 'RECEIPT_NOT_VERIFIED', false);
+        throw new OperationFailure('Clean, malware-scanned receipt evidence not found', 'RECEIPT_NOT_CLEAN', false);
       }
       if (receipt.expenseId) {
         throw new OperationFailure('Receipt evidence is already attached', 'RECEIPT_ALREADY_ATTACHED', false);
@@ -68,7 +68,7 @@ export async function handleReceiptAttachOperation(context: OperationContext): P
           id: receipt.id,
           organizationId: context.organizationId,
           userId: context.userId,
-          status: 'UPLOADED',
+          status: 'CLEAN',
           expenseId: null,
         },
         data: { status: 'ATTACHED', expenseId: expense.id },
