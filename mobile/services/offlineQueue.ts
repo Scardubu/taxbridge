@@ -46,6 +46,9 @@ export class OfflineQueue {
     this.unsubscribe = NetInfo.addEventListener((state) => {
       if (state.isConnected && state.isInternetReachable !== false && !this.flushing) void this.flush();
     });
+    void import('./receiptEvidence')
+      .then(({ resumePendingReceiptEvidenceUploads }) => resumePendingReceiptEvidenceUploads())
+      .catch(() => undefined);
   }
 
   static getInstance(): OfflineQueue {
