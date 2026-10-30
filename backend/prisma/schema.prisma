@@ -229,6 +229,7 @@ model Expense {
 /// Immutable, tenant-bound receipt evidence. Object keys are server generated.
 model ReceiptEvidence {
   id                String    @id @default(uuid()) @db.Uuid
+  clientUploadId    String?   @unique(map: "receipt_evidence_client_upload_id_key") @map("client_upload_id") @db.Uuid
   organizationId    String    @map("organization_id") @db.Uuid
   userId            String    @map("user_id") @db.Uuid
   businessId        String    @map("business_id") @db.Uuid
