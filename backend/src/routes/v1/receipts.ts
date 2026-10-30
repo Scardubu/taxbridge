@@ -297,4 +297,30 @@ export default async function receiptRoutes(app: FastifyInstance): Promise<void>
     return reply.send({ receiptEvidenceId: receipt.id, reviewStatus: accepted ? 'ACCEPTED' : 'REJECTED' });
   });
 
+
+  app.get<{ Params: { id: string } }>('/receipts/:id/download', {
+    preHandler: [app.authenticate, app.resolveOrgContext],
+  }, async (request, reply) => {
+    const params = ReceiptParamsSchema.safeParse(request.params);
+    if (!params.success) return reply.code(400).send({ error: 'INVALID_RECEIPT_ID' });
+    const userId = (request as any).user.userId as string;
+    const orgId = (request as any).orgContext.orgId as string;
+    const record = await prisma.receiptEvidence.findFirst({
+      where: { id: params.data.id, userId, organizationId: orgId },
+      select: { id: true, status: true, cleanStorageKey: true, contentType: true, sha256: true, scanResult: { select: { verdict: true, sha256: true } } },
+    });
+    if (!record) return reply.code(404).send({ error: 'RECEIPT_NOT_FOUND' });
+    if (!['CLEAN', 'ATTACHED'].includes(record.status) || !record.cleanStorageKey ||
+        record.scanResult?.verdict !== 'CLEAN' || record.scanResult.sha256 !== record.sha256) {
+      return reply.code(409).send({ error: 'RECEIPT_NOT_CLEAN', message: 'Evidence is not available until malware scanning is clean' });
+    }
+    const config = storageConfig();
+    const url = await getSignedUrl(getStorageClient(), new GetObjectCommand({
+      Bucket: config.bucket, Key: record.cleanStorageKey,
+      ResponseContentType: record.contentType,
+      ResponseCacheControl: 'private, no-store',
+    }), { expiresIn: 60 });
+    return reply.send({ url, expiresInSeconds: 60 });
+  });
+
 }
