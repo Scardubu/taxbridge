@@ -52,12 +52,13 @@ describeDatabase('Phase 1C.4 clean receipt evidence attachment — PostgreSQL in
         userId,
         businessId,
         storageKey: `receipts/${orgId}/${randomUUID()}`,
+        cleanStorageKey: `receipts/clean/${orgId}/${randomUUID()}`,
         uploadKey: `receipts/staging/${orgId}/${randomUUID()}`,
         originalFilename: 'receipt.pdf',
         contentType: 'application/pdf',
         byteSize: 1024,
         sha256: 'a'.repeat(64),
-        status: 'CLEAN', reviewStatus: 'ACCEPTED',
+        status: 'CLEAN', reviewStatus: 'ACCEPTED', reviewedBy: userId, reviewedAt: new Date(),
         uploadExpiresAt: new Date(Date.now() + 300_000),
         verifiedAt: new Date(),
         retentionUntil: new Date(Date.now() + 7 * 365 * 24 * 60 * 60 * 1000),
@@ -65,11 +66,15 @@ describeDatabase('Phase 1C.4 clean receipt evidence attachment — PostgreSQL in
       select: { id: true },
     });
     receiptId = receipt.id;
+    await prisma.receiptScanResult.create({ data: { receiptEvidenceId: receiptId, sha256: 'a'.repeat(64), engine: 'ClamAV', engineVersion: 'test', verdict: 'CLEAN' } });
   });
 
   afterAll(async () => {
     if (userId) {
       await prisma.operationEffect.deleteMany({ where: { userId } });
+      await prisma.receiptScanResult.deleteMany({ where: { receiptEvidence: { userId } } });
+      await prisma.receiptOcrExtraction.deleteMany({ where: { receiptEvidence: { userId } } });
+      await prisma.receiptProcessingJob.deleteMany({ where: { receiptEvidence: { userId } } });
       await prisma.receiptEvidence.deleteMany({ where: { userId } });
       await prisma.expense.deleteMany({ where: { businessId } });
       await prisma.business.deleteMany({ where: { ownerId: userId } });
@@ -104,11 +109,12 @@ describeDatabase('Phase 1C.4 clean receipt evidence attachment — PostgreSQL in
         storageKey: `receipts/${orgId}/${randomUUID()}`,
         uploadKey: `receipts/staging/${orgId}/${randomUUID()}`,
         originalFilename: 'second.pdf', contentType: 'application/pdf', byteSize: 2048,
-        sha256: 'b'.repeat(64), status: 'CLEAN', reviewStatus: 'ACCEPTED',
+        sha256: 'b'.repeat(64), status: 'CLEAN', reviewStatus: 'ACCEPTED', reviewedBy: userId, reviewedAt: new Date(), cleanStorageKey: `receipts/clean/${orgId}/${randomUUID()}`,
         uploadExpiresAt: new Date(Date.now() + 300_000), verifiedAt: new Date(),
         retentionUntil: new Date(Date.now() + 7 * 365 * 24 * 60 * 60 * 1000),
       }, select: { id: true },
     });
+    await prisma.receiptScanResult.create({ data: { receiptEvidenceId: secondReceipt.id, sha256: 'b'.repeat(64), engine: 'ClamAV', engineVersion: 'test', verdict: 'CLEAN' } });
     const context = contextFor(randomUUID(), secondReceipt.id);
     const first = await handleReceiptAttachOperation(context);
     const second = await handleReceiptAttachOperation(context);
