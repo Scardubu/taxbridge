@@ -162,7 +162,7 @@ export default async function receiptRoutes(app: FastifyInstance): Promise<void>
 
     if (object.ContentLength !== record.byteSize || object.ContentType !== record.contentType) {
       await prisma.receiptEvidence.update({ where: { id: record.id }, data: { status: 'REJECTED' } });
-      await client.send(new DeleteObjectCommand({ Bucket: config.bucket, Key: record.storageKey })).catch(() => undefined);
+      await client.send(new DeleteObjectCommand({ Bucket: config.bucket, Key: record.uploadKey })).catch(() => undefined);
       return reply.code(422).send({ error: 'RECEIPT_OBJECT_MISMATCH', message: 'Uploaded object size or content type does not match the upload intent' });
     }
     const bytes = await object.Body?.transformToByteArray();
@@ -194,12 +194,16 @@ export default async function receiptRoutes(app: FastifyInstance): Promise<void>
       return reply.code(422).send({ error: 'RECEIPT_OBJECT_MISMATCH', message: 'Uploaded object metadata does not match the signed upload intent' });
     }
 
-    // Promote the verified staging object to a server-only key. The presigned
-    // URL can still overwrite staging until expiry, but cannot mutate evidence.
+    // Promote the verified staging object to a server-only key. ETag
+    // preconditions prevent a client overwrite between GET verification and copy.
+    if (!object.ETag) {
+      return reply.code(409).send({ error: 'RECEIPT_OBJECT_UNSTABLE', message: 'Object version could not be pinned for promotion' });
+    }
     await client.send(new CopyObjectCommand({
       Bucket: config.bucket,
       Key: record.storageKey,
       CopySource: `${config.bucket}/${record.uploadKey}`,
+      CopySourceIfMatch: object.ETag,
       MetadataDirective: 'COPY',
     }));
 
