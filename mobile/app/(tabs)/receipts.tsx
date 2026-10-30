@@ -302,7 +302,7 @@ export default function ReceiptsScreen() {
                   if (!evidenceClientUploadId) return;
                   setProcessing(true);
                   void reviewReceiptEvidence(evidenceClientUploadId, 'ACCEPT').then((result) => setEvidenceReviewStatus(result.reviewStatus)).catch((error) => setEvidenceError(String(error))).finally(() => setProcessing(false));
-                }} disabled={processing} accessibilityRole="button" style={{ paddingVertical: Spacing.md }}>
+                }} accessibilityRole="button" style={{ paddingVertical: Spacing.md }}>
                   <Text style={{ ...Typography.bodyBold, color: Colors.status.successText }}>Accept evidence</Text>
                 </Pressable>
                 <Pressable disabled={!evidencePreviewOpened || processing}
@@ -310,7 +310,7 @@ export default function ReceiptsScreen() {
                   if (!evidenceClientUploadId) return;
                   setProcessing(true);
                   void reviewReceiptEvidence(evidenceClientUploadId, 'REJECT').then((result) => setEvidenceReviewStatus(result.reviewStatus)).catch((error) => setEvidenceError(String(error))).finally(() => setProcessing(false));
-                }} disabled={processing} accessibilityRole="button" style={{ paddingVertical: Spacing.md }}>
+                }} accessibilityRole="button" style={{ paddingVertical: Spacing.md }}>
                   <Text style={{ ...Typography.bodyBold, color: Colors.status.dangerText }}>Reject evidence</Text>
                 </Pressable>
               </>
