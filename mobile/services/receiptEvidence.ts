@@ -182,8 +182,16 @@ export async function resumeReceiptEvidenceUpload(clientUploadId: string): Promi
         await applyServerStatus(clientUploadId, existing);
         return { clientUploadId, receiptEvidenceId: existing.receiptEvidenceId, status: existing.status, verifiedAt: existing.verifiedAt };
       }
+      // A PUT may have completed just before process death. Try server-side
+      // verification before sending the same bounded object again.
+      await apiRequest<ReceiptUploadResult>(`/api/v1/receipts/${session.server_receipt_id}/complete`, { method: 'POST' }).catch(() => undefined);
+      const afterCompletion = await fetchServerStatus(session.server_receipt_id);
+      if (afterCompletion.status !== 'PENDING_UPLOAD') {
+        await applyServerStatus(clientUploadId, afterCompletion);
+        return { clientUploadId, receiptEvidenceId: afterCompletion.receiptEvidenceId, status: afterCompletion.status, verifiedAt: afterCompletion.verifiedAt };
+      }
     } catch {
-      // A transient status lookup must not erase the durable local recovery record.
+      // A transient status/verification lookup must not erase the durable local recovery record.
     }
   }
 
