@@ -1195,6 +1195,8 @@ model SyncOperation {
   payload               Json
   status                String    @default("pending")
   attemptCount          Int       @default(0) @map("attempt_count")
+  processingLeaseToken  String?   @map("processing_lease_token") @db.Uuid
+  processingLeaseUntil  DateTime? @map("processing_lease_until")
   nextAttemptAt         DateTime? @map("next_attempt_at")
   deadlineAt            DateTime  @map("deadline_at")
   acknowledgedAt        DateTime? @map("acknowledged_at")

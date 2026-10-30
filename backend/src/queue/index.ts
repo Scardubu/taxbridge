@@ -13,7 +13,6 @@ import { createDeviceSyncWorker } from '../workers/syncWorker';
 import { startOperationWorker } from '../operations/operation-worker';
 import { dispatchOutboxBatch, closeOutboxDispatcher } from '../operations/outbox-dispatcher';
 import { initialiseObservability } from '../lib/observability';
-import { registerBuiltinOperationHandlers } from '../operations/register-handlers';
 import { processReceiptJobsBatch } from '../services/receipt-processing';
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
