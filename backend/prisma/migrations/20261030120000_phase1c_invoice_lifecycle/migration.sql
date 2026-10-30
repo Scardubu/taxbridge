@@ -146,6 +146,13 @@ WHERE NOT EXISTS (
 ON CONFLICT ("invoice_id", "version") DO NOTHING;
 
 -- Record legacy tenant-bound invoices as imported drafts in the internal ledger.
+-- Hash every pre-existing revision after the rollout snapshot backfill.
+-- PostgreSQL pgcrypto provides SHA-256 over the canonical JSONB textual representation.
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+UPDATE "invoice_versions"
+SET "content_hash" = encode(digest("data"::text, 'sha256'), 'hex')
+WHERE "content_hash" IS NULL;
+
 INSERT INTO "invoice_lifecycle_events" (
   "id", "invoice_id", "organization_id", "actor_user_id", "event_type",
   "from_approval_status", "to_approval_status", "revision", "reason", "metadata", "occurred_at"
