@@ -120,6 +120,7 @@ export const InvoiceDraftContentSchema = z.object({
     description: z.string().trim().min(1).max(300),
     quantity: z.number().finite().positive().max(1_000_000),
     unitPrice: invoiceMoney,
+    vatApplicable: z.boolean().optional(),
   }).strict()).min(1).max(100),
   subtotal: invoiceMoney.refine((value) => value > 0, 'Subtotal must be positive'),
   vat: invoiceMoney,
