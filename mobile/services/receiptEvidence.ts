@@ -72,6 +72,11 @@ async function sha256File(uri: string): Promise<string> {
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
+function safeErrorMessage(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.replace(/https?:\\/\\/[^\\s)]+/gi, '[redacted-url]').slice(0, 500);
+}
+
 function validateInput(input: { filename: string; contentType: string }): void {
   if (!MIME_TYPES.has(input.contentType)) throw new Error('Unsupported receipt file type');
   if (!input.filename.trim() || input.filename.length > 255 || /[\\/\\0-\\x1f\\x7f]/.test(input.filename)) {
@@ -225,8 +230,8 @@ export async function resumeReceiptEvidenceUpload(clientUploadId: string): Promi
       throw new Error(`Receipt object upload failed with status ${upload.status}`);
     }
   } catch (error) {
-    await updateSession(clientUploadId, { status: 'UPLOAD_RETRY', last_error: String(error), next_attempt_at: new Date(Date.now() + Math.min(6 * 60 * 60 * 1000, 5000 * (2 ** Math.min(session.retry_count + 1, 12)))).toISOString() });
-    throw new Error(`Receipt upload is saved for retry. Recovery ID: ${clientUploadId}. ${String(error)}`);
+    await updateSession(clientUploadId, { status: 'UPLOAD_RETRY', last_error: safeErrorMessage(error), next_attempt_at: new Date(Date.now() + Math.min(6 * 60 * 60 * 1000, 5000 * (2 ** Math.min(session.retry_count + 1, 12)))).toISOString() });
+    throw new Error(`Receipt upload is saved for retry. Recovery ID: ${clientUploadId}. ${safeErrorMessage(error)}`);
   }
 
   await updateSession(clientUploadId, { status: 'VERIFY_PENDING' });
