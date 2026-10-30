@@ -2,6 +2,7 @@ import { InvoiceCreateOperationPayloadSchema } from '@taxbridge/contracts';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { OperationContext, OperationFailure, OperationResult } from '../registry';
+import { appendInvoiceLifecycleEvent, appendInvoiceRevision } from '../../services/invoice-lifecycle';
 
 /** Persist an invoice draft only. This handler never queues NRS submission or payment. */
 export async function handleInvoiceCreateOperation(context: OperationContext): Promise<OperationResult> {
@@ -65,7 +66,17 @@ export async function handleInvoiceCreateOperation(context: OperationContext): P
           status: 'draft',
           nrsCompliant: false,
         },
-        select: { id: true, userId: true, businessId: true, subtotal: true, vat: true, total: true, status: true, createdAt: true },
+      });
+
+      await appendInvoiceRevision(tx, invoice, context.userId);
+      await appendInvoiceLifecycleEvent(tx, {
+        invoiceId: invoice.id,
+        organizationId: context.organizationId,
+        actorUserId: context.userId,
+        eventType: 'DRAFT_CREATED',
+        fromApprovalStatus: null,
+        toApprovalStatus: 'DRAFT',
+        revision: invoice.version,
       });
 
       const result = {
