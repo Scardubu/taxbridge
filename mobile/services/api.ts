@@ -372,7 +372,7 @@ export async function verifyTin(
   tin: string,
 ): Promise<{ status: 'verified' | 'failed'; message?: string }> {
   const normalizedTin = tin.trim();
-  if (!/^\\d{8}$/.test(normalizedTin)) {
+  if (!/^\d{8}$/.test(normalizedTin)) {
     throw new ApiError(400, 'INVALID_TIN_FORMAT', 'TIN must contain exactly 8 digits.');
   }
 
