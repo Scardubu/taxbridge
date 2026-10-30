@@ -298,24 +298,10 @@ export async function patchBusinessProfile(
 export async function postComplianceEvent(
   event: ComplianceEventPayload,
 ): Promise<{ id: string; logged_at: string }> {
-  try {
-    return await apiRequest<{ id: string; logged_at: string }>('/api/v1/compliance-events', {
-      method: 'POST',
-      body: JSON.stringify(event),
-    });
-  } catch (error) {
-    if (!(error instanceof ApiError)) {
-      const { offlineQueue } = await import('./offlineQueue');
-      await offlineQueue.enqueue('COMPLIANCE_EVENT', {
-        event_type: event.event_type,
-        business_id: event.business_id,
-        metadata: event.metadata ?? {},
-        client_timestamp: event.client_timestamp ?? new Date().toISOString(),
-        source: event.source ?? 'mobile',
-      });
-    }
-    throw error;
-  }
+  return apiRequest<{ id: string; logged_at: string }>('/api/v1/compliance-events', {
+    method: 'POST',
+    body: JSON.stringify(event),
+  });
 }
 
 /**
@@ -325,32 +311,24 @@ export async function postComplianceEvent(
 export async function postInvoice(
   invoice: InvoicePayload,
 ): Promise<{ id: string; firs_ref?: string; status: string }> {
-  try {
-    const response = await apiRequest<{ id: string; firs_ref?: string; status: string }>('/api/v1/invoices', {
-      method: 'POST',
-      body: JSON.stringify(invoice),
-    });
+  const response = await apiRequest<{ id: string; firs_ref?: string; status: string }>('/api/v1/invoices', {
+    method: 'POST',
+    body: JSON.stringify(invoice),
+  });
 
-    await postComplianceEvent({
-      event_type: 'invoice_submitted',
-      metadata: {
-        invoice_id: response.id,
-        firs_ref: response.firs_ref,
-        status: response.status,
-      },
-      client_timestamp: new Date().toISOString(),
-      idempotency_key: `${invoice.idempotency_key}:event`,
-      source: 'mobile',
-    }).catch(() => undefined);
+  await postComplianceEvent({
+    event_type: 'invoice_submitted',
+    metadata: {
+      invoice_id: response.id,
+      firs_ref: response.firs_ref,
+      status: response.status,
+    },
+    client_timestamp: new Date().toISOString(),
+    idempotency_key: invoice.idempotency_key + ':event',
+    source: 'mobile',
+  }).catch(() => undefined);
 
-    return response;
-  } catch (error) {
-    if (!(error instanceof ApiError)) {
-      const { offlineQueue } = await import('./offlineQueue');
-      await offlineQueue.enqueue('INVOICE_SUBMIT', invoice as unknown as Record<string, unknown>);
-    }
-    throw error;
-  }
+  return response;
 }
 
 /**
@@ -410,18 +388,10 @@ export async function getAlerts(): Promise<AdminAlert[]> {
 export async function submitReceipt(
   payload: ReceiptPayload,
 ): Promise<{ id: string; vat_credit_ngn?: number; status: string }> {
-  try {
-    return await apiRequest<{ id: string; vat_credit_ngn?: number; status: string }>('/api/v1/receipts', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
-  } catch (error) {
-    if (!(error instanceof ApiError)) {
-      const { offlineQueue } = await import('./offlineQueue');
-      await offlineQueue.enqueue('RECEIPT_SUBMIT', payload as unknown as Record<string, unknown>);
-    }
-    throw error;
-  }
+  return apiRequest<{ id: string; vat_credit_ngn?: number; status: string }>('/api/v1/receipts', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
 }
 
 /**
@@ -430,18 +400,10 @@ export async function submitReceipt(
 export async function submitVatReturn(
   payload: VatReturnPayload,
 ): Promise<{ id: string; firs_ref: string; period: string }> {
-  try {
-    return await apiRequest<{ id: string; firs_ref: string; period: string }>('/api/v1/vat-returns', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
-  } catch (error) {
-    if (!(error instanceof ApiError)) {
-      const { offlineQueue } = await import('./offlineQueue');
-      await offlineQueue.enqueue('VAT_RETURN', payload as unknown as Record<string, unknown>);
-    }
-    throw error;
-  }
+  return apiRequest<{ id: string; firs_ref: string; period: string }>('/api/v1/vat-returns', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
 }
 
 /**

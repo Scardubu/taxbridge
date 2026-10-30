@@ -1,4 +1,4 @@
-import { ExpenseCreateOperationPayloadSchema, InvoiceCreateOperationPayloadSchema, ReceiptAttachOperationPayloadSchema, OperationEnvelopeSchema, InvoiceDraftContentSchema, InvoiceDraftUpdateRequestSchema, InvoiceLifecycleVersionRequestSchema, InvoiceRejectRequestSchema } from '../src/operations';
+import { ApprovedOfflineOperationEnvelopeSchema, ExpenseCreateOperationPayloadSchema, InvoiceCreateOperationPayloadSchema, ReceiptAttachOperationPayloadSchema, OperationEnvelopeSchema, InvoiceDraftContentSchema, InvoiceDraftUpdateRequestSchema, InvoiceLifecycleVersionRequestSchema, InvoiceRejectRequestSchema } from '../src/operations';
 
 describe('Phase 1C operation contracts', () => {
   const validPayload = {
@@ -140,6 +140,51 @@ describe('Phase 1C.6 invoice lifecycle contracts', () => {
       expectedVersion: 1,
       reason: 'Please correct the VAT details.',
       actorUserId: 'attacker',
+    }).success).toBe(false);
+  });
+});
+
+
+describe('approved offline operation envelope', () => {
+  const base = {
+    operationId: '8f9b9d3a-8a4b-4f2a-9d20-3b5f14e8b7a1',
+    idempotencyKey: 'phase1c-client-operation-0001',
+    operationType: 'crud',
+    schemaVersion: 1,
+    createdAt: '2026-10-30T10:00:00.000Z',
+  };
+
+  const receiptPayload = {
+    action: 'RECEIPT_ATTACH',
+    data: {
+      receiptEvidenceId: '0f9b9d3a-8a4b-4f2a-9d20-3b5f14e8b7a1',
+      expenseId: '1f9b9d3a-8a4b-4f2a-9d20-3b5f14e8b7a1',
+    },
+  };
+
+  it('accepts a reviewed CRUD v1 operation', () => {
+    expect(ApprovedOfflineOperationEnvelopeSchema.safeParse({
+      ...base, payload: receiptPayload,
+    }).success).toBe(true);
+  });
+
+  it('rejects filing, payment and unimplemented sync operation types', () => {
+    for (const operationType of ['filing', 'payment', 'sync']) {
+      expect(ApprovedOfflineOperationEnvelopeSchema.safeParse({
+        ...base, operationType, payload: receiptPayload,
+      }).success).toBe(false);
+    }
+  });
+
+  it('rejects legacy invoice-submit actions', () => {
+    expect(ApprovedOfflineOperationEnvelopeSchema.safeParse({
+      ...base, payload: { action: 'INVOICE_SUBMIT', data: {} },
+    }).success).toBe(false);
+  });
+
+  it('rejects unsupported schema versions', () => {
+    expect(ApprovedOfflineOperationEnvelopeSchema.safeParse({
+      ...base, schemaVersion: 2, payload: receiptPayload,
     }).success).toBe(false);
   });
 });

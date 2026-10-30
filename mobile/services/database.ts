@@ -446,4 +446,17 @@ async function runMigrations(db: SQLite.SQLiteDatabase): Promise<void> {
     v = 10;
   }
 
+  if (v < 11) {
+    await db.withExclusiveTransactionAsync(async tx => {
+      await tx.execAsync(`
+        ALTER TABLE offline_operations
+          ADD COLUMN server_accepted INTEGER NOT NULL DEFAULT 0;
+        CREATE INDEX IF NOT EXISTS idx_offline_ops_server_accepted
+          ON offline_operations (server_accepted, status, next_attempt_at);
+        PRAGMA user_version = 11;
+      `);
+    });
+    v = 11;
+  }
+
 }

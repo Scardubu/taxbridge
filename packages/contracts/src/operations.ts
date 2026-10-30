@@ -109,6 +109,19 @@ export const ReceiptAttachOperationPayloadSchema = z.object({
   }).strict(),
 }).strict();
 
+/** Only these CRUD payloads are approved for durable offline replay. */
+export const SupportedOfflineOperationPayloadSchema = z.discriminatedUnion('action', [
+  ExpenseCreateOperationPayloadSchema,
+  InvoiceCreateOperationPayloadSchema,
+  ReceiptAttachOperationPayloadSchema,
+]);
+
+export const ApprovedOfflineOperationEnvelopeSchema = OperationEnvelopeSchema.extend({
+  operationType: z.literal('crud'),
+  schemaVersion: z.literal(1),
+  payload: SupportedOfflineOperationPayloadSchema,
+});
+
 /** Editable financial/document fields shared by governed invoice routes. */
 export const InvoiceDraftContentSchema = z.object({
   customerName: z.string().trim().min(1).max(200),

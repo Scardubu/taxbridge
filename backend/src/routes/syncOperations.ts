@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { FastifyPluginAsync } from 'fastify';
 import { Prisma } from '@prisma/client';
-import { OperationEnvelopeSchema } from '@taxbridge/contracts';
+import { ApprovedOfflineOperationEnvelopeSchema, OperationEnvelopeSchema } from '@taxbridge/contracts';
 import { prisma } from '../lib/prisma';
 
 function canonical(value: unknown): string {
@@ -43,14 +43,25 @@ const routes: FastifyPluginAsync = async (app) => {
     if (!parsed.success) {
       return reply.code(400).send({
         error: 'VALIDATION_ERROR',
-        message: 'Operation payload is invalid',
+        message: 'Operation envelope is invalid',
         code: 'VALIDATION_ERROR',
         requestId: request.id,
         retryable: false,
       });
     }
 
-    const input = parsed.data;
+    const supported = ApprovedOfflineOperationEnvelopeSchema.safeParse(parsed.data);
+    if (!supported.success) {
+      return reply.code(422).send({
+        error: 'OPERATION_NOT_SUPPORTED',
+        message: 'Only reviewed CRUD v1 actions are eligible for offline execution',
+        code: 'OPERATION_NOT_SUPPORTED',
+        requestId: request.id,
+        retryable: false,
+      });
+    }
+
+    const input = supported.data;
     // Persist first. The operation worker records an explicit dead-letter state
     // when no approved handler is registered; clients can observe that outcome.
     const { orgId } = request.orgContext;

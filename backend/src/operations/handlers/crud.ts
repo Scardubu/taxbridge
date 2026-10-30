@@ -7,13 +7,13 @@ import { OperationContext, OperationFailure, OperationResult } from '../registry
 
 /** First approved offline CRUD operation with tenant-bound, transactional idempotency. */
 export async function handleCrudOperation(context: OperationContext): Promise<OperationResult> {
+  if (context.schemaVersion !== 1) {
+    throw new OperationFailure('Unsupported CRUD operation schema version', 'UNSUPPORTED_SCHEMA_VERSION', false);
+  }
   if (context.payload && typeof context.payload === 'object') {
     const action = (context.payload as { action?: unknown }).action;
     if (action === 'INVOICE_CREATE') return handleInvoiceCreateOperation(context);
     if (action === 'RECEIPT_ATTACH') return handleReceiptAttachOperation(context);
-  }
-  if (context.schemaVersion !== 1) {
-    throw new OperationFailure('Unsupported CRUD operation schema version', 'UNSUPPORTED_SCHEMA_VERSION', false);
   }
   const parsed = ExpenseCreateOperationPayloadSchema.safeParse(context.payload);
   if (!parsed.success) {

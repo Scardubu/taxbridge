@@ -62,6 +62,6 @@ export async function logComplianceEvent(
       source: context?.source ?? 'mobile',
     });
   } catch {
-    // postComplianceEvent already handles offline queue fallback for transport errors.
+    // Local history is retained; remote compliance-event delivery is best-effort and online-only.
   }
 }

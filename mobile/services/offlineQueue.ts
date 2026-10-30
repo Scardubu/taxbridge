@@ -1,29 +1,60 @@
 import * as Crypto from 'expo-crypto';
 import NetInfo from '@react-native-community/netinfo';
-import { OperationEnvelopeSchema, OperationResultSchema } from '@taxbridge/contracts';
+import { OperationResultSchema } from '@taxbridge/contracts';
+import type { OperationResult } from '@taxbridge/contracts';
 import { createExpenseOperationEnvelope, createInvoiceOperationEnvelope, createReceiptAttachOperationEnvelope } from './operationEnvelope';
 import { getDatabase } from './database';
 import { ApiError, apiRequest } from './api';
 
-export type OpType = 'EXPENSE_CREATE' | 'INVOICE_CREATE' | 'RECEIPT_ATTACH' | 'TIN_VERIFY' | 'VAT_REGISTER' | 'EINVOICE_SUBMIT' | 'INVOICE_SUBMIT' | 'RECEIPT_SUBMIT' | 'VAT_RETURN' | 'PROFILE_SYNC' | 'COMPLIANCE_EVENT';
+export type OpType = 'EXPENSE_CREATE' | 'INVOICE_CREATE' | 'RECEIPT_ATTACH';
 
 const MAX_BACKOFF_MS = 6 * 60 * 60 * 1000;
 const BASE_BACKOFF_MS = 5_000;
+const SERVER_STATUS_POLL_MS = 5_000;
+
+function isSupportedOfflineType(type: string): type is OpType {
+  return type === 'EXPENSE_CREATE' || type === 'INVOICE_CREATE' || type === 'RECEIPT_ATTACH';
+}
+
 function retryDelayMs(attempt: number): number {
   const exponential = Math.min(MAX_BACKOFF_MS, BASE_BACKOFF_MS * (2 ** Math.min(attempt, 12)));
   return exponential + Math.floor(Math.random() * Math.max(1, exponential * 0.2));
 }
+
 function asIsoUtc(sqliteDate: string): string {
   const normalized = sqliteDate.includes('T') ? sqliteDate : sqliteDate.replace(' ', 'T');
-  const withZone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(normalized) ? normalized : `${normalized}Z`;
+  const withZone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(normalized) ? normalized : normalized + 'Z';
   return new Date(withZone).toISOString();
 }
-function toOperationType(type: OpType): 'crud' | 'sync' | 'filing' {
-  if (type === 'EXPENSE_CREATE' || type === 'INVOICE_CREATE' || type === 'RECEIPT_ATTACH') return 'crud';
-  if (type === 'VAT_RETURN' || type === 'EINVOICE_SUBMIT' || type === 'INVOICE_SUBMIT') return 'filing';
-  if (type === 'PROFILE_SYNC' || type === 'COMPLIANCE_EVENT') return 'sync';
-  return 'crud';
+
+async function persistServerOperationResult(
+  db: Awaited<ReturnType<typeof getDatabase>>,
+  localId: number,
+  result: OperationResult,
+): Promise<void> {
+  if (result.status === 'acknowledged' || result.status === 'resolved') {
+    await db.runAsync(
+      "UPDATE offline_operations SET status='done', server_accepted=0, synced_at=datetime('now'), next_attempt_at=NULL, error_msg=NULL WHERE id=?",
+      [localId],
+    );
+    return;
+  }
+
+  if (result.status === 'dead_letter') {
+    await db.runAsync(
+      "UPDATE offline_operations SET status='dead', server_accepted=0, next_attempt_at=NULL, error_msg=? WHERE id=?",
+      [result.errorCode ?? 'OPERATION_DEAD_LETTERED', localId],
+    );
+    return;
+  }
+
+  const nextAttemptAt = result.retryAt ?? new Date(Date.now() + SERVER_STATUS_POLL_MS).toISOString();
+  await db.runAsync(
+    "UPDATE offline_operations SET status='pending', server_accepted=1, next_attempt_at=?, error_msg=? WHERE id=?",
+    [nextAttemptAt, result.errorCode, localId],
+  );
 }
+
 function isRetryable(error: unknown): boolean {
   if (error instanceof ApiError) {
     const details = error.details as { retryable?: unknown } | undefined;
@@ -62,6 +93,9 @@ export class OfflineQueue {
   }
 
   async enqueue(type: OpType, payload: Record<string, unknown>): Promise<void> {
+    if (!isSupportedOfflineType(type)) {
+      throw new Error('OFFLINE_OPERATION_NOT_SUPPORTED');
+    }
     const db = await getDatabase();
     const clientId = Crypto.randomUUID();
     await db.runAsync(
@@ -77,55 +111,104 @@ export class OfflineQueue {
       const network = await NetInfo.fetch();
       if (!network.isConnected || network.isInternetReachable === false) return;
       const db = await getDatabase();
+
+      // A process can restart during a request. Re-open the row without
+      // losing server_accepted: accepted work must be polled, not resubmitted.
       await db.runAsync("UPDATE offline_operations SET status='pending' WHERE status='syncing'");
+
       const operations = await db.getAllAsync<{
-        id: number; client_id: string; type: OpType; payload: string;
-        retry_count: number; max_retries: number; created_at: string;
+        id: number;
+        client_id: string;
+        type: string;
+        payload: string;
+        retry_count: number;
+        max_retries: number;
+        created_at: string;
+        server_accepted: number;
       }>(
-        `SELECT id, client_id, type, payload, retry_count, max_retries, created_at
+        \`SELECT id, client_id, type, payload, retry_count, max_retries, created_at, server_accepted
          FROM offline_operations
          WHERE status='pending' AND retry_count < max_retries
            AND (next_attempt_at IS NULL OR datetime(next_attempt_at) <= datetime('now'))
-         ORDER BY created_at ASC LIMIT 20`,
+         ORDER BY created_at ASC LIMIT 20\`,
       );
 
       for (const operation of operations) {
-        await db.runAsync("UPDATE offline_operations SET status='syncing' WHERE id=? AND status='pending'", [operation.id]);
+        if (!isSupportedOfflineType(operation.type)) {
+          // Legacy SQLite rows remain intact for audit but cannot be replayed
+          // to handlers that have not passed the operation governance gate.
+          await db.runAsync(
+            "UPDATE offline_operations SET status='dead', server_accepted=0, next_attempt_at=NULL, error_msg='UNSUPPORTED_OFFLINE_OPERATION' WHERE id=?",
+            [operation.id],
+          );
+          continue;
+        }
+
+        await db.runAsync(
+          "UPDATE offline_operations SET status='syncing' WHERE id=? AND status='pending'",
+          [operation.id],
+        );
+
+        if (operation.server_accepted === 1) {
+          try {
+            const response = await apiRequest<unknown>(
+              '/api/v1/sync/operations/' + encodeURIComponent(operation.client_id),
+            );
+            const result = OperationResultSchema.parse(response);
+            await persistServerOperationResult(db, operation.id, result);
+          } catch (error) {
+            if (error instanceof ApiError && error.status === 404) {
+              // Only a missing record permits re-submission. The original
+              // client ID/idempotency key are reused to prevent duplicate effects.
+              await db.runAsync(
+                "UPDATE offline_operations SET status='pending', server_accepted=0, next_attempt_at=NULL, error_msg=NULL WHERE id=?",
+                [operation.id],
+              );
+            } else {
+              // Poll failures do not consume the submission retry budget.
+              await db.runAsync(
+                "UPDATE offline_operations SET status='pending', server_accepted=1, next_attempt_at=?, error_msg='SERVER_STATUS_POLL_FAILED' WHERE id=?",
+                [new Date(Date.now() + SERVER_STATUS_POLL_MS).toISOString(), operation.id],
+              );
+            }
+          }
+          continue;
+        }
+
         try {
-          const rawPayload = { action: operation.type, data: JSON.parse(operation.payload) as Record<string, unknown> };
+          const data = JSON.parse(operation.payload) as Record<string, unknown>;
+          const createdAt = asIsoUtc(operation.created_at);
           const envelope = operation.type === 'EXPENSE_CREATE'
-            ? createExpenseOperationEnvelope(operation.client_id, rawPayload.data as Record<string, unknown>, asIsoUtc(operation.created_at))
+            ? createExpenseOperationEnvelope(operation.client_id, data, createdAt)
             : operation.type === 'INVOICE_CREATE'
-              ? createInvoiceOperationEnvelope(operation.client_id, rawPayload.data as Record<string, unknown>, asIsoUtc(operation.created_at))
-              : operation.type === 'RECEIPT_ATTACH'
-                ? createReceiptAttachOperationEnvelope(operation.client_id, rawPayload.data as { receiptEvidenceId: string; expenseId: string }, asIsoUtc(operation.created_at))
-                : OperationEnvelopeSchema.parse({
-                operationId: operation.client_id,
-                idempotencyKey: operation.client_id,
-                operationType: toOperationType(operation.type),
-                schemaVersion: 1,
-                payload: rawPayload,
-                createdAt: asIsoUtc(operation.created_at),
-              });
+              ? createInvoiceOperationEnvelope(operation.client_id, data, createdAt)
+              : createReceiptAttachOperationEnvelope(
+                  operation.client_id,
+                  data as { receiptEvidenceId: string; expenseId: string },
+                  createdAt,
+                );
+
           const response = await apiRequest<unknown>('/api/v1/sync/operations', {
-            method: 'POST', body: JSON.stringify(envelope),
+            method: 'POST',
+            body: JSON.stringify(envelope),
           });
           const result = OperationResultSchema.parse(response);
-          if (result.status === 'acknowledged' || result.status === 'resolved') {
-            await db.runAsync("UPDATE offline_operations SET status='done', synced_at=datetime('now'), next_attempt_at=NULL, error_msg=NULL WHERE id=?", [operation.id]);
-          } else if (result.status === 'dead_letter') {
-            await db.runAsync("UPDATE offline_operations SET status='dead', next_attempt_at=NULL, error_msg=? WHERE id=?", [result.errorCode ?? 'OPERATION_DEAD_LETTERED', operation.id]);
-          } else {
-            const nextAttemptAt = result.retryAt ?? new Date(Date.now() + 5_000).toISOString();
-            await db.runAsync("UPDATE offline_operations SET status='pending', next_attempt_at=?, error_msg=? WHERE id=?", [nextAttemptAt, result.errorCode, operation.id]);
-          }
+          await persistServerOperationResult(db, operation.id, result);
         } catch (error) {
           const retryCount = operation.retry_count + 1;
           const terminal = !isRetryable(error) || retryCount >= operation.max_retries;
-          const nextAttemptAt = terminal ? null : new Date(Date.now() + retryDelayMs(retryCount)).toISOString();
+          const nextAttemptAt = terminal
+            ? null
+            : new Date(Date.now() + retryDelayMs(retryCount)).toISOString();
           await db.runAsync(
-            'UPDATE offline_operations SET status=?, retry_count=?, next_attempt_at=?, error_msg=? WHERE id=?',
-            [terminal ? 'dead' : 'pending', retryCount, nextAttemptAt, String(error), operation.id],
+            'UPDATE offline_operations SET status=?, server_accepted=0, retry_count=?, next_attempt_at=?, error_msg=? WHERE id=?',
+            [
+              terminal ? 'dead' : 'pending',
+              retryCount,
+              nextAttemptAt,
+              error instanceof ApiError ? error.code : 'OPERATION_CLIENT_VALIDATION_FAILED',
+              operation.id,
+            ],
           );
         }
       }
@@ -137,17 +220,23 @@ export class OfflineQueue {
   async getPendingCount(): Promise<number> {
     try {
       const db = await getDatabase();
-      const result = await db.getFirstAsync<{ count: number }>("SELECT COUNT(*) as count FROM offline_operations WHERE status IN ('pending','syncing')");
+      const result = await db.getFirstAsync<{ count: number }>(
+        "SELECT COUNT(*) as count FROM offline_operations WHERE status IN ('pending','syncing')",
+      );
       return result?.count ?? 0;
     } catch { return 0; }
   }
+
   async getDeadLetterCount(): Promise<number> {
     try {
       const db = await getDatabase();
-      const result = await db.getFirstAsync<{ count: number }>("SELECT COUNT(*) as count FROM offline_operations WHERE status='dead'");
+      const result = await db.getFirstAsync<{ count: number }>(
+        "SELECT COUNT(*) as count FROM offline_operations WHERE status='dead'",
+      );
       return result?.count ?? 0;
     } catch { return 0; }
   }
+
   destroy(): void {
     this.unsubscribe?.();
     this.unsubscribe = null;
@@ -155,4 +244,5 @@ export class OfflineQueue {
     OfflineQueue.instance = null;
   }
 }
+
 export const offlineQueue = OfflineQueue.getInstance();
