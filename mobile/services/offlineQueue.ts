@@ -1,6 +1,7 @@
 import * as Crypto from 'expo-crypto';
 import NetInfo from '@react-native-community/netinfo';
-import { ExpenseCreateOperationPayloadSchema, OperationEnvelopeSchema, OperationResultSchema } from '@taxbridge/contracts';
+import { OperationEnvelopeSchema, OperationResultSchema } from '@taxbridge/contracts';
+import { createExpenseOperationEnvelope } from './operationEnvelope';
 import { getDatabase } from './database';
 import { ApiError, apiRequest } from './api';
 
@@ -84,17 +85,16 @@ export class OfflineQueue {
         await db.runAsync("UPDATE offline_operations SET status='syncing' WHERE id=? AND status='pending'", [operation.id]);
         try {
           const rawPayload = { action: operation.type, data: JSON.parse(operation.payload) as Record<string, unknown> };
-          const operationPayload = operation.type === 'EXPENSE_CREATE'
-            ? ExpenseCreateOperationPayloadSchema.parse(rawPayload)
-            : rawPayload;
-          const envelope = OperationEnvelopeSchema.parse({
-            operationId: operation.client_id,
-            idempotencyKey: operation.client_id,
-            operationType: toOperationType(operation.type),
-            schemaVersion: 1,
-            payload: operationPayload,
-            createdAt: asIsoUtc(operation.created_at),
-          });
+          const envelope = operation.type === 'EXPENSE_CREATE'
+            ? createExpenseOperationEnvelope(operation.client_id, rawPayload.data as Record<string, unknown>, asIsoUtc(operation.created_at))
+            : OperationEnvelopeSchema.parse({
+                operationId: operation.client_id,
+                idempotencyKey: operation.client_id,
+                operationType: toOperationType(operation.type),
+                schemaVersion: 1,
+                payload: rawPayload,
+                createdAt: asIsoUtc(operation.created_at),
+              });
           const response = await apiRequest<unknown>('/api/v1/sync/operations', {
             method: 'POST', body: JSON.stringify(envelope),
           });

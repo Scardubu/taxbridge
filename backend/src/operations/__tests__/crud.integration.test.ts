@@ -14,7 +14,6 @@ describeDatabase('Phase 1C expense operation — PostgreSQL integration', () => 
   let orgB: string;
   let businessA: string;
   let businessB: string;
-  const operationIds: string[] = [];
 
   const payloadFor = (businessId: string) => ({
     action: 'EXPENSE_CREATE',
@@ -31,7 +30,6 @@ describeDatabase('Phase 1C expense operation — PostgreSQL integration', () => 
 
   const contextFor = (overrides: Partial<OperationContext> = {}): OperationContext => {
     const operationId = overrides.operationId ?? randomUUID();
-    operationIds.push(operationId);
     return {
       operationId,
       organizationId: orgA,
@@ -87,20 +85,22 @@ describeDatabase('Phase 1C expense operation — PostgreSQL integration', () => 
   });
 
   it('commits the expense and idempotency receipt atomically', async () => {
+    const before = await prisma.expense.count({ where: { businessId: businessA } });
     const context = contextFor();
     const outcome = await handleCrudOperation(context);
     expect(outcome.result.entity).toBe('expense');
-    expect(await prisma.expense.count({ where: { businessId: businessA } })).toBe(1);
+    expect(await prisma.expense.count({ where: { businessId: businessA } })).toBe(before + 1);
     const receipt = await prisma.operationEffect.findUnique({ where: { operationId: context.operationId } });
     expect(receipt?.payloadFingerprint).toBe(context.payloadFingerprint);
   });
 
   it('returns the committed result on exact redelivery without creating another expense', async () => {
+    const before = await prisma.expense.count({ where: { businessId: businessA } });
     const context = contextFor();
     const first = await handleCrudOperation(context);
     const second = await handleCrudOperation(context);
     expect(second).toEqual(first);
-    expect(await prisma.expense.count({ where: { businessId: businessA } })).toBe(2);
+    expect(await prisma.expense.count({ where: { businessId: businessA } })).toBe(before + 1);
     expect(await prisma.operationEffect.count({ where: { operationId: context.operationId } })).toBe(1);
   });
 
@@ -123,6 +123,7 @@ describeDatabase('Phase 1C expense operation — PostgreSQL integration', () => 
   });
 
   it('survives concurrent duplicate delivery with only one committed domain effect', async () => {
+    const before = await prisma.expense.count({ where: { businessId: businessA } });
     const context = contextFor();
     const outcomes = await Promise.allSettled([
       handleCrudOperation(context),
@@ -135,7 +136,7 @@ describeDatabase('Phase 1C expense operation — PostgreSQL integration', () => 
       expect((outcome.reason as OperationFailure).retryable).toBe(true);
     }
     expect(await prisma.operationEffect.count({ where: { operationId: context.operationId } })).toBe(1);
-    expect(await prisma.expense.count({ where: { businessId: businessA } })).toBe(4);
+    expect(await prisma.expense.count({ where: { businessId: businessA } })).toBe(before + 1);
   });
 
   it('rejects unsupported schema versions before any write', async () => {
