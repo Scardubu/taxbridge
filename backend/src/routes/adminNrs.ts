@@ -158,6 +158,15 @@ export async function adminNrsRoutes(app: FastifyInstance, options: { prisma: Pr
         return reply.code(404).send({ success: false, error: 'Invoice not found' });
       }
 
+      if (invoice.businessId &&
+          (invoice.approvalStatus !== 'APPROVED' || invoice.approvedVersion !== invoice.version)) {
+        return reply.code(409).send({
+          success: false,
+          error: 'INVOICE_APPROVAL_REQUIRED',
+          message: 'Business-bound invoice requires approval of its current revision before NRS retry.',
+        });
+      }
+
       if (!redis) {
         return reply.code(503).send({ success: false, error: 'Queue service temporarily unavailable' });
       }
