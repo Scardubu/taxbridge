@@ -85,7 +85,11 @@ const complianceEventRoutes: FastifyPluginAsync = async (app) => {
       }
       return reply.send(cached.responseBody as CachedEventResponse);
     }
-    if (cached) await prisma.idempotencyCache.delete({ where: { key: scopedKey } });
+    if (cached) {
+      await prisma.idempotencyCache.deleteMany({
+        where: { key: scopedKey, createdAt: cached.createdAt },
+      });
+    }
 
     try {
       const response = await prisma.$transaction(async (tx) => {
