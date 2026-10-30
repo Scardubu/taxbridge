@@ -87,7 +87,8 @@ export default function ReceiptsScreen() {
       const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.85 });
       if (result.canceled || !result.assets[0]?.uri) return;
       const selected = result.assets[0];
-      const contentType = selected.mimeType ?? 'image/jpeg';
+      const extension = selected.fileName?.split('.').pop()?.toLowerCase();
+      const contentType = selected.mimeType ?? (extension === 'png' ? 'image/png' : extension === 'webp' ? 'image/webp' : 'image/jpeg');
       if (!['image/jpeg', 'image/png', 'image/webp'].includes(contentType)) {
         Alert.alert(t('common.error'), 'Choose a JPEG, PNG or WebP receipt image.');
         return;
