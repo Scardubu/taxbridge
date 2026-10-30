@@ -255,7 +255,7 @@ export async function resumeReceiptEvidenceUpload(clientUploadId: string): Promi
     } catch {
       // Preserve local evidence and server ID for an explicit or automatic retry.
     }
-    await updateSession(clientUploadId, { status: 'VERIFY_PENDING', last_error: String(error), next_attempt_at: new Date(Date.now() + Math.min(6 * 60 * 60 * 1000, 5000 * (2 ** Math.min(session.retry_count + 1, 12)))).toISOString() });
+    await updateSession(clientUploadId, { status: 'VERIFY_PENDING', last_error: safeErrorMessage(error), next_attempt_at: new Date(Date.now() + Math.min(6 * 60 * 60 * 1000, 5000 * (2 ** Math.min(session.retry_count + 1, 12)))).toISOString() });
     throw new Error(`Receipt verification is pending. Recovery ID: ${clientUploadId}. ${String(error)}`);
   }
 
