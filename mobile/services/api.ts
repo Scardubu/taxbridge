@@ -62,7 +62,7 @@ async function refreshAccessToken(): Promise<string | null> {
       if ([400, 401, 403].includes(response.status)) return null;
       const payload = await readErrorPayload(response);
       throw new ApiError(response.status,
-        typeof payload.code === 'string' ? payload.code : 'refresh_failed',
+        typeof payload.code === 'string' ? payload.code : typeof payload.error === 'string' ? payload.error : 'refresh_failed',
         typeof payload.message === 'string' ? payload.message : 'Token refresh failed',
         payload);
     }
@@ -133,7 +133,7 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}, has
       const retryPayload = await readErrorPayload(retryResponse);
       throw new ApiError(
         retryResponse.status,
-        typeof retryPayload.code === 'string' ? retryPayload.code : 'api_error',
+        typeof retryPayload.code === 'string' ? retryPayload.code : typeof retryPayload.error === 'string' ? retryPayload.error : 'api_error',
         typeof retryPayload.message === 'string' ? retryPayload.message : 'api_error',
         retryPayload,
       );
@@ -145,7 +145,7 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}, has
     const errorPayload = await readErrorPayload(response);
     throw new ApiError(
       response.status,
-      typeof errorPayload.code === 'string' ? errorPayload.code : 'api_error',
+      typeof errorPayload.code === 'string' ? errorPayload.code : typeof errorPayload.error === 'string' ? errorPayload.error : 'api_error',
       typeof errorPayload.message === 'string' ? errorPayload.message : 'api_error',
       errorPayload,
     );
@@ -212,17 +212,20 @@ export interface ComplianceEventPayload {
 }
 
 export interface InvoicePayload {
-  buyer_tin: string;
-  line_items: Array<{ description: string; quantity: number; unit_price: number; vat_rate: number }>;
-  invoice_date: string;
+  customerName?: string;
+  customerTIN?: string;
+  customerEndpointId?: string;
+  items: Array<{ description: string; quantity: number; unitPrice: number }>;
   idempotency_key: string;
 }
 
 export interface PaymentPayload {
-  amount: number;
-  description: string;
-  tax_type: string;
-  period: string;
+  invoiceId: string;
+  payerName: string;
+  payerEmail: string;
+  payerPhone: string;
+  gateway?: 'paystack' | 'flutterwave' | 'remita';
+  callbackUrl?: string;
   idempotency_key: string;
 }
 
@@ -310,25 +313,17 @@ export async function postComplianceEvent(
  */
 export async function postInvoice(
   invoice: InvoicePayload,
-): Promise<{ id: string; firs_ref?: string; status: string }> {
-  const response = await apiRequest<{ id: string; firs_ref?: string; status: string }>('/api/v1/invoices', {
+): Promise<{ invoiceId: string; status: string }> {
+  return apiRequest<{ invoiceId: string; status: string }>('/api/v1/invoices', {
     method: 'POST',
-    body: JSON.stringify(invoice),
+    headers: { 'Idempotency-Key': invoice.idempotency_key },
+    body: JSON.stringify({
+      customerName: invoice.customerName,
+      customerTIN: invoice.customerTIN,
+      customerEndpointId: invoice.customerEndpointId,
+      items: invoice.items,
+    }),
   });
-
-  await postComplianceEvent({
-    event_type: 'invoice_submitted',
-    metadata: {
-      invoice_id: response.id,
-      firs_ref: response.firs_ref,
-      status: response.status,
-    },
-    client_timestamp: new Date().toISOString(),
-    idempotency_key: invoice.idempotency_key + ':event',
-    source: 'mobile',
-  }).catch(() => undefined);
-
-  return response;
 }
 
 /**
@@ -337,24 +332,31 @@ export async function postInvoice(
  */
 export async function initiatePayment(
   payload: PaymentPayload,
-): Promise<{ remita_rrr: string; checkout_url: string }> {
+): Promise<{ rrr: string; paymentUrl: string | null; amount: number; gateway?: string }> {
   try {
-    const response = await apiRequest<{ remita_rrr: string; checkout_url: string }>('/api/v1/payments/initiate', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+    const response = await apiRequest<{ rrr: string; paymentUrl: string | null; amount: number; gateway?: string }>(
+      '/api/v1/payments/generate',
+      {
+        method: 'POST',
+        headers: { 'Idempotency-Key': payload.idempotency_key },
+        body: JSON.stringify({
+          invoiceId: payload.invoiceId,
+          payerName: payload.payerName,
+          payerEmail: payload.payerEmail,
+          payerPhone: payload.payerPhone,
+          gateway: payload.gateway,
+          callbackUrl: payload.callbackUrl,
+        }),
+      },
+    );
 
     const db = await getDatabase();
     await db.runAsync(
-      `INSERT INTO tax_payments (provider, remita_rrr, amount, currency, status)
-       VALUES ('remita', ?, ?, 'NGN', 'pending')`,
-      [response.remita_rrr, payload.amount]
+      "INSERT INTO tax_payments (provider, remita_rrr, amount, currency, status) VALUES (?, ?, ?, 'NGN', 'pending')",
+      [response.gateway ?? payload.gateway ?? 'remita', response.rrr, response.amount],
     );
-
     return response;
   } catch (error) {
-    // Never queue payment initiation for offline replay. A timeout may occur
-    // after provider acceptance; reconcile with the original idempotency key.
     if (!(error instanceof ApiError)) {
       Sentry.captureException(error, { tags: { operation: 'payment_initiation_outcome_unknown' } });
     }
@@ -368,11 +370,36 @@ export async function initiatePayment(
  */
 export async function verifyTin(
   tin: string,
-): Promise<{ status: 'pending' | 'verified' | 'failed'; message?: string }> {
-  return apiRequest<{ status: 'pending' | 'verified' | 'failed'; message?: string }>('/api/v1/tin/verify', {
-    method: 'POST',
-    body: JSON.stringify({ tin }),
-  });
+): Promise<{ status: 'verified' | 'failed'; message?: string }> {
+  const normalizedTin = tin.trim();
+  if (!/^\\d{8}$/.test(normalizedTin)) {
+    throw new ApiError(400, 'INVALID_TIN_FORMAT', 'TIN must contain exactly 8 digits.');
+  }
+
+  try {
+    const result = await apiRequest<{
+      valid: true;
+      entityName?: string;
+      entityType?: string;
+      registrationDate?: string;
+    }>('/api/v1/onboarding/tin', {
+      method: 'POST',
+      body: JSON.stringify({ tin: normalizedTin }),
+    });
+    return {
+      status: 'verified',
+      message: result.entityName ? 'TIN verified for ' + result.entityName : 'TIN verified',
+    };
+  } catch (error) {
+    if (
+      error instanceof ApiError &&
+      error.status === 422 &&
+      (error.details as JsonRecord | undefined)?.error === 'TIN_INVALID'
+    ) {
+      return { status: 'failed', message: error.message };
+    }
+    throw error;
+  }
 }
 
 /**

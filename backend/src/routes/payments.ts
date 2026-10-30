@@ -37,16 +37,25 @@ export default async function paymentRoutes(app: FastifyInstance, opts: { prisma
     gateway: z.string().optional()
   });
 
-  app.post('/api/v1/payments/generate', async (req, reply) => {
+  app.post('/api/v1/payments/generate', { preHandler: [app.authenticate] }, async (req, reply) => {
+    const userId = req.user.userId;
     const idempotencyKeyHeader = req.headers['idempotency-key'];
     const idempotencyKey = Array.isArray(idempotencyKeyHeader) ? idempotencyKeyHeader[0] : idempotencyKeyHeader;
-    const requestHash = computeRequestHash({ method: req.method, path: req.url, body: req.body });
+    if (idempotencyKey && idempotencyKey.length > 128) {
+      return reply.code(400).send({ error: 'INVALID_IDEMPOTENCY_KEY' });
+    }
+    const scopedIdempotencyKey = idempotencyKey ? 'payment:' + userId + ':' + idempotencyKey : undefined;
+    const requestHash = computeRequestHash({
+      method: req.method,
+      path: req.url,
+      body: { userId, payload: req.body },
+    });
 
-    if (idempotencyKey) {
-      const existing = await prisma.idempotencyCache.findUnique({ where: { key: idempotencyKey } });
+    if (scopedIdempotencyKey) {
+      const existing = await prisma.idempotencyCache.findUnique({ where: { key: scopedIdempotencyKey } });
       if (existing) {
         if (isIdempotencyExpired(existing.createdAt)) {
-          await prisma.idempotencyCache.delete({ where: { key: idempotencyKey } });
+          await prisma.idempotencyCache.delete({ where: { key: scopedIdempotencyKey } });
         } else {
         if (existing.requestHash !== requestHash) {
           return reply.status(409).send({ error: 'Idempotency-Key reuse with different request body' });
@@ -71,7 +80,7 @@ export default async function paymentRoutes(app: FastifyInstance, opts: { prisma
 
     const { invoiceId, payerName, payerEmail, payerPhone } = parsed.data;
 
-    const invoice = await prisma.invoice.findUnique({ where: { id: invoiceId } });
+    const invoice = await prisma.invoice.findFirst({ where: { id: invoiceId, userId } });
     if (!invoice) {
       const error = new NotFoundError('Invoice', invoiceId);
       return reply.status(error.statusCode).send(formatErrorResponse(error));
@@ -86,6 +95,13 @@ export default async function paymentRoutes(app: FastifyInstance, opts: { prisma
     if (existingPayment?.status === 'paid') {
       const error = new ValidationError('Invoice already paid', { paymentId: existingPayment.id });
       return reply.status(error.statusCode).send(formatErrorResponse(error));
+    }
+    if (existingPayment?.status === 'pending' || existingPayment?.status === 'processing') {
+      return reply.code(409).send({
+        error: 'PAYMENT_ALREADY_PENDING',
+        message: 'A payment attempt already exists for this invoice. Check its status before starting another.',
+        paymentId: existingPayment.id,
+      });
     }
 
     const { gateway: requestedGateway, callbackUrl } = parsed.data;
@@ -125,10 +141,10 @@ export default async function paymentRoutes(app: FastifyInstance, opts: { prisma
       gateway: initResult.gateway
     };
 
-    if (idempotencyKey) {
+    if (scopedIdempotencyKey) {
       await prisma.idempotencyCache.create({
         data: {
-          key: idempotencyKey,
+          key: scopedIdempotencyKey,
           requestHash,
           method: req.method,
           path: req.url,
