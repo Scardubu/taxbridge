@@ -85,23 +85,41 @@ export default async function receiptRoutes(app: FastifyInstance): Promise<void>
 
     const id = randomUUID();
     const uploadExpiresAt = new Date(Date.now() + UPLOAD_URL_TTL_SECONDS * 1000);
-    const record = await prisma.receiptEvidence.upsert({
-      where: { clientUploadId },
-      create: {
-        id, clientUploadId, organizationId: orgId, userId, businessId,
-        storageKey: `receipts/evidence/${orgId}/${id}`,
-        uploadKey: `receipts/staging/${orgId}/${id}`,
-        originalFilename: filename, contentType, byteSize,
-        sha256: sha256.toLowerCase(), status: 'PENDING_UPLOAD',
-        uploadExpiresAt, retentionUntil: retentionDate(),
-      },
-      update: {},
-      select: {
-        id: true, clientUploadId: true, userId: true, organizationId: true,
-        businessId: true, originalFilename: true, contentType: true, byteSize: true,
-        sha256: true, status: true, uploadKey: true, uploadExpiresAt: true,
-      },
-    });
+    const receiptSelect = {
+      id: true, clientUploadId: true, userId: true, organizationId: true,
+      businessId: true, originalFilename: true, contentType: true, byteSize: true,
+      sha256: true, status: true, uploadKey: true, uploadExpiresAt: true,
+    } as const;
+    type UploadIntentRecord = {
+      id: string; clientUploadId: string | null; userId: string; organizationId: string;
+      businessId: string; originalFilename: string; contentType: string; byteSize: number;
+      sha256: string; status: string; uploadKey: string; uploadExpiresAt: Date;
+    };
+    let record: UploadIntentRecord;
+    try {
+      record = await prisma.receiptEvidence.upsert({
+        where: { clientUploadId },
+        create: {
+          id, clientUploadId, organizationId: orgId, userId, businessId,
+          storageKey: `receipts/evidence/${orgId}/${id}`,
+          uploadKey: `receipts/staging/${orgId}/${id}`,
+          originalFilename: filename, contentType, byteSize,
+          sha256: sha256.toLowerCase(), status: 'PENDING_UPLOAD',
+          uploadExpiresAt, retentionUntil: retentionDate(),
+        },
+        update: {},
+        select: receiptSelect,
+      });
+    } catch (error) {
+      const code = typeof error === 'object' && error !== null && 'code' in error
+        ? (error as { code?: unknown }).code : undefined;
+      if (code !== 'P2002') throw error;
+      const raced = await prisma.receiptEvidence.findFirst({
+        where: { clientUploadId }, select: receiptSelect,
+      });
+      if (!raced) throw error;
+      record = raced;
+    }
     if (record.userId !== userId || record.organizationId !== orgId ||
         record.businessId !== businessId || record.originalFilename !== filename ||
         record.contentType !== contentType || record.byteSize !== byteSize ||
