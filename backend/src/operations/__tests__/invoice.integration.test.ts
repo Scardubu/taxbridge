@@ -7,7 +7,7 @@ import type { OperationContext } from '../registry';
 const enabled = process.env.PHASE1C_DATABASE_TESTS === '1';
 const describeDatabase = enabled ? describe : describe.skip;
 
-describeDatabase('Phase 1C.2 invoice draft — PostgreSQL integration', () => {
+describeDatabase('Phase 1C.2 and 1C.6 invoice lifecycle — PostgreSQL integration', () => {
   const suffix = randomUUID();
   let userId: string;
   let orgId: string;
@@ -68,16 +68,20 @@ describeDatabase('Phase 1C.2 invoice draft — PostgreSQL integration', () => {
         const invoiceRows = await prisma.invoice.findMany({ where: { userId }, select: { id: true } });
         const invoiceIds = invoiceRows.map((invoice) => invoice.id);
         if (invoiceIds.length) {
-          await prisma.$executeRawUnsafe('ALTER TABLE "invoice_lifecycle_events" DISABLE TRIGGER "invoice_lifecycle_events_append_only"');
-          await prisma.$executeRawUnsafe('ALTER TABLE "invoice_versions" DISABLE TRIGGER "invoice_versions_append_only"');
-          try {
-            await prisma.invoiceLifecycleEvent.deleteMany({ where: { invoiceId: { in: invoiceIds } } });
-            await prisma.invoiceVersion.deleteMany({ where: { invoiceId: { in: invoiceIds } } });
-            await prisma.invoice.deleteMany({ where: { id: { in: invoiceIds } } });
-          } finally {
-            await prisma.$executeRawUnsafe('ALTER TABLE "invoice_versions" ENABLE TRIGGER "invoice_versions_append_only"');
-            await prisma.$executeRawUnsafe('ALTER TABLE "invoice_lifecycle_events" ENABLE TRIGGER "invoice_lifecycle_events_append_only"');
-          }
+          // Keep trigger toggles and fixture cleanup in one transaction so other
+          // integration suites never observe a globally disabled audit trigger.
+          await prisma.$transaction(async (tx) => {
+            await tx.$executeRawUnsafe('ALTER TABLE "invoice_lifecycle_events" DISABLE TRIGGER "invoice_lifecycle_events_append_only"');
+            await tx.$executeRawUnsafe('ALTER TABLE "invoice_versions" DISABLE TRIGGER "invoice_versions_append_only"');
+            try {
+              await tx.invoiceLifecycleEvent.deleteMany({ where: { invoiceId: { in: invoiceIds } } });
+              await tx.invoiceVersion.deleteMany({ where: { invoiceId: { in: invoiceIds } } });
+              await tx.invoice.deleteMany({ where: { id: { in: invoiceIds } } });
+            } finally {
+              await tx.$executeRawUnsafe('ALTER TABLE "invoice_versions" ENABLE TRIGGER "invoice_versions_append_only"');
+              await tx.$executeRawUnsafe('ALTER TABLE "invoice_lifecycle_events" ENABLE TRIGGER "invoice_lifecycle_events_append_only"');
+            }
+          });
         }
         await prisma.operationEffect.deleteMany({ where: { userId } });
         await prisma.business.deleteMany({ where: { ownerId: userId } });
@@ -108,6 +112,17 @@ describeDatabase('Phase 1C.2 invoice draft — PostgreSQL integration', () => {
     expect(await prisma.invoiceLifecycleEvent.count({
       where: { invoiceId: String(outcome.result.entityId), eventType: 'DRAFT_CREATED', toApprovalStatus: 'DRAFT' },
     })).toBe(1);
+    const createdEvent = await prisma.invoiceLifecycleEvent.findFirstOrThrow({
+      where: { invoiceId: String(outcome.result.entityId), eventType: 'DRAFT_CREATED' },
+    });
+    await expect(prisma.invoiceVersion.update({
+      where: { invoiceId_version: { invoiceId: String(outcome.result.entityId), version: 1 } },
+      data: { changedBy: 'tampered-actor' },
+    })).rejects.toThrow(/append-only/i);
+    await expect(prisma.invoiceLifecycleEvent.update({
+      where: { id: createdEvent.id },
+      data: { reason: 'tampered audit record' },
+    })).rejects.toThrow(/append-only/i);
   });
 
   it('returns the same result on duplicate delivery without creating a second invoice', async () => {
