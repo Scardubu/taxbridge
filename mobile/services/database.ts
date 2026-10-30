@@ -283,4 +283,20 @@ async function runMigrations(db: SQLite.SQLiteDatabase): Promise<void> {
       `);
     });
   }
+  if (v < 6) {
+    await db.withExclusiveTransactionAsync(async tx => {
+      await tx.execAsync(`
+        ALTER TABLE offline_operations ADD COLUMN next_attempt_at TEXT;
+        UPDATE offline_operations
+          SET status = 'dead',
+              error_msg = 'Payment initiation is not eligible for automatic offline replay'
+          WHERE type = 'PAYMENT_INITIATE' AND status IN ('pending', 'syncing');
+        CREATE INDEX IF NOT EXISTS idx_offline_ops_due
+          ON offline_operations (status, next_attempt_at, created_at);
+        PRAGMA user_version = 6;
+      `);
+    });
+    v = 6;
+  }
+
 }

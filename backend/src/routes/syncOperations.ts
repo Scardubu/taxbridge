@@ -3,7 +3,6 @@ import { FastifyPluginAsync } from 'fastify';
 import { Prisma } from '@prisma/client';
 import { OperationEnvelopeSchema } from '@taxbridge/contracts';
 import { prisma } from '../lib/prisma';
-import { getOperationHandler } from '../operations/registry';
 
 function canonical(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`;
@@ -52,15 +51,8 @@ const routes: FastifyPluginAsync = async (app) => {
     }
 
     const input = parsed.data;
-    if (!getOperationHandler(input.operationType)) {
-      return reply.code(503).send({
-        error: 'OPERATION_HANDLER_UNAVAILABLE',
-        message: 'This operation type has no approved server handler and was not accepted',
-        code: 'OPERATION_HANDLER_UNAVAILABLE',
-        requestId: request.id,
-        retryable: true,
-      });
-    }
+    // Persist first. The operation worker records an explicit dead-letter state
+    // when no approved handler is registered; clients can observe that outcome.
     const { orgId } = request.orgContext;
     const fingerprint = createHash('sha256')
       .update(canonical({ operationType: input.operationType, schemaVersion: input.schemaVersion, payload: input.payload }))
@@ -150,7 +142,7 @@ const routes: FastifyPluginAsync = async (app) => {
             },
           },
         });
-        if (existing && existing.payloadFingerprint === fingerprint) {
+        if (existing && existing.userId === request.user.userId && existing.payloadFingerprint === fingerprint) {
           return reply.code(200).send({
             operationId: existing.operationId,
             status: existing.status,

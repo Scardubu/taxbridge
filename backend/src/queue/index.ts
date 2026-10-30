@@ -6,6 +6,8 @@ import { prisma } from '../lib/prisma';
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
+initialiseObservability();
+
 import { closeRedisConnection, getRedisConnection, toBullMQConnection } from './client';
 import { submitToDigiTax } from '../../integrations/digitax/adapter';
 import { DigiTaxError } from '../../integrations/digitax/adapter';
@@ -14,6 +16,9 @@ import { validateUblXml } from '../lib/ubl/validate';
 import { createLogger } from '../lib/logger';
 import { notifyInvoiceStamped } from '../services/notifications';
 import { createDeviceSyncWorker } from '../workers/syncWorker';
+import { startOperationWorker } from '../operations/operation-worker';
+import { dispatchOutboxBatch, closeOutboxDispatcher } from '../operations/outbox-dispatcher';
+import { initialiseObservability } from '../lib/observability';
 
 
 const log = createLogger('worker');
@@ -201,6 +206,19 @@ export const invoiceSyncWorker = new Worker(
 );
 
 const deviceSyncWorker = createDeviceSyncWorker();
+const operationWorker = startOperationWorker();
+let outboxDispatching = false;
+const configuredOutboxPollIntervalMs = Number.parseInt(process.env.OUTBOX_POLL_INTERVAL_MS || '1000', 10);
+const outboxPollIntervalMs = Number.isFinite(configuredOutboxPollIntervalMs) && configuredOutboxPollIntervalMs >= 100 ? configuredOutboxPollIntervalMs : 1000;
+async function pollOperationOutbox(): Promise<void> {
+  if (outboxDispatching) return;
+  outboxDispatching = true;
+  try { await dispatchOutboxBatch(100); }
+  catch (error) { log.error('Operation outbox dispatch failed', { err: error }); }
+  finally { outboxDispatching = false; }
+}
+void pollOperationOutbox();
+const outboxTimer = setInterval(() => { void pollOperationOutbox(); }, outboxPollIntervalMs);
 
 invoiceSyncWorker.on('completed', (job, result) => {
   log.info('job completed', {

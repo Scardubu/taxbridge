@@ -54,7 +54,6 @@ import cryptoRoutes             from './routes/crypto';
 import reconciliationRoutes     from './routes/reconciliation';
 import syncRoutes                from './routes/sync';
 import syncOperationRoutes        from './routes/syncOperations';
-import adminSyncRoutes             from './routes/adminSync';
 
 // Webhook Route imports
 import flutterwaveWebhook    from './routes/webhooks/flutterwave';
@@ -178,8 +177,9 @@ export async function buildApp(): Promise<FastifyInstance> {
   // sync.ts owns its explicit /api/v1 paths; register exactly once.
   await fastify.register(syncRoutes);
   await fastify.register(syncOperationRoutes);
-  // Privileged routes are consumed through the authenticated dashboard server proxy.
-  await fastify.register(adminSyncRoutes);
+  // adminSyncRoutes intentionally remains unregistered until its dashboard
+  // server proxy supplies a verified JWT principal. The legacy module relies
+  // on a browser-visible API key and caller-controlled actor headers.
   await fastify.register(flutterwaveWebhook,  { prefix: '/webhooks' });
   await fastify.register(paystackWebhook,     { prefix: '/webhooks' });
   await fastify.register(remitaWebhook,       { prefix: '/webhooks' });

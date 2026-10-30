@@ -1,103 +1,114 @@
 import * as Crypto from 'expo-crypto';
 import NetInfo from '@react-native-community/netinfo';
+import { OperationEnvelopeSchema, OperationResultSchema } from '@taxbridge/contracts';
 import { getDatabase } from './database';
-import { apiRequest } from './api';
+import { ApiError, apiRequest } from './api';
 
-export type OpType =
-  | 'TIN_VERIFY'
-  | 'VAT_REGISTER'
-  | 'EINVOICE_SUBMIT'
-  | 'INVOICE_SUBMIT'
-  | 'RECEIPT_SUBMIT'
-  | 'VAT_RETURN'
-  | 'PROFILE_SYNC'
-  | 'PAYMENT_INITIATE'
-  | 'COMPLIANCE_EVENT';
+export type OpType = 'TIN_VERIFY' | 'VAT_REGISTER' | 'EINVOICE_SUBMIT' | 'INVOICE_SUBMIT' | 'RECEIPT_SUBMIT' | 'VAT_RETURN' | 'PROFILE_SYNC' | 'COMPLIANCE_EVENT';
+
+const MAX_BACKOFF_MS = 6 * 60 * 60 * 1000;
+const BASE_BACKOFF_MS = 5_000;
+function retryDelayMs(attempt: number): number {
+  const exponential = Math.min(MAX_BACKOFF_MS, BASE_BACKOFF_MS * (2 ** Math.min(attempt, 12)));
+  return exponential + Math.floor(Math.random() * Math.max(1, exponential * 0.2));
+}
+function asIsoUtc(sqliteDate: string): string {
+  const normalized = sqliteDate.includes('T') ? sqliteDate : sqliteDate.replace(' ', 'T');
+  const withZone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(normalized) ? normalized : `${normalized}Z`;
+  return new Date(withZone).toISOString();
+}
+function toOperationType(type: OpType): 'crud' | 'sync' | 'filing' {
+  if (type === 'VAT_RETURN' || type === 'EINVOICE_SUBMIT' || type === 'INVOICE_SUBMIT') return 'filing';
+  if (type === 'PROFILE_SYNC' || type === 'COMPLIANCE_EVENT') return 'sync';
+  return 'crud';
+}
+function isRetryable(error: unknown): boolean {
+  if (error instanceof ApiError) {
+    const details = error.details as { retryable?: unknown } | undefined;
+    if (typeof details?.retryable === 'boolean') return details.retryable;
+    return error.status === 408 || error.status === 429 || error.status >= 500;
+  }
+  return true;
+}
 
 export class OfflineQueue {
   private static instance: OfflineQueue | null = null;
   private flushing = false;
   private unsubscribe: (() => void) | null = null;
   private ready = false;
-
-  // eslint-disable-next-line @typescript-eslint/no-empty-function
   private constructor() {}
 
-  /** Call once after the database has been initialised */
   start(): void {
     if (this.ready) return;
     this.ready = true;
     this.unsubscribe = NetInfo.addEventListener((state) => {
-      if (state.isConnected && !this.flushing) {
-        this.flush().catch(() => undefined);
-      }
+      if (state.isConnected && state.isInternetReachable !== false && !this.flushing) void this.flush();
     });
   }
 
   static getInstance(): OfflineQueue {
-    if (!OfflineQueue.instance) {
-      OfflineQueue.instance = new OfflineQueue();
-    }
+    if (!OfflineQueue.instance) OfflineQueue.instance = new OfflineQueue();
     return OfflineQueue.instance;
   }
 
   async enqueue(type: OpType, payload: Record<string, unknown>): Promise<void> {
     const db = await getDatabase();
-    const clientId = typeof Crypto.randomUUID === 'function'
-      ? Crypto.randomUUID()
-      : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-
+    const clientId = Crypto.randomUUID();
     await db.runAsync(
       'INSERT OR IGNORE INTO offline_operations (client_id, type, payload) VALUES (?,?,?)',
-      [clientId, type, JSON.stringify({ ...payload, clientId })]
+      [clientId, type, JSON.stringify(payload)],
     );
   }
 
   async flush(): Promise<void> {
     if (this.flushing) return;
     this.flushing = true;
-    const db = await getDatabase();
-
     try {
+      const network = await NetInfo.fetch();
+      if (!network.isConnected || network.isInternetReachable === false) return;
+      const db = await getDatabase();
       await db.runAsync("UPDATE offline_operations SET status='pending' WHERE status='syncing'");
-
       const operations = await db.getAllAsync<{
-        id: number;
-        client_id: string;
-        type: string;
-        payload: string;
-        retry_count: number;
-        max_retries: number;
+        id: number; client_id: string; type: OpType; payload: string;
+        retry_count: number; max_retries: number; created_at: string;
       }>(
-        `SELECT id, client_id, type, payload, retry_count, max_retries
+        `SELECT id, client_id, type, payload, retry_count, max_retries, created_at
          FROM offline_operations
-         WHERE status = 'pending' AND retry_count < max_retries
-         ORDER BY created_at ASC
-         LIMIT 20`
+         WHERE status='pending' AND retry_count < max_retries
+           AND (next_attempt_at IS NULL OR datetime(next_attempt_at) <= datetime('now'))
+         ORDER BY created_at ASC LIMIT 20`,
       );
 
       for (const operation of operations) {
-        await db.runAsync("UPDATE offline_operations SET status='syncing' WHERE id=?", [operation.id]);
-
+        await db.runAsync("UPDATE offline_operations SET status='syncing' WHERE id=? AND status='pending'", [operation.id]);
         try {
-          await apiRequest('/api/v1/sync/operations', {
-            method: 'POST',
-            body: JSON.stringify({
-              clientId: operation.client_id,
-              type: operation.type,
-              payload: JSON.parse(operation.payload),
-            }),
+          const envelope = OperationEnvelopeSchema.parse({
+            operationId: operation.client_id,
+            idempotencyKey: operation.client_id,
+            operationType: toOperationType(operation.type),
+            schemaVersion: 1,
+            payload: { action: operation.type, data: JSON.parse(operation.payload) as Record<string, unknown> },
+            createdAt: asIsoUtc(operation.created_at),
           });
-
-          await db.runAsync(
-            "UPDATE offline_operations SET status='done', synced_at=datetime('now') WHERE id=?",
-            [operation.id]
-          );
+          const response = await apiRequest<unknown>('/api/v1/sync/operations', {
+            method: 'POST', body: JSON.stringify(envelope),
+          });
+          const result = OperationResultSchema.parse(response);
+          if (result.status === 'acknowledged' || result.status === 'resolved') {
+            await db.runAsync("UPDATE offline_operations SET status='done', synced_at=datetime('now'), next_attempt_at=NULL, error_msg=NULL WHERE id=?", [operation.id]);
+          } else if (result.status === 'dead_letter') {
+            await db.runAsync("UPDATE offline_operations SET status='dead', next_attempt_at=NULL, error_msg=? WHERE id=?", [result.errorCode ?? 'OPERATION_DEAD_LETTERED', operation.id]);
+          } else {
+            const nextAttemptAt = result.retryAt ?? new Date(Date.now() + 5_000).toISOString();
+            await db.runAsync("UPDATE offline_operations SET status='pending', next_attempt_at=?, error_msg=? WHERE id=?", [nextAttemptAt, result.errorCode, operation.id]);
+          }
         } catch (error) {
           const retryCount = operation.retry_count + 1;
+          const terminal = !isRetryable(error) || retryCount >= operation.max_retries;
+          const nextAttemptAt = terminal ? null : new Date(Date.now() + retryDelayMs(retryCount)).toISOString();
           await db.runAsync(
-            'UPDATE offline_operations SET status=?, retry_count=?, error_msg=? WHERE id=?',
-            [retryCount >= operation.max_retries ? 'dead' : 'pending', retryCount, String(error), operation.id]
+            'UPDATE offline_operations SET status=?, retry_count=?, next_attempt_at=?, error_msg=? WHERE id=?',
+            [terminal ? 'dead' : 'pending', retryCount, nextAttemptAt, String(error), operation.id],
           );
         }
       }
@@ -109,32 +120,22 @@ export class OfflineQueue {
   async getPendingCount(): Promise<number> {
     try {
       const db = await getDatabase();
-      const result = await db.getFirstAsync<{ count: number }>(
-        "SELECT COUNT(*) as count FROM offline_operations WHERE status IN ('pending', 'syncing')"
-      );
+      const result = await db.getFirstAsync<{ count: number }>("SELECT COUNT(*) as count FROM offline_operations WHERE status IN ('pending','syncing')");
       return result?.count ?? 0;
-    } catch {
-      return 0;
-    }
+    } catch { return 0; }
   }
-
-  /** Returns the number of operations that exhausted all retries and are in the dead-letter state. */
   async getDeadLetterCount(): Promise<number> {
     try {
       const db = await getDatabase();
-      const result = await db.getFirstAsync<{ count: number }>(
-        "SELECT COUNT(*) as count FROM offline_operations WHERE status = 'dead'"
-      );
+      const result = await db.getFirstAsync<{ count: number }>("SELECT COUNT(*) as count FROM offline_operations WHERE status='dead'");
       return result?.count ?? 0;
-    } catch {
-      return 0;
-    }
+    } catch { return 0; }
   }
-
-  destroy() {
+  destroy(): void {
     this.unsubscribe?.();
+    this.unsubscribe = null;
+    this.ready = false;
     OfflineQueue.instance = null;
   }
 }
-
 export const offlineQueue = OfflineQueue.getInstance();

@@ -1,4 +1,4 @@
-import * as Device from 'expo-device';
+import * as SecureStore from 'expo-secure-store';
 import * as Crypto from 'expo-crypto';
 import * as Sentry from '@sentry/react-native';
 import { TokenService } from './tokenService';
@@ -24,12 +24,19 @@ function getBaseUrl(): string {
   return process.env.EXPO_PUBLIC_API_URL ?? 'https://api.taxbridge.ng';
 }
 
+const INSTALLATION_ID_KEY = 'taxbridge.installation_id.v1';
+
 async function getDeviceId(): Promise<string> {
   deviceIdPromise ??= (async () => {
-    const generated = typeof Crypto.randomUUID === 'function'
-      ? Crypto.randomUUID()
-      : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-    return Device.osInternalBuildId ?? Device.deviceName ?? generated;
+    const stored = await SecureStore.getItemAsync(INSTALLATION_ID_KEY);
+    if (stored && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(stored)) return stored;
+    const bytes = await Crypto.getRandomBytesAsync(16);
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    const hex = Array.from(bytes, (value) => value.toString(16).padStart(2, '0')).join('');
+    const installationId = `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+    await SecureStore.setItemAsync(INSTALLATION_ID_KEY, installationId);
+    return installationId;
   })();
   return deviceIdPromise;
 }
@@ -52,7 +59,12 @@ async function refreshAccessToken(): Promise<string | null> {
     });
 
     if (!response.ok) {
-      return null;
+      if ([400, 401, 403].includes(response.status)) return null;
+      const payload = await readErrorPayload(response);
+      throw new ApiError(response.status,
+        typeof payload.code === 'string' ? payload.code : 'refresh_failed',
+        typeof payload.message === 'string' ? payload.message : 'Token refresh failed',
+        payload);
     }
 
     const data = (await response.json()) as { accessToken?: string; refreshToken?: string };
@@ -103,27 +115,30 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}, has
   const response = await executeRequest(path, options, accessToken);
 
   if (response.status === 401 && !hasRetried) {
-    try {
-      const newAccessToken = await refreshAccessToken();
-      if (!newAccessToken) {
-        throw new ApiError(401, 'session_expired', 'Session expired');
-      }
-      const retryResponse = await executeRequest(path, options, newAccessToken);
-      if (!retryResponse.ok) {
-        const retryPayload = await readErrorPayload(retryResponse);
-        throw new ApiError(
-          retryResponse.status,
-          typeof retryPayload.code === 'string' ? retryPayload.code : 'api_error',
-          typeof retryPayload.message === 'string' ? retryPayload.message : 'api_error',
-          retryPayload,
-        );
-      }
-      return retryResponse.json() as Promise<T>;
-    } catch {
+    // Only definitive refresh-token rejection invalidates the local session.
+    // Transient refresh and retried-request failures must preserve the session.
+    const newAccessToken = await refreshAccessToken();
+    if (!newAccessToken) {
       await TokenService.clearTokens();
       await useAuthStore.getState().logout();
       throw new ApiError(401, 'session_expired', 'Session expired');
     }
+    const retryResponse = await executeRequest(path, options, newAccessToken);
+    if (retryResponse.status === 401) {
+      await TokenService.clearTokens();
+      await useAuthStore.getState().logout();
+      throw new ApiError(401, 'session_expired', 'Session expired');
+    }
+    if (!retryResponse.ok) {
+      const retryPayload = await readErrorPayload(retryResponse);
+      throw new ApiError(
+        retryResponse.status,
+        typeof retryPayload.code === 'string' ? retryPayload.code : 'api_error',
+        typeof retryPayload.message === 'string' ? retryPayload.message : 'api_error',
+        retryPayload,
+      );
+    }
+    return retryResponse.json() as Promise<T>;
   }
 
   if (!response.ok) {
@@ -360,9 +375,10 @@ export async function initiatePayment(
 
     return response;
   } catch (error) {
+    // Never queue payment initiation for offline replay. A timeout may occur
+    // after provider acceptance; reconcile with the original idempotency key.
     if (!(error instanceof ApiError)) {
-      const { offlineQueue } = await import('./offlineQueue');
-      await offlineQueue.enqueue('PAYMENT_INITIATE', payload as unknown as Record<string, unknown>);
+      Sentry.captureException(error, { tags: { operation: 'payment_initiation_outcome_unknown' } });
     }
     throw error;
   }

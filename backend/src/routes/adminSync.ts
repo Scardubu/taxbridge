@@ -8,11 +8,11 @@ import { enqueueDeviceSync } from '../queue/client';
 const log = createLogger('admin-sync-routes');
 
 function getAdminActor(request: FastifyRequest): { userId: string; role: string } | null {
-  const userId = request.headers['x-admin-user-id'];
-  const role = request.headers['x-admin-role'];
-  if (typeof userId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(userId)) return null;
-  if (typeof role !== 'string' || !['ADMIN', 'SUPER_ADMIN'].includes(role.toUpperCase())) return null;
-  return { userId, role: role.toUpperCase() };
+  const user = request.user;
+  if (!user || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(user.userId)) return null;
+  const role = user.role.toUpperCase();
+  if (!['ADMIN', 'SUPER_ADMIN'].includes(role)) return null;
+  return { userId: user.userId, role };
 }
 
 // Feature flag check
@@ -27,12 +27,16 @@ const ForceSyncSchema = z.object({
 });
 
 export default async function adminSyncRoutes(app: FastifyInstance) {
-  // Admin authentication middleware
+  // Require a backend-verified JWT principal and an admin role. The API key
+  // is an additional server-to-server control, never a substitute for identity.
   app.addHook('preHandler', async (request: FastifyRequest, reply: FastifyReply) => {
-    await requireAdminApiKey(request, reply);
-    if (reply.sent) {
-      return reply;
+    await app.authenticate(request, reply);
+    if (reply.sent) return reply;
+    if (!['ADMIN', 'SUPER_ADMIN'].includes(request.user.role.toUpperCase())) {
+      return reply.code(403).send({ error: 'ADMIN_ROLE_REQUIRED', code: 'ADMIN_ROLE_REQUIRED' });
     }
+    await requireAdminApiKey(request, reply);
+    if (reply.sent) return reply;
   });
 
   // GET /api/admin/devices - List all devices with status
