@@ -144,7 +144,7 @@ export default async function receiptRoutes(app: FastifyInstance): Promise<void>
       where: { id: params.data.id, userId, organizationId: orgId },
     });
     if (!record) return reply.code(404).send({ error: 'RECEIPT_NOT_FOUND' });
-    if (record.status === 'UPLOADED' || record.status === 'ATTACHED') {
+    if (['QUARANTINED', 'SCANNING', 'CLEAN', 'ATTACHED', 'INFECTED', 'SCAN_FAILED'].includes(record.status)) {
       return reply.send({ receiptEvidenceId: record.id, status: record.status, verifiedAt: record.verifiedAt?.toISOString() ?? null });
     }
     if (record.status !== 'PENDING_UPLOAD' || record.uploadExpiresAt <= new Date()) {
@@ -211,9 +211,10 @@ export default async function receiptRoutes(app: FastifyInstance): Promise<void>
     const updated = await prisma.$transaction(async (tx) => {
       const result = await tx.receiptEvidence.updateMany({
         where: { id: record.id, userId, organizationId: orgId, status: 'PENDING_UPLOAD' },
-        data: { status: 'UPLOADED', verifiedAt },
+        data: { status: 'QUARANTINED', verifiedAt },
       });
       if (result.count === 1) {
+        await tx.receiptProcessingJob.create({ data: { receiptEvidenceId: record.id, status: 'PENDING' } });
         await tx.auditEvent.create({ data: {
           orgId, userId, action: 'RECEIPT_UPLOAD_VERIFIED', resource: 'ReceiptEvidence',
           resourceId: record.id, metadata: { businessId: record.businessId, byteSize: record.byteSize, sha256: record.sha256 },
@@ -227,12 +228,12 @@ export default async function receiptRoutes(app: FastifyInstance): Promise<void>
         where: { id: record.id, userId, organizationId: orgId },
         select: { status: true, verifiedAt: true },
       });
-      if (current?.status === 'UPLOADED' || current?.status === 'ATTACHED') {
+      if (current && ['QUARANTINED', 'SCANNING', 'CLEAN', 'ATTACHED'].includes(current.status)) {
         return reply.send({ receiptEvidenceId: record.id, status: current.status, verifiedAt: current.verifiedAt?.toISOString() ?? null });
       }
       return reply.code(409).send({ error: 'RECEIPT_STATE_CONFLICT' });
     }
     await client.send(new DeleteObjectCommand({ Bucket: config.bucket, Key: record.uploadKey })).catch(() => undefined);
-    return reply.send({ receiptEvidenceId: record.id, status: 'UPLOADED', verifiedAt: verifiedAt.toISOString() });
+    return reply.send({ receiptEvidenceId: record.id, status: 'QUARANTINED', verifiedAt: verifiedAt.toISOString() });
   });
 }
