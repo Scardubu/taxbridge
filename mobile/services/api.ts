@@ -215,9 +215,9 @@ export interface ComplianceEventPayload {
   event_type: string;
   business_id?: string;
   metadata?: Record<string, unknown>;
-  client_timestamp?: string;
-  idempotency_key?: string;
-  source?: 'mobile' | 'admin' | 'firs' | 'system';
+  client_timestamp: string;
+  idempotency_key: string;
+  source: 'mobile';
 }
 
 export interface InvoicePayload {
@@ -236,15 +236,6 @@ export interface PaymentPayload {
   gateway?: 'paystack' | 'flutterwave' | 'remita';
   callbackUrl?: string;
   idempotency_key: string;
-}
-
-export interface AdminAlert {
-  id: string;
-  type: string;
-  message: string;
-  severity: 'info' | 'warning' | 'critical';
-  created_at: string;
-  action_url?: string;
 }
 
 export interface ReceiptPayload {
@@ -424,6 +415,7 @@ export async function postComplianceEvent(
 ): Promise<{ id: string; logged_at: string }> {
   return apiRequest<{ id: string; logged_at: string }>('/api/v1/compliance-events', {
     method: 'POST',
+    headers: { 'Idempotency-Key': event.idempotency_key },
     body: JSON.stringify(event),
   });
 }
@@ -527,10 +519,6 @@ export async function verifyTin(
 /**
  * Fetch pending admin-broadcast alerts for the authenticated user.
  */
-export async function getAlerts(): Promise<AdminAlert[]> {
-  return apiRequest<AdminAlert[]>('/api/v1/alerts');
-}
-
 /**
  * Submit a scanned receipt for backend validation and VAT credit processing.
  */

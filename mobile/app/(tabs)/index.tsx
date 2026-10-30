@@ -18,7 +18,6 @@ import { type ComplianceNudge, generateNudges } from '../../services/nudgeEngine
 import { offlineQueue } from '../../services/offlineQueue';
 import { RECEIPT_FALLBACK_BUSINESS_ID } from '../../services/receiptService';
 import { sseService } from '../../services/sseService';
-import { getAlerts } from '../../services/api';
 import { logComplianceEvent } from '../../services/complianceEventService';
 import { markPaymentConfirmed } from '../../services/paymentService';
 import { TokenService } from '../../services/tokenService';
@@ -166,22 +165,8 @@ export default function DashboardTab() {
 
       sseService.connect(token);
 
-      try {
-        const alerts = await getAlerts();
-        alerts.slice().reverse().forEach((alert) => {
-          useNudgeStore.getState().prependNudge({
-            id: `admin-alert-${alert.id}`,
-            title: t('dashboard.nudgeCards.adminAlert.title'),
-            body: alert.message,
-            severity: alert.severity,
-            priority: mapSeverityToPriority(alert.severity),
-            actionLabel: t('dashboard.nudgeCards.adminAlert.action'),
-            route: alert.action_url ?? '/(tabs)/compliance',
-            external: typeof alert.action_url === 'string' && /^https?:\/\//.test(alert.action_url),
-            source: 'admin',
-          });
-        });
-      } catch {
+      // Tenant-facing admin alerts are delivered by the authenticated SSE
+      // stream; the database alerts table contains global system events. catch {
         // alerts fetch is non-critical; SSE still connects
       }
     })();
