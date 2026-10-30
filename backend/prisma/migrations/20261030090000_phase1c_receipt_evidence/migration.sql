@@ -19,7 +19,8 @@ CREATE TABLE "receipt_evidence" (
   CONSTRAINT "receipt_evidence_pkey" PRIMARY KEY ("id"),
   CONSTRAINT "receipt_evidence_byte_size_check" CHECK ("byte_size" > 0 AND "byte_size" <= 10485760),
   CONSTRAINT "receipt_evidence_sha256_check" CHECK ("sha256" ~ '^[a-f0-9]{64}$'),
-  CONSTRAINT "receipt_evidence_status_check" CHECK ("status" IN ('PENDING_UPLOAD','UPLOADED','ATTACHED','REJECTED','EXPIRED'))
+  CONSTRAINT "receipt_evidence_status_check" CHECK ("status" IN ('PENDING_UPLOAD','UPLOADED','ATTACHED','REJECTED','EXPIRED')),
+  CONSTRAINT "receipt_evidence_content_type_check" CHECK ("content_type" IN ('image/jpeg','image/png','image/webp','application/pdf'))
 );
 
 CREATE UNIQUE INDEX "receipt_evidence_storage_key_key" ON "receipt_evidence"("storage_key");
@@ -36,4 +37,4 @@ ALTER TABLE "receipt_evidence"
   ADD CONSTRAINT "receipt_evidence_business_id_fkey"
   FOREIGN KEY ("business_id") REFERENCES "businesses"("id") ON DELETE RESTRICT ON UPDATE CASCADE,
   ADD CONSTRAINT "receipt_evidence_expense_id_fkey"
-  FOREIGN KEY ("expense_id") REFERENCES "expenses"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+  FOREIGN KEY ("expense_id") REFERENCES "expenses"("id") ON DELETE SET NULL ON UPDATE CASCADE;
