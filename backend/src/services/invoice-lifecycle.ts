@@ -225,8 +225,12 @@ export async function updateInvoiceDraft(input: {
     if (!['DRAFT', 'REJECTED'].includes(invoice.approvalStatus)) {
       throw new InvoiceLifecycleError('Only an unsubmitted or rejected invoice draft can be edited', 'INVOICE_NOT_EDITABLE', 409);
     }
-    if (invoice.approvalStatus === 'REJECTED' && sameDraft(invoice, input.draft)) {
-      throw new InvoiceLifecycleError('A rejected invoice must be substantively revised before resubmission', 'INVOICE_REVISION_REQUIRED', 409);
+    if (sameDraft(invoice, input.draft)) {
+      const code = invoice.approvalStatus === 'REJECTED' ? 'INVOICE_REVISION_REQUIRED' : 'INVOICE_NO_CHANGES';
+      const message = invoice.approvalStatus === 'REJECTED'
+        ? 'A rejected invoice must be substantively revised before resubmission'
+        : 'The submitted draft is identical to the current revision';
+      throw new InvoiceLifecycleError(message, code, 409);
     }
 
     const changed = await tx.invoice.updateMany({
