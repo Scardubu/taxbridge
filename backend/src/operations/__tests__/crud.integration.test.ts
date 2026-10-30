@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { prisma } from '../../lib/prisma';
 import { handleCrudOperation } from '../handlers/crud';
-import { OperationContext, OperationFailure } from '../registry';
+import { OperationFailure } from '../registry';
+import type { OperationContext } from '../registry';
 
 const enabled = process.env.PHASE1C_DATABASE_TESTS === '1';
 const describeDatabase = enabled ? describe : describe.skip;

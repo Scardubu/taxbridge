@@ -1,4 +1,5 @@
-import { ExpenseCreateOperationPayloadSchema, OperationEnvelopeSchema, OperationEnvelope } from '@taxbridge/contracts';
+import { ExpenseCreateOperationPayloadSchema, OperationEnvelopeSchema } from '@taxbridge/contracts';
+import type { OperationEnvelope } from '@taxbridge/contracts';
 
 /** Build the only CRUD operation currently approved for offline execution. */
 export function createExpenseOperationEnvelope(
