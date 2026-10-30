@@ -77,6 +77,17 @@ export async function handleReceiptAttachOperation(context: OperationContext): P
         throw new OperationFailure('Receipt attachment state changed concurrently', 'RECEIPT_STATE_CONFLICT', true);
       }
 
+      await tx.auditEvent.create({
+        data: {
+          orgId: context.organizationId,
+          userId: context.userId,
+          action: 'RECEIPT_ATTACHED',
+          resource: 'ReceiptEvidence',
+          resourceId: receipt.id,
+          metadata: { expenseId: expense.id, businessId: expense.businessId },
+        },
+      });
+
       const result = {
         entity: 'receipt_evidence',
         entityId: receipt.id,
