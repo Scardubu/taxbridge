@@ -64,7 +64,7 @@ export default async function businessRoutes(app: FastifyInstance, opts: { prism
   // POST /api/v1/business — Create a business
   // =========================================================================
 
-  app.post('/api/v1/business', { preHandler: [app.authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
+  app.post('/api/v1/business', { preHandler: [app.authenticate, app.resolveOrgContext] }, async (request: FastifyRequest, reply: FastifyReply) => {
     try {
       const userId = request.user.userId;
       const body = CreateBusinessSchema.parse(request.body);
@@ -79,6 +79,7 @@ export default async function businessRoutes(app: FastifyInstance, opts: { prism
       const business = await prisma.business.create({
         data: {
           ownerId: userId,
+          organizationId: request.orgContext.orgId,
           name: body.name,
           cacNumber: body.cacNumber,
           tin: body.tin,

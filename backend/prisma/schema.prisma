@@ -123,6 +123,7 @@ enum BusinessType {
 model Business {
   id              String          @id @default(uuid()) @db.Uuid
   ownerId         String          @map("owner_id") @db.Uuid
+  organizationId  String?         @map("org_id") @db.Uuid
   name            String
   cacNumber       String?         @unique @map("cac_number")
   tin             String?         @unique
@@ -146,12 +147,14 @@ model Business {
   updatedAt       DateTime        @updatedAt @map("updated_at")
 
   owner           User            @relation(fields: [ownerId], references: [id])
+  organization    Org?            @relation(fields: [organizationId], references: [id])
   invoices        Invoice[]
   employees       Employee[]
   expenses        Expense[]
   taxRemittances  TaxRemittance[]
 
   @@index([ownerId])
+  @@index([organizationId])
   @@index([tin])
   @@index([status])
   @@index([cacNumber])
@@ -923,6 +926,7 @@ model Org {
   createdAt       DateTime    @default(now()) @map("created_at")
 
   members         OrgMember[]
+  businesses      Business[]
   auditEvents     AuditEvent[]
 
   @@index([tin])
@@ -1162,4 +1166,19 @@ model OperationDeadLetter {
   @@index([organizationId, resolutionStatus, createdAt])
   @@index([operationType, resolutionStatus])
   @@map("operation_dead_letters")
+}
+
+
+/// Transactional idempotency receipt for committed domain effects.
+model OperationEffect {
+  id                 String   @id @default(uuid()) @db.Uuid
+  operationId        String   @unique @map("operation_id") @db.Uuid
+  organizationId     String   @map("organization_id") @db.Uuid
+  userId             String   @map("user_id") @db.Uuid
+  payloadFingerprint String   @map("payload_fingerprint")
+  result             Json
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  @@index([organizationId, createdAt])
+  @@map("operation_effects")
 }

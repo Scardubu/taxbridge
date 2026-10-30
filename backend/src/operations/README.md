@@ -8,23 +8,24 @@
 - `dead_letter`: terminal failure; a durable `OperationDeadLetter` row exists.
 
 ## Required handler guarantees
-Every registered handler must:
-1. Validate payload by operation type and schema version.
-2. Re-check the organization and resource ownership using server-side records.
-3. Use the operation idempotency key in the domain transaction.
-4. Never trust user/device/org IDs from the payload.
-5. For external effects, persist provider intent/reference before or atomically with dispatch where possible.
-6. Use provider idempotency keys where supported.
-7. Treat timeouts after provider submission as unknown and reconcile before another submission.
-8. Throw `OperationFailure` with `retryable=true` only for transient errors where repeating the handler is safe.
-9. Throw non-retryable `OperationFailure` for validation, authorization, unsupported, and terminal business errors.
-10. Never convert ambiguous payment or filing outcomes into success.
+Every handler validates its payload/schema version, derives actor and organization from the persisted operation, re-checks resource ownership in the same tenant, uses transactional idempotency, ignores client-supplied identity/approval/status fields, and treats external provider timeouts as ambiguous until reconciled.
 
-## Retry policy
-The approved policy is eight automatic attempts, 2-second base delay, exponential backoff, full jitter, 15-minute cap, and 24-hour operation deadline. The retry counter and deadline live in PostgreSQL. BullMQ is a transport, not the retry authority.
+## Phase 1C registered operation
+
+The first registered handler is deliberately narrow:
+- operation type: `crud`
+- action: `EXPENSE_CREATE`
+- schema version: `1`
+- required payload: business ID, amount, category, description, ISO date, VAT amount and VAT eligibility.
+
+The handler requires the business owner and `Business.organizationId` to match the persisted operation. It writes the expense plus an `operation_effects` receipt in one serializable PostgreSQL transaction. The receipt is unique on `operation_id`; concurrent duplicate execution rolls back the losing transaction and is retried against the committed receipt. The payload cannot choose user, organization, status, approval, or payment state.
+
+Business records are organization-bound on creation. Legacy businesses are backfilled only when the owner has exactly one active organization membership; ambiguous/unmapped rows remain unbound and cannot receive offline writes until explicitly reconciled.
+
+Other CRUD actions and all `sync`, `filing`, and `payment` operations remain unsupported and fail closed. VAT eligibility is required explicitly; this handler does not infer tax treatment.
 
 ## Payment and filing rule
-After an operation enters `dead_letter`, it is never automatically enqueued again. Recovery requires explicit authorization and provider reconciliation. Do not implement an admin "retry" button that simply requeues a payment or filing.
+Payment initiation and filing operations must never be automatically replayed after an ambiguous external outcome. Recovery requires explicit authorization and provider reconciliation.
 
-## Important implementation note
-This overlay does not include concrete domain handlers. Registering a handler is a security-sensitive act and requires reviewing the corresponding domain service and external-provider behavior. Until those handlers, an audited manual resolution endpoint, and end-to-end tests are present, this operation pipeline is not ready for production traffic.
+## Release gate
+The pipeline is not production-ready until remaining handlers, audited resolution controls, contract compatibility tests, and PostgreSQL-backed end-to-end integration tests pass.
