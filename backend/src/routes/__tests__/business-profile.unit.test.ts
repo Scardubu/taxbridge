@@ -34,6 +34,7 @@ const mockBusiness = {
 const mockPrisma = {
   business: {
     findFirst: jest.fn(),
+    create: jest.fn(),
     update: jest.fn(),
   },
   auditLog: { create: jest.fn() },
@@ -51,6 +52,10 @@ describe('Business profile persistence contract', () => {
   beforeEach(async () => {
     jest.clearAllMocks();
     mockPrisma.business.findFirst.mockResolvedValue({ ...mockBusiness });
+    mockPrisma.business.create.mockImplementation(async ({ data }: { data: Record<string, unknown> }) => ({
+      ...mockBusiness,
+      ...data,
+    }));
     mockPrisma.business.update.mockImplementation(async ({ data }: { data: Record<string, unknown> }) => ({
       ...mockBusiness,
       ...data,
@@ -58,6 +63,9 @@ describe('Business profile persistence contract', () => {
     }));
     mockPrisma.auditLog.create.mockResolvedValue({});
     app = Fastify({ logger: false });
+    (app as any).decorate('resolveOrgContext', async (request: any) => {
+      request.orgContext = { orgId: 'org-a' };
+    });
     (app as any).decorate('authenticate', async (request: any, reply: any) => {
       const authorization = request.headers.authorization;
       if (authorization !== 'Bearer user-a') return reply.code(401).send({ error: 'UNAUTHORIZED' });
@@ -123,6 +131,46 @@ describe('Business profile persistence contract', () => {
     expect(body.data.hasValidTIN).toBe(false);
     expect(body.data.annualTurnover).toBe(45_000_000);
     expect(mockPrisma.auditLog.create).toHaveBeenCalledTimes(1);
+  });
+
+  it('creates a business with the full profile when no server business exists', async () => {
+    mockPrisma.business.findFirst.mockResolvedValue(null);
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/business',
+      headers: { authorization: 'Bearer user-a' },
+      payload: {
+        name: 'New Business',
+        rcNumber: 'RC123456',
+        tin: '12345678',
+        tradingName: 'Trading Name',
+        sector: 'Technology',
+        annualTurnover: 45_000_000,
+        monthlyRevenue: 3_500_000,
+        totalFixedAssets: 12_000_000,
+        employeeCount: 8,
+        isVatRegistered: true,
+        vatNumber: 'VAT-123',
+        businessType: 'limited_company',
+        address: { state: 'Lagos', lga: 'Ikeja' },
+      },
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(mockPrisma.business.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        ownerId: 'user-a',
+        organizationId: 'org-a',
+        cacNumber: 'RC123456',
+        tradingName: 'Trading Name',
+        sector: 'Technology',
+        annualTurnover: 45_000_000,
+        employeeCount: 8,
+        isVatRegistered: true,
+        addressLga: 'Ikeja',
+        businessType: 'LIMITED_COMPANY',
+      }),
+    });
   });
 
   it('does not accept a client assertion of TIN verification', async () => {

@@ -290,37 +290,78 @@ export interface TaxCalculationRequest {
 export async function patchBusinessProfile(
   payload: Partial<BusinessProfilePayload>,
 ): Promise<BackendBusinessProfile> {
-  const response = await apiRequest<{
-    success: true;
-    data: BackendBusinessProfile;
-  }>('/api/v1/business/profile', {
-    method: 'PUT',
-    body: JSON.stringify({
-      businessName: payload.businessName,
-      tradingName: payload.tradingName,
-      tin: payload.tin,
-      rcNumber: payload.rcNumber,
-      sector: payload.sector,
-      businessType: payload.businessType,
-      annualTurnover: payload.annualTurnover,
-      monthlyRevenue: payload.monthlyRevenue,
-      totalFixedAssets: payload.totalFixedAssets,
-      employeeCount: payload.employeeCount,
-      isVatRegistered: payload.isVatRegistered,
-      vatNumber: payload.vatNumber,
-      lga: payload.lga,
-      state: payload.state,
-      phone: payload.phone,
-      email: payload.email,
-      // hasValidTIN is deliberately omitted: only provider verification can
-      // set the server-side tinVerified flag.
-    }),
-  });
+  const requestBody = {
+    name: payload.businessName,
+    tradingName: payload.tradingName,
+    tin: payload.tin,
+    rcNumber: payload.rcNumber,
+    sector: payload.sector,
+    businessType: payload.businessType,
+    annualTurnover: payload.annualTurnover,
+    monthlyRevenue: payload.monthlyRevenue,
+    totalFixedAssets: payload.totalFixedAssets,
+    employeeCount: payload.employeeCount,
+    isVatRegistered: payload.isVatRegistered,
+    vatNumber: payload.vatNumber,
+    lga: payload.lga,
+    state: payload.state,
+    phone: payload.phone,
+    email: payload.email,
+    // hasValidTIN is deliberately omitted: only provider verification can
+    // set the server-side tinVerified flag.
+  };
 
-  if (!response || response.success !== true || !response.data?.id) {
-    throw new ApiError(502, 'INVALID_BUSINESS_PROFILE_RESPONSE', 'The server returned an invalid business profile response.');
+  try {
+    const response = await apiRequest<{
+      success: true;
+      data: BackendBusinessProfile;
+    }>('/api/v1/business/profile', {
+      method: 'PUT',
+      body: JSON.stringify(requestBody),
+    });
+
+    if (!response || response.success !== true || !response.data?.id) {
+      throw new ApiError(502, 'INVALID_BUSINESS_PROFILE_RESPONSE', 'The server returned an invalid business profile response.');
+    }
+    return response.data;
+  } catch (error) {
+    if (!(error instanceof ApiError) || error.status !== 404) throw error;
+
+    const businessName = payload.businessName?.trim();
+    if (!businessName) {
+      throw new ApiError(400, 'BUSINESS_NAME_REQUIRED', 'Enter a business name before creating your business profile.');
+    }
+
+    const created = await apiRequest<{
+      success: true;
+      data: { business: BackendBusinessProfile };
+    }>('/api/v1/business', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: businessName,
+        cacNumber: payload.rcNumber,
+        tin: payload.tin,
+        email: payload.email,
+        phone: payload.phone,
+        tradingName: payload.tradingName,
+        sector: payload.sector,
+        annualTurnover: payload.annualTurnover,
+        monthlyRevenue: payload.monthlyRevenue,
+        totalFixedAssets: payload.totalFixedAssets,
+        employeeCount: payload.employeeCount,
+        isVatRegistered: payload.isVatRegistered,
+        vatNumber: payload.vatNumber,
+        businessType: payload.businessType,
+        address: { state: payload.state, lga: payload.lga },
+      }),
+    });
+
+    const business = created?.data?.business;
+    if (!created || created.success !== true || !business?.id) {
+      throw new ApiError(502, 'INVALID_BUSINESS_PROFILE_RESPONSE', 'The server did not create a valid business profile.');
+    }
+    return business;
   }
-  return response.data;
 }
 
 /**
