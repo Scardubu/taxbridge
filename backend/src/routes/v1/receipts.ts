@@ -17,6 +17,7 @@ const RETENTION_YEARS = 7;
 const ALLOWED_CONTENT_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'] as const;
 
 const CreateIntentSchema = z.object({
+  clientUploadId: z.string().uuid(),
   businessId: z.string().uuid(),
   filename: z.string().trim().min(1).max(255).refine((value) => !/[\\/\\0-\\x1f\\x7f]/.test(value), 'Filename contains invalid characters'),
   contentType: z.enum(ALLOWED_CONTENT_TYPES),
@@ -70,7 +71,7 @@ export default async function receiptRoutes(app: FastifyInstance): Promise<void>
       return reply.code(400).send({ error: 'VALIDATION_ERROR', issues: parsed.error.issues });
     }
 
-    const { businessId, filename, contentType, byteSize, sha256 } = parsed.data;
+    const { clientUploadId, businessId, filename, contentType, byteSize, sha256 } = parsed.data;
     const userId = (request as any).user.userId as string;
     const orgId = (request as any).orgContext.orgId as string;
     const business = await prisma.business.findFirst({
@@ -82,55 +83,61 @@ export default async function receiptRoutes(app: FastifyInstance): Promise<void>
     }
 
     const id = randomUUID();
-    const storageKey = `receipts/evidence/${orgId}/${id}`;
-    const uploadKey = `receipts/staging/${orgId}/${id}`;
     const uploadExpiresAt = new Date(Date.now() + UPLOAD_URL_TTL_SECONDS * 1000);
-    const record = await prisma.receiptEvidence.create({
-      data: {
-        id,
-        organizationId: orgId,
-        userId,
-        businessId,
-        storageKey,
-        uploadKey,
-        originalFilename: filename,
-        contentType,
-        byteSize,
-        sha256: sha256.toLowerCase(),
-        status: 'PENDING_UPLOAD',
-        uploadExpiresAt,
-        retentionUntil: retentionDate(),
+    const record = await prisma.receiptEvidence.upsert({
+      where: { clientUploadId },
+      create: {
+        id, clientUploadId, organizationId: orgId, userId, businessId,
+        storageKey: `receipts/evidence/${orgId}/${id}`,
+        uploadKey: `receipts/staging/${orgId}/${id}`,
+        originalFilename: filename, contentType, byteSize,
+        sha256: sha256.toLowerCase(), status: 'PENDING_UPLOAD',
+        uploadExpiresAt, retentionUntil: retentionDate(),
       },
-      select: { id: true, status: true, uploadExpiresAt: true },
+      update: {},
+      select: {
+        id: true, clientUploadId: true, userId: true, organizationId: true,
+        businessId: true, originalFilename: true, contentType: true, byteSize: true,
+        sha256: true, status: true, uploadKey: true, uploadExpiresAt: true,
+      },
     });
-
-    try {
-      const config = storageConfig();
-      const client = getStorageClient();
-      const command = new PutObjectCommand({
-        Bucket: config.bucket,
-        Key: uploadKey,
-        ContentType: contentType,
-        ContentLength: byteSize,
-        Metadata: { sha256: sha256.toLowerCase() },
-      });
-      const uploadUrl = await getSignedUrl(client, command, { expiresIn: UPLOAD_URL_TTL_SECONDS });
-      await prisma.auditEvent.create({ data: {
-        orgId, userId, action: 'RECEIPT_UPLOAD_INTENT_CREATED', resource: 'ReceiptEvidence',
-        resourceId: record.id, metadata: { businessId, contentType, byteSize, sha256: sha256.toLowerCase() },
-        ipAddress: request.ip ?? null, userAgent: request.headers['user-agent'] ?? null,
-      } });
-      return reply.code(201).send({
-        receiptEvidenceId: record.id,
-        uploadUrl,
-        requiredHeaders: { 'content-type': contentType, 'x-amz-meta-sha256': sha256.toLowerCase() },
-        expiresAt: record.uploadExpiresAt.toISOString(),
-        maxBytes: MAX_RECEIPT_BYTES,
-      });
-    } catch (error) {
-      await prisma.receiptEvidence.delete({ where: { id: record.id } });
-      throw error;
+    if (record.userId !== userId || record.organizationId !== orgId ||
+        record.businessId !== businessId || record.originalFilename !== filename ||
+        record.contentType !== contentType || record.byteSize !== byteSize ||
+        record.sha256 !== sha256.toLowerCase()) {
+      return reply.code(409).send({ error: 'CLIENT_UPLOAD_ID_CONFLICT', message: 'This local upload identifier is already bound to different evidence metadata' });
     }
+    if (record.status !== 'PENDING_UPLOAD') {
+      return reply.send({
+        receiptEvidenceId: record.id, status: record.status, alreadyProcessed: true,
+      });
+    }
+
+    const refreshed = await prisma.receiptEvidence.update({
+      where: { id: record.id },
+      data: { uploadExpiresAt },
+      select: { id: true, uploadExpiresAt: true, uploadKey: true },
+    });
+    const config = storageConfig();
+    const client = getStorageClient();
+    const command = new PutObjectCommand({
+      Bucket: config.bucket, Key: refreshed.uploadKey,
+      ContentType: contentType, ContentLength: byteSize,
+      Metadata: { sha256: sha256.toLowerCase() },
+    });
+    const uploadUrl = await getSignedUrl(client, command, { expiresIn: UPLOAD_URL_TTL_SECONDS });
+    await prisma.auditEvent.create({ data: {
+      orgId, userId, action: 'RECEIPT_UPLOAD_INTENT_ISSUED', resource: 'ReceiptEvidence',
+      resourceId: record.id, metadata: { clientUploadId, businessId, contentType, byteSize, sha256: sha256.toLowerCase() },
+      ipAddress: request.ip ?? null, userAgent: request.headers['user-agent'] ?? null,
+    } });
+    return reply.code(201).send({
+      receiptEvidenceId: record.id,
+      uploadUrl,
+      requiredHeaders: { 'content-type': contentType, 'x-amz-meta-sha256': sha256.toLowerCase() },
+      expiresAt: refreshed.uploadExpiresAt.toISOString(),
+      maxBytes: MAX_RECEIPT_BYTES,
+    });
   });
 
   app.post<{ Params: { id: string } }>('/receipts/:id/complete', {
