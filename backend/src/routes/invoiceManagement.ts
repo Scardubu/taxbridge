@@ -193,7 +193,8 @@ export default async function invoiceManagementRoutes(
       const result = await invoiceService.listInvoices({
         userId,
         ...parsed.data,
-        businessId: parsed.data.businessId ?? orgId,
+        businessId: parsed.data.businessId,
+        organizationId: orgId,
       });
 
       return reply.send({
@@ -218,10 +219,13 @@ export default async function invoiceManagementRoutes(
   }, async (req, reply) => {
     const { orgId } = req.orgContext;
     const { userId } = req.user;
-    const businessId = (req.query as Record<string, string>)?.businessId ?? orgId;
+    const parsed = ListQuerySchema.pick({ businessId: true }).safeParse(req.query);
+    if (!parsed.success) {
+      return reply.status(400).send({ success: false, error: 'Invalid businessId filter' });
+    }
 
     try {
-      const stats = await invoiceService.getInvoiceStats(userId, businessId);
+      const stats = await invoiceService.getInvoiceStats(userId, parsed.data.businessId, orgId);
       return reply.send({ success: true, data: stats });
     } catch (err: any) {
       log.error('Failed to get invoice stats', { err });
@@ -243,7 +247,7 @@ export default async function invoiceManagementRoutes(
     const { id } = req.params as z.infer<typeof IdParamSchema>;
 
     try {
-      const invoice = await invoiceService.getInvoice(id, userId);
+      const invoice = await invoiceService.getInvoice(id, userId, req.orgContext.orgId);
       if (!invoice) {
         return reply.status(404).send({
           success: false,
@@ -390,7 +394,7 @@ export default async function invoiceManagementRoutes(
     const options = parsed.success ? parsed.data : { includeQR: true, includeNRSBadge: true };
 
     try {
-      const invoice = await invoiceService.getInvoice(id, userId);
+      const invoice = await invoiceService.getInvoice(id, userId, req.orgContext.orgId);
       if (!invoice) {
         return reply.status(404).send({
           success: false,
