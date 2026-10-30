@@ -30,6 +30,7 @@ import dashboardRoutes       from './routes/v1/dashboard';
 import onboardingRoutes      from './routes/v1/onboarding';
 import filingsRoutes         from './routes/v1/filings';
 import complianceRoutes      from './routes/v1/compliance';
+import complianceEventRoutes from './routes/compliance-events';
 import documentsRoutes       from './routes/v1/documents';
 import receiptRoutes          from './routes/v1/receipts';
 import invoiceLifecycleRoutes from './routes/v1/invoice-lifecycle';
@@ -161,6 +162,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   await fastify.register(onboardingRoutes,   { prefix: '/api/v1/onboarding' });
   await fastify.register(filingsRoutes,      { prefix: '/api/v1/filings' });
   await fastify.register(complianceRoutes,   { prefix: '/api/v1/compliance' });
+  await fastify.register(complianceEventRoutes);
   await fastify.register(payrollRoutes,      { prisma });
   await fastify.register(documentsRoutes,    { prefix: '/api/v1' });
   await fastify.register(receiptRoutes,      { prefix: '/api/v1' });
