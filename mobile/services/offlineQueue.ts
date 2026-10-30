@@ -128,7 +128,8 @@ export class OfflineQueue {
       }>(
         \`SELECT id, client_id, type, payload, retry_count, max_retries, created_at, server_accepted
          FROM offline_operations
-         WHERE status='pending' AND retry_count < max_retries
+         WHERE status='pending'
+           AND (server_accepted = 1 OR retry_count < max_retries)
            AND (next_attempt_at IS NULL OR datetime(next_attempt_at) <= datetime('now'))
          ORDER BY created_at ASC LIMIT 20\`,
       );

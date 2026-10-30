@@ -16,6 +16,7 @@ import { prisma }               from '../../lib/prisma';
 import { redis }                from '../../lib/redis';
 import { writeAuditEvent }      from '../../services/audit';
 import { validate }             from '../../plugins/validate';
+import { invalidateUserSessions } from '../../services/session-revocation';
 
 const JWT_ISSUER = 'taxbridge-api';
 const JWT_AUDIENCE = 'taxbridge-client';
@@ -33,19 +34,6 @@ redis.call('EXPIRE', KEYS[2], ARGV[3])
 redis.call('SADD', KEYS[4], ARGV[5])
 redis.call('EXPIRE', KEYS[4], ARGV[3])
 return 1
-`;
-
-const REVOKE_ALL_REFRESH_FAMILIES_SCRIPT = `
-local families = redis.call('SMEMBERS', KEYS[1])
-for _, family in ipairs(families) do
-  local hashes = redis.call('SMEMBERS', ARGV[1] .. family)
-  for _, tokenHash in ipairs(hashes) do
-    redis.call('DEL', ARGV[2] .. tokenHash)
-  end
-  redis.call('DEL', ARGV[1] .. family)
-end
-redis.call('DEL', KEYS[1])
-return #families
 `;
 
 function hashToken(token: string): string {
@@ -102,17 +90,7 @@ async function getRefreshVerifyKey(): Promise<Uint8Array | Awaited<ReturnType<ty
 }
 
 export async function handleSuspiciousReuse(userId: string, ip: string): Promise<void> {
-  await prisma.user.update({
-    where: { id: userId },
-    data: { authVersion: { increment: 1 } },
-  });
-  await redis.eval(
-    REVOKE_ALL_REFRESH_FAMILIES_SCRIPT,
-    1,
-    `rtfamilies:${userId}`,
-    `rtf:${userId}:`,
-    `rt:${userId}:`,
-  );
+  await invalidateUserSessions(userId);
   await writeAuditEvent({
     actorId: userId,
     action: 'SUSPICIOUS_REUSE',
@@ -131,7 +109,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     const { email, password } = request.body as z.infer<typeof LoginSchema>;
 
     const user = await prisma.user.findUnique({ where: { email } });
-    if (!user || !user.passwordHash) {
+    if (!user || user.deleted || !user.passwordHash) {
       return reply.code(401).send({ error: 'INVALID_CREDENTIALS' });
     }
 
@@ -148,7 +126,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     const primaryMembership = await prisma.orgMember.findFirst({
-      where: { userId: user.id, removedAt: null, status: 'active' },
+      where: { userId: user.id, removedAt: null, status: 'active', org: { status: 'active' } },
       orderBy: { createdAt: 'asc' },
     });
 
@@ -171,7 +149,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
 
     const refreshFamily = randomUUID();
     const refreshToken = await signToken(
-      { sub: user.id, type: 'refresh', family: refreshFamily, jti: randomUUID() },
+      { sub: user.id, type: 'refresh', family: refreshFamily, jti: randomUUID(), role_version: roleVersion },
       typeof secret === 'string' ? secret : secret,
       '7d',
     );
@@ -212,7 +190,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
         algorithms: process.env.NODE_ENV === 'production' ? ['RS256'] : ['HS256'],
         issuer: JWT_ISSUER,
         audience: JWT_AUDIENCE,
-        requiredClaims: ['sub', 'exp', 'iat', 'iss', 'aud', 'jti'],
+        requiredClaims: ['sub', 'exp', 'iat', 'iss', 'aud', 'jti', 'role_version'],
       });
       payload = verified.payload;
     } catch {
@@ -221,16 +199,35 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
 
     const userId = payload.sub;
     const family = payload.family;
+    const tokenRoleVersion = payload.role_version;
     if (
       typeof userId !== 'string' ||
       payload.type !== 'refresh' ||
       typeof family !== 'string' ||
-      !/^[0-9a-f-]{36}$/i.test(family)
+      !/^[0-9a-f-]{36}$/i.test(family) ||
+      typeof tokenRoleVersion !== 'number' ||
+      !Number.isSafeInteger(tokenRoleVersion) ||
+      tokenRoleVersion < 0
     ) {
       return reply.code(401).send({ error: 'INVALID_TOKEN' });
     }
 
     try {
+      const user = await prisma.user.findUnique({ where: { id: userId } });
+      if (!user || user.deleted) return reply.code(401).send({ error: 'USER_NOT_FOUND' });
+      if (user.authVersion !== tokenRoleVersion) {
+        return reply.code(401).send({
+          error: 'TOKEN_EXPIRED',
+          message: 'Session was revoked. Sign in again.',
+        });
+      }
+
+      const membership = await prisma.orgMember.findFirst({
+        where: { userId, removedAt: null, status: 'active', org: { status: 'active' } },
+        orderBy: { createdAt: 'asc' },
+      });
+      if (!membership) return reply.code(403).send({ error: 'ORG_ACCESS_DENIED' });
+
       const oldHash = hashToken(refreshToken);
       const oldTokenKey = `rt:${userId}:${oldHash}`;
       const familyKey = `rtf:${userId}:${family}`;
@@ -241,15 +238,6 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
         await handleSuspiciousReuse(userId, request.ip);
         return reply.code(401).send({ error: 'REFRESH_TOKEN_REUSED' });
       }
-
-      const user = await prisma.user.findUnique({ where: { id: userId } });
-      if (!user || user.deleted) return reply.code(401).send({ error: 'USER_NOT_FOUND' });
-
-      const membership = await prisma.orgMember.findFirst({
-        where: { userId, removedAt: null, status: 'active' },
-        orderBy: { createdAt: 'asc' },
-      });
-      if (!membership) return reply.code(403).send({ error: 'ORG_ACCESS_DENIED' });
 
       const signingSecret = process.env.NODE_ENV === 'production'
         ? process.env.JWT_PRIVATE_KEY!
@@ -263,7 +251,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       }, signingSecret, '15m');
 
       const newRefreshToken = await signToken(
-        { sub: userId, type: 'refresh', family, jti: randomUUID() },
+        { sub: userId, type: 'refresh', family, jti: randomUUID(), role_version: user.authVersion },
         signingSecret,
         '7d',
       );

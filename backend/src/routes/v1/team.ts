@@ -19,7 +19,7 @@ import { requireRole } from '../../plugins/requireRole';
 import { writeAuditEvent } from '../../services/audit';
 import { logger } from '../../lib/logger';
 import { prisma } from '../../lib/prisma';
-import { redis } from '../../lib/redis';
+import { bumpAuthVersion, revokeUserRefreshSessions } from '../../services/session-revocation';
 
 const log = logger.child({ service: 'team' });
 
@@ -38,34 +38,6 @@ const ASSIGNABLE_ROLES = ['OWNER', 'ACCOUNTANT', 'EMPLOYEE', 'VIEWER'] as const;
 type AssignableRole = typeof ASSIGNABLE_ROLES[number];
 
 // ─── Session invalidation helper ──────────────────────────────────────────
-
-const REVOKE_ALL_REFRESH_FAMILIES_SCRIPT = `
-local families = redis.call('SMEMBERS', KEYS[1])
-for _, family in ipairs(families) do
-  local hashes = redis.call('SMEMBERS', ARGV[1] .. family)
-  for _, tokenHash in ipairs(hashes) do
-    redis.call('DEL', ARGV[2] .. tokenHash)
-  end
-  redis.call('DEL', ARGV[1] .. family)
-end
-redis.call('DEL', KEYS[1])
-return #families
-`;
-
-async function invalidateSession(userId: string) {
-  await prisma.user.update({
-    where: { id: userId },
-    data: { authVersion: { increment: 1 } },
-  });
-  await redis.del(`sessions:${userId}`);
-  await redis.eval(
-    REVOKE_ALL_REFRESH_FAMILIES_SCRIPT,
-    1,
-    `rtfamilies:${userId}`,
-    `rtf:${userId}:`,
-    `rt:${userId}:`,
-  );
-}
 
 // ─── Routes ──────────────────────────────────────────────────────────────
 
@@ -206,10 +178,11 @@ export default async function teamRoutes(app: FastifyInstance) {
       if (!member) return reply.status(404).send({ error: 'NOT_FOUND', message: 'Member not found.' });
 
       const before = { role: member.role };
-      await prisma.orgMember?.update({ where: { id: member.id }, data: { role: newRole } });
-
-      // Session invalidation on role change (§7.4)
-      await invalidateSession(userId);
+      await prisma.$transaction(async (tx) => {
+        await tx.orgMember.update({ where: { id: member.id }, data: { role: newRole } });
+        await bumpAuthVersion(tx, userId);
+      });
+      await revokeUserRefreshSessions(userId);
 
       await writeAuditEvent({
         orgId, actorId, actorRole,
@@ -253,13 +226,15 @@ export default async function teamRoutes(app: FastifyInstance) {
         }
       }
 
-      // Soft delete (removedAt = now)
-      await prisma.orgMember?.update({
-        where: { id: member.id },
-        data:  { removedAt: new Date() },
+      // Membership removal and durable session invalidation commit atomically.
+      await prisma.$transaction(async (tx) => {
+        await tx.orgMember.update({
+          where: { id: member.id },
+          data: { removedAt: new Date() },
+        });
+        await bumpAuthVersion(tx, userId);
       });
-
-      await invalidateSession(userId);
+      await revokeUserRefreshSessions(userId);
 
       await writeAuditEvent({
         orgId, actorId, actorRole,

@@ -26,6 +26,7 @@ import * as Sentry from '@sentry/node';
 import { prisma } from '../../../lib/prisma';
 import { redis } from '../../../lib/redis';
 import { writeAuditEvent } from '../../../services/audit';
+import { bumpAuthVersion, revokeUserRefreshSessions } from '../../../services/session-revocation';
 
 import crypto from 'node:crypto';
 
@@ -190,14 +191,15 @@ const totpRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.status(401).send({ error: 'Invalid token' });
       }
 
-      await (prisma as any).userTotp.update({
-        where: { userId },
-        data:  { active: false, secret: null, backupCodes: [], disabledAt: new Date() },
+      await prisma.$transaction(async (tx) => {
+        await (tx as any).userTotp.update({
+          where: { userId },
+          data: { active: false, secret: null, backupCodes: [], disabledAt: new Date() },
+        });
+        await bumpAuthVersion(tx, userId);
       });
-
+      await revokeUserRefreshSessions(userId);
       await redis.del(`totp:verified:${userId}`);
-      // C-44: role_version increment on TOTP disable (path 2 of 3)
-      await redis.incr(`role_version:${userId}`);
 
       await writeAuditEvent(
         { actorId: userId, action: 'ROLE_CHANGE', details: { reason: 'totp_disabled' } },
