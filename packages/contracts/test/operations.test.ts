@@ -1,4 +1,4 @@
-import { ExpenseCreateOperationPayloadSchema, InvoiceCreateOperationPayloadSchema, ReceiptAttachOperationPayloadSchema, OperationEnvelopeSchema } from '../src/operations';
+import { ExpenseCreateOperationPayloadSchema, InvoiceCreateOperationPayloadSchema, ReceiptAttachOperationPayloadSchema, OperationEnvelopeSchema, InvoiceDraftContentSchema, InvoiceDraftUpdateRequestSchema, InvoiceLifecycleVersionRequestSchema, InvoiceRejectRequestSchema } from '../src/operations';
 
 describe('Phase 1C operation contracts', () => {
   const validPayload = {
@@ -98,6 +98,48 @@ describe('Phase 1C.3 receipt attachment contract', () => {
     expect(ReceiptAttachOperationPayloadSchema.safeParse({
       ...valid,
       data: { ...valid.data, storageKey: 'receipts/other-tenant/object', organizationId: 'other' },
+    }).success).toBe(false);
+  });
+});
+
+
+describe('Phase 1C.6 invoice lifecycle contracts', () => {
+  const draft = {
+    customerName: 'Example Customer',
+    items: [{ description: 'Consulting', quantity: 2, unitPrice: 5000 }],
+    subtotal: 10000,
+    vat: 750,
+    total: 10750,
+    template: 'professional',
+  };
+
+  it('accepts a complete and arithmetically reconciled draft revision', () => {
+    expect(InvoiceDraftContentSchema.safeParse(draft).success).toBe(true);
+  });
+
+  it('rejects client-controlled approval, NRS, and invoice status fields', () => {
+    expect(InvoiceDraftContentSchema.safeParse({
+      ...draft,
+      approvalStatus: 'APPROVED',
+      approvedBy: 'attacker',
+      nrsIRN: 'fabricated',
+      status: 'stamped',
+    }).success).toBe(false);
+  });
+
+  it('requires an explicit expected revision for edits and transitions', () => {
+    expect(InvoiceDraftUpdateRequestSchema.safeParse({ expectedVersion: 1, draft }).success).toBe(true);
+    expect(InvoiceLifecycleVersionRequestSchema.safeParse({ expectedVersion: 1 }).success).toBe(true);
+    expect(InvoiceLifecycleVersionRequestSchema.safeParse({}).success).toBe(false);
+  });
+
+  it('requires a reason for rejection and does not accept caller identity', () => {
+    expect(InvoiceRejectRequestSchema.safeParse({ expectedVersion: 1, reason: 'Please correct the VAT details.' }).success).toBe(true);
+    expect(InvoiceRejectRequestSchema.safeParse({ expectedVersion: 1, reason: 'No' }).success).toBe(false);
+    expect(InvoiceRejectRequestSchema.safeParse({
+      expectedVersion: 1,
+      reason: 'Please correct the VAT details.',
+      actorUserId: 'attacker',
     }).success).toBe(false);
   });
 });
