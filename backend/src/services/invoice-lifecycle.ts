@@ -1,10 +1,11 @@
 import { createHash } from 'node:crypto';
-import { Prisma } from '@prisma/client';
+import { Prisma, PrismaClient } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { InvoiceDraftContentSchema } from '@taxbridge/contracts';
 import type { z } from 'zod';
 
 type Tx = Prisma.TransactionClient;
+type Db = Prisma.TransactionClient | PrismaClient;
 type DraftContent = z.infer<typeof InvoiceDraftContentSchema>;
 
 export class InvoiceLifecycleError extends Error {
@@ -110,7 +111,7 @@ export async function appendInvoiceLifecycleEvent(
   });
 }
 
-async function requireMembership(tx: Tx, organizationId: string, userId: string): Promise<string> {
+async function requireMembership(tx: Db, organizationId: string, userId: string): Promise<string> {
   const member = await tx.orgMember.findFirst({
     where: {
       orgId: organizationId,
@@ -128,7 +129,7 @@ async function requireMembership(tx: Tx, organizationId: string, userId: string)
 }
 
 async function requireGovernedInvoice(
-  tx: Tx,
+  tx: Db,
   invoiceId: string,
   organizationId: string,
 ) {
