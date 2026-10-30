@@ -79,6 +79,43 @@ export default function ReceiptsScreen() {
     }
   }, [processing]);
 
+  const handlePickFromLibrary = useCallback(async () => {
+    if (processing) return;
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.85 });
+      if (result.canceled || !result.assets[0]?.uri) return;
+      const selected = result.assets[0];
+      const contentType = selected.mimeType ?? 'image/jpeg';
+      if (!['image/jpeg', 'image/png', 'image/webp'].includes(contentType)) {
+        Alert.alert(t('common.error'), 'Choose a JPEG, PNG or WebP receipt image.');
+        return;
+      }
+      setProcessing(true);
+      setCapturedUri(selected.uri);
+      setCapturedContentType(contentType);
+      try {
+        const { draft: parsedDraft } = await processReceiptImage(selected.uri);
+        setDraft(parsedDraft);
+        setOcrFailed(!parsedDraft.amountNgn && !parsedDraft.vendorName);
+        setPhase('review');
+      } catch (error) {
+        Sentry.captureException(error);
+        setOcrFailed(true);
+        setDraft({
+          vendorName: '', vendorTin: null, amountNgn: 0, vatAmountNgn: 0,
+          date: new Date().toISOString().split('T')[0], category: 'other',
+          rawOcrText: null, imageHash: null, capturedAt: new Date().toISOString(),
+        });
+        setPhase('review');
+      } finally {
+        setProcessing(false);
+      }
+    } catch (error) {
+      Sentry.captureException(error);
+      Alert.alert(t('common.error'), String(error));
+    }
+  }, [processing, t]);
+
   const handleSave = useCallback(async (confirmed: DraftReceipt) => {
     setProcessing(true);
     try {
@@ -181,6 +218,9 @@ export default function ReceiptsScreen() {
           style={{ backgroundColor: Colors.brand.primary, borderRadius: Radii.lg, paddingVertical: Spacing.md, paddingHorizontal: Spacing.xxl }}
         >
           <Text style={{ ...Typography.bodyBold, color: Colors.ui.white }}>{t('receipts.enableCamera')}</Text>
+        </Pressable>
+        <Pressable onPress={() => void handlePickFromLibrary()} accessibilityRole="button" style={{ marginTop: Spacing.lg, padding: Spacing.md }}>
+          <Text style={{ ...Typography.bodyBold, color: Colors.brand.primary }}>Choose from photo library</Text>
         </Pressable>
       </SafeAreaView>
     );
@@ -327,41 +367,8 @@ export default function ReceiptsScreen() {
       </View>
       <View style={{ position: 'absolute', bottom: Spacing.xxl, alignSelf: 'center', alignItems: 'center' }}>
         <Pressable
-          onPress={() => {
-            void (async () => {
-              const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.85 });
-              if (result.canceled || !result.assets[0]?.uri || processing) return;
-              const selected = result.assets[0];
-              const contentType = selected.mimeType ?? 'image/jpeg';
-              if (!['image/jpeg', 'image/png', 'image/webp'].includes(contentType)) {
-                Alert.alert(t('common.error'), 'Choose a JPEG, PNG or WebP receipt image.');
-                return;
-              }
-              setProcessing(true);
-              setCapturedUri(selected.uri);
-              setCapturedContentType(contentType);
-              try {
-                const { draft: parsedDraft } = await processReceiptImage(result.assets[0].uri);
-                setDraft(parsedDraft);
-                setOcrFailed(!parsedDraft.amountNgn && !parsedDraft.vendorName);
-                setPhase('review');
-              } catch (error) {
-                Sentry.captureException(error);
-                setOcrFailed(true);
-                setDraft({
-                  vendorName: '', vendorTin: null, amountNgn: 0, vatAmountNgn: 0,
-                  date: new Date().toISOString().split('T')[0], category: 'other',
-                  rawOcrText: null, imageHash: null, capturedAt: new Date().toISOString(),
-                });
-                setPhase('review');
-              } finally {
-                setProcessing(false);
-              }
-            })().catch((error) => {
-              Sentry.captureException(error);
-              Alert.alert(t('common.error'), String(error));
-            });
-          }}
+          onPress={() => void handlePickFromLibrary()}
+          disabled={processing}
           accessibilityRole="button"
           accessibilityLabel="Choose receipt from photo library"
           style={{ marginBottom: Spacing.md, paddingVertical: Spacing.sm, paddingHorizontal: Spacing.lg, borderRadius: Radii.pill, backgroundColor: 'rgba(0,0,0,0.65)' }}
