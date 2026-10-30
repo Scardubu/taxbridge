@@ -46,6 +46,21 @@ export const invoiceSyncWorker = new Worker(
       throw new Error(`Invoice not found: ${invoiceId}`);
     }
 
+    if (
+      invoice.businessId &&
+      (invoice.approvalStatus !== 'APPROVED' || invoice.approvedVersion !== invoice.version)
+    ) {
+      job.discard();
+      await prisma.auditLog.create({
+        data: {
+          action: 'invoice_sync_blocked_missing_approval',
+          userId: invoice.userId,
+          metadata: { invoiceId, invoiceVersion: invoice.version, approvalStatus: invoice.approvalStatus },
+        },
+      });
+      return { status: 'blocked', reason: 'INVOICE_APPROVAL_REQUIRED' };
+    }
+
     if (invoice.status === 'stamped') {
       await prisma.auditLog.create({
         data: {
