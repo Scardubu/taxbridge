@@ -23,7 +23,7 @@ CREATE TABLE "receipt_evidence" (
 );
 
 CREATE UNIQUE INDEX "receipt_evidence_storage_key_key" ON "receipt_evidence"("storage_key");
-CREATE UNIQUE INDEX "receipt_evidence_expense_id_key" ON "receipt_evidence"("expense_id");
+CREATE INDEX "receipt_evidence_expense_id_idx" ON "receipt_evidence"("expense_id");
 CREATE INDEX "receipt_evidence_org_business_created_idx" ON "receipt_evidence"("organization_id","business_id","created_at");
 CREATE INDEX "receipt_evidence_user_created_idx" ON "receipt_evidence"("user_id","created_at");
 CREATE INDEX "receipt_evidence_status_expiry_idx" ON "receipt_evidence"("status","upload_expires_at");
