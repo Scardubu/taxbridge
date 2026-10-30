@@ -529,6 +529,13 @@ export default async function syncRoutes(app: FastifyInstance) {
         return reply.status(403).send({ error: 'Unauthorized' });
       }
 
+      if (conflict.invoice?.businessId) {
+        return reply.status(409).send({
+          error: 'INVOICE_LIFECYCLE_REQUIRED',
+          message: 'Business-bound invoice conflicts must be resolved through a governed invoice revision; legacy device-sync conflict resolution is disabled.',
+        });
+      }
+
       if (conflict.resolution) {
         return reply.status(400).send({ error: 'Conflict already resolved' });
       }
