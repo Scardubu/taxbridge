@@ -1,11 +1,11 @@
 import * as Crypto from 'expo-crypto';
 import NetInfo from '@react-native-community/netinfo';
 import { OperationEnvelopeSchema, OperationResultSchema } from '@taxbridge/contracts';
-import { createExpenseOperationEnvelope } from './operationEnvelope';
+import { createExpenseOperationEnvelope, createInvoiceOperationEnvelope } from './operationEnvelope';
 import { getDatabase } from './database';
 import { ApiError, apiRequest } from './api';
 
-export type OpType = 'EXPENSE_CREATE' | 'TIN_VERIFY' | 'VAT_REGISTER' | 'EINVOICE_SUBMIT' | 'INVOICE_SUBMIT' | 'RECEIPT_SUBMIT' | 'VAT_RETURN' | 'PROFILE_SYNC' | 'COMPLIANCE_EVENT';
+export type OpType = 'EXPENSE_CREATE' | 'INVOICE_CREATE' | 'TIN_VERIFY' | 'VAT_REGISTER' | 'EINVOICE_SUBMIT' | 'INVOICE_SUBMIT' | 'RECEIPT_SUBMIT' | 'VAT_RETURN' | 'PROFILE_SYNC' | 'COMPLIANCE_EVENT';
 
 const MAX_BACKOFF_MS = 6 * 60 * 60 * 1000;
 const BASE_BACKOFF_MS = 5_000;
@@ -87,7 +87,9 @@ export class OfflineQueue {
           const rawPayload = { action: operation.type, data: JSON.parse(operation.payload) as Record<string, unknown> };
           const envelope = operation.type === 'EXPENSE_CREATE'
             ? createExpenseOperationEnvelope(operation.client_id, rawPayload.data as Record<string, unknown>, asIsoUtc(operation.created_at))
-            : OperationEnvelopeSchema.parse({
+            : operation.type === 'INVOICE_CREATE'
+              ? createInvoiceOperationEnvelope(operation.client_id, rawPayload.data as Record<string, unknown>, asIsoUtc(operation.created_at))
+              : OperationEnvelopeSchema.parse({
                 operationId: operation.client_id,
                 idempotencyKey: operation.client_id,
                 operationType: toOperationType(operation.type),
