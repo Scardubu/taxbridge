@@ -8,6 +8,7 @@
  * C-26: request.log.* only — no console.log.
  */
 import { FastifyPluginAsync }   from 'fastify';
+import { createHash, randomUUID } from 'node:crypto';
 import { z }                    from 'zod';
 import * as bcrypt              from 'bcryptjs';
 import { SignJWT, importPKCS8, importSPKI } from 'jose';
@@ -15,6 +16,41 @@ import { prisma }               from '../../lib/prisma';
 import { redis }                from '../../lib/redis';
 import { writeAuditEvent }      from '../../services/audit';
 import { validate }             from '../../plugins/validate';
+
+const JWT_ISSUER = 'taxbridge-api';
+const JWT_AUDIENCE = 'taxbridge-client';
+const REFRESH_TOKEN_TTL_SECONDS = 7 * 24 * 60 * 60;
+
+const ROTATE_REFRESH_TOKEN_SCRIPT = `
+local existingFamily = redis.call('GET', KEYS[1])
+if not existingFamily then return 0 end
+if existingFamily ~= ARGV[1] then return -1 end
+redis.call('DEL', KEYS[1])
+redis.call('SREM', KEYS[2], ARGV[2])
+redis.call('SET', KEYS[3], ARGV[1], 'EX', ARGV[3])
+redis.call('SADD', KEYS[2], ARGV[4])
+redis.call('EXPIRE', KEYS[2], ARGV[3])
+redis.call('SADD', KEYS[4], ARGV[5])
+redis.call('EXPIRE', KEYS[4], ARGV[3])
+return 1
+`;
+
+const REVOKE_ALL_REFRESH_FAMILIES_SCRIPT = `
+local families = redis.call('SMEMBERS', KEYS[1])
+for _, family in ipairs(families) do
+  local hashes = redis.call('SMEMBERS', ARGV[1] .. family)
+  for _, tokenHash in ipairs(hashes) do
+    redis.call('DEL', ARGV[2] .. tokenHash)
+  end
+  redis.call('DEL', ARGV[1] .. family)
+end
+redis.call('DEL', KEYS[1])
+return #families
+`;
+
+function hashToken(token: string): string {
+  return createHash('sha256').update(token).digest('hex');
+}
 
 const LoginSchema = z.object({
   email:    z.string().email(),
@@ -34,7 +70,9 @@ async function signToken(
   const builder = new SignJWT(payload)
     .setProtectedHeader({ alg: process.env.NODE_ENV === 'production' ? 'RS256' : 'HS256' })
     .setIssuedAt()
-    .setExpirationTime(expiresIn);
+    .setExpirationTime(expiresIn)
+    .setIssuer(JWT_ISSUER)
+    .setAudience(JWT_AUDIENCE);
 
   if (typeof secret === 'string') {
     // RS256 — PKCS8 private key (base64 encoded)
@@ -64,14 +102,23 @@ async function getRefreshVerifyKey(): Promise<Uint8Array | Awaited<ReturnType<ty
 }
 
 export async function handleSuspiciousReuse(userId: string, ip: string): Promise<void> {
-  // Invalidate all sessions by incrementing role_version
-  await redis.incr(`role_version:${userId}`);
+  await prisma.user.update({
+    where: { id: userId },
+    data: { authVersion: { increment: 1 } },
+  });
+  await redis.eval(
+    REVOKE_ALL_REFRESH_FAMILIES_SCRIPT,
+    1,
+    `rtfamilies:${userId}`,
+    `rtf:${userId}:`,
+    `rt:${userId}:`,
+  );
   await writeAuditEvent({
-    actorId:  userId,
-    action:   'SUSPICIOUS_REUSE',
+    actorId: userId,
+    action: 'SUSPICIOUS_REUSE',
     resource: 'RefreshToken',
     ip,
-    details:  { reason: 'refresh_token_family_conflict' },
+    details: { reason: 'refresh_token_family_conflict' },
   });
 }
 
@@ -114,7 +161,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       : new TextEncoder().encode(process.env.JWT_SECRET!);
 
     // Get current role_version
-    const roleVersion = parseInt(await redis.get(`role_version:${user.id}`) ?? '0', 10);
+    const roleVersion = user.authVersion;
 
     const accessToken = await signToken(
       { sub: user.id, orgId: primaryMembership.orgId, role: primaryMembership.role ?? user.role, role_version: roleVersion },
@@ -122,14 +169,22 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       '15m',
     );
 
+    const refreshFamily = randomUUID();
     const refreshToken = await signToken(
-      { sub: user.id, type: 'refresh', family: crypto.randomUUID() },
+      { sub: user.id, type: 'refresh', family: refreshFamily, jti: randomUUID() },
       typeof secret === 'string' ? secret : secret,
       '7d',
     );
 
-    // Store refresh token family
-    await redis.setex(`rt:${user.id}:${refreshToken.slice(-8)}`, 7 * 86400, '1');
+    const refreshHash = hashToken(refreshToken);
+    const refreshFamilyKey = `rtf:${user.id}:${refreshFamily}`;
+    await redis.multi()
+      .set(`rt:${user.id}:${refreshHash}`, refreshFamily, 'EX', REFRESH_TOKEN_TTL_SECONDS)
+      .sadd(refreshFamilyKey, refreshHash)
+      .expire(refreshFamilyKey, REFRESH_TOKEN_TTL_SECONDS)
+      .sadd(`rtfamilies:${user.id}`, refreshFamily)
+      .expire(`rtfamilies:${user.id}`, REFRESH_TOKEN_TTL_SECONDS)
+      .exec();
 
     await writeAuditEvent({
       actorId:   user.id,
@@ -150,62 +205,93 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
   }, async (request, reply) => {
     const { refreshToken } = request.body as z.infer<typeof RefreshSchema>;
 
+    let payload: Awaited<ReturnType<typeof jwtVerify>>['payload'];
     try {
-      const { jwtVerify } = await import('jose');
       const verifyKey = await getRefreshVerifyKey();
-      const { payload } = await jwtVerify(refreshToken, verifyKey);
+      const verified = await jwtVerify(refreshToken, verifyKey, {
+        algorithms: process.env.NODE_ENV === 'production' ? ['RS256'] : ['HS256'],
+        issuer: JWT_ISSUER,
+        audience: JWT_AUDIENCE,
+        requiredClaims: ['sub', 'exp', 'iat', 'iss', 'aud', 'jti'],
+      });
+      payload = verified.payload;
+    } catch {
+      return reply.code(401).send({ error: 'INVALID_TOKEN' });
+    }
 
-      if ((payload as any).type !== 'refresh') {
-        return reply.code(401).send({ error: 'INVALID_TOKEN' });
-      }
+    const userId = payload.sub;
+    const family = payload.family;
+    if (
+      typeof userId !== 'string' ||
+      payload.type !== 'refresh' ||
+      typeof family !== 'string' ||
+      !/^[0-9a-f-]{36}$/i.test(family)
+    ) {
+      return reply.code(401).send({ error: 'INVALID_TOKEN' });
+    }
 
-      const userId      = payload.sub!;
-      const family      = (payload as any).family;
-      const tokenSuffix = refreshToken.slice(-8);
-      const exists      = await redis.get(`rt:${userId}:${tokenSuffix}`);
+    try {
+      const oldHash = hashToken(refreshToken);
+      const oldTokenKey = `rt:${userId}:${oldHash}`;
+      const familyKey = `rtf:${userId}:${family}`;
+      const familiesKey = `rtfamilies:${userId}`;
 
-      if (!exists) {
-        // Token family conflict — suspicious reuse
+      const storedFamily = await redis.get(oldTokenKey);
+      if (storedFamily !== family) {
         await handleSuspiciousReuse(userId, request.ip);
         return reply.code(401).send({ error: 'REFRESH_TOKEN_REUSED' });
       }
 
-      // Single-use — delete old token
-      await redis.del(`rt:${userId}:${tokenSuffix}`);
-
       const user = await prisma.user.findUnique({ where: { id: userId } });
-      if (!user) return reply.code(401).send({ error: 'USER_NOT_FOUND' });
+      if (!user || user.deleted) return reply.code(401).send({ error: 'USER_NOT_FOUND' });
 
-      const roleVersion  = parseInt(await redis.get(`role_version:${userId}`) ?? '0', 10);
       const membership = await prisma.orgMember.findFirst({
         where: { userId, removedAt: null, status: 'active' },
         orderBy: { createdAt: 'asc' },
       });
-
-      if (!membership) {
-        return reply.code(403).send({ error: 'ORG_ACCESS_DENIED' });
-      }
+      if (!membership) return reply.code(403).send({ error: 'ORG_ACCESS_DENIED' });
 
       const signingSecret = process.env.NODE_ENV === 'production'
         ? process.env.JWT_PRIVATE_KEY!
         : new TextEncoder().encode(process.env.JWT_SECRET!);
 
-      const newAccessToken = await signToken(
-        { sub: userId, orgId: membership.orgId, role: membership.role ?? user.role, role_version: roleVersion },
-        signingSecret,
-        '15m',
-      );
+      const newAccessToken = await signToken({
+        sub: userId,
+        orgId: membership.orgId,
+        role: membership.role ?? user.role,
+        role_version: user.authVersion,
+      }, signingSecret, '15m');
+
       const newRefreshToken = await signToken(
-        { sub: userId, type: 'refresh', family },
+        { sub: userId, type: 'refresh', family, jti: randomUUID() },
         signingSecret,
         '7d',
       );
 
-      await redis.setex(`rt:${userId}:${newRefreshToken.slice(-8)}`, 7 * 86400, '1');
-      return reply.send({ accessToken: newAccessToken, refreshToken: newRefreshToken, expiresIn: 900 });
+      const newHash = hashToken(newRefreshToken);
+      const rotationResult = Number(await redis.eval(
+        ROTATE_REFRESH_TOKEN_SCRIPT,
+        4,
+        oldTokenKey,
+        familyKey,
+        `rt:${userId}:${newHash}`,
+        familiesKey,
+        family,
+        oldHash,
+        String(REFRESH_TOKEN_TTL_SECONDS),
+        newHash,
+        family,
+      ));
 
-    } catch {
-      return reply.code(401).send({ error: 'INVALID_TOKEN' });
+      if (rotationResult !== 1) {
+        await handleSuspiciousReuse(userId, request.ip);
+        return reply.code(401).send({ error: 'REFRESH_TOKEN_REUSED' });
+      }
+
+      return reply.send({ accessToken: newAccessToken, refreshToken: newRefreshToken, expiresIn: 900 });
+    } catch (error) {
+      request.log.error({ err: error }, 'Refresh-token rotation failed');
+      return reply.code(503).send({ error: 'AUTHENTICATION_DEPENDENCY_UNAVAILABLE' });
     }
   });
 };

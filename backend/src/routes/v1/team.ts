@@ -39,11 +39,32 @@ type AssignableRole = typeof ASSIGNABLE_ROLES[number];
 
 // ─── Session invalidation helper ──────────────────────────────────────────
 
+const REVOKE_ALL_REFRESH_FAMILIES_SCRIPT = `
+local families = redis.call('SMEMBERS', KEYS[1])
+for _, family in ipairs(families) do
+  local hashes = redis.call('SMEMBERS', ARGV[1] .. family)
+  for _, tokenHash in ipairs(hashes) do
+    redis.call('DEL', ARGV[2] .. tokenHash)
+  end
+  redis.call('DEL', ARGV[1] .. family)
+end
+redis.call('DEL', KEYS[1])
+return #families
+`;
+
 async function invalidateSession(userId: string) {
+  await prisma.user.update({
+    where: { id: userId },
+    data: { authVersion: { increment: 1 } },
+  });
   await redis.del(`sessions:${userId}`);
-  // C-44: role_version increment — covers role change (path 1) and account suspension (path 3)
-  await redis.del(`role_version:${userId}`);
-  await redis.setex(`role_version:${userId}`, 60 * 60 * 24 * 7, Date.now().toString());
+  await redis.eval(
+    REVOKE_ALL_REFRESH_FAMILIES_SCRIPT,
+    1,
+    `rtfamilies:${userId}`,
+    `rtf:${userId}:`,
+    `rt:${userId}:`,
+  );
 }
 
 // ─── Routes ──────────────────────────────────────────────────────────────
@@ -59,8 +80,12 @@ export default async function teamRoutes(app: FastifyInstance) {
         return reply.status(401).send({ error: 'UNAUTHORIZED' });
       }
 
-      const roleVersion = parseInt(await redis.get(`role_version:${req.params.userId}`) ?? '0', 10);
-      return reply.send({ roleVersion });
+      const user = await prisma.user.findUnique({
+        where: { id: req.params.userId },
+        select: { authVersion: true, deleted: true },
+      });
+      if (!user || user.deleted) return reply.code(404).send({ error: 'USER_NOT_FOUND' });
+      return reply.send({ roleVersion: user.authVersion });
     },
   );
 

@@ -67,6 +67,7 @@ model User {
   tin                    String?
   email                  String?  @unique
   passwordHash           String?  @map("password_hash")
+  authVersion            Int      @default(0) @map("auth_version")
   verificationToken      String?  @map("verification_token")
   verificationTokenExpiry DateTime? @map("verification_token_expiry")
   verified               Boolean  @default(false)
