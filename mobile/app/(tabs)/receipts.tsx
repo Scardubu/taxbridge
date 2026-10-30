@@ -36,6 +36,7 @@ export default function ReceiptsScreen() {
   const [evidenceClientUploadId, setEvidenceClientUploadId] = useState<string | null>(null);
   const [evidenceStatus, setEvidenceStatus] = useState<string | null>(null);
   const [evidenceReviewStatus, setEvidenceReviewStatus] = useState<string | null>(null);
+  const [evidencePreviewOpened, setEvidencePreviewOpened] = useState(false);
   const [evidenceError, setEvidenceError] = useState<string | null>(null);
 
   const handleCapture = useCallback(async () => {
@@ -125,6 +126,7 @@ export default function ReceiptsScreen() {
       setEvidenceError(null);
       setEvidenceStatus(null);
       setEvidenceReviewStatus(null);
+      setEvidencePreviewOpened(false);
       setEvidenceClientUploadId(null);
       if (businessId && capturedUri) {
         try {
@@ -263,8 +265,11 @@ export default function ReceiptsScreen() {
               <Pressable onPress={() => {
                 if (!evidenceClientUploadId) return;
                 setProcessing(true);
-                void resumeReceiptEvidenceUpload(evidenceClientUploadId).then((result) => {
+                void resumeReceiptEvidenceUpload(evidenceClientUploadId).then(async (result) => {
                   setEvidenceStatus(result.status);
+                  const server = await refreshReceiptEvidenceStatus(evidenceClientUploadId);
+                  setEvidenceStatus(server.status);
+                  setEvidenceReviewStatus(server.reviewStatus ?? null);
                   setEvidenceError(null);
                 }).catch((error) => setEvidenceError(String(error))).finally(() => setProcessing(false));
               }} disabled={processing} accessibilityRole="button" style={{ paddingVertical: Spacing.md }}>
@@ -287,18 +292,20 @@ export default function ReceiptsScreen() {
               <>
                 <Pressable onPress={() => {
                   if (!evidenceClientUploadId) return;
-                  void getReceiptEvidencePreviewUrl(evidenceClientUploadId).then((url) => Linking.openURL(url)).catch((error) => setEvidenceError(String(error)));
+                  void getReceiptEvidencePreviewUrl(evidenceClientUploadId).then((url) => Linking.openURL(url)).then(() => setEvidencePreviewOpened(true)).catch((error) => setEvidenceError(String(error)));
                 }} accessibilityRole="button" style={{ paddingVertical: Spacing.md }}>
                   <Text style={{ ...Typography.bodyBold, color: Colors.brand.primary }}>Open clean receipt for review</Text>
                 </Pressable>
-                <Pressable onPress={() => {
+                <Pressable disabled={!evidencePreviewOpened || processing}
+                onPress={() => {
                   if (!evidenceClientUploadId) return;
                   setProcessing(true);
                   void reviewReceiptEvidence(evidenceClientUploadId, 'ACCEPT').then((result) => setEvidenceReviewStatus(result.reviewStatus)).catch((error) => setEvidenceError(String(error))).finally(() => setProcessing(false));
                 }} disabled={processing} accessibilityRole="button" style={{ paddingVertical: Spacing.md }}>
                   <Text style={{ ...Typography.bodyBold, color: Colors.status.successText }}>Accept evidence</Text>
                 </Pressable>
-                <Pressable onPress={() => {
+                <Pressable disabled={!evidencePreviewOpened || processing}
+                onPress={() => {
                   if (!evidenceClientUploadId) return;
                   setProcessing(true);
                   void reviewReceiptEvidence(evidenceClientUploadId, 'REJECT').then((result) => setEvidenceReviewStatus(result.reviewStatus)).catch((error) => setEvidenceError(String(error))).finally(() => setProcessing(false));
@@ -320,6 +327,7 @@ export default function ReceiptsScreen() {
             setEvidenceClientUploadId(null);
             setEvidenceStatus(null);
             setEvidenceReviewStatus(null);
+            setEvidencePreviewOpened(false);
             setEvidenceError(null);
             setOcrFailed(false);
             setPhase('camera');
