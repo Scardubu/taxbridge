@@ -273,10 +273,10 @@ export default async function receiptRoutes(app: FastifyInstance): Promise<void>
     const orgId = (request as any).orgContext.orgId as string;
     const receipt = await prisma.receiptEvidence.findFirst({
       where: { id: params.data.id, userId, organizationId: orgId },
-      select: { id: true, status: true, reviewStatus: true },
+      select: { id: true, status: true, reviewStatus: true, cleanStorageKey: true, sha256: true, scanResult: { select: { sha256: true, verdict: true } } },
     });
     if (!receipt) return reply.code(404).send({ error: 'RECEIPT_NOT_FOUND' });
-    if (!['CLEAN', 'ATTACHED'].includes(receipt.status) || receipt.reviewStatus !== 'REQUIRED') {
+    if (!['CLEAN', 'ATTACHED'].includes(receipt.status) || receipt.reviewStatus !== 'REQUIRED' || !receipt.cleanStorageKey || !receipt.scanResult || receipt.scanResult.verdict !== 'CLEAN' || receipt.scanResult.sha256 !== receipt.sha256) {
       return reply.code(409).send({ error: 'RECEIPT_NOT_REVIEWABLE', message: 'Only clean evidence awaiting review can be reviewed' });
     }
     const accepted = body.data.decision === 'ACCEPT';
