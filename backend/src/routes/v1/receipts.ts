@@ -236,4 +236,29 @@ export default async function receiptRoutes(app: FastifyInstance): Promise<void>
     await client.send(new DeleteObjectCommand({ Bucket: config.bucket, Key: record.uploadKey })).catch(() => undefined);
     return reply.send({ receiptEvidenceId: record.id, status: 'QUARANTINED', verifiedAt: verifiedAt.toISOString() });
   });
+
+  app.get<{ Params: { id: string } }>('/receipts/:id/status', {
+    preHandler: [app.authenticate, app.resolveOrgContext],
+  }, async (request, reply) => {
+    const params = ReceiptParamsSchema.safeParse(request.params);
+    if (!params.success) return reply.code(400).send({ error: 'INVALID_RECEIPT_ID' });
+    const userId = (request as any).user.userId as string;
+    const orgId = (request as any).orgContext.orgId as string;
+    const receipt = await prisma.receiptEvidence.findFirst({
+      where: { id: params.data.id, userId, organizationId: orgId },
+      select: {
+        id: true, status: true, verifiedAt: true,
+        scanResult: { select: { verdict: true, engine: true, engineVersion: true, scannedAt: true } },
+        ocrExtraction: { select: { status: true, extractedText: true, meanConfidence: true, provider: true, createdAt: true } },
+      },
+    });
+    if (!receipt) return reply.code(404).send({ error: 'RECEIPT_NOT_FOUND' });
+    return reply.send({
+      receiptEvidenceId: receipt.id, status: receipt.status,
+      verifiedAt: receipt.verifiedAt?.toISOString() ?? null,
+      malwareScan: receipt.scanResult,
+      ocr: ['CLEAN', 'ATTACHED'].includes(receipt.status) ? receipt.ocrExtraction : null,
+    });
+  });
+
 }
