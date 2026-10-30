@@ -1,7 +1,8 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import {
+  GetObjectCommand,
   HeadObjectCommand,
   PutObjectCommand,
   S3Client,
@@ -140,16 +141,33 @@ export default async function receiptRoutes(app: FastifyInstance): Promise<void>
 
     const config = storageConfig();
     const client = createStorageClient();
-    let head;
+    let object;
     try {
-      head = await client.send(new HeadObjectCommand({ Bucket: config.bucket, Key: record.storageKey }));
+      object = await client.send(new GetObjectCommand({ Bucket: config.bucket, Key: record.storageKey }));
     } catch {
       return reply.code(409).send({ error: 'UPLOAD_NOT_FOUND', message: 'The uploaded object could not be verified' });
     }
 
-    const valid = head.ContentLength === record.byteSize &&
-      head.ContentType === record.contentType &&
-      head.Metadata?.sha256?.toLowerCase() === record.sha256;
+    const bytes = await object.Body?.transformToByteArray();
+    const actualSha256 = bytes ? createHash('sha256').update(bytes).digest('hex') : '';
+    const signature = bytes ? Buffer.from(bytes).subarray(0, 12) : Buffer.alloc(0);
+    const matchesMagic = record.contentType === 'application/pdf'
+      ? signature.subarray(0, 5).toString('ascii') === '%PDF-'
+      : record.contentType === 'image/jpeg'
+        ? signature[0] === 0xff && signature[1] === 0xd8 && signature[2] === 0xff
+        : record.contentType === 'image/png'
+          ? signature.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))
+          : record.contentType === 'image/webp'
+            ? signature.subarray(0, 4).toString('ascii') === 'RIFF' &&
+              signature.subarray(8, 12).toString('ascii') === 'WEBP'
+            : false;
+    const valid = Boolean(bytes) &&
+      bytes!.byteLength === record.byteSize &&
+      object.ContentLength === record.byteSize &&
+      object.ContentType === record.contentType &&
+      object.Metadata?.sha256?.toLowerCase() === record.sha256 &&
+      actualSha256 === record.sha256 &&
+      matchesMagic;
     if (!valid) {
       await prisma.receiptEvidence.update({
         where: { id: record.id },
