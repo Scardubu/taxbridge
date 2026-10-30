@@ -41,7 +41,6 @@ export async function handleReceiptAttachOperation(context: OperationContext): P
           userId: context.userId,
           status: 'UPLOADED',
           verifiedAt: { not: null },
-          uploadExpiresAt: { gt: new Date(0) },
         },
         select: { id: true, businessId: true, expenseId: true, status: true },
       });
