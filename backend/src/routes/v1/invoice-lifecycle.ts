@@ -1,5 +1,6 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { Prisma } from '@prisma/client';
+import { z } from 'zod';
 import {
   InvoiceDraftUpdateRequestSchema,
   InvoiceLifecycleVersionRequestSchema,
@@ -14,7 +15,7 @@ import {
   updateInvoiceDraft,
 } from '../../services/invoice-lifecycle';
 
-const ParamsSchema = (await import('zod')).z.object({ id: (await import('zod')).z.string().uuid() });
+const ParamsSchema = z.object({ id: z.string().uuid() });
 
 function sendLifecycleError(error: unknown, reply: FastifyReply) {
   if (error instanceof InvoiceLifecycleError) {
