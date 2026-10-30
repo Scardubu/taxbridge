@@ -147,6 +147,10 @@ async function processJob(job: { id: string; receipt_evidence_id: string; attemp
         resource: 'ReceiptEvidence', resourceId: receipt.id, metadata: { reason: 'OCR_PROVIDER_UNAVAILABLE' },
       } });
     }
+    await prisma.receiptEvidence.update({
+      where: { id: receipt.id },
+      data: { cleanStorageKey, status: receipt.expenseId ? 'ATTACHED' : 'CLEAN', reviewStatus: 'REQUIRED' },
+    });
     await prisma.auditEvent.create({ data: {
       orgId: receipt.organizationId, userId: receipt.userId, action: 'RECEIPT_SCAN_CLEAN',
       resource: 'ReceiptEvidence', resourceId: receipt.id, metadata: { sha256: receipt.sha256, scanner: scan.engine },
