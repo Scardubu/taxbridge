@@ -79,14 +79,14 @@ export function ReceiptEvidenceQueue({ businessId }: Readonly<Props>) {
                           <Text style={{ ...Typography.micro, color: Colors.brand.primary }}>Retry upload</Text>
                         </Pressable>
                       ) : null}
-                      {session.server_receipt_id && ['QUARANTINED', 'SCANNING', 'SCAN_FAILED', 'CLEAN'].includes(displayStatus) ? (
+                      {session.server_receipt_id && ['QUARANTINED', 'SCANNING', 'SCAN_FAILED', 'CLEAN', 'ATTACHED'].includes(displayStatus) ? (
                         <Pressable onPress={() => void runAction(session.client_upload_id, async () => {
                           await refreshReceiptEvidenceStatus(session.client_upload_id);
                         })} accessibilityRole="button">
                           <Text style={{ ...Typography.micro, color: Colors.brand.primary }}>Refresh status</Text>
                         </Pressable>
                       ) : null}
-                      {session.server_receipt_id && displayStatus === 'CLEAN' && session.review_status === 'REQUIRED' ? (
+                      {session.server_receipt_id && ['CLEAN', 'ATTACHED'].includes(displayStatus) && session.review_status === 'REQUIRED' ? (
                         <>
                           <Pressable onPress={() => void runAction(session.client_upload_id, async () => {
                             const url = await getReceiptEvidencePreviewUrl(session.client_upload_id);
