@@ -10,7 +10,7 @@ import { useTranslation } from 'react-i18next';
 import { ReceiptReviewForm } from '../../components/ReceiptReviewForm';
 import { Colors, Radii, Spacing, Typography } from '../../components/design-system/tokens';
 import { processReceiptImage } from '../../services/receiptOcr';
-import { getReceiptEvidencePreviewUrl, prepareReceiptEvidence, refreshReceiptEvidenceStatus, resumeReceiptEvidenceUpload, reviewReceiptEvidence, type ReceiptEvidenceStatus } from '../../services/receiptEvidence';
+import { getReceiptEvidencePreviewUrl, prepareReceiptEvidence, refreshReceiptEvidenceStatus, resumeReceiptEvidenceUpload, reviewReceiptEvidence } from '../../services/receiptEvidence';
 import { DuplicateReceiptError, RECEIPT_FALLBACK_BUSINESS_ID, receiptService } from '../../services/receiptService';
 import { useBusinessProfileStore } from '../../stores/businessProfileStore';
 import { DEFAULT_TAB_ROUTE, useIsOnboardingDone } from '../../stores/onboardingStore';
@@ -32,7 +32,7 @@ export default function ReceiptsScreen() {
   const [ocrFailed, setOcrFailed] = useState(false);
   const [capturedUri, setCapturedUri] = useState<string | null>(null);
   const [evidenceClientUploadId, setEvidenceClientUploadId] = useState<string | null>(null);
-  const [evidenceStatus, setEvidenceStatus] = useState<ReceiptEvidenceStatus | null>(null);
+  const [evidenceStatus, setEvidenceStatus] = useState<string | null>(null);
   const [evidenceReviewStatus, setEvidenceReviewStatus] = useState<string | null>(null);
   const [evidenceError, setEvidenceError] = useState<string | null>(null);
 
