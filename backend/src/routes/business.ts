@@ -42,17 +42,42 @@ export default async function businessRoutes(app: FastifyInstance, opts: { prism
   });
 
   const UpdateBusinessSchema = z.object({
-    name: z.string().min(2).max(200).optional(),
-    email: z.string().email().optional(),
-    phone: z.string().optional(),
+    name: z.string().trim().min(2).max(200).optional(),
+    businessName: z.string().trim().min(2).max(200).optional(),
+    tradingName: z.string().trim().max(200).nullable().optional(),
+    tin: z.string().trim().max(64).nullable().optional(),
+    rcNumber: z.string().trim().max(64).nullable().optional(),
+    sector: z.string().trim().max(120).nullable().optional(),
+    businessType: z.union([
+      z.enum(['SOLE_PROPRIETOR', 'PARTNERSHIP', 'LIMITED_COMPANY', 'NGO']),
+      z.enum(['sole_trader', 'partnership', 'limited_company', 'ngo']),
+    ]).transform((value) => ({
+      sole_trader: 'SOLE_PROPRIETOR',
+      partnership: 'PARTNERSHIP',
+      limited_company: 'LIMITED_COMPANY',
+      ngo: 'NGO',
+      SOLE_PROPRIETOR: 'SOLE_PROPRIETOR',
+      PARTNERSHIP: 'PARTNERSHIP',
+      LIMITED_COMPANY: 'LIMITED_COMPANY',
+      NGO: 'NGO',
+    } as const)[value] as 'SOLE_PROPRIETOR' | 'PARTNERSHIP' | 'LIMITED_COMPANY' | 'NGO').optional(),
+    annualTurnover: z.number().finite().nonnegative().nullable().optional(),
+    monthlyRevenue: z.number().finite().nonnegative().nullable().optional(),
+    totalFixedAssets: z.number().finite().nonnegative().nullable().optional(),
+    employeeCount: z.number().int().nonnegative().optional(),
+    isVatRegistered: z.boolean().optional(),
+    vatNumber: z.string().trim().max(64).nullable().optional(),
+    lga: z.string().trim().max(120).nullable().optional(),
+    state: z.string().trim().max(120).nullable().optional(),
+    email: z.string().trim().email().nullable().optional(),
+    phone: z.string().trim().max(32).nullable().optional(),
     address: z.object({
       street: z.string().optional(),
       city: z.string().optional(),
       state: z.string().optional(),
       zipCode: z.string().optional(),
     }).optional(),
-    businessType: z.enum(['SOLE_PROPRIETOR', 'PARTNERSHIP', 'LIMITED_COMPANY', 'NGO']).optional(),
-  });
+  }).strict();
 
   const VerifyBusinessSchema = z.object({
     tinVerification: z.boolean().optional().default(false),
@@ -176,18 +201,38 @@ export default async function businessRoutes(app: FastifyInstance, opts: { prism
         return reply.status(error.statusCode).send(formatErrorResponse(error));
       }
 
+      const name = body.businessName ?? body.name;
+      const tinChanged = body.tin !== undefined && body.tin !== business.tin;
+      const cacNumberChanged = body.rcNumber !== undefined && body.rcNumber !== business.cacNumber;
+
+      const updateData = {
+        ...(name !== undefined ? { name } : {}),
+        ...(body.tradingName !== undefined ? { tradingName: body.tradingName } : {}),
+        ...(body.tin !== undefined ? { tin: body.tin } : {}),
+        ...(body.rcNumber !== undefined ? { cacNumber: body.rcNumber } : {}),
+        ...(body.sector !== undefined ? { sector: body.sector } : {}),
+        ...(body.annualTurnover !== undefined ? { annualTurnover: body.annualTurnover } : {}),
+        ...(body.monthlyRevenue !== undefined ? { monthlyRevenue: body.monthlyRevenue } : {}),
+        ...(body.totalFixedAssets !== undefined ? { totalFixedAssets: body.totalFixedAssets } : {}),
+        ...(body.employeeCount !== undefined ? { employeeCount: body.employeeCount } : {}),
+        ...(body.isVatRegistered !== undefined ? { isVatRegistered: body.isVatRegistered } : {}),
+        ...(body.vatNumber !== undefined ? { vatNumber: body.vatNumber } : {}),
+        ...(body.lga !== undefined ? { addressLga: body.lga } : {}),
+        ...(body.state !== undefined ? { addressState: body.state } : {}),
+        ...(body.email !== undefined ? { email: body.email } : {}),
+        ...(body.phone !== undefined ? { phone: body.phone } : {}),
+        ...(body.address?.street !== undefined ? { addressStreet: body.address.street } : {}),
+        ...(body.address?.city !== undefined ? { addressCity: body.address.city } : {}),
+        ...(body.address?.state !== undefined ? { addressState: body.address.state } : {}),
+        ...(body.address?.zipCode !== undefined ? { addressZipCode: body.address.zipCode } : {}),
+        ...(body.businessType !== undefined ? { businessType: body.businessType } : {}),
+        ...(tinChanged ? { tinVerified: false, status: 'PENDING', verifiedAt: null } : {}),
+        ...(cacNumberChanged ? { cacVerified: false, status: 'PENDING', verifiedAt: null } : {}),
+      };
+
       const updated = await prisma.business.update({
         where: { id: business.id },
-        data: {
-          ...(body.name && { name: body.name }),
-          ...(body.email && { email: body.email }),
-          ...(body.phone && { phone: body.phone }),
-          ...(body.address?.street && { addressStreet: body.address.street }),
-          ...(body.address?.city && { addressCity: body.address.city }),
-          ...(body.address?.state && { addressState: body.address.state }),
-          ...(body.address?.zipCode && { addressZipCode: body.address.zipCode }),
-          ...(body.businessType && { businessType: body.businessType }),
-        },
+        data: updateData,
       });
 
       await prisma.auditLog.create({
@@ -372,14 +417,33 @@ export default async function businessRoutes(app: FastifyInstance, opts: { prism
 // Helpers
 // =============================================================================
 
+function toNullableNumber(value: unknown): number | null {
+  if (value === null || value === undefined) return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 function formatBusinessResponse(business: any) {
   return {
     id: business.id,
     name: business.name,
+    businessName: business.name,
+    tradingName: business.tradingName ?? null,
     cacNumber: business.cacNumber,
+    rcNumber: business.cacNumber,
     tin: business.tin,
     email: business.email,
     phone: business.phone,
+    sector: business.sector ?? null,
+    annualTurnover: toNullableNumber(business.annualTurnover),
+    monthlyRevenue: toNullableNumber(business.monthlyRevenue),
+    totalFixedAssets: toNullableNumber(business.totalFixedAssets),
+    employeeCount: business.employeeCount ?? 0,
+    isVatRegistered: business.isVatRegistered ?? false,
+    vatNumber: business.vatNumber ?? null,
+    lga: business.addressLga ?? null,
+    state: business.addressState ?? null,
+    hasValidTIN: business.tinVerified === true,
     address: {
       street: business.addressStreet,
       city: business.addressCity,

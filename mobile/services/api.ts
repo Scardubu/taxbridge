@@ -170,16 +170,26 @@ export class ApiError extends Error {
 
 export interface BackendBusinessProfile {
   id: string;
-  business_name: string;
-  business_type: string;
-  sector: string;
-  annual_turnover: number;
-  monthly_revenue: number;
-  total_fixed_assets: number;
-  has_valid_tin: boolean;
-  is_vat_registered: boolean;
-  tin?: string;
-  updated_at: string;
+  name: string;
+  businessName: string;
+  tradingName: string | null;
+  cacNumber: string | null;
+  rcNumber: string | null;
+  tin: string | null;
+  sector: string | null;
+  businessType: string;
+  annualTurnover: number | null;
+  monthlyRevenue: number | null;
+  totalFixedAssets: number | null;
+  employeeCount: number;
+  isVatRegistered: boolean;
+  vatNumber: string | null;
+  lga: string | null;
+  state: string | null;
+  hasValidTIN: boolean;
+  email: string | null;
+  phone: string | null;
+  updatedAt: string;
 }
 
 export interface BusinessProfilePayload {
@@ -280,18 +290,37 @@ export interface TaxCalculationRequest {
 export async function patchBusinessProfile(
   payload: Partial<BusinessProfilePayload>,
 ): Promise<BackendBusinessProfile> {
-  try {
-    return await apiRequest<BackendBusinessProfile>('/api/v1/business-profile', {
-      method: 'PATCH',
-      body: JSON.stringify(payload),
-    });
-  } catch (error) {
-    if (error instanceof ApiError && error.status === 409 && error.details && typeof error.details === 'object') {
-      Sentry.captureException(error);
-      return error.details as BackendBusinessProfile;
-    }
-    throw error;
+  const response = await apiRequest<{
+    success: true;
+    data: BackendBusinessProfile;
+  }>('/api/v1/business/profile', {
+    method: 'PUT',
+    body: JSON.stringify({
+      businessName: payload.businessName,
+      tradingName: payload.tradingName,
+      tin: payload.tin,
+      rcNumber: payload.rcNumber,
+      sector: payload.sector,
+      businessType: payload.businessType,
+      annualTurnover: payload.annualTurnover,
+      monthlyRevenue: payload.monthlyRevenue,
+      totalFixedAssets: payload.totalFixedAssets,
+      employeeCount: payload.employeeCount,
+      isVatRegistered: payload.isVatRegistered,
+      vatNumber: payload.vatNumber,
+      lga: payload.lga,
+      state: payload.state,
+      phone: payload.phone,
+      email: payload.email,
+      // hasValidTIN is deliberately omitted: only provider verification can
+      // set the server-side tinVerified flag.
+    }),
+  });
+
+  if (!response || response.success !== true || !response.data?.id) {
+    throw new ApiError(502, 'INVALID_BUSINESS_PROFILE_RESPONSE', 'The server returned an invalid business profile response.');
   }
+  return response.data;
 }
 
 /**

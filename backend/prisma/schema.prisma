@@ -138,6 +138,15 @@ model Business {
   addressCity     String?         @map("address_city")
   addressState    String?         @map("address_state")
   addressZipCode  String?         @map("address_zip_code")
+  tradingName     String?         @map("trading_name")
+  sector          String?
+  annualTurnover  Decimal?        @map("annual_turnover") @db.Decimal(18, 2)
+  monthlyRevenue  Decimal?        @map("monthly_revenue") @db.Decimal(18, 2)
+  totalFixedAssets Decimal?       @map("total_fixed_assets") @db.Decimal(18, 2)
+  employeeCount   Int             @default(0) @map("employee_count")
+  isVatRegistered Boolean         @default(false) @map("is_vat_registered")
+  vatNumber       String?         @map("vat_number")
+  addressLga      String?         @map("address_lga")
   businessType    BusinessType    @default(SOLE_PROPRIETOR) @map("business_type")
   status          BusinessStatus  @default(PENDING)
 
