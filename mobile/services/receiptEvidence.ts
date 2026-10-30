@@ -301,6 +301,17 @@ export async function refreshReceiptEvidenceStatus(clientUploadId: string): Prom
   return status;
 }
 
+
+export async function getReceiptEvidencePreviewUrl(clientUploadId: string): Promise<string> {
+  const session = await getSession(clientUploadId);
+  if (!session.server_receipt_id) throw new Error('Receipt is not available for review yet');
+  const response = await apiRequest<{ url: string; expiresInSeconds: number }>(
+    `/api/v1/receipts/${session.server_receipt_id}/download`,
+  );
+  if (!response.url || response.expiresInSeconds <= 0) throw new Error('Receipt preview URL is unavailable');
+  return response.url;
+}
+
 export async function reviewReceiptEvidence(
   clientUploadId: string,
   decision: 'ACCEPT' | 'REJECT',
