@@ -4,7 +4,7 @@ ALTER TABLE "businesses" ADD COLUMN "org_id" UUID;
 -- Safe legacy backfill only where the owner has exactly one active membership.
 -- Ambiguous/unmapped rows remain NULL and are intentionally ineligible for offline writes.
 WITH unique_membership AS (
-  SELECT "user_id", MIN("org_id") AS "org_id"
+  SELECT "user_id", (ARRAY_AGG("org_id" ORDER BY "org_id"))[1] AS "org_id"
   FROM "org_members"
   WHERE "status" = 'active'
   GROUP BY "user_id"
