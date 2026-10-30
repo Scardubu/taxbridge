@@ -142,6 +142,7 @@ export class InvoiceService {
     }));
 
     const totals = calculateInvoiceTotals(items);
+    const status = input.businessId ? 'draft' : (input.asDraft ? 'draft' : 'queued');
 
     let invoice;
     if (input.businessId) {
@@ -192,7 +193,6 @@ export class InvoiceService {
         return created;
       }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     } else {
-      const status = input.asDraft ? 'draft' : 'queued';
       invoice = await this.prisma.invoice.create({
         data: {
           userId: input.userId,
@@ -210,7 +210,7 @@ export class InvoiceService {
           total: totals.total.toFixed(2),
           dueDate: input.dueDate ? new Date(input.dueDate) : null,
           template: input.template || 'professional',
-          nrsCompliant: input.nrsCompliant ?? true,
+          nrsCompliant: input.businessId ? false : (input.nrsCompliant ?? true),
           notes: input.notes || null,
           status,
         },
@@ -226,7 +226,7 @@ export class InvoiceService {
           invoiceNumber,
           status,
           total: totals.total,
-          nrsCompliant: input.nrsCompliant ?? true,
+          nrsCompliant: invoice.nrsCompliant,
         },
       },
     });
