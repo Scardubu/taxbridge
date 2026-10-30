@@ -77,7 +77,7 @@ export class BulkOperationsService {
         switch (entityType) {
           case 'invoice':
             await this.prisma.invoice.updateMany({
-              where: { id, userId: businessId },
+              where: { id, userId: businessId, businessId: null },
               data: { status: status as any },
             });
             break;
@@ -126,7 +126,7 @@ export class BulkOperationsService {
         switch (entityType) {
           case 'invoice':
             await this.prisma.invoice.updateMany({
-              where: { id, userId: businessId, status: { in: ['DRAFT', 'FAILED'] } },
+              where: { id, userId: businessId, businessId: null, status: { in: ['DRAFT', 'FAILED'] } },
               data: { status: 'CANCELLED' },
             });
             break;
