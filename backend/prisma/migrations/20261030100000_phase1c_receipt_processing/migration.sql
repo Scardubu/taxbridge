@@ -3,10 +3,9 @@ ALTER TABLE "receipt_evidence"
   ADD COLUMN "clean_storage_key" TEXT,
   DROP CONSTRAINT "receipt_evidence_status_check",
   ADD CONSTRAINT "receipt_evidence_status_check"
-    CHECK ("status" IN ('PENDING_UPLOAD','QUARANTINED','SCANNING','CLEAN','INFECTED','SCAN_FAILED','ATTACHED','REJECTED','EXPIRED'));
+    CHECK ("status" IN ('PENDING_UPLOAD','UPLOADED','QUARANTINED','SCANNING','CLEAN','INFECTED','SCAN_FAILED','ATTACHED','REJECTED','EXPIRED'));
 
-CREATE UNIQUE INDEX "receipt_evidence_clean_storage_key_key"
-  ON "receipt_evidence"("clean_storage_key") WHERE "clean_storage_key" IS NOT NULL;
+CREATE UNIQUE INDEX "receipt_evidence_clean_storage_key_key" ON "receipt_evidence"("clean_storage_key");
 
 CREATE TABLE "receipt_processing_jobs" (
   "id" UUID NOT NULL DEFAULT gen_random_uuid(),
@@ -61,3 +60,16 @@ CREATE TABLE "receipt_ocr_extractions" (
   CONSTRAINT "receipt_ocr_extractions_confidence_check" CHECK ("mean_confidence" IS NULL OR ("mean_confidence" >= 0 AND "mean_confidence" <= 1))
 );
 CREATE UNIQUE INDEX "receipt_ocr_extractions_receipt_key" ON "receipt_ocr_extractions"("receipt_evidence_id");
+
+-- Existing Phase 1C.3 UPLOADED rows have only passed byte/signature checks.
+-- Re-quarantine them and enqueue a scan before allowing future attachment.
+UPDATE "receipt_evidence" SET "status" = 'QUARANTINED' WHERE "status" = 'UPLOADED';
+INSERT INTO "receipt_processing_jobs" ("receipt_evidence_id", "status", "updated_at")
+SELECT "id", 'PENDING', CURRENT_TIMESTAMP
+FROM "receipt_evidence"
+WHERE "status" = 'QUARANTINED'
+ON CONFLICT ("receipt_evidence_id") DO NOTHING;
+
+ALTER TABLE "receipt_evidence" DROP CONSTRAINT "receipt_evidence_status_check";
+ALTER TABLE "receipt_evidence" ADD CONSTRAINT "receipt_evidence_status_check"
+  CHECK ("status" IN ('PENDING_UPLOAD','QUARANTINED','SCANNING','CLEAN','INFECTED','SCAN_FAILED','ATTACHED','REJECTED','EXPIRED'));
