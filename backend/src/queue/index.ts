@@ -218,9 +218,12 @@ async function pollOperationOutbox(): Promise<void> {
 }
 void pollOperationOutbox();
 const outboxTimer = setInterval(() => { void pollOperationOutbox(); }, outboxPollIntervalMs);
+const configuredReceiptPollMs = Number.parseInt(process.env.RECEIPT_PROCESSING_POLL_MS || '2000', 10);
+const receiptProcessingPollMs = Number.isFinite(configuredReceiptPollMs) && configuredReceiptPollMs >= 1000
+  ? configuredReceiptPollMs : 2000;
 const receiptProcessingTimer = setInterval(() => {
   void processReceiptJobsBatch(5).catch((error) => log.error('Receipt processing batch failed', { err: error }));
-}, Math.max(1000, Number.parseInt(process.env.RECEIPT_PROCESSING_POLL_MS || '2000', 10)));
+}, receiptProcessingPollMs);
 
 invoiceSyncWorker.on('completed', (job, result) => {
   log.info('job completed', {
