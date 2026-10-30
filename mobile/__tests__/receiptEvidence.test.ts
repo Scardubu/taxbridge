@@ -135,4 +135,21 @@ describe('Phase 1C.5 durable receipt evidence upload', () => {
     expect(result).toMatchObject({ clientUploadId: 'client-upload-uuid', receiptEvidenceId: 'server-receipt-uuid', status: 'QUARANTINED' });
     expect(FileSystem.deleteAsync).toHaveBeenCalledWith(validSession.local_uri, { idempotent: true });
   });
+  it('retains the staged file and schedules a retry when the object PUT fails', async () => {
+    mockDb.getFirstAsync.mockResolvedValue(validSession);
+    (apiRequest as jest.Mock).mockResolvedValueOnce({
+      receiptEvidenceId: 'server-receipt-uuid',
+      uploadUrl: 'https://storage.example/signed-put',
+      requiredHeaders: { 'content-type': 'image/jpeg', 'x-amz-meta-sha256': '0'.repeat(64) },
+    });
+    (FileSystem.uploadAsync as jest.Mock).mockRejectedValue(new Error('network disconnected'));
+
+    await expect(resumeReceiptEvidenceUpload('client-upload-uuid')).rejects.toThrow('saved for retry');
+    expect(mockDb.runAsync).toHaveBeenCalledWith(
+      expect.stringContaining('status = ?'),
+      expect.arrayContaining(['UPLOAD_RETRY']),
+    );
+    expect(FileSystem.deleteAsync).not.toHaveBeenCalled();
+  });
+
 });
