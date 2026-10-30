@@ -153,44 +153,7 @@ export default async function invoiceManagementRoutes(
         nrsCompliant: false,
       });
 
-      // Phase 1C.6: invoice creation remains an internal draft.
-      // Approval and NRS submission are separate, explicitly authorized workflows.
-      if (!parsed.data.asDraft) {
-        try {
-          const queue = getInvoiceSyncQueue();
-          if (queue) {
-            const maxAttempts = Number.parseInt(
-              process.env.INVOICE_SYNC_MAX_ATTEMPTS || '5',
-              10
-            );
-            const backoffMs = Number.parseInt(
-              process.env.INVOICE_SYNC_BACKOFF_MS || '1000',
-              10
-            );
-
-            await queue.add(
-              'sync',
-              { invoiceId: result.id },
-              {
-                attempts:
-                  Number.isFinite(maxAttempts) && maxAttempts > 0 ? maxAttempts : 5,
-                backoff: {
-                  type: 'exponential',
-                  delay:
-                    Number.isFinite(backoffMs) && backoffMs > 0 ? backoffMs : 1000,
-                },
-                removeOnComplete: true,
-                removeOnFail: false,
-              }
-            );
-          }
-        } catch (queueErr) {
-          log.error('Failed to queue invoice for NRS sync', {
-            invoiceId: result.id,
-            err: queueErr,
-          });
-        }
-      }
+      // Approval is a separate, explicit workflow; this route never queues NRS work.
 
       await invalidateDashboardCache(redis, userId);
 
