@@ -1,13 +1,7 @@
 import path from 'path';
-
 import dotenv from 'dotenv';
 import { Worker } from 'bullmq';
 import { prisma } from '../lib/prisma';
-
-dotenv.config({ path: path.resolve(process.cwd(), '.env') });
-
-initialiseObservability();
-
 import { closeRedisConnection, getRedisConnection, toBullMQConnection } from './client';
 import { submitToDigiTax } from '../../integrations/digitax/adapter';
 import { DigiTaxError } from '../../integrations/digitax/adapter';
@@ -20,6 +14,9 @@ import { startOperationWorker } from '../operations/operation-worker';
 import { dispatchOutboxBatch, closeOutboxDispatcher } from '../operations/outbox-dispatcher';
 import { initialiseObservability } from '../lib/observability';
 
+dotenv.config({ path: path.resolve(process.cwd(), '.env') });
+
+initialiseObservability();
 
 const log = createLogger('worker');
 
