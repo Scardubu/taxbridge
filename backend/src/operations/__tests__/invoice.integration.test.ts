@@ -245,13 +245,13 @@ describeDatabase('Phase 1C.2 and 1C.6 invoice lifecycle — PostgreSQL integrati
     });
     expect(history.revisions).toHaveLength(2);
     expect(history.revisions.every((revision) => /^[a-f0-9]{64}$/.test(revision.contentHash ?? ''))).toBe(true);
-    const hashMismatchRows = await prisma.$queryRaw<Array<{ mismatches: bigint }>>`
-      SELECT COUNT(*)::bigint AS "mismatches"
+    const hashMismatchRows = await prisma.$queryRaw<Array<{ mismatches: number }>>`
+      SELECT COUNT(*)::integer AS "mismatches"
       FROM "invoice_versions"
       WHERE "invoice_id" = ${invoiceId}::uuid
         AND "content_hash" IS DISTINCT FROM encode(digest("data"::text, 'sha256'), 'hex')
     `;
-    expect(Number(hashMismatchRows[0]?.mismatches ?? -1n)).toBe(0);
+    expect(hashMismatchRows[0]?.mismatches ?? -1).toBe(0);
     expect(history.events.map((event) => event.eventType)).toEqual(expect.arrayContaining([
       'DRAFT_CREATED',
       'SUBMITTED_FOR_APPROVAL',
