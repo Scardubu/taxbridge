@@ -84,18 +84,18 @@ function validateInput(input: { filename: string; contentType: string }): void {
   }
 }
 
-async function updateSession(clientUploadId: string, values: Record<string, unknown>): Promise<void> {
+async function updateSession(clientUploadId: string, values: Record<string, string | number | null>): Promise<void> {
   const db = await getDatabase();
   const allowed = new Set([
     'server_receipt_id','status','server_status','review_status','scan_verdict','ocr_status',
     'retry_count','next_attempt_at','last_error','updated_at',
   ]);
-  const entries = Object.entries(values).filter(([key]) => allowed.has(key));
+  const entries = Object.entries(values).filter(([key]) => allowed.has(key)) as Array<[string, string | number | null]>;
   if (!entries.length) return;
   const assignments = entries.map(([key]) => `${key} = ?`).join(', ');
   await db.runAsync(
     `UPDATE receipt_upload_sessions SET ${assignments}, updated_at = datetime('now') WHERE client_upload_id = ?`,
-    [...entries.map(([, value]) => value ?? null), clientUploadId],
+    [...entries.map(([, value]) => value), clientUploadId],
   );
 }
 
