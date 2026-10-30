@@ -41,12 +41,18 @@ export async function handleReceiptAttachOperation(context: OperationContext): P
           userId: context.userId,
           status: 'CLEAN',
           reviewStatus: 'ACCEPTED',
+          reviewedBy: { not: null },
+          reviewedAt: { not: null },
+          cleanStorageKey: { not: null },
           verifiedAt: { not: null },
         },
-        select: { id: true, businessId: true, expenseId: true, status: true },
+        select: { id: true, businessId: true, expenseId: true, status: true, sha256: true, scanResult: { select: { sha256: true, verdict: true } } },
       });
       if (!receipt) {
         throw new OperationFailure('Clean, malware-scanned receipt evidence not found', 'RECEIPT_NOT_CLEAN', false);
+      }
+      if (!receipt.scanResult || receipt.scanResult.verdict !== 'CLEAN' || receipt.scanResult.sha256 !== receipt.sha256) {
+        throw new OperationFailure('Receipt scan evidence is missing or does not match the source digest', 'RECEIPT_SCAN_EVIDENCE_INVALID', false);
       }
       if (receipt.expenseId) {
         throw new OperationFailure('Receipt evidence is already attached', 'RECEIPT_ALREADY_ATTACHED', false);
@@ -71,6 +77,9 @@ export async function handleReceiptAttachOperation(context: OperationContext): P
           userId: context.userId,
           status: 'CLEAN',
           reviewStatus: 'ACCEPTED',
+          reviewedBy: { not: null },
+          reviewedAt: { not: null },
+          cleanStorageKey: { not: null },
           expenseId: null,
         },
         data: { status: 'ATTACHED', expenseId: expense.id },
