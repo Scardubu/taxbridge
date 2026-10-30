@@ -251,6 +251,7 @@ model ReceiptEvidence {
 
   @@index([organizationId, businessId, createdAt])
   @@index([userId, createdAt])
+  @@index([expenseId])
   @@index([status, uploadExpiresAt])
   @@map("receipt_evidence")
 }
