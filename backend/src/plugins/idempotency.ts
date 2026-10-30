@@ -13,12 +13,12 @@ import { computeRequestHash } from '../lib/idempotency';
 const IDEMPOTENCY_TTL_SECONDS = 24 * 60 * 60;
 const IDEMPOTENCY_LOCK_TTL_SECONDS = 180;
 
-const RELEASE_LOCK_SCRIPT = \`
+const RELEASE_LOCK_SCRIPT = `
 if redis.call('GET', KEYS[1]) == ARGV[1] then
   return redis.call('DEL', KEYS[1])
 end
 return 0
-\`;
+`;
 
 interface CachedResponse {
   statusCode: number;
