@@ -92,7 +92,7 @@ export default function ReceiptsScreen() {
         try {
           const localUploadId = await prepareReceiptEvidence({
             uri: capturedUri,
-            filename: `receipt-${Date.now()}.jpg`,
+            filename: `receipt-${Date.now()}.${capturedContentType === 'image/jpeg' ? 'jpg' : capturedContentType.split('/')[1]}`,
             contentType: capturedContentType,
             businessId,
           });
@@ -100,8 +100,13 @@ export default function ReceiptsScreen() {
           try {
             const uploaded = await resumeReceiptEvidenceUpload(localUploadId);
             setEvidenceStatus(uploaded.status);
-            const server = await refreshReceiptEvidenceStatus(localUploadId);
-            setEvidenceReviewStatus(server.reviewStatus ?? null);
+            try {
+              const server = await refreshReceiptEvidenceStatus(localUploadId);
+              setEvidenceStatus(server.status);
+              setEvidenceReviewStatus(server.reviewStatus ?? null);
+            } catch (statusError) {
+              setEvidenceError(`Evidence is uploaded; scan status will refresh when the connection is restored. ${String(statusError)}`);
+            }
           } catch (uploadError) {
             setEvidenceStatus('UPLOAD_RETRY');
             setEvidenceError(String(uploadError));
@@ -326,13 +331,13 @@ export default function ReceiptsScreen() {
             void (async () => {
               const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.85 });
               if (result.canceled || !result.assets[0]?.uri || processing) return;
-              setProcessing(true);
               const selected = result.assets[0];
               const contentType = selected.mimeType ?? 'image/jpeg';
               if (!['image/jpeg', 'image/png', 'image/webp'].includes(contentType)) {
                 Alert.alert(t('common.error'), 'Choose a JPEG, PNG or WebP receipt image.');
                 return;
               }
+              setProcessing(true);
               setCapturedUri(selected.uri);
               setCapturedContentType(contentType);
               try {
