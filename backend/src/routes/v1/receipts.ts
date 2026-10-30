@@ -17,7 +17,7 @@ const RETENTION_YEARS = 7;
 const ALLOWED_CONTENT_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'] as const;
 
 const CreateIntentSchema = z.object({
-  clientUploadId: z.string().uuid(),
+  clientUploadId: z.string().uuid().optional(),
   businessId: z.string().uuid(),
   filename: z.string().trim().min(1).max(255).refine((value) => !/[\\/\\0-\\x1f\\x7f]/.test(value), 'Filename contains invalid characters'),
   contentType: z.enum(ALLOWED_CONTENT_TYPES),
@@ -71,7 +71,8 @@ export default async function receiptRoutes(app: FastifyInstance): Promise<void>
       return reply.code(400).send({ error: 'VALIDATION_ERROR', issues: parsed.error.issues });
     }
 
-    const { clientUploadId, businessId, filename, contentType, byteSize, sha256 } = parsed.data;
+    const { businessId, filename, contentType, byteSize, sha256 } = parsed.data;
+    const clientUploadId = parsed.data.clientUploadId ?? randomUUID();
     const userId = (request as any).user.userId as string;
     const orgId = (request as any).orgContext.orgId as string;
     const business = await prisma.business.findFirst({
