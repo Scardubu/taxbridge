@@ -64,3 +64,39 @@ export type OperationType = z.infer<typeof OperationTypeSchema>;
 export type OperationEnvelope = z.infer<typeof OperationEnvelopeSchema>;
 export type OperationResult = z.infer<typeof OperationResultSchema>;
 export type ApiError = z.infer<typeof ApiErrorSchema>;
+
+
+const invoiceMoney = moneyAmount;
+export const InvoiceCreateOperationPayloadSchema = z.object({
+  action: z.literal('INVOICE_CREATE'),
+  data: z.object({
+    businessId: z.string().uuid(),
+    customerName: z.string().trim().min(1).max(200),
+    customerEmail: z.string().email().max(254).optional(),
+    customerTIN: z.string().trim().min(1).max(32).optional(),
+    customerPhone: z.string().trim().min(5).max(32).optional(),
+    customerAddress: z.string().trim().min(1).max(500).optional(),
+    items: z.array(z.object({
+      description: z.string().trim().min(1).max(300),
+      quantity: z.number().finite().positive().max(1_000_000),
+      unitPrice: invoiceMoney,
+    }).strict()).min(1).max(100),
+    subtotal: invoiceMoney.refine((value) => value > 0, 'Subtotal must be positive'),
+    vat: invoiceMoney,
+    total: invoiceMoney.refine((value) => value > 0, 'Total must be positive'),
+    dueDate: z.string().datetime({ offset: true }).optional(),
+    template: z.enum(['professional', 'retail', 'service', 'wholesale']).default('professional'),
+    notes: z.string().max(5000).optional(),
+  }).strict().superRefine((data, ctx) => {
+    const cents = (value: number) => Math.round(value * 100);
+    const computedSubtotal = data.items.reduce(
+      (sum, item) => sum + Math.round(item.quantity * cents(item.unitPrice)), 0,
+    );
+    if (computedSubtotal !== cents(data.subtotal)) {
+      ctx.addIssue({ code: 'custom', path: ['subtotal'], message: 'Subtotal must equal the sum of line items' });
+    }
+    if (cents(data.subtotal) + cents(data.vat) !== cents(data.total)) {
+      ctx.addIssue({ code: 'custom', path: ['total'], message: 'Total must equal subtotal plus explicitly supplied VAT' });
+    }
+  }),
+}).strict();
