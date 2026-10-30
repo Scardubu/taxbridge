@@ -7,7 +7,7 @@ on:
     branches: [ main, master, develop ]
 
 env:
-  NODE_VERSION: '18'
+  NODE_VERSION: '26.x'
   DUPLO_CLIENT_ID: ${{ secrets.DUPLO_CLIENT_ID }}
   DUPLO_CLIENT_SECRET: ${{ secrets.DUPLO_CLIENT_SECRET }}
   DUPLO_API_URL: ${{ secrets.DUPLO_API_URL }}
@@ -161,6 +161,37 @@ jobs:
   security-tests:
     name: Security Tests
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: taxbridge
+          POSTGRES_PASSWORD: taxbridge
+          POSTGRES_DB: taxbridge_security
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U taxbridge -d taxbridge_security"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      DATABASE_URL: postgresql://taxbridge:taxbridge@localhost:5432/taxbridge_security
+      DIRECT_URL: postgresql://taxbridge:taxbridge@localhost:5432/taxbridge_security
+      REDIS_URL: redis://localhost:6379
+      NODE_ENV: test
+      JWT_SECRET: taxbridge-ci-only-secret-at-least-32-characters
+      PORT: 3000
+      ALLOWED_ORIGINS: http://localhost:3000
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -176,7 +207,32 @@ jobs:
           npm ci
           npm ci --prefix backend
 
-      - name: Run security audit
+      - name: Generate Prisma client and apply migrations
+        run: |
+          npm run prisma:generate --prefix backend
+          npm run prisma:migrate:deploy --prefix backend
+
+      - name: Start API and wait for readiness
+        shell: bash
+        run: |
+          npm run dev --prefix backend > /tmp/taxbridge-security-api.log 2>&1 &
+          API_PID=$!
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent http://localhost:3000/health/live >/dev/null; then
+              echo "TaxBridge API is ready (pid $API_PID)."
+              exit 0
+            fi
+            if ! kill -0 "$API_PID" 2>/dev/null; then
+              cat /tmp/taxbridge-security-api.log
+              exit 1
+            fi
+            sleep 2
+          done
+          cat /tmp/taxbridge-security-api.log
+          echo "TaxBridge API did not become ready within 120 seconds."
+          exit 1
+
+      - name: Run security tests against the live API
         run: npm run test:security --prefix backend
 
       - name: Run OWASP ZAP Baseline Scan
@@ -255,7 +311,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'yarn'
+          cache: 'npm'
 
       - name: Install dependencies
         run: |
@@ -283,7 +339,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'yarn'
+          cache: 'npm'
 
       - name: Install dependencies
         run: |
