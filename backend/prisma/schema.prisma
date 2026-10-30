@@ -233,6 +233,7 @@ model ReceiptEvidence {
   businessId        String    @map("business_id") @db.Uuid
   expenseId         String?   @map("expense_id") @db.Uuid
   storageKey        String    @unique(map: "receipt_evidence_storage_key_key") @map("storage_key")
+  cleanStorageKey   String?   @unique(map: "receipt_evidence_clean_storage_key_key") @map("clean_storage_key")
   uploadKey         String    @unique(map: "receipt_evidence_upload_key_key") @map("upload_key")
   originalFilename  String    @map("original_filename")
   contentType       String    @map("content_type")
@@ -249,6 +250,9 @@ model ReceiptEvidence {
   user              User      @relation(fields: [userId], references: [id])
   business          Business  @relation(fields: [businessId], references: [id])
   expense           Expense?  @relation(fields: [expenseId], references: [id])
+  processingJobs    ReceiptProcessingJob[]
+  scanResult        ReceiptScanResult?
+  ocrExtraction     ReceiptOcrExtraction?
 
   @@index([organizationId, businessId, createdAt], map: "receipt_evidence_org_business_created_idx")
   @@index([userId, createdAt], map: "receipt_evidence_user_created_idx")
@@ -1218,4 +1222,50 @@ model OperationEffect {
 
   @@index([organizationId, createdAt])
   @@map("operation_effects")
+}
+
+ 
+/// Durable, idempotent worker dispatch for quarantined receipt evidence.
+model ReceiptProcessingJob {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  receiptEvidenceId String  @unique(map: "receipt_processing_jobs_receipt_key") @map("receipt_evidence_id") @db.Uuid
+  status           String   @default("PENDING")
+  attempts         Int      @default(0)
+  availableAt      DateTime @default(now()) @map("available_at")
+  lockedAt         DateTime? @map("locked_at")
+  lastErrorCode    String?  @map("last_error_code")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+  receiptEvidence  ReceiptEvidence @relation(fields: [receiptEvidenceId], references: [id], onDelete: Restrict)
+
+  @@index([status, availableAt, createdAt], map: "receipt_processing_jobs_dispatch_idx")
+  @@map("receipt_processing_jobs")
+}
+
+model ReceiptScanResult {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  receiptEvidenceId String   @unique(map: "receipt_scan_results_receipt_key") @map("receipt_evidence_id") @db.Uuid
+  sha256            String   @db.Char(64)
+  engine            String
+  engineVersion     String   @map("engine_version")
+  verdict           String
+  findings          Json     @default("[]")
+  scannedAt         DateTime @default(now()) @map("scanned_at")
+  receiptEvidence   ReceiptEvidence @relation(fields: [receiptEvidenceId], references: [id], onDelete: Restrict)
+  @@map("receipt_scan_results")
+}
+
+model ReceiptOcrExtraction {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  receiptEvidenceId String   @unique(map: "receipt_ocr_extractions_receipt_key") @map("receipt_evidence_id") @db.Uuid
+  sha256            String   @db.Char(64)
+  provider          String
+  providerVersion   String   @map("provider_version")
+  status            String
+  extractedText     String?  @map("extracted_text") @db.Text
+  meanConfidence    Float?   @map("mean_confidence")
+  fieldCandidates   Json     @default("{}") @map("field_candidates")
+  createdAt         DateTime @default(now()) @map("created_at")
+  receiptEvidence   ReceiptEvidence @relation(fields: [receiptEvidenceId], references: [id], onDelete: Restrict)
+  @@map("receipt_ocr_extractions")
 }
