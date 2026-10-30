@@ -1,66 +1,189 @@
 /**
- * idempotency preHandler — TaxBridge V13 Sovereign
+ * Redis-backed idempotency guard for authenticated organization-scoped writes.
  *
- * Redis NX key: idem:${X-Idempotency-Key} with 24h TTL.
- * On cache hit: replay cached response (409 for filing duplicates is handled at route level).
- *
- * C-35: idempotency preHandler on nil, vat, wht, cit filings, payroll/run, payments/initiate
+ * A request fingerprint prevents a client from reusing a key for another
+ * payload. A short-lived NX lock prevents concurrent requests from executing
+ * the same side effect before the first response is durably cached.
  */
-import { FastifyRequest, FastifyReply } from 'fastify';
-import { redis }                        from '../lib/redis';
+import { randomUUID } from 'node:crypto';
+import type { FastifyRequest, FastifyReply } from 'fastify';
+import { redis } from '../lib/redis';
+import { computeRequestHash } from '../lib/idempotency';
 
-const IDEMPOTENCY_TTL = 86_400; // 24 hours
+const IDEMPOTENCY_TTL_SECONDS = 24 * 60 * 60;
+const IDEMPOTENCY_LOCK_TTL_SECONDS = 180;
+
+const RELEASE_LOCK_SCRIPT = \`
+if redis.call('GET', KEYS[1]) == ARGV[1] then
+  return redis.call('DEL', KEYS[1])
+end
+return 0
+\`;
+
+interface CachedResponse {
+  statusCode: number;
+  body: unknown;
+  requestHash: string;
+}
+
+interface IdempotencyRequestState {
+  cacheKey: string;
+  lockKey: string;
+  lockToken: string;
+  requestHash: string;
+}
+
+function sendCachedOrConflict(
+  reply: FastifyReply,
+  cached: string,
+  requestHash: string,
+): void {
+  let parsed: CachedResponse;
+  try {
+    parsed = JSON.parse(cached) as CachedResponse;
+  } catch {
+    reply.code(503).send({
+      error: 'IDEMPOTENCY_CACHE_CORRUPT',
+      retryable: true,
+    });
+    return;
+  }
+
+  if (
+    typeof parsed.requestHash !== 'string' ||
+    parsed.requestHash.length !== 64 ||
+    parsed.requestHash !== requestHash
+  ) {
+    reply.code(409).send({
+      error: 'IDEMPOTENCY_KEY_REUSED',
+      message: 'This idempotency key was already used for a different request.',
+      retryable: false,
+    });
+    return;
+  }
+
+  if (!Number.isInteger(parsed.statusCode) || parsed.statusCode < 200 || parsed.statusCode > 599) {
+    reply.code(503).send({
+      error: 'IDEMPOTENCY_CACHE_CORRUPT',
+      retryable: true,
+    });
+    return;
+  }
+
+  reply.code(parsed.statusCode).send(parsed.body);
+}
 
 export async function idempotency(
   request: FastifyRequest,
-  reply:   FastifyReply,
+  reply: FastifyReply,
 ): Promise<void> {
-  const key = request.headers['x-idempotency-key'] as string | undefined;
-  if (!key) return; // Optional for routes that do not require request replay protection.
-  if (key.length > 128 || !/^[A-Za-z0-9._:-]+$/.test(key)) {
-    return reply.code(400).send({ error: 'INVALID_IDEMPOTENCY_KEY' });
+  const header = request.headers['x-idempotency-key'];
+  const key = Array.isArray(header) ? header[0] : header;
+  if (!key) return;
+
+  if (key.length < 8 || key.length > 128 || !/^[A-Za-z0-9._:-]+$/.test(key)) {
+    reply.code(400).send({ error: 'INVALID_IDEMPOTENCY_KEY' });
+    return;
   }
 
   const userId = request.user?.userId;
-  const orgId = (request as any).orgContext?.orgId as string | undefined;
+  const orgId = (request as FastifyRequest & { orgContext?: { orgId?: string } }).orgContext?.orgId;
   if (!userId || !orgId) {
-    return reply.code(401).send({ error: 'IDEMPOTENCY_REQUIRES_AUTHENTICATED_ORG' });
+    reply.code(401).send({ error: 'IDEMPOTENCY_REQUIRES_AUTHENTICATED_ORG' });
+    return;
   }
 
-  // Never share idempotency cache entries across users or organizations.
-  const redisKey = `idem:${orgId}:${userId}:${key}`;
+  const cacheKey = 'idem:' + orgId + ':' + userId + ':' + key;
+  const lockKey = cacheKey + ':lock';
+  const requestHash = computeRequestHash({
+    method: request.method,
+    path: request.url,
+    body: request.body,
+  });
 
-  // Try to get cached response
-  const cached = await redis.get(redisKey).catch(() => null);
-  if (cached) {
+  let cached: string | null;
+  try {
+    cached = await redis.get(cacheKey);
+  } catch (error) {
+    request.log.error({ err: error }, 'Idempotency cache lookup failed');
+    reply.code(503).send({ error: 'IDEMPOTENCY_UNAVAILABLE', retryable: true });
+    return;
+  }
+
+  if (cached !== null) {
+    sendCachedOrConflict(reply, cached, requestHash);
+    return;
+  }
+
+  const lockToken = randomUUID();
+  let lockResult: string | null;
+  try {
+    lockResult = await redis.set(
+      lockKey,
+      lockToken,
+      'EX',
+      IDEMPOTENCY_LOCK_TTL_SECONDS,
+      'NX',
+    );
+  } catch (error) {
+    request.log.error({ err: error }, 'Idempotency reservation failed');
+    reply.code(503).send({ error: 'IDEMPOTENCY_UNAVAILABLE', retryable: true });
+    return;
+  }
+
+  if (lockResult !== 'OK') {
+    // The first request may have completed between our cache miss and lock
+    // attempt. Re-read once so a completed request is replayed immediately.
     try {
-      const parsed = JSON.parse(cached);
-      reply.code(parsed.statusCode ?? 200).send(parsed.body);
+      cached = await redis.get(cacheKey);
+    } catch (error) {
+      request.log.error({ err: error }, 'Idempotency cache recheck failed');
+      reply.code(503).send({ error: 'IDEMPOTENCY_UNAVAILABLE', retryable: true });
       return;
-    } catch {
-      // Malformed cache — fall through
     }
+
+    if (cached !== null) {
+      sendCachedOrConflict(reply, cached, requestHash);
+      return;
+    }
+
+    reply.code(409).send({
+      error: 'IDEMPOTENCY_IN_PROGRESS',
+      message: 'An identical operation is already being processed.',
+      retryable: true,
+    });
+    return;
   }
 
-  // Cache the response after the route handler runs
-  // Store the key in request so the route can cache after sending
-  (request as any).__idempotencyKey = redisKey;
+  (request as FastifyRequest & { __idempotencyState?: IdempotencyRequestState })
+    .__idempotencyState = { cacheKey, lockKey, lockToken, requestHash };
 }
 
 /**
- * Helper: called by route handlers after building the response to cache it.
- * Usage: await cacheIdempotencyResponse(request, 201, responseBody)
+ * Called after the domain side effect commits. The cached response is written
+ * before releasing the lock, so a retry can never pass between those steps.
  */
 export async function cacheIdempotencyResponse(
-  request:    FastifyRequest,
+  request: FastifyRequest,
   statusCode: number,
-  body:       unknown,
+  body: unknown,
 ): Promise<void> {
-  const redisKey = (request as any).__idempotencyKey;
-  if (!redisKey) return;
+  const state = (request as FastifyRequest & {
+    __idempotencyState?: IdempotencyRequestState;
+  }).__idempotencyState;
+  if (!state) return;
+
+  await redis.setex(
+    state.cacheKey,
+    IDEMPOTENCY_TTL_SECONDS,
+    JSON.stringify({ statusCode, body, requestHash: state.requestHash }),
+  );
+
   try {
-    await redis.setex(redisKey, IDEMPOTENCY_TTL, JSON.stringify({ statusCode, body }));
-  } catch {
-    // Cache write errors are non-fatal (C-07)
+    await redis.eval(RELEASE_LOCK_SCRIPT, 1, state.lockKey, state.lockToken);
+  } catch (error) {
+    // Leave the lock to expire naturally. This is safer than releasing a
+    // reservation when the cache-write/lock-release outcome is uncertain.
+    request.log.warn({ err: error }, 'Idempotency lock release deferred to TTL');
   }
 }
