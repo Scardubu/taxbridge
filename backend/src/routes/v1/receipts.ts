@@ -190,7 +190,7 @@ export default async function receiptRoutes(app: FastifyInstance): Promise<void>
         where: { id: record.id },
         data: { status: 'REJECTED' },
       });
-      await client.send(new DeleteObjectCommand({ Bucket: config.bucket, Key: record.storageKey })).catch(() => undefined);
+      await client.send(new DeleteObjectCommand({ Bucket: config.bucket, Key: record.uploadKey })).catch(() => undefined);
       return reply.code(422).send({ error: 'RECEIPT_OBJECT_MISMATCH', message: 'Uploaded object metadata does not match the signed upload intent' });
     }
 
