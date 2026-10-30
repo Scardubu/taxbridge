@@ -11,7 +11,7 @@ import { FastifyPluginAsync }   from 'fastify';
 import { createHash, randomUUID } from 'node:crypto';
 import { z }                    from 'zod';
 import * as bcrypt              from 'bcryptjs';
-import { SignJWT, importPKCS8, importSPKI } from 'jose';
+import { SignJWT, importPKCS8, importSPKI, jwtVerify } from 'jose';
 import { prisma }               from '../../lib/prisma';
 import { redis }                from '../../lib/redis';
 import { writeAuditEvent }      from '../../services/audit';

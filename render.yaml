@@ -14,7 +14,7 @@ services:
     runtime: docker
     dockerfilePath: ./Dockerfile
     dockerContext: .
-    healthCheckPath: /health/live
+    healthCheckPath: /health/ready
     envVars:
       - key: NODE_ENV
         value: production

@@ -87,8 +87,13 @@ async function getRoleVersion(userId: string): Promise<number | null> {
   }
 }
 
-async function refreshAdminSession(refreshToken: string): Promise<RefreshedTokens | null> {
-  if (!BACKEND_URL) return null;
+type RefreshAdminSessionResult =
+  | { status: 'ok'; tokens: RefreshedTokens }
+  | { status: 'invalid' }
+  | { status: 'unavailable' };
+
+async function refreshAdminSession(refreshToken: string): Promise<RefreshAdminSessionResult> {
+  if (!BACKEND_URL) return { status: 'unavailable' };
   try {
     const response = await fetch(BACKEND_URL + '/api/v1/auth/refresh', {
       method: 'POST',
@@ -97,12 +102,18 @@ async function refreshAdminSession(refreshToken: string): Promise<RefreshedToken
       signal: AbortSignal.timeout(5000),
       cache: 'no-store',
     });
-    if (!response.ok) return null;
+    if (response.status === 401 || response.status === 403) return { status: 'invalid' };
+    if (!response.ok) return { status: 'unavailable' };
     const data = await response.json() as Record<string, unknown>;
-    if (typeof data.accessToken !== 'string' || typeof data.refreshToken !== 'string') return null;
-    return { accessToken: data.accessToken, refreshToken: data.refreshToken };
+    if (typeof data.accessToken !== 'string' || typeof data.refreshToken !== 'string') {
+      return { status: 'unavailable' };
+    }
+    return {
+      status: 'ok',
+      tokens: { accessToken: data.accessToken, refreshToken: data.refreshToken },
+    };
   } catch {
-    return null;
+    return { status: 'unavailable' };
   }
 }
 
@@ -129,11 +140,19 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
   let refreshed: RefreshedTokens | null = null;
 
   if (!payload && refreshToken) {
-    refreshed = await refreshAdminSession(refreshToken);
-    if (refreshed) {
-      rawToken = refreshed.accessToken;
-      payload = await verifyAdminJWT(refreshed.accessToken);
+    const refreshResult = await refreshAdminSession(refreshToken);
+    if (refreshResult.status === 'unavailable') {
+      return NextResponse.json(
+        { error: 'AUTH_DEPENDENCY_UNAVAILABLE', message: 'Session refresh is unavailable.' },
+        { status: 503, headers: { 'Cache-Control': 'no-store' } },
+      );
     }
+    if (refreshResult.status === 'invalid') {
+      return loginRedirect(request, 'session_expired');
+    }
+    refreshed = refreshResult.tokens;
+    rawToken = refreshed.accessToken;
+    payload = await verifyAdminJWT(refreshed.accessToken);
   }
   if (!payload || !rawToken) return loginRedirect(request, 'unauthenticated');
 
