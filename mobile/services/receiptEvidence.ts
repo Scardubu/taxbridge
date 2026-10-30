@@ -51,37 +51,60 @@ export async function uploadReceiptEvidence(input: {
     throw new Error('Unsupported receipt file type');
   }
 
-  const info = await FileSystem.getInfoAsync(input.uri, { size: true });
-  if (!info.exists || typeof info.size !== 'number' || info.size <= 0 || info.size > MAX_RECEIPT_BYTES) {
-    throw new Error('Receipt file is missing, empty, or exceeds the 10 MiB limit');
+  let uploadUri = input.uri;
+  let temporaryUri: string | null = null;
+  if (!input.uri.startsWith('file://')) {
+    if (!FileSystem.cacheDirectory) throw new Error('Local cache storage is unavailable');
+    temporaryUri = `${FileSystem.cacheDirectory}receipt-upload-${Crypto.randomUUID()}`;
+    await FileSystem.copyAsync({ from: input.uri, to: temporaryUri });
+    uploadUri = temporaryUri;
   }
 
-  const sha256 = await sha256File(input.uri);
-  const intent = await apiRequest<ReceiptUploadIntent>('/api/v1/receipts/upload-intents', {
-    method: 'POST',
-    body: JSON.stringify({
-      businessId: input.businessId,
-      filename: input.filename,
-      contentType: input.contentType,
-      byteSize: info.size,
-      sha256,
-    }),
-  });
+  try {
+    const info = await FileSystem.getInfoAsync(uploadUri, { size: true });
+    if (!info.exists || typeof info.size !== 'number' || info.size <= 0 || info.size > MAX_RECEIPT_BYTES) {
+      throw new Error('Receipt file is missing, empty, or exceeds the 10 MiB limit');
+    }
 
-  if (!intent.receiptEvidenceId || !intent.uploadUrl || !intent.requiredHeaders) {
-    throw new Error('Receipt upload intent response is incomplete');
+    const sha256 = await sha256File(uploadUri);
+    const intent = await apiRequest<ReceiptUploadIntent>('/api/v1/receipts/upload-intents', {
+      method: 'POST',
+      body: JSON.stringify({
+        businessId: input.businessId,
+        filename: input.filename,
+        contentType: input.contentType,
+        byteSize: info.size,
+        sha256,
+      }),
+    });
+
+    if (!intent.receiptEvidenceId || !intent.uploadUrl || !intent.requiredHeaders) {
+      throw new Error('Receipt upload intent response is incomplete');
+    }
+
+    const upload = await FileSystem.uploadAsync(intent.uploadUrl, uploadUri, {
+      httpMethod: 'PUT',
+      uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
+      headers: intent.requiredHeaders,
+    });
+    if (upload.status < 200 || upload.status >= 300) {
+      throw new Error(`Receipt object upload failed with status ${upload.status}`);
+    }
+
+    try {
+      return await apiRequest<ReceiptUploadResult>(`/api/v1/receipts/${intent.receiptEvidenceId}/complete`, {
+        method: 'POST',
+      });
+    } catch (error) {
+      throw new Error(`Receipt bytes uploaded; verification is pending for evidence ${intent.receiptEvidenceId}: ${String(error)}`);
+    }
+  } finally {
+    if (temporaryUri) await FileSystem.deleteAsync(temporaryUri, { idempotent: true }).catch(() => undefined);
   }
+}
 
-  const upload = await FileSystem.uploadAsync(intent.uploadUrl, input.uri, {
-    httpMethod: 'PUT',
-    uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
-    headers: intent.requiredHeaders,
-  });
-  if (upload.status < 200 || upload.status >= 300) {
-    throw new Error(`Receipt object upload failed with status ${upload.status}`);
-  }
-
-  return apiRequest<ReceiptUploadResult>(`/api/v1/receipts/${intent.receiptEvidenceId}/complete`, {
-    method: 'POST',
-  });
+/** Queue the attachment only after the backend has verified the uploaded bytes. */
+export async function queueReceiptAttachment(receiptEvidenceId: string, expenseId: string): Promise<void> {
+  const { offlineQueue } = await import('./offlineQueue');
+  await offlineQueue.enqueue('RECEIPT_ATTACH', { receiptEvidenceId, expenseId });
 }
