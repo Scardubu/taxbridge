@@ -508,6 +508,9 @@ export class InvoiceService {
     if (invoice.businessId && (invoice.approvalStatus !== 'APPROVED' || invoice.approvedVersion !== invoice.version)) {
       throw new Error('Business-bound invoice must be approved at its current revision before it can be marked as sent');
     }
+    if (invoice.businessId && invoice.status !== 'stamped') {
+      throw new Error('Business-bound invoices must complete NRS stamping before they can be marked as sent');
+    }
 
     if (invoice.status !== 'stamped' && invoice.status !== 'draft') {
       throw new Error(`Cannot mark invoice as sent in status '${invoice.status}'`);
