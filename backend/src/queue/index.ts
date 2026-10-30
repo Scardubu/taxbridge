@@ -14,6 +14,7 @@ import { startOperationWorker } from '../operations/operation-worker';
 import { dispatchOutboxBatch, closeOutboxDispatcher } from '../operations/outbox-dispatcher';
 import { initialiseObservability } from '../lib/observability';
 import { registerBuiltinOperationHandlers } from '../operations/register-handlers';
+import { processReceiptJobsBatch } from '../services/receipt-processing';
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
@@ -217,6 +218,9 @@ async function pollOperationOutbox(): Promise<void> {
 }
 void pollOperationOutbox();
 const outboxTimer = setInterval(() => { void pollOperationOutbox(); }, outboxPollIntervalMs);
+const receiptProcessingTimer = setInterval(() => {
+  void processReceiptJobsBatch(5).catch((error) => log.error('Receipt processing batch failed', { err: error }));
+}, Math.max(1000, Number.parseInt(process.env.RECEIPT_PROCESSING_POLL_MS || '2000', 10)));
 
 invoiceSyncWorker.on('completed', (job, result) => {
   log.info('job completed', {
@@ -252,6 +256,7 @@ deviceSyncWorker.on('failed', (job, err) => {
 
 async function shutdown() {
   clearInterval(outboxTimer);
+  clearInterval(receiptProcessingTimer);
   try {
     await operationWorker.close();
   } catch {
