@@ -3,7 +3,6 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import {
   GetObjectCommand,
-  HeadObjectCommand,
   PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3';
@@ -148,6 +147,10 @@ export default async function receiptRoutes(app: FastifyInstance): Promise<void>
       return reply.code(409).send({ error: 'UPLOAD_NOT_FOUND', message: 'The uploaded object could not be verified' });
     }
 
+    if (object.ContentLength !== record.byteSize || object.ContentType !== record.contentType) {
+      await prisma.receiptEvidence.update({ where: { id: record.id }, data: { status: 'REJECTED' } });
+      return reply.code(422).send({ error: 'RECEIPT_OBJECT_MISMATCH', message: 'Uploaded object size or content type does not match the upload intent' });
+    }
     const bytes = await object.Body?.transformToByteArray();
     const actualSha256 = bytes ? createHash('sha256').update(bytes).digest('hex') : '';
     const signature = bytes ? Buffer.from(bytes).subarray(0, 12) : Buffer.alloc(0);
