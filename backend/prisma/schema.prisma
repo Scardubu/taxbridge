@@ -249,10 +249,10 @@ model ReceiptEvidence {
   business          Business  @relation(fields: [businessId], references: [id])
   expense           Expense?  @relation(fields: [expenseId], references: [id])
 
-  @@index([organizationId, businessId, createdAt])
-  @@index([userId, createdAt])
-  @@index([expenseId])
-  @@index([status, uploadExpiresAt])
+  @@index([organizationId, businessId, createdAt], map: "receipt_evidence_org_business_created_idx")
+  @@index([userId, createdAt], map: "receipt_evidence_user_created_idx")
+  @@index([expenseId], map: "receipt_evidence_expense_id_idx")
+  @@index([status, uploadExpiresAt], map: "receipt_evidence_status_expiry_idx")
   @@map("receipt_evidence")
 }
 
