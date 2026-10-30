@@ -83,7 +83,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
   }, async (request, reply) => {
     const { email, password } = request.body as z.infer<typeof LoginSchema>;
 
-    const user = await (prisma as any).user.findUnique({ where: { email } });
+    const user = await prisma.user.findUnique({ where: { email } });
     if (!user || !user.passwordHash) {
       return reply.code(401).send({ error: 'INVALID_CREDENTIALS' });
     }
@@ -100,7 +100,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.code(401).send({ error: 'INVALID_CREDENTIALS' });
     }
 
-    const primaryMembership = await (prisma as any).orgMember.findFirst({
+    const primaryMembership = await prisma.orgMember.findFirst({
       where: { userId: user.id, removedAt: null, status: 'active' },
       orderBy: { createdAt: 'asc' },
     });
@@ -173,11 +173,11 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       // Single-use — delete old token
       await redis.del(`rt:${userId}:${tokenSuffix}`);
 
-      const user = await (prisma as any).user.findUnique({ where: { id: userId } });
+      const user = await prisma.user.findUnique({ where: { id: userId } });
       if (!user) return reply.code(401).send({ error: 'USER_NOT_FOUND' });
 
       const roleVersion  = parseInt(await redis.get(`role_version:${userId}`) ?? '0', 10);
-      const membership = await (prisma as any).orgMember.findFirst({
+      const membership = await prisma.orgMember.findFirst({
         where: { userId, removedAt: null, status: 'active' },
         orderBy: { createdAt: 'asc' },
       });

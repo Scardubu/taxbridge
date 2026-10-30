@@ -3,6 +3,7 @@ import { FastifyPluginAsync } from 'fastify';
 import { Prisma } from '@prisma/client';
 import { OperationEnvelopeSchema } from '@taxbridge/contracts';
 import { prisma } from '../lib/prisma';
+import { getOperationHandler } from '../operations/registry';
 
 function canonical(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`;
@@ -15,6 +16,27 @@ function canonical(value: unknown): string {
 }
 
 const routes: FastifyPluginAsync = async (app) => {
+  app.get<{ Params: { operationId: string } }>('/api/v1/sync/operations/:operationId', {
+    preHandler: [app.authenticate, app.resolveOrgContext],
+  }, async (request, reply) => {
+    const operationId = request.params.operationId;
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(operationId)) {
+      return reply.code(400).send({ error: 'INVALID_OPERATION_ID', code: 'INVALID_OPERATION_ID' });
+    }
+    const operation = await prisma.syncOperation.findFirst({
+      where: { operationId, organizationId: request.orgContext.orgId, userId: request.user.userId },
+      select: { operationId: true, status: true, acknowledgedAt: true, nextAttemptAt: true, lastErrorCode: true },
+    });
+    if (!operation) return reply.code(404).send({ error: 'OPERATION_NOT_FOUND', code: 'OPERATION_NOT_FOUND' });
+    return reply.send({
+      operationId: operation.operationId,
+      status: operation.status,
+      acknowledgedAt: operation.acknowledgedAt?.toISOString() ?? null,
+      retryAt: operation.nextAttemptAt?.toISOString() ?? null,
+      errorCode: operation.lastErrorCode,
+    });
+  });
+
   app.post('/api/v1/sync/operations', {
     preHandler: [app.authenticate, app.resolveOrgContext],
   }, async (request, reply) => {
@@ -30,6 +52,15 @@ const routes: FastifyPluginAsync = async (app) => {
     }
 
     const input = parsed.data;
+    if (!getOperationHandler(input.operationType)) {
+      return reply.code(503).send({
+        error: 'OPERATION_HANDLER_UNAVAILABLE',
+        message: 'This operation type has no approved server handler and was not accepted',
+        code: 'OPERATION_HANDLER_UNAVAILABLE',
+        requestId: request.id,
+        retryable: true,
+      });
+    }
     const { orgId } = request.orgContext;
     const fingerprint = createHash('sha256')
       .update(canonical({ operationType: input.operationType, schemaVersion: input.schemaVersion, payload: input.payload }))
@@ -48,6 +79,7 @@ const routes: FastifyPluginAsync = async (app) => {
           },
         });
         if (existing) {
+          if (existing.userId !== request.user.userId) return { forbidden: true as const };
           if (existing.payloadFingerprint !== fingerprint) {
             return { conflict: true as const };
           }
@@ -77,6 +109,16 @@ const routes: FastifyPluginAsync = async (app) => {
         });
         return { operation, created: true as const };
       });
+
+      if ('forbidden' in result) {
+        return reply.code(403).send({
+          error: 'OPERATION_ACCESS_DENIED',
+          message: 'Operation belongs to another user',
+          code: 'OPERATION_ACCESS_DENIED',
+          requestId: request.id,
+          retryable: false,
+        });
+      }
 
       if ('conflict' in result) {
         return reply.code(409).send({

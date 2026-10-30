@@ -1,0 +1,24 @@
+# Source-control and local build state
+.git
+.github
+**/node_modules
+**/dist
+**/.next
+**/coverage
+**/.expo
+**/.turbo
+**/.cache
+**/android/.gradle
+**/android/app/build
+
+# Local environment files and private signing material
+.env
+.env.*
+!.env.example
+!.env.*.example
+**/.env
+**/.env.*
+!**/.env.example
+!**/.env.*.example
+mobile/credentials.json
+mobile/keystores/

@@ -1,0 +1,37 @@
+name: P0 Production Readiness
+
+on:
+  pull_request:
+    branches: [master]
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  backend-and-admin-build:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://taxbridge:taxbridge@localhost:5432/taxbridge_ci
+      DIRECT_URL: postgresql://taxbridge:taxbridge@localhost:5432/taxbridge_ci
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install npm workspace graph
+        run: npm ci
+      - name: Generate Prisma client
+        run: npm run prisma:generate --workspace=@taxbridge/backend
+      - name: Build shared contracts and enforce v1 compatibility
+        run: |
+          npm run build --workspace=@taxbridge/contracts
+          node packages/contracts/scripts/check-contract-compatibility.cjs
+      - name: Build backend
+        run: npm run build --workspace=@taxbridge/backend
+      - name: Type-check admin dashboard
+        run: npm run type-check --workspace=admin-dashboard
+      - name: Build canonical production API image
+        run: docker build --pull --no-cache --tag taxbridge-api:p0-ci .

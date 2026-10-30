@@ -7,6 +7,14 @@ import { enqueueDeviceSync } from '../queue/client';
 
 const log = createLogger('admin-sync-routes');
 
+function getAdminActor(request: FastifyRequest): { userId: string; role: string } | null {
+  const userId = request.headers['x-admin-user-id'];
+  const role = request.headers['x-admin-role'];
+  if (typeof userId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(userId)) return null;
+  if (typeof role !== 'string' || !['ADMIN', 'SUPER_ADMIN'].includes(role.toUpperCase())) return null;
+  return { userId, role: role.toUpperCase() };
+}
+
 // Feature flag check
 function isDeviceSyncEnabled(): boolean {
   return String(process.env.FEATURE_DEVICE_SYNC || 'false').toLowerCase() === 'true';
@@ -144,6 +152,8 @@ export default async function adminSyncRoutes(app: FastifyInstance) {
     if (!isDeviceSyncEnabled()) {
       return reply.status(404).send({ error: 'Device sync feature is disabled' });
     }
+    const actor = getAdminActor(request);
+    if (!actor) return reply.status(403).send({ error: 'ADMIN_IDENTITY_REQUIRED' });
 
     try {
       const body = ForceSyncSchema.parse(request.body);
@@ -161,7 +171,7 @@ export default async function adminSyncRoutes(app: FastifyInstance) {
       // Create admin action record
       await prisma.adminAction.create({
         data: {
-          adminId: device.userId, // In production, use actual admin user ID
+          adminId: actor.userId,
           action: 'force_sync',
           targetId: device.id,
           targetType: 'device',
@@ -353,6 +363,8 @@ export default async function adminSyncRoutes(app: FastifyInstance) {
     if (!isDeviceSyncEnabled()) {
       return reply.status(404).send({ error: 'Device sync feature is disabled' });
     }
+    const actor = getAdminActor(request);
+    if (!actor) return reply.status(403).send({ error: 'ADMIN_IDENTITY_REQUIRED' });
 
     try {
       const ResolutionSchema = z.object({
@@ -360,7 +372,7 @@ export default async function adminSyncRoutes(app: FastifyInstance) {
         resolution: z.enum(['local_wins', 'server_wins', 'merged']),
         mergedData: z.record(z.string(), z.unknown()).optional(),
         adminReason: z.string().min(10, 'Admin reason must be at least 10 characters'),
-        adminUserId: z.string().min(1, 'Admin user ID required')
+
       });
 
       const body = ResolutionSchema.parse(request.body);
@@ -442,7 +454,7 @@ export default async function adminSyncRoutes(app: FastifyInstance) {
             action: 'CONFLICT_RESOLVE',
             targetType: 'conflict',
             targetId: body.conflictId,
-            adminId: body.adminUserId,
+            adminId: actor.userId,
             metadata: {
               reason: body.adminReason,
               conflictId: body.conflictId,
@@ -467,7 +479,7 @@ export default async function adminSyncRoutes(app: FastifyInstance) {
       log.info('Admin conflict resolution', {
         conflictId: body.conflictId,
         resolution: body.resolution,
-        adminUserId: body.adminUserId,
+        adminUserId: actor.userId,
         deviceId: conflict.device.deviceId,
         userId: conflict.device.userId
       });
