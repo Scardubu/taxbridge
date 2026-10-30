@@ -48,6 +48,19 @@ describeIfDb('Admin Sync Routes - Integration Tests', () => {
     adminSyncRoutes = routesModule.default;
 
     app = Fastify({ logger: false }).withTypeProvider<ZodTypeProvider>();
+    // Keep the test focused on admin-route enforcement while still exercising
+    // the same verified-principal contract expected from the real JWT plugin.
+    app.decorate('authenticate', async (request: any, reply: any) => {
+      if (request.headers.authorization !== 'Bearer test-admin-token') {
+        return reply.code(401).send({ error: 'UNAUTHORIZED' });
+      }
+      request.user = {
+        userId: testUserId,
+        orgId: '22222222-2222-4222-8222-222222222222',
+        role: 'ADMIN',
+        roleVersion: 0,
+      };
+    });
     await app.register(adminSyncRoutes);
 
     const user = await prisma.user.create({
@@ -103,15 +116,28 @@ describeIfDb('Admin Sync Routes - Integration Tests', () => {
   });
 
   describe('GET /api/admin/devices', () => {
-    it('should reject requests without admin API key', async () => {
-      const response = await app.inject({ method: 'GET', url: '/api/admin/devices' });
+    it('should reject requests without an authenticated principal', async () => {
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/admin/devices',
+        headers: { 'X-Admin-API-Key': 'test-admin-key-12345' },
+      });
+      expect(response.statusCode).toBe(401);
+    });
+
+    it('should reject an authenticated principal without the admin API key', async () => {
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/admin/devices',
+        headers: { authorization: 'Bearer test-admin-token' },
+      });
       expect(response.statusCode).toBe(401);
     });
 
     it('should list devices with valid admin API key', async () => {
       const response = await app.inject({
         method: 'GET', url: '/api/admin/devices',
-        headers: { 'X-Admin-API-Key': 'test-admin-key-12345' }
+        headers: { authorization: 'Bearer test-admin-token', 'X-Admin-API-Key': 'test-admin-key-12345' }
       });
       expect(response.statusCode).toBe(200);
       const body = JSON.parse(response.body);
@@ -122,7 +148,7 @@ describeIfDb('Admin Sync Routes - Integration Tests', () => {
     it('should filter devices by platform', async () => {
       const response = await app.inject({
         method: 'GET', url: '/api/admin/devices?platform=android',
-        headers: { 'X-Admin-API-Key': 'test-admin-key-12345' }
+        headers: { authorization: 'Bearer test-admin-token', 'X-Admin-API-Key': 'test-admin-key-12345' }
       });
       expect(response.statusCode).toBe(200);
       const body = JSON.parse(response.body);
@@ -134,7 +160,7 @@ describeIfDb('Admin Sync Routes - Integration Tests', () => {
     it('should return sync statistics', async () => {
       const response = await app.inject({
         method: 'GET', url: '/api/admin/sync/stats',
-        headers: { 'X-Admin-API-Key': 'test-admin-key-12345' }
+        headers: { authorization: 'Bearer test-admin-token', 'X-Admin-API-Key': 'test-admin-key-12345' }
       });
       expect(response.statusCode).toBe(200);
       const body = JSON.parse(response.body);
@@ -146,7 +172,7 @@ describeIfDb('Admin Sync Routes - Integration Tests', () => {
     it('should list conflicts', async () => {
       const response = await app.inject({
         method: 'GET', url: '/api/admin/conflicts',
-        headers: { 'X-Admin-API-Key': 'test-admin-key-12345' }
+        headers: { authorization: 'Bearer test-admin-token', 'X-Admin-API-Key': 'test-admin-key-12345' }
       });
       expect(response.statusCode).toBe(200);
       const body = JSON.parse(response.body);
@@ -159,7 +185,7 @@ describeIfDb('Admin Sync Routes - Integration Tests', () => {
     it('should list audit logs', async () => {
       const response = await app.inject({
         method: 'GET', url: '/api/admin/audit',
-        headers: { 'X-Admin-API-Key': 'test-admin-key-12345' }
+        headers: { authorization: 'Bearer test-admin-token', 'X-Admin-API-Key': 'test-admin-key-12345' }
       });
       expect(response.statusCode).toBe(200);
       const body = JSON.parse(response.body);
