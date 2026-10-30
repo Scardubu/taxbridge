@@ -116,14 +116,45 @@ export default async function invoiceManagementRoutes(
       });
     }
 
+    if (!parsed.data.businessId) {
+      return reply.status(400).send({
+        success: false,
+        error: 'BUSINESS_ID_REQUIRED',
+        message: 'A business-bound invoice is required for governed invoice creation.',
+      });
+    }
+    if (parsed.data.asDraft !== true) {
+      return reply.status(409).send({
+        success: false,
+        error: 'INVOICE_APPROVAL_REQUIRED',
+        message: 'Invoices must be created as drafts and pass the separate approval workflow before any NRS submission.',
+      });
+    }
+
+    const business = await prisma.business.findFirst({
+      where: { id: parsed.data.businessId, organizationId: orgId },
+      select: { id: true },
+    });
+    if (!business) {
+      return reply.status(404).send({
+        success: false,
+        error: 'BUSINESS_NOT_FOUND',
+        message: 'Business not found in the active organization.',
+      });
+    }
+
     try {
       const result = await invoiceService.createInvoice({
         userId,
+        organizationId: orgId,
         ...parsed.data,
-        businessId: parsed.data.businessId ?? orgId,
+        businessId: business.id,
+        asDraft: true,
+        nrsCompliant: false,
       });
 
-      // If not a draft, queue for NRS stamping
+      // Phase 1C.6: invoice creation remains an internal draft.
+      // Approval and NRS submission are separate, explicitly authorized workflows.
       if (!parsed.data.asDraft) {
         try {
           const queue = getInvoiceSyncQueue();
@@ -291,7 +322,7 @@ export default async function invoiceManagementRoutes(
       await invalidateDashboardCache(redis, userId);
       return reply.send({ success: true, data: { invoice: result } });
     } catch (err: any) {
-      const status = err.message?.includes('not found') ? 404 : err.message?.includes('Cannot edit') ? 409 : 500;
+      const status = err.message?.includes('not found') ? 404 : (err.message?.includes('Cannot edit') || err.message?.includes('Business-bound invoices')) ? 409 : 500;
       return reply.status(status).send({
         success: false,
         error: err.message || 'Failed to update invoice',
@@ -314,7 +345,7 @@ export default async function invoiceManagementRoutes(
       await invalidateDashboardCache(redis, userId);
       return reply.send({ success: true, data: result });
     } catch (err: any) {
-      const status = err.message?.includes('not found') ? 404 : err.message?.includes('Cannot cancel') ? 409 : 500;
+      const status = err.message?.includes('not found') ? 404 : (err.message?.includes('Cannot cancel') || err.message?.includes('Business-bound invoices')) ? 409 : 500;
       return reply.status(status).send({
         success: false,
         error: err.message || 'Failed to cancel invoice',
@@ -337,7 +368,7 @@ export default async function invoiceManagementRoutes(
       await invalidateDashboardCache(redis, userId);
       return reply.send({ success: true, data: result });
     } catch (err: any) {
-      const status = err.message?.includes('not found') ? 404 : err.message?.includes('Cannot mark') ? 409 : 500;
+      const status = err.message?.includes('not found') ? 404 : (err.message?.includes('Cannot mark') || err.message?.includes('must be approved')) ? 409 : 500;
       return reply.status(status).send({
         success: false,
         error: err.message || 'Failed to mark invoice as sent',
@@ -374,7 +405,7 @@ export default async function invoiceManagementRoutes(
       await invalidateDashboardCache(redis, userId);
       return reply.send({ success: true, data: result });
     } catch (err: any) {
-      const status = err.message?.includes('not found') ? 404 : err.message?.includes('Only draft') ? 409 : 500;
+      const status = err.message?.includes('not found') ? 404 : (err.message?.includes('Only draft') || err.message?.includes('independent approval')) ? 409 : 500;
       return reply.status(status).send({
         success: false,
         error: err.message || 'Failed to submit for NRS stamping',
