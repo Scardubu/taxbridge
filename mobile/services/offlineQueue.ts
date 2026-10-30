@@ -126,12 +126,12 @@ export class OfflineQueue {
         created_at: string;
         server_accepted: number;
       }>(
-        \`SELECT id, client_id, type, payload, retry_count, max_retries, created_at, server_accepted
+        `SELECT id, client_id, type, payload, retry_count, max_retries, created_at, server_accepted
          FROM offline_operations
          WHERE status='pending'
            AND (server_accepted = 1 OR retry_count < max_retries)
            AND (next_attempt_at IS NULL OR datetime(next_attempt_at) <= datetime('now'))
-         ORDER BY created_at ASC LIMIT 20\`,
+         ORDER BY created_at ASC LIMIT 20`,
       );
 
       for (const operation of operations) {

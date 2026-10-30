@@ -5,7 +5,7 @@ import { logger } from '../lib/logger';
 
 const log = logger.child({ service: 'session-revocation' });
 
-const REVOKE_USER_REFRESH_SESSIONS_SCRIPT = \`
+const REVOKE_USER_REFRESH_SESSIONS_SCRIPT = `
 local families = redis.call('SMEMBERS', KEYS[1])
 local revoked = 0
 for _, family in ipairs(families) do
@@ -17,7 +17,7 @@ for _, family in ipairs(families) do
 end
 redis.call('DEL', KEYS[1], KEYS[2])
 return revoked
-\`;
+`;
 
 /** Increment auth_version inside the same transaction as the security change. */
 export async function bumpAuthVersion(
@@ -42,10 +42,10 @@ export async function revokeUserRefreshSessions(userId: string): Promise<void> {
     await redis.eval(
       REVOKE_USER_REFRESH_SESSIONS_SCRIPT,
       2,
-      \`rtfamilies:\${userId}\`,
-      \`sessions:\${userId}\`,
-      \`rtf:\${userId}:\`,
-      \`rt:\${userId}:\`,
+      `rtfamilies:${userId}`,
+      `sessions:${userId}`,
+      `rtf:${userId}:`,
+      `rt:${userId}:`,
     );
   } catch (error) {
     log.warn({ userId, err: error }, 'Refresh-token cleanup deferred; auth_version remains authoritative');
