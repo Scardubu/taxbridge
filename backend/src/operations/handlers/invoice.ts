@@ -27,7 +27,7 @@ export async function handleInvoiceCreateOperation(context: OperationContext): P
       }
 
       const membership = await tx.orgMember.findFirst({
-        where: { orgId: context.organizationId, userId: context.userId, status: 'active' },
+        where: { orgId: context.organizationId, userId: context.userId, status: 'active', removedAt: null },
         select: { id: true },
       });
       if (!membership) {
