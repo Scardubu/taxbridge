@@ -151,6 +151,7 @@ model Business {
   invoices        Invoice[]
   employees       Employee[]
   expenses        Expense[]
+  receiptEvidence ReceiptEvidence[]
   taxRemittances  TaxRemittance[]
 
   @@index([ownerId])
@@ -213,12 +214,44 @@ model Expense {
   updatedAt       DateTime  @updatedAt @map("updated_at")
 
   business        Business  @relation(fields: [businessId], references: [id])
+  receiptEvidence ReceiptEvidence?
 
   @@index([businessId])
   @@index([category])
   @@index([status])
   @@index([date])
   @@map("expenses")
+}
+
+
+/// Immutable, tenant-bound receipt evidence. Object keys are server generated.
+model ReceiptEvidence {
+  id                String    @id @default(uuid()) @db.Uuid
+  organizationId    String    @map("organization_id") @db.Uuid
+  userId            String    @map("user_id") @db.Uuid
+  businessId        String    @map("business_id") @db.Uuid
+  expenseId         String?   @unique @map("expense_id") @db.Uuid
+  storageKey        String    @unique @map("storage_key")
+  originalFilename  String    @map("original_filename")
+  contentType       String    @map("content_type")
+  byteSize          Int       @map("byte_size")
+  sha256            String    @db.Char(64)
+  status            String    @default("PENDING_UPLOAD")
+  uploadExpiresAt   DateTime  @map("upload_expires_at")
+  verifiedAt        DateTime? @map("verified_at")
+  retentionUntil    DateTime  @map("retention_until")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  organization      Org       @relation(fields: [organizationId], references: [id])
+  user              User      @relation(fields: [userId], references: [id])
+  business          Business  @relation(fields: [businessId], references: [id])
+  expense           Expense?  @relation(fields: [expenseId], references: [id])
+
+  @@index([organizationId, businessId, createdAt])
+  @@index([userId, createdAt])
+  @@index([status, uploadExpiresAt])
+  @@map("receipt_evidence")
 }
 
 // ============================================
@@ -927,6 +960,7 @@ model Org {
 
   members         OrgMember[]
   businesses      Business[]
+  receiptEvidence ReceiptEvidence[]
   auditEvents     AuditEvent[]
 
   @@index([tin])
