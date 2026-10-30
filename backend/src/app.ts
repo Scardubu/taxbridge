@@ -52,6 +52,8 @@ import paymentRoutes            from './routes/payments';
 import businessRoutes           from './routes/business';
 import cryptoRoutes             from './routes/crypto';
 import reconciliationRoutes     from './routes/reconciliation';
+import syncRoutes                from './routes/sync';
+import syncOperationRoutes        from './routes/syncOperations';
 
 // Webhook Route imports
 import flutterwaveWebhook    from './routes/webhooks/flutterwave';
@@ -172,6 +174,9 @@ export async function buildApp(): Promise<FastifyInstance> {
   await fastify.register(businessRoutes,      { prisma });
   await fastify.register(cryptoRoutes,        { prisma });
   await fastify.register(reconciliationRoutes, { prisma });
+  // sync.ts owns its explicit /api/v1 paths; register exactly once.
+  await fastify.register(syncRoutes);
+  await fastify.register(syncOperationRoutes);
   await fastify.register(flutterwaveWebhook,  { prefix: '/webhooks' });
   await fastify.register(paystackWebhook,     { prefix: '/webhooks' });
   await fastify.register(remitaWebhook,       { prefix: '/webhooks' });
@@ -184,7 +189,7 @@ export async function buildApp(): Promise<FastifyInstance> {
     const checks: Record<string, 'ok' | 'degraded'> = {};
 
     try {
-      await (prisma as any).$queryRaw`SELECT 1`;
+      await prisma.$queryRaw`SELECT 1`;
       checks.db = 'ok';
     } catch {
       checks.db = 'degraded';
@@ -201,17 +206,22 @@ export async function buildApp(): Promise<FastifyInstance> {
       checks.redis = 'degraded';
     }
 
-    const status = Object.values(checks).every((value) => value === 'ok') ? 'ready' : 'degraded';
-    return reply.code(200).send({ status, checks, timestamp: new Date().toISOString() });
+    const ready = Object.values(checks).every((value) => value === 'ok');
+    const status = ready ? 'ready' : 'not_ready';
+    return reply.code(ready ? 200 : 503).send({ status, checks, timestamp: new Date().toISOString() });
   });
 
   // ── Global catch-all error handler ─────────────────────────────────────────
   fastify.setErrorHandler((error: Error & { statusCode?: number; code?: string }, _request, reply) => {
     fastify.log.error({ err: error }, 'Unhandled error');
-    const status = (error as any).statusCode ?? 500;
+    const status = Number.isInteger((error as any).statusCode) ? (error as any).statusCode : 500;
+    const code = status >= 500 ? 'INTERNAL_ERROR' : ((error as any).code ?? 'REQUEST_ERROR');
     reply.code(status).send({
-      error:   status === 500 ? 'INTERNAL_ERROR' : ((error as any).code ?? 'ERROR'),
-      message: status === 500 ? 'An unexpected error occurred' : error.message,
+      error: code,
+      message: status >= 500 ? 'An unexpected error occurred' : error.message,
+      code,
+      requestId: _request.id,
+      retryable: status === 429 || status >= 500,
     });
   });
 

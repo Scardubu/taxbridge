@@ -83,3 +83,4 @@ export {
 
 // ─── sync exports ─────────────────────────────────────────────────────────────
 export * from './sync';
+\n// Phase 1 operation and standardized API error contracts (additive v1).\nexport * from './operations';\n

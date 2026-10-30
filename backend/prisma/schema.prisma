@@ -1090,3 +1090,75 @@ model UserTotp {
 
   @@map("user_totp")
 }
+
+
+/// Durable operation ledger. PostgreSQL is authoritative; Redis is only a scheduler.
+model SyncOperation {
+  id                    String    @id @default(uuid()) @db.Uuid
+  organizationId        String    @map("organization_id") @db.Uuid
+  userId                String    @map("user_id") @db.Uuid
+  deviceId              String?   @map("device_id")
+  operationId           String    @map("operation_id") @db.Uuid
+  operationType         String    @map("operation_type")
+  schemaVersion         Int       @map("schema_version")
+  idempotencyKey        String    @map("idempotency_key")
+  payloadFingerprint    String    @map("payload_fingerprint")
+  payload               Json
+  status                String    @default("pending")
+  attemptCount          Int       @default(0) @map("attempt_count")
+  nextAttemptAt         DateTime? @map("next_attempt_at")
+  deadlineAt            DateTime  @map("deadline_at")
+  acknowledgedAt        DateTime? @map("acknowledged_at")
+  result                Json?
+  lastErrorCode         String?   @map("last_error_code")
+  lastErrorMessage      String?   @map("last_error_message") @db.Text
+  providerReference     String?   @map("provider_reference")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  @@unique([organizationId, operationType, idempotencyKey], map: "sync_operations_idempotency_unique")
+  @@unique([operationId], map: "sync_operations_operation_id_unique")
+  @@index([status, nextAttemptAt])
+  @@index([organizationId, createdAt])
+  @@index([deadlineAt, status])
+  @@map("sync_operations")
+}
+
+/// Transactional outbox: committed with the operation before Redis dispatch.
+model OperationOutbox {
+  id             String    @id @default(uuid()) @db.Uuid
+  operationId    String    @map("operation_id") @db.Uuid
+  topic          String
+  payload        Json
+  dispatchedAt   DateTime? @map("dispatched_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  @@unique([operationId, topic], map: "operation_outbox_operation_topic_unique")
+  @@index([dispatchedAt, createdAt])
+  @@map("operation_outbox")
+}
+
+/// Durable terminal-failure record. Never auto-replay payment or filing records.
+model OperationDeadLetter {
+  id                String    @id @default(uuid()) @db.Uuid
+  operationId       String    @unique @map("operation_id") @db.Uuid
+  organizationId    String    @map("organization_id") @db.Uuid
+  userId            String    @map("user_id") @db.Uuid
+  deviceId          String?   @map("device_id")
+  operationType     String    @map("operation_type")
+  idempotencyKey    String    @map("idempotency_key")
+  payloadFingerprint String   @map("payload_fingerprint")
+  payload           Json
+  attemptCount      Int       @map("attempt_count")
+  failureCode       String    @map("failure_code")
+  failureReason     String    @map("failure_reason") @db.Text
+  providerReference String?   @map("provider_reference")
+  resolutionStatus String    @default("unresolved") @map("resolution_status")
+  resolvedBy        String?   @map("resolved_by") @db.Uuid
+  resolutionReason  String?   @map("resolution_reason") @db.Text
+  resolvedAt        DateTime? @map("resolved_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+  @@index([organizationId, resolutionStatus, createdAt])
+  @@index([operationType, resolutionStatus])
+  @@map("operation_dead_letters")
+}

@@ -101,7 +101,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     const primaryMembership = await (prisma as any).orgMember.findFirst({
-      where: { userId: user.id, removedAt: null },
+      where: { userId: user.id, removedAt: null, status: 'active' },
       orderBy: { createdAt: 'asc' },
     });
 
@@ -178,7 +178,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
 
       const roleVersion  = parseInt(await redis.get(`role_version:${userId}`) ?? '0', 10);
       const membership = await (prisma as any).orgMember.findFirst({
-        where: { userId, removedAt: null },
+        where: { userId, removedAt: null, status: 'active' },
         orderBy: { createdAt: 'asc' },
       });
 

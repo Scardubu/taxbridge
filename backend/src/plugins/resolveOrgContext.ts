@@ -1,13 +1,6 @@
-/**
- * resolveOrgContext plugin — TaxBridge V13 Sovereign
- *
- * Fastify decorator: fastify.resolveOrgContext
- * Validates OrgMember.status === 'active' AND Organisation.status !== 'suspended'
- * Sets request.orgContext
- */
-import fp                               from 'fastify-plugin';
+import fp from 'fastify-plugin';
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { prisma }                       from '../lib/prisma';
+import { prisma } from '../lib/prisma';
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -22,26 +15,42 @@ export default fp(async function resolveOrgContextPlugin(fastify) {
   fastify.decorate('resolveOrgContext', async function resolveOrgContext(
     request: FastifyRequest, reply: FastifyReply,
   ) {
-    const { userId, orgId } = request.user;
-
-    const member = await (prisma as any).orgMember.findFirst({
-      where: { userId, orgId, removedAt: null, status: 'active' },
-    });
-    if (!member) {
+    const identity = request.user;
+    if (!identity?.userId || !identity.orgId) {
       return reply.code(403).send({
-        error:   'ORG_ACCESS_DENIED',
-        message: 'Access denied to this organisation',
+        error: 'ORG_ACCESS_DENIED',
+        message: 'Authenticated organization context is required',
       });
     }
 
-    const org = await (prisma as any).org.findUnique({ where: { id: orgId } });
-    if (!org || org.status === 'suspended') {
-      return reply.code(403).send({ error: 'ORG_SUSPENDED' });
+    // Fail closed: database errors propagate to the global error handler.
+    const member = await prisma.orgMember.findFirst({
+      where: {
+        userId: identity.userId,
+        orgId: identity.orgId,
+        removedAt: null,
+        status: 'active',
+      },
+      select: { id: true, role: true, org: { select: { id: true, status: true } } },
+    });
+
+    if (!member) {
+      return reply.code(403).send({
+        error: 'ORG_ACCESS_DENIED',
+        message: 'Access denied to this organisation',
+      });
     }
-    if (org.status === 'pending_verification') {
-      return reply.code(403).send({ error: 'ORG_PENDING_VERIFICATION' });
+    if (member.org.status !== 'active') {
+      return reply.code(403).send({
+        error: member.org.status === 'suspended' ? 'ORG_SUSPENDED' : 'ORG_NOT_ACTIVE',
+        message: 'Organisation is not active',
+      });
     }
 
-    request.orgContext = { orgId, role: member.role, memberId: member.id };
+    request.orgContext = {
+      orgId: member.org.id,
+      role: member.role,
+      memberId: member.id,
+    };
   });
 });

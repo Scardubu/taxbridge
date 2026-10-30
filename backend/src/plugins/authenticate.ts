@@ -1,28 +1,19 @@
-/**
- * authenticate plugin — TaxBridge V13 Sovereign
- *
- * Fastify decorator: fastify.authenticate
- * JWT RS256 (production) / HS256 (dev)
- * role_version check: stale tokens rejected
- *
- * C-47: No Express imports
- */
-import fp                                  from 'fastify-plugin';
-import { FastifyRequest, FastifyReply }    from 'fastify';
-import { jwtVerify, importSPKI }          from 'jose';
-import { readFileSync }                    from 'fs';
-import { redis }                           from '../lib/redis';
+import fp from 'fastify-plugin';
+import { FastifyRequest, FastifyReply } from 'fastify';
+import { jwtVerify, importSPKI } from 'jose';
+import { redis } from '../lib/redis';
 
-// RS256 public key — cached after first import
-let _publicKey: Awaited<ReturnType<typeof importSPKI>> | null = null;
+let publicKeyPromise: ReturnType<typeof importSPKI> | undefined;
 
 async function getPublicKey() {
-  if (_publicKey) return _publicKey;
-  const pem = process.env.JWT_PUBLIC_KEY
-    ? Buffer.from(process.env.JWT_PUBLIC_KEY, 'base64').toString('utf8')
-    : readFileSync('/run/secrets/jwt_public_key', 'utf8').trim();
-  _publicKey = await importSPKI(pem, 'RS256');
-  return _publicKey;
+  if (!publicKeyPromise) {
+    const encoded = process.env.JWT_PUBLIC_KEY;
+    if (!encoded) throw new Error('JWT_PUBLIC_KEY is required');
+    const pem = Buffer.from(encoded, 'base64').toString('utf8');
+    if (!pem.includes('BEGIN PUBLIC KEY')) throw new Error('JWT_PUBLIC_KEY must be base64-encoded PEM SPKI');
+    publicKeyPromise = importSPKI(pem, 'RS256');
+  }
+  return publicKeyPromise;
 }
 
 declare module 'fastify' {
@@ -31,9 +22,9 @@ declare module 'fastify' {
   }
   interface FastifyRequest {
     user: {
-      userId:      string;
-      orgId:       string;
-      role:        string;
+      userId: string;
+      orgId: string;
+      role: string;
       roleVersion: number;
     };
   }
@@ -43,35 +34,47 @@ export default fp(async function authenticatePlugin(fastify) {
   fastify.decorate('authenticate', async function authenticate(
     request: FastifyRequest, reply: FastifyReply,
   ) {
-    const token = request.headers.authorization?.replace('Bearer ', '');
-    if (!token) return reply.code(401).send({ error: 'UNAUTHORIZED' });
+    const authorization = request.headers.authorization;
+    const match = authorization?.match(/^Bearer\s+(.+)$/i);
+    if (!match) return reply.code(401).send({ error: 'UNAUTHORIZED' });
 
     try {
-      const secret = process.env.NODE_ENV === 'production'
+      const production = process.env.NODE_ENV === 'production';
+      const key = production
         ? await getPublicKey()
-        : new TextEncoder().encode(process.env.JWT_SECRET!);
+        : new TextEncoder().encode(process.env.JWT_SECRET ?? '');
 
-      const { payload } = await jwtVerify(token, secret);
+      const { payload } = await jwtVerify(match[1], key, {
+        algorithms: production ? ['RS256'] : ['HS256'],
+        requiredClaims: ['sub', 'exp', 'iat'],
+      });
 
-      // role_version check: explicit null check — version 0 is a valid value
-      const storedVersion = await redis.get(`role_version:${payload.sub}`).catch(() => null);
-      if (
-        storedVersion !== null &&
-        Number(storedVersion) !== (payload as any).role_version
-      ) {
+      const userId = payload.sub;
+      const orgId = typeof payload.orgId === 'string' ? payload.orgId : '';
+      const role = typeof payload.role === 'string' ? payload.role : '';
+      const roleVersion = payload.role_version;
+
+      if (!userId || !orgId || !role || !Number.isInteger(roleVersion)) {
+        return reply.code(401).send({ error: 'INVALID_TOKEN_CLAIMS' });
+      }
+
+      // Redis is a mandatory authentication dependency. A Redis failure must
+      // never be interpreted as absence of a revocation record.
+      const storedVersion = await redis.get(`role_version:${userId}`);
+      if (storedVersion !== null && Number(storedVersion) !== roleVersion) {
         return reply.code(401).send({
-          error:   'TOKEN_EXPIRED',
+          error: 'TOKEN_EXPIRED',
           message: 'Session invalidated — please log in again',
         });
       }
 
-      request.user = {
-        userId:      payload.sub!,
-        orgId:       (payload as any).orgId,
-        role:        (payload as any).role,
-        roleVersion: (payload as any).role_version,
-      };
-    } catch {
+      request.user = { userId, orgId, role, roleVersion };
+    } catch (error) {
+      request.log.warn({ err: error }, 'Authentication rejected');
+      if ((error as Error).message?.includes('ECONN') ||
+          (error as Error).message?.includes('Redis')) {
+        return reply.code(503).send({ error: 'AUTHENTICATION_DEPENDENCY_UNAVAILABLE' });
+      }
       return reply.code(401).send({ error: 'UNAUTHORIZED' });
     }
   });

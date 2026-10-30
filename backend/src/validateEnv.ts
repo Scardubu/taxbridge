@@ -1,77 +1,33 @@
 /**
- * validateEnv — TaxBridge V13 Sovereign
- *
- * Hard-crash guard — must be the initial import in app.ts, before Fastify() constructor.
- * If any REQUIRED key is missing, process exits with code 1 immediately.
- *
- * C-07 exception: intentional process.exit(1) — no safe fallback for missing
- * DATABASE_URL or JWT_SECRET.
- *
- * Integration keys (DIGITAX, Paystack, Flutterwave, etc.) are NOT hard-required here
- * because they all support mock/degraded mode — missing them should warn, not crash.
- * Set DIGITAX_MOCK_MODE=true, FLW_MOCK_MODE=true, PAYSTACK_MOCK_MODE=true to run
- * without live credentials.
+ * Fail-closed production environment validation. Import before application setup.
  */
-
-function hasAnyEnv(...keys: string[]): boolean {
-  return keys.some((key) => Boolean(process.env[key]));
-}
-
-const REQUIRED = [
-  'DATABASE_URL',
-  'REDIS_URL',
-  'JWT_SECRET',
-  'PORT',
-] as const;
-
-for (const key of REQUIRED) {
-  if (!process.env[key]) {
-    process.stderr.write(`FATAL: env ${key} missing\n`);
-    process.exit(1);
-  }
-}
-
-if (!hasAnyEnv('ALLOWED_ORIGINS', 'CORS_ORIGIN')) {
-  process.stderr.write('FATAL: env ALLOWED_ORIGINS or CORS_ORIGIN missing\n');
+const required = ['DATABASE_URL', 'REDIS_URL', 'PORT'] as const;
+function fatal(message: string): never {
+  process.stderr.write(`FATAL: ${message}\n`);
   process.exit(1);
 }
-
-if (!hasAnyEnv('NRS_API_KEY', 'DIGITAX_API_KEY')) {
-  process.stderr.write('WARN: env NRS_API_KEY or DIGITAX_API_KEY not set — NRS integration will run in mock/degraded mode\n');
+for (const key of required) {
+  if (!process.env[key]) fatal(`env ${key} missing`);
 }
-
-// Warn-only in production — these enable integrations but have mock/degraded fallbacks:
-const WARN_IF_MISSING_IN_PROD = [
-  'CLOUDFLARE_R2_BUCKET',
-  'CLOUDFLARE_R2_ENDPOINT',
-  'YOUVERIFY_API_KEY',
-] as const;
+if (!process.env.ALLOWED_ORIGINS && !process.env.CORS_ORIGIN) {
+  fatal('env ALLOWED_ORIGINS or CORS_ORIGIN missing');
+}
 
 if (process.env.NODE_ENV === 'production') {
-  for (const key of WARN_IF_MISSING_IN_PROD) {
-    if (!process.env[key]) {
-      process.stderr.write(`WARN: env ${key} not set — integration will run in mock/degraded mode\n`);
-    }
+  if (!process.env.JWT_PRIVATE_KEY || !process.env.JWT_PUBLIC_KEY) {
+    fatal('JWT_PRIVATE_KEY and JWT_PUBLIC_KEY are both required in production');
   }
-
-  if (!hasAnyEnv('FLW_SECRET_KEY', 'FLUTTERWAVE_SECRET')) {
-    process.stderr.write('WARN: env FLW_SECRET_KEY or FLUTTERWAVE_SECRET not set — Flutterwave will run in mock/degraded mode\n');
+  const privatePem = Buffer.from(process.env.JWT_PRIVATE_KEY, 'base64').toString('utf8');
+  const publicPem = Buffer.from(process.env.JWT_PUBLIC_KEY, 'base64').toString('utf8');
+  if (!privatePem.includes('BEGIN PRIVATE KEY') || !publicPem.includes('BEGIN PUBLIC KEY')) {
+    fatal('JWT keys must be base64-encoded PKCS8 private PEM and SPKI public PEM');
   }
-
-  if (!hasAnyEnv('PAYSTACK_SECRET_KEY', 'PAYSTACK_SECRET')) {
-    process.stderr.write('WARN: env PAYSTACK_SECRET_KEY or PAYSTACK_SECRET not set — Paystack will run in mock/degraded mode\n');
+  if (process.env.DIGITAX_MOCK_MODE === 'true' ||
+      process.env.FLW_MOCK_MODE === 'true' ||
+      process.env.PAYSTACK_MOCK_MODE === 'true' ||
+      process.env.NRS_MOCK_MODE === 'true') {
+    fatal('mock payment/NRS modes are prohibited in production');
   }
-
-  if (!hasAnyEnv('AT_API_KEY', 'AFRICA_TALKING_API_KEY')) {
-    process.stderr.write('WARN: env AT_API_KEY or AFRICA_TALKING_API_KEY not set — SMS integration will run in mock/degraded mode\n');
-  }
+} else if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
+  fatal('JWT_SECRET with at least 32 characters is required outside production');
 }
-
-// Optional with defaults (do NOT add to REQUIRED):
-// SENTRY_DSN            → optional; Sentry SDK no-ops gracefully when absent (local dev)
-// DIGITAX_MOCK_MODE     → default 'false'
-// CBN_MPR               → default '0.2725' (use parseFloat(process.env.CBN_MPR ?? '0.2725'))
-// LOG_LEVEL             → default 'info'
-// LOG_FORMAT            → default 'json' in production
-// REMITA_MERCHANT_ID    → required only when Remita payment gateway is enabled
-// JWT_PUBLIC_KEY        → required in production RS256 mode; not required for HS256 local dev

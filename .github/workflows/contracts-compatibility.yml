@@ -1,0 +1,27 @@
+name: Contract Compatibility Gate
+
+on:
+  pull_request:
+    branches: [main, master, develop]
+  push:
+    branches: [main, master, develop]
+
+permissions:
+  contents: read
+
+jobs:
+  v1-compatibility:
+    name: Enforce append-only /api/v1 contracts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install workspace dependencies
+        run: npm ci
+      - name: Build shared contracts
+        run: npm run build --workspace=@taxbridge/contracts
+      - name: Reject incompatible v1 mutations
+        run: node packages/contracts/scripts/check-contract-compatibility.cjs
