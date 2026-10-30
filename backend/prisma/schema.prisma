@@ -94,6 +94,7 @@ model User {
   adminActions           AdminAction[]
   businesses             Business[]
   receiptEvidence        ReceiptEvidence[]
+  reviewedReceipts       ReceiptEvidence[] @relation("ReceiptEvidenceReviewer")
   streakRecord           StreakRecord?
   pillarScores           PillarScore[]
   pushDevices            UserDevice[]
@@ -251,6 +252,7 @@ model ReceiptEvidence {
 
   organization      Org       @relation(fields: [organizationId], references: [id])
   user              User      @relation(fields: [userId], references: [id])
+  reviewer          User?     @relation("ReceiptEvidenceReviewer", fields: [reviewedBy], references: [id])
   business          Business  @relation(fields: [businessId], references: [id])
   expense           Expense?  @relation(fields: [expenseId], references: [id])
   processingJobs    ReceiptProcessingJob[]
