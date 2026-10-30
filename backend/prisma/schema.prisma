@@ -233,6 +233,7 @@ model ReceiptEvidence {
   businessId        String    @map("business_id") @db.Uuid
   expenseId         String?   @map("expense_id") @db.Uuid
   storageKey        String    @unique(map: "receipt_evidence_storage_key_key") @map("storage_key")
+  uploadKey         String    @unique(map: "receipt_evidence_upload_key_key") @map("upload_key")
   originalFilename  String    @map("original_filename")
   contentType       String    @map("content_type")
   byteSize          Int       @map("byte_size")
