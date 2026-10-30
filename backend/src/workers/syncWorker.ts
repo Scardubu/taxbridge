@@ -115,6 +115,21 @@ export async function processSyncJob(syncJobId: string): Promise<{ status: strin
 
   const existingInvoice = await prisma.invoice.findUnique({ where: { id: invoiceId } });
 
+  // Business-bound invoices are governed by the versioned lifecycle service.
+  // Device sync must never mutate their content, approval state, or operational status.
+  if (existingInvoice?.businessId) {
+    await prisma.syncJob.update({
+      where: { id: syncJobId },
+      data: {
+        status: 'failed',
+        completedAt: new Date(),
+        result: { error: 'INVOICE_LIFECYCLE_REQUIRED' },
+      },
+    });
+    return { status: 'lifecycle_required' };
+  }
+
+
   if (syncJob.action === 'create') {
     if (existingInvoice) {
       const conflict = await prisma.conflict.create({
