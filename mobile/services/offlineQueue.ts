@@ -44,7 +44,12 @@ export class OfflineQueue {
     if (this.ready) return;
     this.ready = true;
     this.unsubscribe = NetInfo.addEventListener((state) => {
-      if (state.isConnected && state.isInternetReachable !== false && !this.flushing) void this.flush();
+      if (state.isConnected && state.isInternetReachable !== false) {
+        if (!this.flushing) void this.flush();
+        void import('./receiptEvidence')
+          .then(({ resumePendingReceiptEvidenceUploads }) => resumePendingReceiptEvidenceUploads())
+          .catch(() => undefined);
+      }
     });
     void import('./receiptEvidence')
       .then(({ resumePendingReceiptEvidenceUploads }) => resumePendingReceiptEvidenceUploads())
