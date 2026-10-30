@@ -52,6 +52,7 @@ describeDatabase('Phase 1C.3 receipt evidence attachment — PostgreSQL integrat
         userId,
         businessId,
         storageKey: `receipts/${orgId}/${randomUUID()}`,
+        uploadKey: `receipts/staging/${orgId}/${randomUUID()}`,
         originalFilename: 'receipt.pdf',
         contentType: 'application/pdf',
         byteSize: 1024,
@@ -101,6 +102,7 @@ describeDatabase('Phase 1C.3 receipt evidence attachment — PostgreSQL integrat
       data: {
         organizationId: orgId, userId, businessId,
         storageKey: `receipts/${orgId}/${randomUUID()}`,
+        uploadKey: `receipts/staging/${orgId}/${randomUUID()}`,
         originalFilename: 'second.pdf', contentType: 'application/pdf', byteSize: 2048,
         sha256: 'b'.repeat(64), status: 'UPLOADED',
         uploadExpiresAt: new Date(Date.now() + 300_000), verifiedAt: new Date(),
@@ -119,6 +121,7 @@ describeDatabase('Phase 1C.3 receipt evidence attachment — PostgreSQL integrat
       data: {
         organizationId: orgId, userId, businessId,
         storageKey: `receipts/${orgId}/${randomUUID()}`,
+        uploadKey: `receipts/staging/${orgId}/${randomUUID()}`,
         originalFilename: 'pending.pdf', contentType: 'application/pdf', byteSize: 512,
         sha256: 'c'.repeat(64), status: 'PENDING_UPLOAD',
         uploadExpiresAt: new Date(Date.now() + 300_000),
