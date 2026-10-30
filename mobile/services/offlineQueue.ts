@@ -1,11 +1,11 @@
 import * as Crypto from 'expo-crypto';
 import NetInfo from '@react-native-community/netinfo';
 import { OperationEnvelopeSchema, OperationResultSchema } from '@taxbridge/contracts';
-import { createExpenseOperationEnvelope, createInvoiceOperationEnvelope } from './operationEnvelope';
+import { createExpenseOperationEnvelope, createInvoiceOperationEnvelope, createReceiptAttachOperationEnvelope } from './operationEnvelope';
 import { getDatabase } from './database';
 import { ApiError, apiRequest } from './api';
 
-export type OpType = 'EXPENSE_CREATE' | 'INVOICE_CREATE' | 'TIN_VERIFY' | 'VAT_REGISTER' | 'EINVOICE_SUBMIT' | 'INVOICE_SUBMIT' | 'RECEIPT_SUBMIT' | 'VAT_RETURN' | 'PROFILE_SYNC' | 'COMPLIANCE_EVENT';
+export type OpType = 'EXPENSE_CREATE' | 'INVOICE_CREATE' | 'RECEIPT_ATTACH' | 'TIN_VERIFY' | 'VAT_REGISTER' | 'EINVOICE_SUBMIT' | 'INVOICE_SUBMIT' | 'RECEIPT_SUBMIT' | 'VAT_RETURN' | 'PROFILE_SYNC' | 'COMPLIANCE_EVENT';
 
 const MAX_BACKOFF_MS = 6 * 60 * 60 * 1000;
 const BASE_BACKOFF_MS = 5_000;
@@ -19,7 +19,7 @@ function asIsoUtc(sqliteDate: string): string {
   return new Date(withZone).toISOString();
 }
 function toOperationType(type: OpType): 'crud' | 'sync' | 'filing' {
-  if (type === 'EXPENSE_CREATE') return 'crud';
+  if (type === 'EXPENSE_CREATE' || type === 'INVOICE_CREATE' || type === 'RECEIPT_ATTACH') return 'crud';
   if (type === 'VAT_RETURN' || type === 'EINVOICE_SUBMIT' || type === 'INVOICE_SUBMIT') return 'filing';
   if (type === 'PROFILE_SYNC' || type === 'COMPLIANCE_EVENT') return 'sync';
   return 'crud';
@@ -89,7 +89,9 @@ export class OfflineQueue {
             ? createExpenseOperationEnvelope(operation.client_id, rawPayload.data as Record<string, unknown>, asIsoUtc(operation.created_at))
             : operation.type === 'INVOICE_CREATE'
               ? createInvoiceOperationEnvelope(operation.client_id, rawPayload.data as Record<string, unknown>, asIsoUtc(operation.created_at))
-              : OperationEnvelopeSchema.parse({
+              : operation.type === 'RECEIPT_ATTACH'
+                ? createReceiptAttachOperationEnvelope(operation.client_id, rawPayload.data as { receiptEvidenceId: string; expenseId: string }, asIsoUtc(operation.created_at))
+                : OperationEnvelopeSchema.parse({
                 operationId: operation.client_id,
                 idempotencyKey: operation.client_id,
                 operationType: toOperationType(operation.type),
