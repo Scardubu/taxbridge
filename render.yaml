@@ -65,6 +65,8 @@ services:
         sync: false
       - key: ADMIN_API_KEYS
         sync: false
+      - key: SENTRY_DSN
+        sync: false
       - key: OPERATION_PIPELINE_ENABLED
         value: "false"
       - key: NRS_MOCK_MODE

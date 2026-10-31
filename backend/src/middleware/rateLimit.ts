@@ -72,10 +72,26 @@ export function rateLimit(opts: RateLimitOptions) {
         count = current;
         resetAt = Date.now() + (ttl > 0 ? ttl * 1000 : windowMs);
       } catch (err) {
-        log.warn('Redis rate limit error, falling back to memory', { error: err });
+        log.error('Redis rate limit backend unavailable', { error: err });
+        if (process.env.NODE_ENV === 'production') {
+          return reply.code(503).send({
+            success: false,
+            error: 'Rate limiting is temporarily unavailable.',
+            code: 'RATE_LIMIT_UNAVAILABLE',
+            retryable: true,
+          });
+        }
         ({ count, resetAt } = memoryIncrement(redisKey, windowMs));
       }
     } else {
+      if (process.env.NODE_ENV === 'production') {
+        return reply.code(503).send({
+          success: false,
+          error: 'Rate limiting is not configured.',
+          code: 'RATE_LIMIT_UNAVAILABLE',
+          retryable: true,
+        });
+      }
       ({ count, resetAt } = memoryIncrement(redisKey, windowMs));
     }
 
