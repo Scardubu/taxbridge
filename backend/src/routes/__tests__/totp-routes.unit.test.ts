@@ -1,8 +1,8 @@
 import Fastify, { FastifyInstance } from 'fastify';
-import totpRoutes from '../../v1/auth/totp';
-import { prisma } from '../../../lib/prisma';
+import totpRoutes from '../v1/auth/totp';
+import { prisma } from '../../lib/prisma';
 
-jest.mock('../../../lib/prisma', () => ({
+jest.mock('../../lib/prisma', () => ({
   prisma: {
     userTotp: {
       findUnique: jest.fn(),
@@ -15,14 +15,14 @@ jest.mock('../../../lib/prisma', () => ({
   },
 }));
 
-jest.mock('../../../lib/redis', () => ({
+jest.mock('../../lib/redis', () => ({
   redis: {
     setex: jest.fn(),
     del: jest.fn(),
   },
 }));
 
-jest.mock('../../../services/audit', () => ({
+jest.mock('../../services/audit', () => ({
   writeAuditEvent: jest.fn(),
 }));
 
