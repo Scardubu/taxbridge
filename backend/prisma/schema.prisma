@@ -257,6 +257,7 @@ model ReceiptEvidence {
   reviewedBy        String?   @map("reviewed_by") @db.Uuid
   reviewedAt        DateTime? @map("reviewed_at")
   uploadExpiresAt   DateTime  @map("upload_expires_at")
+  verificationStartedAt DateTime? @map("verification_started_at")
   verifiedAt        DateTime? @map("verified_at")
   retentionUntil    DateTime  @map("retention_until")
   objectsPurgedAt   DateTime? @map("objects_purged_at")

@@ -3,6 +3,7 @@ import { createConnection } from 'node:net';
 import { S3Client, GetObjectCommand, CopyObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { ImageAnnotatorClient } from '@google-cloud/vision';
 import { prisma } from '../lib/prisma';
+import { RECEIPT_VERIFICATION_LEASE_MS } from './receipt-verification';
 
 const MAX_BYTES = 10 * 1024 * 1024;
 const MAX_ATTEMPTS = 5;
@@ -195,12 +196,16 @@ export async function purgeExpiredReceiptEvidence(batchSize = 50): Promise<numbe
 
   const now = new Date();
   const uploadCutoff = new Date(now.getTime() - PENDING_UPLOAD_EXPIRY_GRACE_MS);
+  const verificationLeaseCutoff = new Date(now.getTime() - RECEIPT_VERIFICATION_LEASE_MS);
   const rows = await prisma.receiptEvidence.findMany({
     where: {
       objectsPurgedAt: null,
       OR: [
         { status: 'EXPIRED' },
-        { status: 'PENDING_UPLOAD', uploadExpiresAt: { lte: uploadCutoff } },
+        {
+          status: 'PENDING_UPLOAD', uploadExpiresAt: { lte: uploadCutoff },
+          OR: [{ verificationStartedAt: null }, { verificationStartedAt: { lte: verificationLeaseCutoff } }],
+        },
         { status: { in: [...RETENTION_PURGE_STATUSES] }, retentionUntil: { lte: now } },
       ],
     },
@@ -224,11 +229,14 @@ export async function purgeExpiredReceiptEvidence(batchSize = 50): Promise<numbe
   for (const row of rows) {
     if (row.status !== 'EXPIRED') {
       const expiryCondition = row.status === 'PENDING_UPLOAD'
-        ? { status: 'PENDING_UPLOAD', uploadExpiresAt: { lte: uploadCutoff } }
+        ? {
+            status: 'PENDING_UPLOAD', uploadExpiresAt: { lte: uploadCutoff },
+            OR: [{ verificationStartedAt: null }, { verificationStartedAt: { lte: verificationLeaseCutoff } }],
+          }
         : { status: row.status, retentionUntil: { lte: now } };
       const claim = await prisma.receiptEvidence.updateMany({
         where: { id: row.id, objectsPurgedAt: null, ...expiryCondition },
-        data: { status: 'EXPIRED' },
+        data: { status: 'EXPIRED', verificationStartedAt: null },
       });
       if (claim.count !== 1) continue;
     }

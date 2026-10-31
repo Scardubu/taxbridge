@@ -10,6 +10,7 @@ import {
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { prisma } from '../../lib/prisma';
+import { claimReceiptVerificationLease, releaseReceiptVerificationLease, RECEIPT_VERIFICATION_LEASE_MS } from '../../services/receipt-verification';
 
 const MAX_RECEIPT_BYTES = 10 * 1024 * 1024;
 const UPLOAD_URL_TTL_SECONDS = 300;
@@ -174,94 +175,154 @@ export default async function receiptRoutes(app: FastifyInstance): Promise<void>
     if (['QUARANTINED', 'SCANNING', 'CLEAN', 'ATTACHED', 'INFECTED', 'SCAN_FAILED'].includes(record.status)) {
       return reply.send({ receiptEvidenceId: record.id, status: record.status, verifiedAt: record.verifiedAt?.toISOString() ?? null });
     }
-    if (record.status !== 'PENDING_UPLOAD' || record.uploadExpiresAt <= new Date()) {
+    if (record.status !== 'PENDING_UPLOAD') {
       return reply.code(409).send({ error: 'UPLOAD_INTENT_EXPIRED', message: 'Create a new upload intent' });
     }
 
-    const config = storageConfig();
-    const client = getStorageClient();
-    let object;
-    try {
-      object = await client.send(new GetObjectCommand({ Bucket: config.bucket, Key: record.uploadKey }));
-    } catch {
-      return reply.code(409).send({ error: 'UPLOAD_NOT_FOUND', message: 'The uploaded object could not be verified' });
-    }
-
-    if (object.ContentLength !== record.byteSize || object.ContentType !== record.contentType) {
-      await prisma.receiptEvidence.update({ where: { id: record.id }, data: { status: 'REJECTED' } });
-      await client.send(new DeleteObjectCommand({ Bucket: config.bucket, Key: record.uploadKey })).catch(() => undefined);
-      return reply.code(422).send({ error: 'RECEIPT_OBJECT_MISMATCH', message: 'Uploaded object size or content type does not match the upload intent' });
-    }
-    const bytes = await object.Body?.transformToByteArray();
-    const actualSha256 = bytes ? createHash('sha256').update(bytes).digest('hex') : '';
-    const signature = bytes ? Buffer.from(bytes).subarray(0, 12) : Buffer.alloc(0);
-    const matchesMagic = record.contentType === 'application/pdf'
-      ? signature.subarray(0, 5).toString('ascii') === '%PDF-'
-      : record.contentType === 'image/jpeg'
-        ? signature[0] === 0xff && signature[1] === 0xd8 && signature[2] === 0xff
-        : record.contentType === 'image/png'
-          ? signature.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))
-          : record.contentType === 'image/webp'
-            ? signature.subarray(0, 4).toString('ascii') === 'RIFF' &&
-              signature.subarray(8, 12).toString('ascii') === 'WEBP'
-            : false;
-    const valid = Boolean(bytes) &&
-      bytes!.byteLength === record.byteSize &&
-      object.ContentLength === record.byteSize &&
-      object.ContentType === record.contentType &&
-      object.Metadata?.sha256?.toLowerCase() === record.sha256 &&
-      actualSha256 === record.sha256 &&
-      matchesMagic;
-    if (!valid) {
-      await prisma.receiptEvidence.update({
-        where: { id: record.id },
-        data: { status: 'REJECTED' },
-      });
-      await client.send(new DeleteObjectCommand({ Bucket: config.bucket, Key: record.uploadKey })).catch(() => undefined);
-      return reply.code(422).send({ error: 'RECEIPT_OBJECT_MISMATCH', message: 'Uploaded object metadata does not match the signed upload intent' });
-    }
-
-    // Promote the verified staging object to a server-only key. ETag
-    // preconditions prevent a client overwrite between GET verification and copy.
-    if (!object.ETag) {
-      return reply.code(409).send({ error: 'RECEIPT_OBJECT_UNSTABLE', message: 'Object version could not be pinned for promotion' });
-    }
-    await client.send(new CopyObjectCommand({
-      Bucket: config.bucket,
-      Key: record.storageKey,
-      CopySource: `${config.bucket}/${record.uploadKey}`,
-      CopySourceIfMatch: object.ETag,
-      MetadataDirective: 'COPY',
-    }));
-
-    const verifiedAt = new Date();
-    const updated = await prisma.$transaction(async (tx) => {
-      const result = await tx.receiptEvidence.updateMany({
-        where: { id: record.id, userId, organizationId: orgId, status: 'PENDING_UPLOAD' },
-        data: { status: 'QUARANTINED', verifiedAt },
-      });
-      if (result.count === 1) {
-        await tx.receiptProcessingJob.create({ data: { receiptEvidenceId: record.id, status: 'PENDING' } });
-        await tx.auditEvent.create({ data: {
-          orgId, userId, action: 'RECEIPT_UPLOAD_VERIFIED', resource: 'ReceiptEvidence',
-          resourceId: record.id, metadata: { businessId: record.businessId, byteSize: record.byteSize, sha256: record.sha256 },
-          ipAddress: request.ip ?? null, userAgent: request.headers['user-agent'] ?? null,
-        } });
-      }
-      return result.count;
+    // Acquire a short database lease before reading or promoting the object.
+    // Retention cleanup respects this lease and only expires stale attempts.
+    const leaseStartedAt = await claimReceiptVerificationLease({
+      id: record.id, userId, organizationId: orgId,
     });
-    if (updated !== 1) {
+    if (!leaseStartedAt) {
       const current = await prisma.receiptEvidence.findFirst({
         where: { id: record.id, userId, organizationId: orgId },
-        select: { status: true, verifiedAt: true },
+        select: { status: true, verifiedAt: true, verificationStartedAt: true },
       });
-      if (current && ['QUARANTINED', 'SCANNING', 'CLEAN', 'ATTACHED'].includes(current.status)) {
+      if (current && ['QUARANTINED', 'SCANNING', 'CLEAN', 'ATTACHED', 'INFECTED', 'SCAN_FAILED'].includes(current.status)) {
         return reply.send({ receiptEvidenceId: record.id, status: current.status, verifiedAt: current.verifiedAt?.toISOString() ?? null });
       }
-      return reply.code(409).send({ error: 'RECEIPT_STATE_CONFLICT' });
+      const staleBefore = new Date(Date.now() - RECEIPT_VERIFICATION_LEASE_MS);
+      if (current?.status === 'PENDING_UPLOAD' && current.verificationStartedAt && current.verificationStartedAt > staleBefore) {
+        return reply.code(202).send({ error: 'RECEIPT_VERIFICATION_IN_PROGRESS', retryAfterSeconds: 5 });
+      }
+      return reply.code(409).send({ error: 'UPLOAD_INTENT_EXPIRED', message: 'Create a new upload intent' });
     }
-    await client.send(new DeleteObjectCommand({ Bucket: config.bucket, Key: record.uploadKey })).catch(() => undefined);
-    return reply.send({ receiptEvidenceId: record.id, status: 'QUARANTINED', verifiedAt: verifiedAt.toISOString() });
+
+    try {
+      const config = storageConfig();
+      const client = getStorageClient();
+      let object;
+      try {
+        object = await client.send(
+          new GetObjectCommand({ Bucket: config.bucket, Key: record.uploadKey }),
+          { abortSignal: AbortSignal.timeout(120_000) },
+        );
+      } catch (error) {
+        await releaseReceiptVerificationLease({ id: record.id, userId, organizationId: orgId, leaseStartedAt });
+        const name = error instanceof Error ? error.name : '';
+        if (['NoSuchKey', 'NotFound', 'NoSuchObject'].includes(name)) {
+          return reply.code(409).send({ error: 'UPLOAD_NOT_FOUND', message: 'The uploaded object could not be verified' });
+        }
+        throw error;
+      }
+
+      if (object.ContentLength !== record.byteSize || object.ContentType !== record.contentType) {
+        const rejected = await prisma.receiptEvidence.updateMany({
+          where: {
+            id: record.id, userId, organizationId: orgId,
+            status: 'PENDING_UPLOAD', verificationStartedAt: leaseStartedAt,
+          },
+          data: { status: 'REJECTED', verificationStartedAt: null },
+        });
+        if (rejected.count !== 1) return reply.code(409).send({ error: 'RECEIPT_STATE_CONFLICT' });
+        await client.send(new DeleteObjectCommand({ Bucket: config.bucket, Key: record.uploadKey })).catch(() => undefined);
+        return reply.code(422).send({ error: 'RECEIPT_OBJECT_MISMATCH', message: 'Uploaded object size or content type does not match the upload intent' });
+      }
+
+      const bytes = await object.Body?.transformToByteArray();
+      const actualSha256 = bytes ? createHash('sha256').update(bytes).digest('hex') : '';
+      const signature = bytes ? Buffer.from(bytes).subarray(0, 12) : Buffer.alloc(0);
+      const matchesMagic = record.contentType === 'application/pdf'
+        ? signature.subarray(0, 5).toString('ascii') === '%PDF-'
+        : record.contentType === 'image/jpeg'
+          ? signature[0] === 0xff && signature[1] === 0xd8 && signature[2] === 0xff
+          : record.contentType === 'image/png'
+            ? signature.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))
+            : record.contentType === 'image/webp'
+              ? signature.subarray(0, 4).toString('ascii') === 'RIFF' &&
+                signature.subarray(8, 12).toString('ascii') === 'WEBP'
+              : false;
+      const valid = Boolean(bytes) &&
+        bytes!.byteLength === record.byteSize &&
+        object.ContentLength === record.byteSize &&
+        object.ContentType === record.contentType &&
+        object.Metadata?.sha256?.toLowerCase() === record.sha256 &&
+        actualSha256 === record.sha256 &&
+        matchesMagic;
+      if (!valid) {
+        const rejected = await prisma.receiptEvidence.updateMany({
+          where: {
+            id: record.id, userId, organizationId: orgId,
+            status: 'PENDING_UPLOAD', verificationStartedAt: leaseStartedAt,
+          },
+          data: { status: 'REJECTED', verificationStartedAt: null },
+        });
+        if (rejected.count !== 1) return reply.code(409).send({ error: 'RECEIPT_STATE_CONFLICT' });
+        await client.send(new DeleteObjectCommand({ Bucket: config.bucket, Key: record.uploadKey })).catch(() => undefined);
+        return reply.code(422).send({ error: 'RECEIPT_OBJECT_MISMATCH', message: 'Uploaded object metadata does not match the signed upload intent' });
+      }
+
+      // Bound storage requests so an abandoned verifier cannot hold its lease
+      // indefinitely. The retention worker only takes over after the lease TTL.
+      if (!object.ETag) {
+        await releaseReceiptVerificationLease({ id: record.id, userId, organizationId: orgId, leaseStartedAt });
+        return reply.code(409).send({ error: 'RECEIPT_OBJECT_UNSTABLE', message: 'Object version could not be pinned for promotion' });
+      }
+      await client.send(new CopyObjectCommand({
+        Bucket: config.bucket,
+        Key: record.storageKey,
+        CopySource: `${config.bucket}/${record.uploadKey}`,
+        CopySourceIfMatch: object.ETag,
+        MetadataDirective: 'COPY',
+      }), { abortSignal: AbortSignal.timeout(120_000) });
+
+      const verifiedAt = new Date();
+      const updated = await prisma.$transaction(async (tx) => {
+        const result = await tx.receiptEvidence.updateMany({
+          where: {
+            id: record.id, userId, organizationId: orgId,
+            status: 'PENDING_UPLOAD', verificationStartedAt: leaseStartedAt,
+          },
+          data: { status: 'QUARANTINED', verifiedAt, verificationStartedAt: null },
+        });
+        if (result.count === 1) {
+          await tx.receiptProcessingJob.create({ data: { receiptEvidenceId: record.id, status: 'PENDING' } });
+          await tx.auditEvent.create({ data: {
+            orgId, userId, action: 'RECEIPT_UPLOAD_VERIFIED', resource: 'ReceiptEvidence',
+            resourceId: record.id, metadata: { businessId: record.businessId, byteSize: record.byteSize, sha256: record.sha256 },
+            ipAddress: request.ip ?? null, userAgent: request.headers['user-agent'] ?? null,
+          } });
+        }
+        return result.count;
+      });
+      if (updated !== 1) {
+        const current = await prisma.receiptEvidence.findFirst({
+          where: { id: record.id, userId, organizationId: orgId },
+          select: { status: true, verifiedAt: true, verificationStartedAt: true },
+        });
+        if (current && ['QUARANTINED', 'SCANNING', 'CLEAN', 'ATTACHED'].includes(current.status)) {
+          return reply.send({ receiptEvidenceId: record.id, status: current.status, verifiedAt: current.verifiedAt?.toISOString() ?? null });
+        }
+        if (current?.status === 'EXPIRED') {
+          // The lease expired while storage was in flight. Repeat deletion after
+          // observing EXPIRED so a late copy cannot survive the retention sweep.
+          await Promise.allSettled([
+            client.send(new DeleteObjectCommand({ Bucket: config.bucket, Key: record.storageKey })),
+            client.send(new DeleteObjectCommand({ Bucket: config.bucket, Key: record.uploadKey })),
+          ]);
+        }
+        if (current?.status === 'PENDING_UPLOAD' && current.verificationStartedAt) {
+          return reply.code(202).send({ error: 'RECEIPT_VERIFICATION_IN_PROGRESS', retryAfterSeconds: 5 });
+        }
+        return reply.code(409).send({ error: 'RECEIPT_STATE_CONFLICT' });
+      }
+      await client.send(new DeleteObjectCommand({ Bucket: config.bucket, Key: record.uploadKey })).catch(() => undefined);
+      return reply.send({ receiptEvidenceId: record.id, status: 'QUARANTINED', verifiedAt: verifiedAt.toISOString() });
+    } catch (error) {
+      await releaseReceiptVerificationLease({ id: record.id, userId, organizationId: orgId, leaseStartedAt }).catch(() => undefined);
+      throw error;
+    }
   });
 
   app.get<{ Params: { id: string } }>('/receipts/:id/status', {

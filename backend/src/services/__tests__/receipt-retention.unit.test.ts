@@ -55,6 +55,11 @@ describe('receipt evidence retention purge', () => {
         ]),
       }),
     }));
+    const pendingUpload = (mockPrisma.receiptEvidence.findMany.mock.calls[0][0].where.OR as Array<Record<string, unknown>>)
+      .find((condition) => (condition as { status?: string }).status === 'PENDING_UPLOAD');
+    expect(pendingUpload).toEqual(expect.objectContaining({
+      OR: [{ verificationStartedAt: null }, { verificationStartedAt: { lte: expect.any(Date) } }],
+    }));
     expect(mockS3Send).not.toHaveBeenCalled();
   });
 
@@ -77,8 +82,9 @@ describe('receipt evidence retention purge', () => {
         objectsPurgedAt: null,
         status: 'PENDING_UPLOAD',
         uploadExpiresAt: { lte: expect.any(Date) },
+        OR: [{ verificationStartedAt: null }, { verificationStartedAt: { lte: expect.any(Date) } }],
       },
-      data: { status: 'EXPIRED' },
+      data: { status: 'EXPIRED', verificationStartedAt: null },
     });
     expect(DeleteObjectCommand).toHaveBeenCalledTimes(2);
     expect(mockS3Send).toHaveBeenCalledTimes(2);
@@ -121,7 +127,7 @@ describe('receipt evidence retention purge', () => {
         status: 'ATTACHED',
         retentionUntil: { lte: expect.any(Date) },
       },
-      data: { status: 'EXPIRED' },
+      data: { status: 'EXPIRED', verificationStartedAt: null },
     });
     expect(mockS3Send).toHaveBeenCalledTimes(3);
     expect(mockPrisma.receiptEvidence.updateMany).toHaveBeenNthCalledWith(2,
