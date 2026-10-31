@@ -6,6 +6,16 @@ import type { NextConfig } from "next";
 const require = createRequire(import.meta.url);
 const currentDirectory = dirname(fileURLToPath(import.meta.url));
 
+if (process.env.VERCEL_ENV === 'production') {
+  const required = ['JWT_PUBLIC_KEY', 'INTERNAL_API_KEY', 'ADMIN_API_KEYS'];
+  const missing = required.filter((key) => !process.env[key]?.trim());
+  if (process.env.ADMIN_AUTH_ENFORCE !== 'true' || missing.length > 0) {
+    throw new Error(
+      `Production admin security configuration is incomplete: ${missing.join(', ') || 'ADMIN_AUTH_ENFORCE must be true'}`,
+    );
+  }
+}
+
 const nextConfig: NextConfig = {
   // Use default output for Vercel compatibility
   // Ensure proper handling of environment variables
@@ -74,7 +84,7 @@ const nextConfig: NextConfig = {
 
     const csp = [
       "default-src 'self'",
-      `script-src 'self' 'unsafe-inline' 'unsafe-eval'${vercelLiveSrc}`,
+      `script-src 'self' 'unsafe-inline'${vercelLiveSrc}`,
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: https:",
       "font-src 'self' data:",
