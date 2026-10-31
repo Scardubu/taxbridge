@@ -2,7 +2,6 @@ import type { DraftReceipt } from '../types/receipt';
 import { DuplicateReceiptError, RECEIPT_FALLBACK_BUSINESS_ID, receiptService } from '../services/receiptService';
 import { getDatabase } from '../services/database';
 import { logComplianceEvent } from '../services/complianceEventService';
-import { offlineQueue } from '../services/offlineQueue';
 
 jest.mock('expo-crypto', () => ({
   randomUUID: jest.fn(),
@@ -16,16 +15,9 @@ jest.mock('../services/complianceEventService', () => ({
   logComplianceEvent: jest.fn().mockResolvedValue(undefined),
 }));
 
-jest.mock('../services/offlineQueue', () => ({
-  offlineQueue: {
-    enqueue: jest.fn().mockResolvedValue(undefined),
-  },
-}));
-
 const mockRandomUuid = jest.requireMock('expo-crypto').randomUUID as jest.Mock;
 const mockGetDatabase = getDatabase as jest.MockedFunction<typeof getDatabase>;
 const mockLogComplianceEvent = logComplianceEvent as jest.MockedFunction<typeof logComplianceEvent>;
-const mockEnqueue = offlineQueue.enqueue as jest.MockedFunction<typeof offlineQueue.enqueue>;
 
 const draftReceipt: DraftReceipt = {
   vendorName: 'Eko Fuel Station',
@@ -52,7 +44,7 @@ describe('receiptService', () => {
     db.runAsync.mockReset();
   });
 
-  test('saves a receipt, creates VAT credit, logs compliance, and enqueues sync', async () => {
+  test('saves a receipt and VAT credit without replaying OCR-only receipt data', async () => {
     db.getFirstAsync.mockResolvedValueOnce(null);
     mockRandomUuid.mockReturnValueOnce('receipt-1').mockReturnValueOnce('credit-1');
 
@@ -87,15 +79,7 @@ describe('receiptService', () => {
       { receiptId: 'receipt-1' },
       { businessId: 'biz-123' }
     );
-    expect(mockEnqueue).toHaveBeenCalledWith(
-      'RECEIPT_SUBMIT',
-      expect.objectContaining({
-        client_receipt_id: 'receipt-1',
-        business_id: 'biz-123',
-        amount_ngn: 24_000,
-        vat_amount_ngn: 1_800,
-      })
-    );
+    // Raw OCR receipts remain local until uploaded as verified evidence.
   });
 
   test('rejects duplicate receipt image hashes before inserting', async () => {
@@ -105,7 +89,6 @@ describe('receiptService', () => {
     await expect(receiptService.saveReceipt(draftReceipt, 'biz-123')).rejects.toBeInstanceOf(DuplicateReceiptError);
 
     expect(db.runAsync).not.toHaveBeenCalled();
-    expect(mockEnqueue).not.toHaveBeenCalled();
   });
 
   test('falls back to the local business id when stats are requested without a server id', async () => {

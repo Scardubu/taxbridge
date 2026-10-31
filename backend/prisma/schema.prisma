@@ -67,6 +67,7 @@ model User {
   tin                    String?
   email                  String?  @unique
   passwordHash           String?  @map("password_hash")
+  authVersion            Int      @default(0) @map("auth_version")
   verificationToken      String?  @map("verification_token")
   verificationTokenExpiry DateTime? @map("verification_token_expiry")
   verified               Boolean  @default(false)
@@ -88,11 +89,14 @@ model User {
   updatedAt              DateTime @updatedAt @map("updated_at")
 
   invoices               Invoice[]
+  invoiceLifecycleEvents InvoiceLifecycleEvent[] @relation("InvoiceLifecycleActor")
   auditLogs              AuditLog[]
   consents               UserConsent[]
   devices                Device[]
   adminActions           AdminAction[]
   businesses             Business[]
+  receiptEvidence        ReceiptEvidence[]
+  reviewedReceipts       ReceiptEvidence[] @relation("ReceiptEvidenceReviewer")
   streakRecord           StreakRecord?
   pillarScores           PillarScore[]
   pushDevices            UserDevice[]
@@ -123,6 +127,7 @@ enum BusinessType {
 model Business {
   id              String          @id @default(uuid()) @db.Uuid
   ownerId         String          @map("owner_id") @db.Uuid
+  organizationId  String?         @map("org_id") @db.Uuid
   name            String
   cacNumber       String?         @unique @map("cac_number")
   tin             String?         @unique
@@ -133,6 +138,15 @@ model Business {
   addressCity     String?         @map("address_city")
   addressState    String?         @map("address_state")
   addressZipCode  String?         @map("address_zip_code")
+  tradingName     String?         @map("trading_name")
+  sector          String?
+  annualTurnover  Decimal?        @map("annual_turnover") @db.Decimal(18, 2)
+  monthlyRevenue  Decimal?        @map("monthly_revenue") @db.Decimal(18, 2)
+  totalFixedAssets Decimal?       @map("total_fixed_assets") @db.Decimal(18, 2)
+  employeeCount   Int             @default(0) @map("employee_count")
+  isVatRegistered Boolean         @default(false) @map("is_vat_registered")
+  vatNumber       String?         @map("vat_number")
+  addressLga      String?         @map("address_lga")
   businessType    BusinessType    @default(SOLE_PROPRIETOR) @map("business_type")
   status          BusinessStatus  @default(PENDING)
 
@@ -146,12 +160,15 @@ model Business {
   updatedAt       DateTime        @updatedAt @map("updated_at")
 
   owner           User            @relation(fields: [ownerId], references: [id])
+  organization    Org?            @relation(fields: [organizationId], references: [id])
   invoices        Invoice[]
   employees       Employee[]
   expenses        Expense[]
+  receiptEvidence ReceiptEvidence[]
   taxRemittances  TaxRemittance[]
 
   @@index([ownerId])
+  @@index([organizationId])
   @@index([tin])
   @@index([status])
   @@index([cacNumber])
@@ -210,12 +227,58 @@ model Expense {
   updatedAt       DateTime  @updatedAt @map("updated_at")
 
   business        Business  @relation(fields: [businessId], references: [id])
+  receiptEvidence ReceiptEvidence[]
 
   @@index([businessId])
   @@index([category])
   @@index([status])
   @@index([date])
   @@map("expenses")
+}
+
+
+/// Immutable, tenant-bound receipt evidence. Object keys are server generated.
+model ReceiptEvidence {
+  id                String    @id @default(uuid()) @db.Uuid
+  clientUploadId    String?   @unique(map: "receipt_evidence_client_upload_id_key") @map("client_upload_id") @db.Uuid
+  organizationId    String    @map("organization_id") @db.Uuid
+  userId            String    @map("user_id") @db.Uuid
+  businessId        String    @map("business_id") @db.Uuid
+  expenseId         String?   @map("expense_id") @db.Uuid
+  storageKey        String    @unique(map: "receipt_evidence_storage_key_key") @map("storage_key")
+  cleanStorageKey   String?   @unique(map: "receipt_evidence_clean_storage_key_key") @map("clean_storage_key")
+  uploadKey         String    @unique(map: "receipt_evidence_upload_key_key") @map("upload_key")
+  originalFilename  String    @map("original_filename")
+  contentType       String    @map("content_type")
+  byteSize          Int       @map("byte_size")
+  sha256            String    @db.Char(64)
+  status            String    @default("PENDING_UPLOAD")
+  reviewStatus      String    @default("PENDING") @map("review_status")
+  reviewedBy        String?   @map("reviewed_by") @db.Uuid
+  reviewedAt        DateTime? @map("reviewed_at")
+  uploadExpiresAt   DateTime  @map("upload_expires_at")
+  verificationStartedAt DateTime? @map("verification_started_at")
+  verifiedAt        DateTime? @map("verified_at")
+  retentionUntil    DateTime  @map("retention_until")
+  objectsPurgedAt   DateTime? @map("objects_purged_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  organization      Org       @relation(fields: [organizationId], references: [id])
+  user              User      @relation(fields: [userId], references: [id])
+  reviewer          User?     @relation("ReceiptEvidenceReviewer", fields: [reviewedBy], references: [id])
+  business          Business  @relation(fields: [businessId], references: [id])
+  expense           Expense?  @relation(fields: [expenseId], references: [id])
+  processingJobs    ReceiptProcessingJob[]
+  scanResult        ReceiptScanResult?
+  ocrExtraction     ReceiptOcrExtraction?
+
+  @@index([organizationId, businessId, createdAt], map: "receipt_evidence_org_business_created_idx")
+  @@index([userId, createdAt], map: "receipt_evidence_user_created_idx")
+  @@index([expenseId], map: "receipt_evidence_expense_id_idx")
+  @@index([status, uploadExpiresAt], map: "receipt_evidence_status_expiry_idx")
+  @@index([objectsPurgedAt, retentionUntil], map: "receipt_evidence_retention_cleanup_idx")
+  @@map("receipt_evidence")
 }
 
 // ============================================
@@ -270,7 +333,15 @@ model Invoice {
   qrCode             String?  @map("qr_code") @db.Text
   pdfUrl             String?  @map("pdf_url")
   notes              String?  @db.Text
-  version            Int      @default(1) // For conflict detection
+  version            Int      @default(1) // Optimistic concurrency and immutable revision number
+  approvalStatus     String   @default("DRAFT") @map("approval_status")
+  submittedForApprovalAt DateTime? @map("submitted_for_approval_at")
+  approvedBy         String?  @map("approved_by") @db.Uuid
+  approvedAt         DateTime? @map("approved_at")
+  approvedVersion    Int?     @map("approved_version")
+  rejectedBy         String?  @map("rejected_by") @db.Uuid
+  rejectedAt         DateTime? @map("rejected_at")
+  rejectionReason    String?  @map("rejection_reason") @db.Text
   sentAt             DateTime? @map("sent_at")
   createdAt          DateTime @default(now()) @map("created_at")
   updatedAt          DateTime @updatedAt @map("updated_at")
@@ -281,6 +352,7 @@ model Invoice {
   syncQueue    SyncQueue[]
   payments     Payment[]
   versions     InvoiceVersion[]
+  lifecycleEvents InvoiceLifecycleEvent[]
   conflicts    Conflict[]
   syncJobs     SyncJob[]
 
@@ -531,6 +603,7 @@ model InvoiceVersion {
   data        Json
   changedBy   String?  @map("changed_by")
   createdAt   DateTime @default(now()) @map("created_at")
+  contentHash String?  @map("content_hash") @db.Char(64)
 
   invoice     Invoice  @relation(fields: [invoiceId], references: [id])
 
@@ -538,6 +611,31 @@ model InvoiceVersion {
   @@index([invoiceId])
   @@index([createdAt])
   @@map("invoice_versions")
+}
+
+/// Append-only internal approval and revision governance events.
+/// This ledger is not evidence of NRS submission, tax filing, or payment.
+model InvoiceLifecycleEvent {
+  id                  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  invoiceId           String   @map("invoice_id") @db.Uuid
+  organizationId      String   @map("organization_id") @db.Uuid
+  actorUserId         String   @map("actor_user_id") @db.Uuid
+  eventType           String   @map("event_type")
+  fromApprovalStatus  String?  @map("from_approval_status")
+  toApprovalStatus    String   @map("to_approval_status")
+  revision            Int
+  reason              String?  @db.Text
+  metadata            Json     @default("{}")
+  occurredAt          DateTime @default(now()) @map("occurred_at")
+
+  invoice             Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+  organization        Org      @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  actor               User     @relation("InvoiceLifecycleActor", fields: [actorUserId], references: [id], onDelete: Restrict)
+
+  @@index([invoiceId, occurredAt], map: "invoice_lifecycle_invoice_occurred_idx")
+  @@index([organizationId, occurredAt], map: "invoice_lifecycle_org_occurred_idx")
+  @@index([actorUserId, occurredAt], map: "invoice_lifecycle_actor_occurred_idx")
+  @@map("invoice_lifecycle_events")
 }
 
 model OCRJob {
@@ -923,7 +1021,10 @@ model Org {
   createdAt       DateTime    @default(now()) @map("created_at")
 
   members         OrgMember[]
+  businesses      Business[]
+  receiptEvidence ReceiptEvidence[]
   auditEvents     AuditEvent[]
+  invoiceLifecycleEvents InvoiceLifecycleEvent[]
 
   @@index([tin])
   @@map("orgs")
@@ -938,6 +1039,7 @@ model OrgMember {
   orgId           String      @map("org_id") @db.Uuid
   userId          String      @map("user_id") @db.Uuid
   role            String      @default("member") // owner, admin, accountant, member, viewer
+  status          String      @default("active")
   invitedBy       String?     @map("invited_by") @db.Uuid
   joinedAt        DateTime    @default(now()) @map("joined_at")
   removedAt       DateTime?   @map("removed_at")
@@ -1106,6 +1208,8 @@ model SyncOperation {
   payload               Json
   status                String    @default("pending")
   attemptCount          Int       @default(0) @map("attempt_count")
+  processingLeaseToken  String?   @map("processing_lease_token") @db.Uuid
+  processingLeaseUntil  DateTime? @map("processing_lease_until")
   nextAttemptAt         DateTime? @map("next_attempt_at")
   deadlineAt            DateTime  @map("deadline_at")
   acknowledgedAt        DateTime? @map("acknowledged_at")
@@ -1161,4 +1265,65 @@ model OperationDeadLetter {
   @@index([organizationId, resolutionStatus, createdAt])
   @@index([operationType, resolutionStatus])
   @@map("operation_dead_letters")
+}
+
+
+/// Transactional idempotency receipt for committed domain effects.
+model OperationEffect {
+  id                 String   @id @default(uuid()) @db.Uuid
+  operationId        String   @unique @map("operation_id") @db.Uuid
+  organizationId     String   @map("organization_id") @db.Uuid
+  userId             String   @map("user_id") @db.Uuid
+  payloadFingerprint String   @map("payload_fingerprint")
+  result             Json
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  @@index([organizationId, createdAt])
+  @@map("operation_effects")
+}
+
+ 
+/// Durable, idempotent worker dispatch for quarantined receipt evidence.
+model ReceiptProcessingJob {
+  id               String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  receiptEvidenceId String  @unique(map: "receipt_processing_jobs_receipt_key") @map("receipt_evidence_id") @db.Uuid
+  status           String   @default("PENDING")
+  attempts         Int      @default(0)
+  availableAt      DateTime @default(now()) @map("available_at")
+  lockedAt         DateTime? @map("locked_at")
+  lastErrorCode    String?  @map("last_error_code")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+  receiptEvidence  ReceiptEvidence @relation(fields: [receiptEvidenceId], references: [id], onDelete: Restrict)
+
+  @@index([status, availableAt, createdAt], map: "receipt_processing_jobs_dispatch_idx")
+  @@map("receipt_processing_jobs")
+}
+
+model ReceiptScanResult {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  receiptEvidenceId String   @unique(map: "receipt_scan_results_receipt_key") @map("receipt_evidence_id") @db.Uuid
+  sha256            String   @db.Char(64)
+  engine            String
+  engineVersion     String   @map("engine_version")
+  verdict           String
+  findings          Json     @default("[]")
+  scannedAt         DateTime @default(now()) @map("scanned_at")
+  receiptEvidence   ReceiptEvidence @relation(fields: [receiptEvidenceId], references: [id], onDelete: Restrict)
+  @@map("receipt_scan_results")
+}
+
+model ReceiptOcrExtraction {
+  id                String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  receiptEvidenceId String   @unique(map: "receipt_ocr_extractions_receipt_key") @map("receipt_evidence_id") @db.Uuid
+  sha256            String   @db.Char(64)
+  provider          String
+  providerVersion   String   @map("provider_version")
+  status            String
+  extractedText     String?  @map("extracted_text") @db.Text
+  meanConfidence    Float?   @map("mean_confidence")
+  fieldCandidates   Json     @default("{}") @map("field_candidates")
+  createdAt         DateTime @default(now()) @map("created_at")
+  receiptEvidence   ReceiptEvidence @relation(fields: [receiptEvidenceId], references: [id], onDelete: Restrict)
+  @@map("receipt_ocr_extractions")
 }

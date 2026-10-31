@@ -1,5 +1,5 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { z } from 'zod';
+import { z, ZodError } from 'zod';
 import { privacyService } from '../services/privacy';
 import { logSecurityEvent } from '../lib/security';
 
@@ -13,6 +13,30 @@ const consentUpdateSchema = z.object({
   consentType: z.enum(['data_processing', 'sms_marketing', 'ai_analytics', 'device_tracking']),
   granted: z.boolean()
 });
+
+function handlePrivacyError(
+  request: FastifyRequest,
+  reply: FastifyReply,
+  error: unknown,
+  operation: string,
+) {
+  if (error instanceof ZodError) {
+    return reply.code(400).send({
+      error: 'VALIDATION_ERROR',
+      issues: error.issues.map((issue) => ({
+        path: issue.path.join('.'),
+        code: issue.code,
+      })),
+    });
+  }
+
+  if (error instanceof Error && error.message === 'User not found') {
+    return reply.code(404).send({ error: 'NOT_FOUND' });
+  }
+
+  request.log.error({ err: error }, `Privacy ${operation} failed`);
+  return reply.code(500).send({ error: 'PRIVACY_OPERATION_FAILED' });
+}
 
 export default async function privacyRoutes(app: FastifyInstance) {
   // Export user data (DSAR)
@@ -36,11 +60,8 @@ export default async function privacyRoutes(app: FastifyInstance) {
         success: true,
         data
       });
-    } catch (error: any) {
-      if (error.message.includes('authorization')) {
-        return reply.status(401).send({ error: error.message });
-      }
-      return reply.status(404).send({ error: error.message });
+    } catch (error) {
+      return handlePrivacyError(request, reply, error, 'data export');
     }
   });
 
@@ -64,11 +85,8 @@ export default async function privacyRoutes(app: FastifyInstance) {
       reply.header('Content-Type', 'text/csv');
       reply.header('Content-Disposition', `attachment; filename="taxbridge-data-${userId}.csv"`);
       return reply.send(csvBuffer);
-    } catch (error: any) {
-      if (error.message.includes('authorization')) {
-        return reply.status(401).send({ error: error.message });
-      }
-      return reply.status(404).send({ error: error.message });
+    } catch (error) {
+      return handlePrivacyError(request, reply, error, 'data download');
     }
   });
 
@@ -91,11 +109,8 @@ export default async function privacyRoutes(app: FastifyInstance) {
         success: true,
         message: 'User data has been anonymized'
       });
-    } catch (error: any) {
-      if (error.message.includes('authorization')) {
-        return reply.status(401).send({ error: error.message });
-      }
-      return reply.status(400).send({ error: error.message });
+    } catch (error) {
+      return handlePrivacyError(request, reply, error, 'data deletion');
     }
   });
 
@@ -122,11 +137,8 @@ export default async function privacyRoutes(app: FastifyInstance) {
         success: true,
         message: 'Consent updated successfully'
       });
-    } catch (error: any) {
-      if (error.message.includes('authorization')) {
-        return reply.status(401).send({ error: error.message });
-      }
-      return reply.status(400).send({ error: error.message });
+    } catch (error) {
+      return handlePrivacyError(request, reply, error, 'consent update');
     }
   });
 
@@ -149,11 +161,8 @@ export default async function privacyRoutes(app: FastifyInstance) {
         success: true,
         hasConsent
       });
-    } catch (error: any) {
-      if (error.message.includes('authorization')) {
-        return reply.status(401).send({ error: error.message });
-      }
-      return reply.status(400).send({ error: error.message });
+    } catch (error) {
+      return handlePrivacyError(request, reply, error, 'consent lookup');
     }
   });
 }

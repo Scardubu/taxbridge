@@ -33,7 +33,7 @@ export default async function nrsStatusRoutes(app: FastifyInstance) {
    */
   app.get<{
     Params: { invoiceId: string };
-  }>('/api/v1/nrs/status/:invoiceId', async (req, reply) => {
+  }>('/api/v1/nrs/status/:invoiceId', { preHandler: [app.authenticate] }, async (req, reply) => {
     try {
       const parsedParams = NRSStatusSchema.safeParse(req.params);
       if (!parsedParams.success) {
@@ -46,7 +46,7 @@ export default async function nrsStatusRoutes(app: FastifyInstance) {
       const { invoiceId } = parsedParams.data;
       
       const invoice = await prisma.invoice.findUnique({
-        where: { id: invoiceId },
+        where: { id: invoiceId, userId: req.user.userId },
         select: {
           id: true,
           invoiceNumber: true,
@@ -132,7 +132,7 @@ export default async function nrsStatusRoutes(app: FastifyInstance) {
       toDate?: string;
       limit?: string;
     };
-  }>('/api/v1/nrs/status', async (req, reply) => {
+  }>('/api/v1/nrs/status', { preHandler: [app.authenticate] }, async (req, reply) => {
     try {
       const parsedQuery = NRSStatusQuerySchema.safeParse(req.query);
       if (!parsedQuery.success) {
@@ -144,7 +144,7 @@ export default async function nrsStatusRoutes(app: FastifyInstance) {
 
       const { status, nrsStatus, fromDate, toDate, limit } = parsedQuery.data;
       
-      const where: any = {};
+      const where: any = { userId: req.user.userId };
       
       if (status) {
         where.status = status;
@@ -193,7 +193,7 @@ export default async function nrsStatusRoutes(app: FastifyInstance) {
       const stats = await prisma.invoice.groupBy({
         by: ['status'],
         _count: true,
-        where: fromDate || toDate ? { createdAt: where.createdAt } : undefined,
+        where,
       });
 
       const nrsStats = {
@@ -241,7 +241,7 @@ export default async function nrsStatusRoutes(app: FastifyInstance) {
    * GET /api/v1/nrs/health
    * Check NRS submission health and recent failure rate
    */
-  app.get('/api/v1/nrs/health', async (req, reply) => {
+  app.get('/api/v1/nrs/health', { preHandler: [app.authenticate] }, async (req, reply) => {
     try {
       const now = new Date();
       const last24Hours = new Date(now.getTime() - 24 * 60 * 60 * 1000);
@@ -249,6 +249,7 @@ export default async function nrsStatusRoutes(app: FastifyInstance) {
       // Get recent NRS submissions
       const recentInvoices = await prisma.invoice.findMany({
         where: {
+          userId: req.user.userId,
           nrsCompliant: true,
           createdAt: { gte: last24Hours },
         },

@@ -61,6 +61,9 @@ function LoginPageContent() {
   const [password,  setPassword]  = useState('');
   const [loading,   setLoading]   = useState(false);
   const [error,     setError]     = useState<string | null>(null);
+  const [mfaRequired, setMfaRequired] = useState(false);
+  const [challengeToken, setChallengeToken] = useState<string | null>(null);
+  const [mfaCode, setMfaCode] = useState('');
 
   const handleSubmit = useCallback(async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -79,10 +82,18 @@ function LoginPageContent() {
         body:    JSON.stringify({ email: email.trim(), password }),
       });
 
-      const data = await res.json() as { success?: boolean; message?: string; error?: string };
+      const data = await res.json() as { success?: boolean; mfaRequired?: boolean; challengeToken?: string; message?: string; error?: string };
 
       if (!res.ok) {
         setError(data.message ?? 'Invalid email or password. Please try again.');
+        return;
+      }
+
+      if (data.mfaRequired === true && data.challengeToken) {
+        setChallengeToken(data.challengeToken);
+        setMfaRequired(true);
+        setPassword('');
+        setMfaCode('');
         return;
       }
 
@@ -95,6 +106,39 @@ function LoginPageContent() {
     }
   }, [email, password, router]);
 
+  const handleMfaSubmit = useCallback(async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setError(null);
+    if (!challengeToken || !mfaCode.trim()) {
+      setError('Enter your authenticator or backup code.');
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetch('/api/auth/mfa/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ challengeToken, code: mfaCode.trim() }),
+      });
+      const data = await res.json() as { message?: string; error?: string };
+      if (!res.ok) {
+        setError(data.message ?? 'The verification code was not accepted.');
+        return;
+      }
+      router.replace('/dashboard');
+    } catch {
+      setError('Unable to connect to the authentication service. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }, [challengeToken, mfaCode, router]);
+
+  const cancelMfa = useCallback(() => {
+    setMfaRequired(false);
+    setChallengeToken(null);
+    setMfaCode('');
+    setError(null);
+  }, []);
   const reasonMessage = REASON_MESSAGES[reason];
 
   return (
@@ -153,120 +197,62 @@ function LoginPageContent() {
         <Card className="bg-white shadow-sm border-slate-200">
           <CardHeader className="pb-4">
             <CardTitle className="text-lg font-semibold text-slate-800">
-              Sign in to your account
+              {mfaRequired ? 'Two-factor verification' : 'Sign in to your account'}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit} noValidate>
+            <form onSubmit={mfaRequired ? handleMfaSubmit : handleSubmit} noValidate>
               {/* Error alert — C-15: icon + text */}
               {error && (
                 <Alert className="mb-4 border-red-200 bg-red-50" role="alert">
-                  <svg
-                    className="h-4 w-4 text-red-600 shrink-0"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                    aria-hidden="true"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                    />
+                  <svg className="h-4 w-4 text-red-600 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  <AlertDescription className="text-red-700 ml-2">
-                    {error}
-                  </AlertDescription>
+                  <AlertDescription className="text-red-700 ml-2">{error}</AlertDescription>
                 </Alert>
               )}
-
               <div className="space-y-4">
-                {/* Email */}
-                <div className="space-y-1">
-                  <Label
-                    htmlFor="email"
-                    className="text-sm font-medium text-slate-700"
-                  >
-                    Email address
-                  </Label>
-                  <Input
-                    id="email"
-                    name="email"
-                    type="email"
-                    autoComplete="email"
-                    required
-                    value={email}
-                    onChange={e => setEmail(e.target.value)}
-                    placeholder="admin@taxbridge.ng"
-                    className="w-full"
-                    aria-label="Email address"
-                    aria-describedby={error ? 'login-error' : undefined}
-                    aria-invalid={!!error}
-                    disabled={loading}
-                  />
-                </div>
-
-                {/* Password */}
-                <div className="space-y-1">
-                  <Label
-                    htmlFor="password"
-                    className="text-sm font-medium text-slate-700"
-                  >
-                    Password
-                  </Label>
-                  <Input
-                    id="password"
-                    name="password"
-                    type="password"
-                    autoComplete="current-password"
-                    required
-                    value={password}
-                    onChange={e => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="w-full"
-                    aria-label="Password"
-                    aria-invalid={!!error}
-                    disabled={loading}
-                  />
-                </div>
-
-                {/* Submit */}
-                <Button
-                  type="submit"
-                  className="w-full bg-green-600 hover:bg-green-700 text-white font-medium"
-                  disabled={loading || !email.trim() || !password}
-                  aria-busy={loading}
-                >
+                {!mfaRequired ? (
+                  <>
+                    <div className="space-y-1">
+                      <Label htmlFor="email" className="text-sm font-medium text-slate-700">Email address</Label>
+                      <Input id="email" name="email" type="email" autoComplete="email" required value={email}
+                        onChange={event => setEmail(event.target.value)} placeholder="admin@taxbridge.ng" className="w-full"
+                        aria-label="Email address" aria-describedby={error ? "login-error" : undefined} aria-invalid={!!error} disabled={loading} />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="password" className="text-sm font-medium text-slate-700">Password</Label>
+                      <Input id="password" name="password" type="password" autoComplete="current-password" required value={password}
+                        onChange={event => setPassword(event.target.value)} placeholder="••••••••" className="w-full"
+                        aria-label="Password" aria-invalid={!!error} disabled={loading} />
+                    </div>
+                  </>
+                ) : (
+                  <div className="space-y-2">
+                    <Label htmlFor="mfa-code">Authenticator or backup code</Label>
+                    <Input id="mfa-code" name="mfa-code" type="text" autoComplete="one-time-code" autoCapitalize="characters"
+                      maxLength={8} required value={mfaCode} onChange={event => setMfaCode(event.target.value)}
+                      placeholder="000000" aria-label="Two-factor authentication code" disabled={loading} />
+                    <p className="text-xs text-slate-500">Enter the current six-digit authenticator code or one unused eight-character backup code.</p>
+                  </div>
+                )}
+                <Button type="submit" className="w-full bg-green-600 hover:bg-green-700 text-white font-medium"
+                  disabled={loading || (mfaRequired ? !mfaCode.trim() : (!email.trim() || !password))} aria-busy={loading}>
                   {loading ? (
                     <span className="flex items-center justify-center gap-2">
-                      <svg
-                        className="animate-spin h-4 w-4"
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        aria-hidden="true"
-                      >
-                        <circle
-                          className="opacity-25"
-                          cx="12"
-                          cy="12"
-                          r="10"
-                          stroke="currentColor"
-                          strokeWidth="4"
-                        />
-                        <path
-                          className="opacity-75"
-                          fill="currentColor"
-                          d="M4 12a8 8 0 018-8V0C5.373 0 12 0 12 5.373A8.001 8.001 0 014 12z"
-                        />
+                      <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" aria-hidden="true">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                       </svg>
-                      Signing in…
+                      {mfaRequired ? "Verifying…" : "Signing in…"}
                     </span>
-                  ) : (
-                    'Sign in'
-                  )}
+                  ) : (mfaRequired ? "Verify and sign in" : "Sign in")}
                 </Button>
+                {mfaRequired && (
+                  <button type="button" onClick={cancelMfa} className="w-full mt-3 text-sm text-slate-600 hover:text-slate-900 underline" disabled={loading}>
+                    Use a different account
+                  </button>
+                )}
               </div>
             </form>
           </CardContent>

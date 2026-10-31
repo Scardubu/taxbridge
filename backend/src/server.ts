@@ -1,7 +1,9 @@
 import { buildApp } from './app';
 import { registerCronJobs } from './cron/orchestrator';
+import { initialiseObservability } from './lib/observability';
 
 async function start(): Promise<void> {
+  initialiseObservability();
   const app = await buildApp();
 
   app.addHook('onReady', () => {

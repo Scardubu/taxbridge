@@ -151,22 +151,31 @@ export default async function invoicesRoutes(app: FastifyInstance, opts: { prism
 
   app.post(
     '/api/v1/invoices',
-    {},
+    { preHandler: [app.authenticate] },
     async (req, reply) => {
       const bodyParse = InvoiceBodySchema.safeParse(req.body);
       if (!bodyParse.success) {
         return reply.status(400).send({ error: 'VALIDATION_ERROR', issues: bodyParse.error.issues });
       }
+      const userId = await requireResolvedUserId(req);
       const idempotencyKeyHeader = req.headers['idempotency-key'];
       const idempotencyKey = Array.isArray(idempotencyKeyHeader) ? idempotencyKeyHeader[0] : idempotencyKeyHeader;
+      if (idempotencyKey && idempotencyKey.length > 128) {
+        return reply.status(400).send({ error: 'INVALID_IDEMPOTENCY_KEY' });
+      }
+      const scopedIdempotencyKey = idempotencyKey ? 'invoice:' + userId + ':' + idempotencyKey : undefined;
 
-      const requestHash = computeRequestHash({ method: req.method, path: req.url, body: req.body });
+      const requestHash = computeRequestHash({
+        method: req.method,
+        path: req.url,
+        body: { userId, payload: req.body },
+      });
 
-      if (idempotencyKey) {
-        const existing = await prisma.idempotencyCache.findUnique({ where: { key: idempotencyKey } });
+      if (scopedIdempotencyKey) {
+        const existing = await prisma.idempotencyCache.findUnique({ where: { key: scopedIdempotencyKey } });
         if (existing) {
           if (isIdempotencyExpired(existing.createdAt)) {
-            await prisma.idempotencyCache.delete({ where: { key: idempotencyKey } });
+            await prisma.idempotencyCache.delete({ where: { key: scopedIdempotencyKey } });
           } else {
           if (existing.requestHash !== requestHash) {
             return reply.status(409).send({ error: 'Idempotency-Key reuse with different request body' });
@@ -174,7 +183,7 @@ export default async function invoicesRoutes(app: FastifyInstance, opts: { prism
 
           const parsed = InvoiceResponseSchema.safeParse(existing.responseBody);
           if (!parsed.success) {
-            app.log.error({ err: parsed.error, idempotencyKey }, 'Invalid cached idempotency responseBody');
+            app.log.error({ err: parsed.error, scopedIdempotencyKey }, 'Invalid cached idempotency responseBody');
             return reply.status(500).send({ error: 'Internal Server Error' });
           }
 
@@ -184,8 +193,6 @@ export default async function invoicesRoutes(app: FastifyInstance, opts: { prism
       }
 
       const { customerName, customerTIN, customerEndpointId, items } = bodyParse.data;
-      const userId = await requireResolvedUserId(req);
-
       const totals = calculateInvoiceTotals(items);
 
       const invoice = await prisma.invoice.create({
@@ -222,10 +229,10 @@ export default async function invoicesRoutes(app: FastifyInstance, opts: { prism
 
       const responseBody = { invoiceId: invoice.id, status: invoice.status };
 
-      if (idempotencyKey) {
+      if (scopedIdempotencyKey) {
         await prisma.idempotencyCache.create({
           data: {
-            key: idempotencyKey,
+            key: scopedIdempotencyKey,
             requestHash,
             method: req.method,
             path: req.url,
@@ -263,7 +270,7 @@ export default async function invoicesRoutes(app: FastifyInstance, opts: { prism
 
   app.get(
     '/api/v1/invoices',
-    {},
+    { preHandler: [app.authenticate] },
     async (req, reply) => {
       const userId = await requireResolvedUserId(req);
 
@@ -298,7 +305,7 @@ export default async function invoicesRoutes(app: FastifyInstance, opts: { prism
 
   app.get(
     '/api/v1/invoices/:id',
-    {},
+    { preHandler: [app.authenticate] },
     async (req, reply) => {
       const paramsParse = InvoiceParamsSchema.safeParse(req.params);
       if (!paramsParse.success) {
@@ -336,7 +343,7 @@ export default async function invoicesRoutes(app: FastifyInstance, opts: { prism
 
   app.put(
     '/api/v1/invoices/:id',
-    {},
+    { preHandler: [app.authenticate] },
     async (req, reply) => {
       const paramsParse = InvoiceParamsSchema.safeParse(req.params);
       if (!paramsParse.success) {
@@ -354,6 +361,13 @@ export default async function invoicesRoutes(app: FastifyInstance, opts: { prism
       const existing = await prisma.invoice.findFirst({ where: { id, userId } });
       if (!existing) {
         return reply.status(404).send({ error: `Invoice with ID '${id}' not found` });
+      }
+
+      if (existing.businessId) {
+        return reply.status(409).send({
+          error: 'INVOICE_LIFECYCLE_REQUIRED',
+          message: 'Business-bound invoices must be edited through the tenant-scoped, versioned invoice lifecycle API.',
+        });
       }
 
       if (existing.status === 'stamped' || existing.status === 'processing') {

@@ -1,7 +1,6 @@
 import * as Crypto from 'expo-crypto';
 import { getDatabase } from './database';
 import { logComplianceEvent } from './complianceEventService';
-import { offlineQueue } from './offlineQueue';
 import type { DraftReceipt, ReceiptRecord } from '../types/receipt';
 
 function generateId(): string {
@@ -119,20 +118,8 @@ export const receiptService = {
       { businessId: resolvedBusinessId }
     );
 
-    await offlineQueue.enqueue('RECEIPT_SUBMIT', {
-      client_receipt_id: id,
-      idempotency_key: id,
-      business_id: resolvedBusinessId,
-      vendor_name: draft.vendorName,
-      vendor_tin: draft.vendorTin,
-      amount_ngn: draft.amountNgn,
-      vat_amount_ngn: draft.vatAmountNgn,
-      date: draft.date,
-      category: draft.category,
-      image_hash: draft.imageHash,
-      raw_ocr_text: draft.rawOcrText,
-    });
-
+    // OCR-derived local receipt data is not verified evidence. Server upload,
+    // malware scanning and explicit human review are handled by receiptEvidence.ts.
     return record;
   },
 

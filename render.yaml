@@ -12,7 +12,9 @@ services:
     name: taxbridge-api
     region: frankfurt
     runtime: docker
-    healthCheckPath: /api/v2/monitoring/health
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /health/ready
     envVars:
       - key: NODE_ENV
         value: production
@@ -22,15 +24,17 @@ services:
       # Set full value in Render Dashboard for production
       - key: ALLOWED_ORIGINS
         value: https://admin.taxbridge.ng,https://taxbridge.ng
-      # Integration mock modes — disable when live credentials are set in Dashboard
+      # Production API must never report simulated payment or tax-provider outcomes.
       - key: DIGITAX_MOCK_MODE
-        value: "true"
+        value: "false"
+      - key: NRS_MOCK_MODE
+        value: "false"
       - key: REMITA_MOCK_MODE
-        value: "true"
+        value: "false"
       - key: FLW_MOCK_MODE
-        value: "true"
+        value: "false"
       - key: PAYSTACK_MOCK_MODE
-        value: "true"
+        value: "false"
       # DigiTax API URL (non-secret)
       - key: DIGITAX_API_URL
         value: https://api.digitax.ng
@@ -48,6 +52,13 @@ services:
         sync: false
       - key: JWT_REFRESH_SECRET
         sync: false
+      # Base64-encoded PKCS8 private PEM and SPKI public PEM; store as separate secrets.
+      - key: JWT_PRIVATE_KEY
+        sync: false
+      - key: JWT_PUBLIC_KEY
+        sync: false
+      - key: INTERNAL_API_KEY
+        sync: false
       - key: ENCRYPTION_KEY
         sync: false
       - key: WEBHOOK_SECRET
@@ -61,6 +72,10 @@ services:
       - key: REMITA_API_KEY
         sync: false
       - key: REMITA_SERVICE_TYPE_ID
+        sync: false
+      - key: FLW_SECRET_KEY
+        sync: false
+      - key: PAYSTACK_SECRET_KEY
         sync: false
       - key: DUPLO_CLIENT_ID
         sync: false
@@ -84,7 +99,7 @@ services:
     envVars:
       # Node Environment
       - key: NODE_VERSION
-        value: 20.19.4
+        value: 26.0.0
       - key: NODE_ENV
         value: production
       - key: LOG_LEVEL
@@ -106,11 +121,17 @@ services:
           name: taxbridge-redis
           property: connectionString
       
-      # Integration Mode - Stage 1 Soft Launch: Enable mock mode
+      # Background jobs also run without mock provider outcomes.
       - key: DIGITAX_MOCK_MODE
-        value: "true"
+        value: "false"
+      - key: NRS_MOCK_MODE
+        value: "false"
       - key: REMITA_MOCK_MODE
-        value: "true"
+        value: "false"
+      - key: FLW_MOCK_MODE
+        value: "false"
+      - key: PAYSTACK_MOCK_MODE
+        value: "false"
       # DigiTax API base URL
       - key: DIGITAX_API_URL
         value: https://api.digitax.ng

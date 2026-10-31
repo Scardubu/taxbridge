@@ -1,13 +1,10 @@
 import { fetchJson } from '../fetcher';
 import { withTaxBridgeHeaders } from '../api-contract';
 
-const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL || '';
-const ADMIN_API_KEY = process.env.NEXT_PUBLIC_ADMIN_API_KEY || '';
+const API_BASE = '/api/admin/device-sync';
 
 function adminHeaders(extra?: HeadersInit): Headers {
-  const h = withTaxBridgeHeaders(extra || {});
-  h.set('X-Admin-API-Key', ADMIN_API_KEY);
-  return h;
+  return withTaxBridgeHeaders(extra || {});
 }
 
 export interface Device {
@@ -142,13 +139,13 @@ export async function fetchDevices(params?: {
   if (params?.platform) query.set('platform', params.platform);
   if (params?.active !== undefined) query.set('active', params.active.toString());
 
-  return fetchJson<DevicesResponse>(`${API_BASE}/api/admin/devices?${query}`, {
+  return fetchJson<DevicesResponse>(`${API_BASE}/devices?${query}`, {
     headers: adminHeaders(),
   });
 }
 
 export async function fetchSyncStats(): Promise<SyncStats> {
-  return fetchJson<SyncStats>(`${API_BASE}/api/admin/sync/stats`, {
+  return fetchJson<SyncStats>(`${API_BASE}/sync/stats`, {
     headers: adminHeaders(),
   });
 }
@@ -165,7 +162,7 @@ export async function fetchConflicts(params?: {
   if (params?.resolution) query.set('resolution', params.resolution);
   if (params?.userId) query.set('userId', params.userId);
 
-  return fetchJson<ConflictsResponse>(`${API_BASE}/api/admin/conflicts?${query}`, {
+  return fetchJson<ConflictsResponse>(`${API_BASE}/conflicts?${query}`, {
     headers: adminHeaders(),
   });
 }
@@ -178,7 +175,7 @@ export async function fetchPendingSyncJobs(params?: {
   if (params?.limit) query.set('limit', params.limit.toString());
   if (params?.status) query.set('status', params.status);
 
-  return fetchJson<PendingSyncJobsResponse>(`${API_BASE}/api/admin/sync/pending?${query}`, {
+  return fetchJson<PendingSyncJobsResponse>(`${API_BASE}/sync/pending?${query}`, {
     headers: adminHeaders(),
   });
 }
@@ -188,7 +185,7 @@ export async function forceDeviceSync(deviceId: string, reason?: string): Promis
   message: string;
   syncJobId: string;
 }> {
-  return fetchJson(`${API_BASE}/api/admin/device/force-sync`, {
+  return fetchJson(`${API_BASE}/device/force-sync`, {
     method: 'POST',
     headers: adminHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ deviceId, reason }),
@@ -200,7 +197,8 @@ export async function resolveConflict(params: {
   resolution: 'local_wins' | 'server_wins' | 'merged';
   mergedData?: Record<string, unknown>;
   adminReason: string;
-  adminUserId: string;
+  /** Legacy caller field is ignored; the server derives the actor from the verified JWT. */
+  adminUserId?: string;
 }): Promise<{
   success: boolean;
   message: string;
@@ -208,9 +206,14 @@ export async function resolveConflict(params: {
   invoiceVersion: number;
   auditId: string;
 }> {
-  return fetchJson(`${API_BASE}/api/admin/conflicts/resolve`, {
+  return fetchJson(`${API_BASE}/conflicts/resolve`, {
     method: 'POST',
     headers: adminHeaders({ 'Content-Type': 'application/json' }),
-    body: JSON.stringify(params),
+    body: JSON.stringify({
+      conflictId: params.conflictId,
+      resolution: params.resolution,
+      mergedData: params.mergedData,
+      adminReason: params.adminReason,
+    }),
   });
 }

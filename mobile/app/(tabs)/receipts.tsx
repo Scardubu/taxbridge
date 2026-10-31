@@ -1,5 +1,6 @@
 import React, { useCallback, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Linking, Pressable, Text, View } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Haptics from 'expo-haptics';
@@ -7,8 +8,10 @@ import * as Sentry from '@sentry/react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { ReceiptReviewForm } from '../../components/ReceiptReviewForm';
+import { ReceiptEvidenceQueue } from '../../components/ReceiptEvidenceQueue';
 import { Colors, Radii, Spacing, Typography } from '../../components/design-system/tokens';
 import { processReceiptImage } from '../../services/receiptOcr';
+import { getReceiptEvidencePreviewUrl, prepareReceiptEvidence, refreshReceiptEvidenceStatus, resumeReceiptEvidenceUpload, reviewReceiptEvidence } from '../../services/receiptEvidence';
 import { DuplicateReceiptError, RECEIPT_FALLBACK_BUSINESS_ID, receiptService } from '../../services/receiptService';
 import { useBusinessProfileStore } from '../../stores/businessProfileStore';
 import { DEFAULT_TAB_ROUTE, useIsOnboardingDone } from '../../stores/onboardingStore';
@@ -28,6 +31,13 @@ export default function ReceiptsScreen() {
   const [processing, setProcessing] = useState(false);
   const [draft, setDraft] = useState<DraftReceipt | null>(null);
   const [ocrFailed, setOcrFailed] = useState(false);
+  const [capturedUri, setCapturedUri] = useState<string | null>(null);
+  const [capturedContentType, setCapturedContentType] = useState('image/jpeg');
+  const [evidenceClientUploadId, setEvidenceClientUploadId] = useState<string | null>(null);
+  const [evidenceStatus, setEvidenceStatus] = useState<string | null>(null);
+  const [evidenceReviewStatus, setEvidenceReviewStatus] = useState<string | null>(null);
+  const [evidencePreviewOpened, setEvidencePreviewOpened] = useState(false);
+  const [evidenceError, setEvidenceError] = useState<string | null>(null);
 
   const handleCapture = useCallback(async () => {
     if (!cameraRef.current || processing) {
@@ -43,6 +53,8 @@ export default function ReceiptsScreen() {
         skipProcessing: false,
       });
 
+      setCapturedUri(photo.uri);
+      setCapturedContentType('image/jpeg');
       const { draft: parsedDraft } = await processReceiptImage(photo.uri);
       if (!parsedDraft.amountNgn && !parsedDraft.vendorName) {
         setOcrFailed(true);
@@ -69,11 +81,85 @@ export default function ReceiptsScreen() {
     }
   }, [processing]);
 
+  const handlePickFromLibrary = useCallback(async () => {
+    if (processing) return;
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.85 });
+      if (result.canceled || !result.assets[0]?.uri) return;
+      const selected = result.assets[0];
+      const extension = selected.fileName?.split('.').pop()?.toLowerCase();
+      const contentType = selected.mimeType ?? (extension === 'png' ? 'image/png' : extension === 'webp' ? 'image/webp' : 'image/jpeg');
+      if (!['image/jpeg', 'image/png', 'image/webp'].includes(contentType)) {
+        Alert.alert(t('common.error'), 'Choose a JPEG, PNG or WebP receipt image.');
+        return;
+      }
+      setProcessing(true);
+      setCapturedUri(selected.uri);
+      setCapturedContentType(contentType);
+      try {
+        const { draft: parsedDraft } = await processReceiptImage(selected.uri);
+        setDraft(parsedDraft);
+        setOcrFailed(!parsedDraft.amountNgn && !parsedDraft.vendorName);
+        setPhase('review');
+      } catch (error) {
+        Sentry.captureException(error);
+        setOcrFailed(true);
+        setDraft({
+          vendorName: '', vendorTin: null, amountNgn: 0, vatAmountNgn: 0,
+          date: new Date().toISOString().split('T')[0], category: 'other',
+          rawOcrText: null, imageHash: null, capturedAt: new Date().toISOString(),
+        });
+        setPhase('review');
+      } finally {
+        setProcessing(false);
+      }
+    } catch (error) {
+      Sentry.captureException(error);
+      Alert.alert(t('common.error'), String(error));
+    }
+  }, [processing, t]);
+
   const handleSave = useCallback(async (confirmed: DraftReceipt) => {
     setProcessing(true);
     try {
       const record = await receiptService.saveReceipt(confirmed, businessId ?? RECEIPT_FALLBACK_BUSINESS_ID);
       addReceipt(record);
+      setEvidenceError(null);
+      setEvidenceStatus(null);
+      setEvidenceReviewStatus(null);
+      setEvidencePreviewOpened(false);
+      setEvidenceClientUploadId(null);
+      if (businessId && capturedUri) {
+        try {
+          const localUploadId = await prepareReceiptEvidence({
+            uri: capturedUri,
+            filename: `receipt-${Date.now()}.${capturedContentType === 'image/jpeg' ? 'jpg' : capturedContentType.split('/')[1]}`,
+            contentType: capturedContentType,
+            businessId,
+          });
+          setEvidenceClientUploadId(localUploadId);
+          try {
+            const uploaded = await resumeReceiptEvidenceUpload(localUploadId);
+            setEvidenceStatus(uploaded.status);
+            try {
+              const server = await refreshReceiptEvidenceStatus(localUploadId);
+              setEvidenceStatus(server.status);
+              setEvidenceReviewStatus(server.reviewStatus ?? null);
+            } catch (statusError) {
+              setEvidenceError(`Evidence is uploaded; scan status will refresh when the connection is restored. ${String(statusError)}`);
+            }
+          } catch (uploadError) {
+            setEvidenceStatus('UPLOAD_RETRY');
+            setEvidenceError(String(uploadError));
+            Sentry.captureMessage('Receipt upload failed; the local recovery session was retained', 'warning');
+          }
+        } catch (stageError) {
+          setEvidenceError(`Secure evidence could not be staged: ${String(stageError)}`);
+          Sentry.captureException(stageError, { tags: { source: 'receiptEvidence.stage' } });
+        }
+      } else {
+        setEvidenceError('Complete business setup to upload this receipt to the secure evidence vault.');
+      }
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setDraft(confirmed);
       setPhase('done');
@@ -87,7 +173,7 @@ export default function ReceiptsScreen() {
     } finally {
       setProcessing(false);
     }
-  }, [addReceipt, businessId, t]);
+  }, [addReceipt, businessId, capturedContentType, capturedUri, t]);
 
   if (!isDone) {
     return (
@@ -137,6 +223,9 @@ export default function ReceiptsScreen() {
         >
           <Text style={{ ...Typography.bodyBold, color: Colors.ui.white }}>{t('receipts.enableCamera')}</Text>
         </Pressable>
+        <Pressable onPress={() => void handlePickFromLibrary()} accessibilityRole="button" style={{ marginTop: Spacing.lg, padding: Spacing.md }}>
+          <Text style={{ ...Typography.bodyBold, color: Colors.brand.primary }}>Choose from photo library</Text>
+        </Pressable>
       </SafeAreaView>
     );
   }
@@ -150,6 +239,8 @@ export default function ReceiptsScreen() {
         onSave={handleSave}
         onRetake={() => {
           setDraft(null);
+          setCapturedUri(null);
+          setCapturedContentType('image/jpeg');
           setOcrFailed(false);
           setPhase('camera');
         }}
@@ -167,9 +258,78 @@ export default function ReceiptsScreen() {
         <Text style={{ ...Typography.body, color: draft?.vatAmountNgn ? Colors.brand.accent : Colors.ui.textDim, textAlign: 'center', marginBottom: Spacing.xxl }}>
           {draft?.vatAmountNgn ? t('receipts.vatCreditAdded', { amount: draft.vatAmountNgn.toLocaleString('en-NG') }) : t('receipts.noVatOnReceipt')}
         </Text>
+        {evidenceStatus ? (
+          <View style={{ width: '100%', backgroundColor: Colors.ui.surface, borderColor: Colors.ui.border, borderWidth: 1, borderRadius: Radii.lg, padding: Spacing.lg, marginBottom: Spacing.lg }}>
+            <Text style={{ ...Typography.bodyBold, color: Colors.ui.text }}>Secure evidence: {evidenceStatus}</Text>
+            {evidenceReviewStatus ? <Text style={{ ...Typography.caption, color: Colors.ui.textMuted, marginTop: Spacing.xs }}>Human review: {evidenceReviewStatus}</Text> : null}
+            {evidenceClientUploadId && ['UPLOAD_RETRY', 'VERIFY_PENDING', 'STAGED', 'INTENT_CREATED'].includes(evidenceStatus) ? (
+              <Pressable onPress={() => {
+                if (!evidenceClientUploadId) return;
+                setProcessing(true);
+                void resumeReceiptEvidenceUpload(evidenceClientUploadId).then(async (result) => {
+                  setEvidenceStatus(result.status);
+                  const server = await refreshReceiptEvidenceStatus(evidenceClientUploadId);
+                  setEvidenceStatus(server.status);
+                  setEvidenceReviewStatus(server.reviewStatus ?? null);
+                  setEvidenceError(null);
+                }).catch((error) => setEvidenceError(String(error))).finally(() => setProcessing(false));
+              }} disabled={processing} accessibilityRole="button" style={{ paddingVertical: Spacing.md }}>
+                <Text style={{ ...Typography.bodyBold, color: Colors.brand.primary }}>Retry secure upload</Text>
+              </Pressable>
+            ) : null}
+            {evidenceClientUploadId && evidenceStatus && ['QUARANTINED', 'SCANNING', 'SCAN_FAILED', 'CLEAN'].includes(evidenceStatus) ? (
+              <Pressable onPress={() => {
+                if (!evidenceClientUploadId) return;
+                setProcessing(true);
+                void refreshReceiptEvidenceStatus(evidenceClientUploadId).then((status) => {
+                  setEvidenceStatus(status.status);
+                  setEvidenceReviewStatus(status.reviewStatus ?? null);
+                }).catch((error) => setEvidenceError(String(error))).finally(() => setProcessing(false));
+              }} disabled={processing} accessibilityRole="button" style={{ paddingVertical: Spacing.md }}>
+                <Text style={{ ...Typography.bodyBold, color: Colors.brand.primary }}>Refresh scan status</Text>
+              </Pressable>
+            ) : null}
+            {evidenceClientUploadId && evidenceStatus === 'CLEAN' && evidenceReviewStatus === 'REQUIRED' ? (
+              <>
+                <Pressable onPress={() => {
+                  if (!evidenceClientUploadId) return;
+                  void getReceiptEvidencePreviewUrl(evidenceClientUploadId).then((url) => Linking.openURL(url)).then(() => setEvidencePreviewOpened(true)).catch((error) => setEvidenceError(String(error)));
+                }} accessibilityRole="button" style={{ paddingVertical: Spacing.md }}>
+                  <Text style={{ ...Typography.bodyBold, color: Colors.brand.primary }}>Open clean receipt for review</Text>
+                </Pressable>
+                <Pressable disabled={!evidencePreviewOpened || processing}
+                onPress={() => {
+                  if (!evidenceClientUploadId) return;
+                  setProcessing(true);
+                  void reviewReceiptEvidence(evidenceClientUploadId, 'ACCEPT').then((result) => setEvidenceReviewStatus(result.reviewStatus)).catch((error) => setEvidenceError(String(error))).finally(() => setProcessing(false));
+                }} accessibilityRole="button" style={{ paddingVertical: Spacing.md }}>
+                  <Text style={{ ...Typography.bodyBold, color: Colors.status.successText }}>Accept evidence</Text>
+                </Pressable>
+                <Pressable disabled={!evidencePreviewOpened || processing}
+                onPress={() => {
+                  if (!evidenceClientUploadId) return;
+                  setProcessing(true);
+                  void reviewReceiptEvidence(evidenceClientUploadId, 'REJECT').then((result) => setEvidenceReviewStatus(result.reviewStatus)).catch((error) => setEvidenceError(String(error))).finally(() => setProcessing(false));
+                }} accessibilityRole="button" style={{ paddingVertical: Spacing.md }}>
+                  <Text style={{ ...Typography.bodyBold, color: Colors.status.dangerText }}>Reject evidence</Text>
+                </Pressable>
+              </>
+            ) : null}
+            {evidenceError ? <Text accessibilityRole="alert" style={{ ...Typography.micro, color: Colors.status.warningText, marginTop: Spacing.sm }}>{evidenceError}</Text> : null}
+          </View>
+        ) : evidenceError ? (
+          <Text accessibilityRole="alert" style={{ ...Typography.caption, color: Colors.status.warningText, textAlign: 'center', marginBottom: Spacing.lg }}>{evidenceError}</Text>
+        ) : null}
         <Pressable
           onPress={() => {
             setDraft(null);
+            setCapturedUri(null);
+            setCapturedContentType('image/jpeg');
+            setEvidenceClientUploadId(null);
+            setEvidenceStatus(null);
+            setEvidenceReviewStatus(null);
+            setEvidencePreviewOpened(false);
+            setEvidenceError(null);
             setOcrFailed(false);
             setPhase('camera');
           }}
@@ -188,6 +348,7 @@ export default function ReceiptsScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: Colors.ui.bg }}>
+      <ReceiptEvidenceQueue businessId={businessId} />
       <CameraView ref={cameraRef} style={{ flex: 1 }} facing="back" ratio="4:3" />
       <View
         style={{
@@ -215,7 +376,16 @@ export default function ReceiptsScreen() {
       >
         <Text style={{ color: Colors.ui.white, ...Typography.caption }}>{t('receipts.alignFrame')}</Text>
       </View>
-      <View style={{ position: 'absolute', bottom: Spacing.xxl, alignSelf: 'center' }}>
+      <View style={{ position: 'absolute', bottom: Spacing.xxl, alignSelf: 'center', alignItems: 'center' }}>
+        <Pressable
+          onPress={() => void handlePickFromLibrary()}
+          disabled={processing}
+          accessibilityRole="button"
+          accessibilityLabel="Choose receipt from photo library"
+          style={{ marginBottom: Spacing.md, paddingVertical: Spacing.sm, paddingHorizontal: Spacing.lg, borderRadius: Radii.pill, backgroundColor: 'rgba(0,0,0,0.65)' }}
+        >
+          <Text style={{ ...Typography.caption, color: Colors.ui.white }}>Choose from library</Text>
+        </Pressable>
         <Pressable
           onPress={() => void handleCapture()}
           disabled={processing}

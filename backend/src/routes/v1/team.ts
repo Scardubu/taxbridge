@@ -19,7 +19,7 @@ import { requireRole } from '../../plugins/requireRole';
 import { writeAuditEvent } from '../../services/audit';
 import { logger } from '../../lib/logger';
 import { prisma } from '../../lib/prisma';
-import { redis } from '../../lib/redis';
+import { bumpAuthVersion, revokeUserRefreshSessions } from '../../services/session-revocation';
 
 const log = logger.child({ service: 'team' });
 
@@ -39,13 +39,6 @@ type AssignableRole = typeof ASSIGNABLE_ROLES[number];
 
 // ─── Session invalidation helper ──────────────────────────────────────────
 
-async function invalidateSession(userId: string) {
-  await redis.del(`sessions:${userId}`);
-  // C-44: role_version increment — covers role change (path 1) and account suspension (path 3)
-  await redis.del(`role_version:${userId}`);
-  await redis.setex(`role_version:${userId}`, 60 * 60 * 24 * 7, Date.now().toString());
-}
-
 // ─── Routes ──────────────────────────────────────────────────────────────
 
 export default async function teamRoutes(app: FastifyInstance) {
@@ -59,8 +52,12 @@ export default async function teamRoutes(app: FastifyInstance) {
         return reply.status(401).send({ error: 'UNAUTHORIZED' });
       }
 
-      const roleVersion = parseInt(await redis.get(`role_version:${req.params.userId}`) ?? '0', 10);
-      return reply.send({ roleVersion });
+      const user = await prisma.user.findUnique({
+        where: { id: req.params.userId },
+        select: { authVersion: true, deleted: true },
+      });
+      if (!user || user.deleted) return reply.code(404).send({ error: 'USER_NOT_FOUND' });
+      return reply.send({ roleVersion: user.authVersion });
     },
   );
 
@@ -181,10 +178,11 @@ export default async function teamRoutes(app: FastifyInstance) {
       if (!member) return reply.status(404).send({ error: 'NOT_FOUND', message: 'Member not found.' });
 
       const before = { role: member.role };
-      await prisma.orgMember?.update({ where: { id: member.id }, data: { role: newRole } });
-
-      // Session invalidation on role change (§7.4)
-      await invalidateSession(userId);
+      await prisma.$transaction(async (tx) => {
+        await tx.orgMember.update({ where: { id: member.id }, data: { role: newRole } });
+        await bumpAuthVersion(tx, userId);
+      });
+      await revokeUserRefreshSessions(userId);
 
       await writeAuditEvent({
         orgId, actorId, actorRole,
@@ -228,13 +226,15 @@ export default async function teamRoutes(app: FastifyInstance) {
         }
       }
 
-      // Soft delete (removedAt = now)
-      await prisma.orgMember?.update({
-        where: { id: member.id },
-        data:  { removedAt: new Date() },
+      // Membership removal and durable session invalidation commit atomically.
+      await prisma.$transaction(async (tx) => {
+        await tx.orgMember.update({
+          where: { id: member.id },
+          data: { removedAt: new Date() },
+        });
+        await bumpAuthVersion(tx, userId);
       });
-
-      await invalidateSession(userId);
+      await revokeUserRefreshSessions(userId);
 
       await writeAuditEvent({
         orgId, actorId, actorRole,

@@ -30,10 +30,15 @@ import dashboardRoutes       from './routes/v1/dashboard';
 import onboardingRoutes      from './routes/v1/onboarding';
 import filingsRoutes         from './routes/v1/filings';
 import complianceRoutes      from './routes/v1/compliance';
+import complianceEventRoutes from './routes/compliance-events';
 import documentsRoutes       from './routes/v1/documents';
+import receiptRoutes          from './routes/v1/receipts';
+import invoiceLifecycleRoutes from './routes/v1/invoice-lifecycle';
+import nrsStatusRoutes from './routes/nrs-status';
 import teamRoutes            from './routes/v1/team';
 import notifRoutes           from './routes/v1/notifications';
 import payrollRoutes         from './routes/payroll';
+import privacyRoutes          from './routes/privacy';
 
 // V2 Route imports
 import monitoringRoutes      from './routes/v2/monitoring';
@@ -50,10 +55,12 @@ import invoicesRoutes           from './routes/invoices';
 import invoiceManagementRoutes  from './routes/invoiceManagement';
 import paymentRoutes            from './routes/payments';
 import businessRoutes           from './routes/business';
+import taxRoutes                from './routes/tax';
 import cryptoRoutes             from './routes/crypto';
 import reconciliationRoutes     from './routes/reconciliation';
 import syncRoutes                from './routes/sync';
 import syncOperationRoutes        from './routes/syncOperations';
+import adminSyncRoutes            from './routes/adminSync';
 
 // Webhook Route imports
 import flutterwaveWebhook    from './routes/webhooks/flutterwave';
@@ -151,13 +158,21 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   // ── Route plugins ───────────────────────────────────────────────────────────
   await fastify.register(authRoutes,         { prefix: '/api/v1/auth' });
+  // Privacy routes declare complete /api/v1 paths and enforce authenticated ownership.
+  await fastify.register(privacyRoutes);
   await fastify.register(totpRoutes,         { prefix: '/api/v1/auth/totp' });
   await fastify.register(dashboardRoutes,    { prefix: '/api/v1' });
   await fastify.register(onboardingRoutes,   { prefix: '/api/v1/onboarding' });
   await fastify.register(filingsRoutes,      { prefix: '/api/v1/filings' });
   await fastify.register(complianceRoutes,   { prefix: '/api/v1/compliance' });
+  await fastify.register(complianceEventRoutes);
   await fastify.register(payrollRoutes,      { prisma });
   await fastify.register(documentsRoutes,    { prefix: '/api/v1' });
+  await fastify.register(receiptRoutes,      { prefix: '/api/v1' });
+  await fastify.register(invoiceLifecycleRoutes, { prefix: '/api/v1' });
+  // NRS status/health endpoints expose only the authenticated user's own invoices.
+  // The routes declare their complete /api/v1 paths, so no prefix is supplied here.
+  await fastify.register(nrsStatusRoutes);
   await fastify.register(teamRoutes,         { prefix: '/api/v1' });
   await fastify.register(notifRoutes,        { prefix: '/api/v1' });
   await fastify.register(monitoringRoutes,   { prefix: '/api/v2/monitoring' });
@@ -172,11 +187,15 @@ export async function buildApp(): Promise<FastifyInstance> {
   await fastify.register(invoiceManagementRoutes, { prisma });
   await fastify.register(paymentRoutes,       { prisma });
   await fastify.register(businessRoutes,      { prisma });
+  await fastify.register(taxRoutes);
   await fastify.register(cryptoRoutes,        { prisma });
   await fastify.register(reconciliationRoutes, { prisma });
   // sync.ts owns its explicit /api/v1 paths; register exactly once.
   await fastify.register(syncRoutes);
   await fastify.register(syncOperationRoutes);
+  // Protected device-sync admin endpoints are reached only through the
+  // same-origin Next.js server proxy; actor identity comes from app.authenticate.
+  await fastify.register(adminSyncRoutes);
   await fastify.register(flutterwaveWebhook,  { prefix: '/webhooks' });
   await fastify.register(paystackWebhook,     { prefix: '/webhooks' });
   await fastify.register(remitaWebhook,       { prefix: '/webhooks' });

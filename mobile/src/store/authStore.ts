@@ -4,11 +4,7 @@
  */
 
 import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as SecureStore from 'expo-secure-store';
-import { Platform } from 'react-native';
-import { authApi, type User, type ApiError } from '../api/client';
+import { authApi, type User } from '../api/client';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -18,9 +14,12 @@ interface AuthState {
   status:  AuthStatus;
   user:    User | null;
   error:   string | null;
+  mfaChallengeToken: string | null;
 
   // Actions
   login:    (email: string, password: string) => Promise<void>;
+  verifyMfa: (code: string) => Promise<void>;
+  cancelMfa: () => void;
   register: (data: RegisterData) => Promise<void>;
   logout:   () => Promise<void>;
   loadSession: () => Promise<void>;
@@ -43,28 +42,76 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
   status: 'idle',
   user:   null,
   error:  null,
+  mfaChallengeToken: null,
 
   login: async (email, password) => {
-    set({ status: 'loading', error: null });
+    set({ status: 'loading', error: null, mfaChallengeToken: null });
     try {
+      await authApi.clearTokens();
       const res = await authApi.login({ email, password });
-      await authApi.storeTokens(res.data.accessToken, res.data.refreshToken);
-      set({ status: 'authenticated', user: res.data.user, error: null });
+      if ('mfaRequired' in res && res.mfaRequired) {
+        set({
+          status: 'unauthenticated',
+          user: null,
+          error: null,
+          mfaChallengeToken: res.challengeToken,
+        });
+        return;
+      }
+
+      await authApi.storeTokens(res.accessToken, res.refreshToken);
+      set({
+        status: 'authenticated',
+        user: res.user,
+        error: null,
+        mfaChallengeToken: null,
+      });
     } catch (err: any) {
       set({
         status: 'error',
+        user: null,
         error: err?.message ?? 'Login failed. Check your credentials.',
       });
       throw err;
     }
   },
 
+  verifyMfa: async (code) => {
+    const challengeToken = get().mfaChallengeToken;
+    if (!challengeToken) throw new Error('No active MFA challenge');
+
+    set({ status: 'loading', error: null });
+    try {
+      const tokens = await authApi.verifyMfa(challengeToken, code.trim());
+      await authApi.storeTokens(tokens.accessToken, tokens.refreshToken);
+      set({
+        status: 'authenticated',
+        user: tokens.user,
+        error: null,
+        mfaChallengeToken: null,
+      });
+    } catch (err: unknown) {
+      set({
+        status: 'error',
+        error: err instanceof Error ? err.message : 'Two-factor verification failed.',
+      });
+      throw err;
+    }
+  },
+
+  cancelMfa: () => set({
+    status: 'unauthenticated',
+    user: null,
+    error: null,
+    mfaChallengeToken: null,
+  }),
+
   register: async (data) => {
     set({ status: 'loading', error: null });
     try {
       const res = await authApi.register(data);
       await authApi.storeTokens(res.data.accessToken, res.data.refreshToken);
-      set({ status: 'authenticated', user: res.data.user, error: null });
+      set({ status: 'authenticated', user: res.data.user, error: null, mfaChallengeToken: null });
     } catch (err: any) {
       set({
         status: 'error',
@@ -81,7 +128,7 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
       // Best-effort — always clear local session even if API call fails
     } finally {
       await authApi.clearTokens();
-      set({ status: 'unauthenticated', user: null, error: null });
+      set({ status: 'unauthenticated', user: null, error: null, mfaChallengeToken: null });
     }
   },
 

@@ -1,0 +1,190 @@
+import { ApprovedOfflineOperationEnvelopeSchema, ExpenseCreateOperationPayloadSchema, InvoiceCreateOperationPayloadSchema, ReceiptAttachOperationPayloadSchema, OperationEnvelopeSchema, InvoiceDraftContentSchema, InvoiceDraftUpdateRequestSchema, InvoiceLifecycleVersionRequestSchema, InvoiceRejectRequestSchema } from '../src/operations';
+
+describe('Phase 1C operation contracts', () => {
+  const validPayload = {
+    action: 'EXPENSE_CREATE',
+    data: {
+      businessId: '8f9b9d3a-8a4b-4f2a-9d20-3b5f14e8b7a1',
+      amount: 1250.5,
+      category: 'office-supplies',
+      description: 'Printer paper',
+      date: '2026-10-30T10:00:00.000Z',
+      vatAmount: 0,
+      vatEligible: false,
+    },
+  };
+
+  it('accepts the shared expense-create payload', () => {
+    expect(ExpenseCreateOperationPayloadSchema.safeParse(validPayload).success).toBe(true);
+  });
+
+  it('rejects client-controlled actor, organization, or approval fields', () => {
+    expect(ExpenseCreateOperationPayloadSchema.safeParse({
+      ...validPayload,
+      userId: 'attacker-controlled',
+      organizationId: 'attacker-controlled',
+      data: { ...validPayload.data, status: 'approved' },
+    }).success).toBe(false);
+  });
+
+  it('rejects monetary precision that the Decimal(15,2) column cannot represent', () => {
+    expect(ExpenseCreateOperationPayloadSchema.safeParse({
+      ...validPayload,
+      data: { ...validPayload.data, amount: 1.001 },
+    }).success).toBe(false);
+  });
+
+  it('accepts the mobile envelope carrying the same validated payload', () => {
+    expect(OperationEnvelopeSchema.safeParse({
+      operationId: '8f9b9d3a-8a4b-4f2a-9d20-3b5f14e8b7a1',
+      idempotencyKey: 'phase1c-client-operation-0001',
+      operationType: 'crud',
+      schemaVersion: 1,
+      payload: validPayload,
+      createdAt: '2026-10-30T10:00:00.000Z',
+    }).success).toBe(true);
+  });
+});
+
+describe('Phase 1C.2 invoice draft contract', () => {
+  const invoice = {
+    action: 'INVOICE_CREATE',
+    data: {
+      businessId: '8f9b9d3a-8a4b-4f2a-9d20-3b5f14e8b7a1',
+      customerName: 'Example Customer',
+      items: [{ description: 'Consulting', quantity: 2, unitPrice: 5000 }],
+      subtotal: 10000,
+      vat: 750,
+      total: 10750,
+      template: 'professional',
+    },
+  };
+
+  it('accepts a valid invoice draft with explicit VAT', () => {
+    expect(InvoiceCreateOperationPayloadSchema.safeParse(invoice).success).toBe(true);
+  });
+
+  it('rejects totals that do not reconcile to subtotal plus explicit VAT', () => {
+    expect(InvoiceCreateOperationPayloadSchema.safeParse({
+      ...invoice, data: { ...invoice.data, total: 11000 },
+    }).success).toBe(false);
+  });
+
+  it('rejects a subtotal that does not equal the supplied line items', () => {
+    expect(InvoiceCreateOperationPayloadSchema.safeParse({
+      ...invoice, data: { ...invoice.data, subtotal: 9000 },
+    }).success).toBe(false);
+  });
+
+  it('rejects client-controlled invoice status, identity and NRS fields', () => {
+    expect(InvoiceCreateOperationPayloadSchema.safeParse({
+      ...invoice, data: { ...invoice.data, status: 'stamped', userId: 'other', nrsIRN: 'fake' },
+    }).success).toBe(false);
+  });
+});
+
+describe('Phase 1C.3 receipt attachment contract', () => {
+  const valid = {
+    action: 'RECEIPT_ATTACH',
+    data: {
+      receiptEvidenceId: '8f9b9d3a-8a4b-4f2a-9d20-3b5f14e8b7a1',
+      expenseId: '0f9b9d3a-8a4b-4f2a-9d20-3b5f14e8b7a1',
+    },
+  };
+  it('accepts a receipt-to-expense attachment', () => {
+    expect(ReceiptAttachOperationPayloadSchema.safeParse(valid).success).toBe(true);
+  });
+  it('rejects caller-controlled storage keys and tenant identity', () => {
+    expect(ReceiptAttachOperationPayloadSchema.safeParse({
+      ...valid,
+      data: { ...valid.data, storageKey: 'receipts/other-tenant/object', organizationId: 'other' },
+    }).success).toBe(false);
+  });
+});
+
+
+describe('Phase 1C.6 invoice lifecycle contracts', () => {
+  const draft = {
+    customerName: 'Example Customer',
+    items: [{ description: 'Consulting', quantity: 2, unitPrice: 5000 }],
+    subtotal: 10000,
+    vat: 750,
+    total: 10750,
+    template: 'professional',
+  };
+
+  it('accepts a complete and arithmetically reconciled draft revision', () => {
+    expect(InvoiceDraftContentSchema.safeParse(draft).success).toBe(true);
+  });
+
+  it('rejects client-controlled approval, NRS, and invoice status fields', () => {
+    expect(InvoiceDraftContentSchema.safeParse({
+      ...draft,
+      approvalStatus: 'APPROVED',
+      approvedBy: 'attacker',
+      nrsIRN: 'fabricated',
+      status: 'stamped',
+    }).success).toBe(false);
+  });
+
+  it('requires an explicit expected revision for edits and transitions', () => {
+    expect(InvoiceDraftUpdateRequestSchema.safeParse({ expectedVersion: 1, draft }).success).toBe(true);
+    expect(InvoiceLifecycleVersionRequestSchema.safeParse({ expectedVersion: 1 }).success).toBe(true);
+    expect(InvoiceLifecycleVersionRequestSchema.safeParse({}).success).toBe(false);
+  });
+
+  it('requires a reason for rejection and does not accept caller identity', () => {
+    expect(InvoiceRejectRequestSchema.safeParse({ expectedVersion: 1, reason: 'Please correct the VAT details.' }).success).toBe(true);
+    expect(InvoiceRejectRequestSchema.safeParse({ expectedVersion: 1, reason: 'No' }).success).toBe(false);
+    expect(InvoiceRejectRequestSchema.safeParse({
+      expectedVersion: 1,
+      reason: 'Please correct the VAT details.',
+      actorUserId: 'attacker',
+    }).success).toBe(false);
+  });
+});
+
+
+describe('approved offline operation envelope', () => {
+  const base = {
+    operationId: '8f9b9d3a-8a4b-4f2a-9d20-3b5f14e8b7a1',
+    idempotencyKey: 'phase1c-client-operation-0001',
+    operationType: 'crud',
+    schemaVersion: 1,
+    createdAt: '2026-10-30T10:00:00.000Z',
+  };
+
+  const receiptPayload = {
+    action: 'RECEIPT_ATTACH',
+    data: {
+      receiptEvidenceId: '0f9b9d3a-8a4b-4f2a-9d20-3b5f14e8b7a1',
+      expenseId: '1f9b9d3a-8a4b-4f2a-9d20-3b5f14e8b7a1',
+    },
+  };
+
+  it('accepts a reviewed CRUD v1 operation', () => {
+    expect(ApprovedOfflineOperationEnvelopeSchema.safeParse({
+      ...base, payload: receiptPayload,
+    }).success).toBe(true);
+  });
+
+  it('rejects filing, payment and unimplemented sync operation types', () => {
+    for (const operationType of ['filing', 'payment', 'sync']) {
+      expect(ApprovedOfflineOperationEnvelopeSchema.safeParse({
+        ...base, operationType, payload: receiptPayload,
+      }).success).toBe(false);
+    }
+  });
+
+  it('rejects legacy invoice-submit actions', () => {
+    expect(ApprovedOfflineOperationEnvelopeSchema.safeParse({
+      ...base, payload: { action: 'INVOICE_SUBMIT', data: {} },
+    }).success).toBe(false);
+  });
+
+  it('rejects unsupported schema versions', () => {
+    expect(ApprovedOfflineOperationEnvelopeSchema.safeParse({
+      ...base, schemaVersion: 2, payload: receiptPayload,
+    }).success).toBe(false);
+  });
+});

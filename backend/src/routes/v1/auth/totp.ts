@@ -14,8 +14,8 @@
  *
  * C-07: All routes return structured errors; never crash.
  *
- * After /verify succeeds the server sets redis key `totp:{userId}` = "1"
- * so require2FA middleware can gate sensitive endpoints.
+ * After /verify succeeds the server stores a five-minute proof bound to the
+ * exact access-token jti, preventing one device from authorizing another.
  */
 
 import type { FastifyPluginAsync, FastifyRequest, FastifyReply } from 'fastify';
@@ -26,6 +26,7 @@ import * as Sentry from '@sentry/node';
 import { prisma } from '../../../lib/prisma';
 import { redis } from '../../../lib/redis';
 import { writeAuditEvent } from '../../../services/audit';
+import { bumpAuthVersion, revokeUserRefreshSessions } from '../../../services/session-revocation';
 
 import crypto from 'node:crypto';
 
@@ -58,7 +59,7 @@ const totpRoutes: FastifyPluginAsync = async (fastify) => {
 
   // ── POST /setup ────────────────────────────────────────────────────────────
   // Generates a TOTP secret and returns the provisioning URI for a QR code.
-  // Does NOT activate 2FA until /verify succeeds.
+  // An active authenticator cannot be replaced without verifying and disabling it.
 
   fastify.post('/setup', {
     preHandler: [fastify.authenticate],
@@ -78,12 +79,41 @@ const totpRoutes: FastifyPluginAsync = async (fastify) => {
       const secret = totp.secret.base32;
       const uri    = totp.toString();
 
-      // Persist pending secret (not yet active)
-      await (prisma as any).userTotp.upsert({
-        where:  { userId },
-        create: { userId, pendingSecret: secret, active: false },
-        update: { pendingSecret: secret },
+      const existing = await (prisma as any).userTotp.findUnique({
+        where: { userId },
+        select: { active: true },
       });
+
+      if (existing?.active) {
+        return reply.code(409).send({
+          error: 'TOTP_ALREADY_ENABLED',
+          message: 'Verify the current authenticator and disable two-factor authentication before replacing it.',
+        });
+      }
+
+      if (existing) {
+        // The conditional write closes the race between the read above and a
+        // concurrent activation; an active secret must never be overwritten.
+        const updated = await (prisma as any).userTotp.updateMany({
+          where: { userId, active: false },
+          data: { pendingSecret: secret },
+        });
+        if (updated.count !== 1) {
+          return reply.code(409).send({ error: 'TOTP_SETUP_CONFLICT' });
+        }
+      } else {
+        try {
+          await (prisma as any).userTotp.create({
+            data: { userId, pendingSecret: secret, active: false },
+          });
+        } catch (error) {
+          // Concurrent first-time setup can race on user_id's unique index.
+          if ((error as { code?: string })?.code === 'P2002') {
+            return reply.code(409).send({ error: 'TOTP_SETUP_CONFLICT' });
+          }
+          throw error;
+        }
+      }
 
       request.log.info({ userId }, 'TOTP setup initiated');
       return reply.status(200).send({ secret, uri });
@@ -96,7 +126,7 @@ const totpRoutes: FastifyPluginAsync = async (fastify) => {
 
   // ── POST /verify ──────────────────────────────────────────────────────────
   // Verifies the current TOTP token against the pending secret.
-  // On success: marks 2FA active, writes redis flag.
+  // On success: marks 2FA active and stores a session-bound Redis proof.
 
   const VerifyBody = z.object({ token: z.string().length(6) });
 
@@ -105,6 +135,11 @@ const totpRoutes: FastifyPluginAsync = async (fastify) => {
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const userId = requireAuth(request, reply);
     if (!userId) return;
+
+    const sessionId = (request as any).user?.jti;
+    if (typeof sessionId !== 'string' || sessionId.length === 0 || sessionId.length > 128) {
+      return reply.code(401).send({ error: 'SESSION_REAUTHENTICATION_REQUIRED' });
+    }
 
     const parsed = VerifyBody.safeParse(request.body);
     if (!parsed.success) {
@@ -140,8 +175,9 @@ const totpRoutes: FastifyPluginAsync = async (fastify) => {
         },
       });
 
-      // Mark session as 2FA-passed in Redis
-      await redis.setex(`totp:verified:${userId}`, 300, '1');
+      // Step-up proof belongs to this bearer-token session only. A successful
+      // TOTP challenge on one device must never authorize another device.
+      await redis.setex(`totp:verified:${userId}:${sessionId}`, 300, '1');
 
       await writeAuditEvent(
         { actorId: userId, action: 'TOTP_ACTIVATED', details: {} },
@@ -190,14 +226,20 @@ const totpRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.status(401).send({ error: 'Invalid token' });
       }
 
-      await (prisma as any).userTotp.update({
-        where: { userId },
-        data:  { active: false, secret: null, backupCodes: [], disabledAt: new Date() },
+      await prisma.$transaction(async (tx) => {
+        await (tx as any).userTotp.update({
+          where: { userId },
+          data: { active: false, secret: null, pendingSecret: null, backupCodes: [], disabledAt: new Date() },
+        });
+        await bumpAuthVersion(tx, userId);
       });
-
-      await redis.del(`totp:verified:${userId}`);
-      // C-44: role_version increment on TOTP disable (path 2 of 3)
-      await redis.incr(`role_version:${userId}`);
+      await revokeUserRefreshSessions(userId);
+      const sessionId = (request as any).user?.jti;
+      const verificationKeys = [`totp:verified:${userId}`];
+      if (typeof sessionId === 'string' && sessionId.length > 0) {
+        verificationKeys.push(`totp:verified:${userId}:${sessionId}`);
+      }
+      await redis.del(...verificationKeys);
 
       await writeAuditEvent(
         { actorId: userId, action: 'ROLE_CHANGE', details: { reason: 'totp_disabled' } },

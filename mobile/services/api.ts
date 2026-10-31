@@ -1,10 +1,9 @@
-import * as Device from 'expo-device';
+import * as SecureStore from 'expo-secure-store';
 import * as Crypto from 'expo-crypto';
 import * as Sentry from '@sentry/react-native';
 import { TokenService } from './tokenService';
 import { useAuthStore } from '../stores/authStore';
 import { getDatabase } from './database';
-import type { TaxCalculationResult } from '../types/taxEngine';
 
 type JsonRecord = Record<string, unknown>;
 
@@ -24,12 +23,19 @@ function getBaseUrl(): string {
   return process.env.EXPO_PUBLIC_API_URL ?? 'https://api.taxbridge.ng';
 }
 
+const INSTALLATION_ID_KEY = 'taxbridge.installation_id.v1';
+
 async function getDeviceId(): Promise<string> {
   deviceIdPromise ??= (async () => {
-    const generated = typeof Crypto.randomUUID === 'function'
-      ? Crypto.randomUUID()
-      : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-    return Device.osInternalBuildId ?? Device.deviceName ?? generated;
+    const stored = await SecureStore.getItemAsync(INSTALLATION_ID_KEY);
+    if (stored && /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(stored)) return stored;
+    const bytes = await Crypto.getRandomBytesAsync(16);
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    const hex = Array.from(bytes, (value) => value.toString(16).padStart(2, '0')).join('');
+    const installationId = `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+    await SecureStore.setItemAsync(INSTALLATION_ID_KEY, installationId);
+    return installationId;
   })();
   return deviceIdPromise;
 }
@@ -52,7 +58,12 @@ async function refreshAccessToken(): Promise<string | null> {
     });
 
     if (!response.ok) {
-      return null;
+      if ([400, 401, 403].includes(response.status)) return null;
+      const payload = await readErrorPayload(response);
+      throw new ApiError(response.status,
+        typeof payload.code === 'string' ? payload.code : typeof payload.error === 'string' ? payload.error : 'refresh_failed',
+        typeof payload.message === 'string' ? payload.message : 'Token refresh failed',
+        payload);
     }
 
     const data = (await response.json()) as { accessToken?: string; refreshToken?: string };
@@ -103,34 +114,37 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}, has
   const response = await executeRequest(path, options, accessToken);
 
   if (response.status === 401 && !hasRetried) {
-    try {
-      const newAccessToken = await refreshAccessToken();
-      if (!newAccessToken) {
-        throw new ApiError(401, 'session_expired', 'Session expired');
-      }
-      const retryResponse = await executeRequest(path, options, newAccessToken);
-      if (!retryResponse.ok) {
-        const retryPayload = await readErrorPayload(retryResponse);
-        throw new ApiError(
-          retryResponse.status,
-          typeof retryPayload.code === 'string' ? retryPayload.code : 'api_error',
-          typeof retryPayload.message === 'string' ? retryPayload.message : 'api_error',
-          retryPayload,
-        );
-      }
-      return retryResponse.json() as Promise<T>;
-    } catch {
+    // Only definitive refresh-token rejection invalidates the local session.
+    // Transient refresh and retried-request failures must preserve the session.
+    const newAccessToken = await refreshAccessToken();
+    if (!newAccessToken) {
       await TokenService.clearTokens();
       await useAuthStore.getState().logout();
       throw new ApiError(401, 'session_expired', 'Session expired');
     }
+    const retryResponse = await executeRequest(path, options, newAccessToken);
+    if (retryResponse.status === 401) {
+      await TokenService.clearTokens();
+      await useAuthStore.getState().logout();
+      throw new ApiError(401, 'session_expired', 'Session expired');
+    }
+    if (!retryResponse.ok) {
+      const retryPayload = await readErrorPayload(retryResponse);
+      throw new ApiError(
+        retryResponse.status,
+        typeof retryPayload.code === 'string' ? retryPayload.code : typeof retryPayload.error === 'string' ? retryPayload.error : 'api_error',
+        typeof retryPayload.message === 'string' ? retryPayload.message : 'api_error',
+        retryPayload,
+      );
+    }
+    return retryResponse.json() as Promise<T>;
   }
 
   if (!response.ok) {
     const errorPayload = await readErrorPayload(response);
     throw new ApiError(
       response.status,
-      typeof errorPayload.code === 'string' ? errorPayload.code : 'api_error',
+      typeof errorPayload.code === 'string' ? errorPayload.code : typeof errorPayload.error === 'string' ? errorPayload.error : 'api_error',
       typeof errorPayload.message === 'string' ? errorPayload.message : 'api_error',
       errorPayload,
     );
@@ -155,16 +169,26 @@ export class ApiError extends Error {
 
 export interface BackendBusinessProfile {
   id: string;
-  business_name: string;
-  business_type: string;
-  sector: string;
-  annual_turnover: number;
-  monthly_revenue: number;
-  total_fixed_assets: number;
-  has_valid_tin: boolean;
-  is_vat_registered: boolean;
-  tin?: string;
-  updated_at: string;
+  name: string;
+  businessName: string;
+  tradingName: string | null;
+  cacNumber: string | null;
+  rcNumber: string | null;
+  tin: string | null;
+  sector: string | null;
+  businessType: string;
+  annualTurnover: number | null;
+  monthlyRevenue: number | null;
+  totalFixedAssets: number | null;
+  employeeCount: number;
+  isVatRegistered: boolean;
+  vatNumber: string | null;
+  lga: string | null;
+  state: string | null;
+  hasValidTIN: boolean;
+  email: string | null;
+  phone: string | null;
+  updatedAt: string;
 }
 
 export interface BusinessProfilePayload {
@@ -191,33 +215,27 @@ export interface ComplianceEventPayload {
   event_type: string;
   business_id?: string;
   metadata?: Record<string, unknown>;
-  client_timestamp?: string;
-  idempotency_key?: string;
-  source?: 'mobile' | 'admin' | 'firs' | 'system';
+  client_timestamp: string;
+  idempotency_key: string;
+  source: 'mobile';
 }
 
 export interface InvoicePayload {
-  buyer_tin: string;
-  line_items: Array<{ description: string; quantity: number; unit_price: number; vat_rate: number }>;
-  invoice_date: string;
+  customerName?: string;
+  customerTIN?: string;
+  customerEndpointId?: string;
+  items: Array<{ description: string; quantity: number; unitPrice: number }>;
   idempotency_key: string;
 }
 
 export interface PaymentPayload {
-  amount: number;
-  description: string;
-  tax_type: string;
-  period: string;
+  invoiceId: string;
+  payerName: string;
+  payerEmail: string;
+  payerPhone: string;
+  gateway?: 'paystack' | 'flutterwave' | 'remita';
+  callbackUrl?: string;
   idempotency_key: string;
-}
-
-export interface AdminAlert {
-  id: string;
-  type: string;
-  message: string;
-  severity: 'info' | 'warning' | 'critical';
-  created_at: string;
-  action_url?: string;
 }
 
 export interface ReceiptPayload {
@@ -235,24 +253,76 @@ export interface ReceiptPayload {
   idempotency_key: string;
 }
 
+/**
+ * Internal VAT return preparation input. This creates a TaxBridge filing
+ * record; it is not an NRS submission and does not issue an NRS reference.
+ * Receipt IDs are rejected until server-verified evidence can be linked to a
+ * return without trusting client-side receipt identifiers.
+ */
 export interface VatReturnPayload {
-  business_id: string;
   period_month: number;
   period_year: number;
   output_vat_ngn: number;
   input_vat_credits_ngn: number;
-  net_vat_payable_ngn: number;
   receipt_ids: string[];
 }
 
-export interface TaxCalculationRequest {
-  business_id?: string;
-  annual_turnover: number;
-  monthly_sales?: number;
-  vat_input_credits_ngn?: number;
-  employee_count?: number;
-  vat_registered?: boolean;
-  tin_verified?: boolean;
+export type TaxCalculationRequest =
+  | {
+      taxType: 'PIT';
+      grossIncome: number;
+      reliefs?: {
+        pension?: number;
+        nhf?: number;
+        lifeInsurance?: number;
+        annualRent?: number;
+      };
+    }
+  | { taxType: 'VAT'; amount: number; category?: string }
+  | {
+      taxType: 'CIT';
+      revenue: number;
+      expenses: number;
+      employeeCount?: number;
+      digitalIncome?: number;
+    }
+  | {
+      taxType: 'CGT';
+      proceeds: number;
+      costBasis: number;
+      assetType: 'shares' | 'property' | 'crypto' | 'other';
+      holdingPeriodMonths?: number;
+    }
+  | {
+      taxType: 'WHT';
+      amount: number;
+      type:
+        | 'dividend' | 'interest' | 'rent' | 'royalty'
+        | 'consultancy' | 'construction' | 'contractServices'
+        | 'professionalFees';
+    }
+  | {
+      taxType: 'PAYE';
+      grossSalary: number;
+      allowances?: {
+        housing?: number;
+        transport?: number;
+        meal?: number;
+        others?: number;
+      };
+    };
+
+export interface ServerTaxCalculationResponse {
+  success: true;
+  data: Record<string, unknown>;
+}
+
+export interface PreparedVatReturnResponse {
+  filingReference: string;
+  period: string;
+  taxType: 'VAT';
+  netPayable: number;
+  creditCarryover: number;
 }
 
 /**
@@ -262,17 +332,77 @@ export interface TaxCalculationRequest {
 export async function patchBusinessProfile(
   payload: Partial<BusinessProfilePayload>,
 ): Promise<BackendBusinessProfile> {
+  const requestBody = {
+    name: payload.businessName,
+    tradingName: payload.tradingName,
+    tin: payload.tin,
+    rcNumber: payload.rcNumber,
+    sector: payload.sector,
+    businessType: payload.businessType,
+    annualTurnover: payload.annualTurnover,
+    monthlyRevenue: payload.monthlyRevenue,
+    totalFixedAssets: payload.totalFixedAssets,
+    employeeCount: payload.employeeCount,
+    isVatRegistered: payload.isVatRegistered,
+    vatNumber: payload.vatNumber,
+    lga: payload.lga,
+    state: payload.state,
+    phone: payload.phone,
+    email: payload.email,
+    // hasValidTIN is deliberately omitted: only provider verification can
+    // set the server-side tinVerified flag.
+  };
+
   try {
-    return await apiRequest<BackendBusinessProfile>('/api/v1/business-profile', {
-      method: 'PATCH',
-      body: JSON.stringify(payload),
+    const response = await apiRequest<{
+      success: true;
+      data: BackendBusinessProfile;
+    }>('/api/v1/business/profile', {
+      method: 'PUT',
+      body: JSON.stringify(requestBody),
     });
-  } catch (error) {
-    if (error instanceof ApiError && error.status === 409 && error.details && typeof error.details === 'object') {
-      Sentry.captureException(error);
-      return error.details as BackendBusinessProfile;
+
+    if (!response || response.success !== true || !response.data?.id) {
+      throw new ApiError(502, 'INVALID_BUSINESS_PROFILE_RESPONSE', 'The server returned an invalid business profile response.');
     }
-    throw error;
+    return response.data;
+  } catch (error) {
+    if (!(error instanceof ApiError) || error.status !== 404) throw error;
+
+    const businessName = payload.businessName?.trim();
+    if (!businessName) {
+      throw new ApiError(400, 'BUSINESS_NAME_REQUIRED', 'Enter a business name before creating your business profile.');
+    }
+
+    const created = await apiRequest<{
+      success: true;
+      data: { business: BackendBusinessProfile };
+    }>('/api/v1/business', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: businessName,
+        cacNumber: payload.rcNumber,
+        tin: payload.tin,
+        email: payload.email,
+        phone: payload.phone,
+        tradingName: payload.tradingName,
+        sector: payload.sector,
+        annualTurnover: payload.annualTurnover,
+        monthlyRevenue: payload.monthlyRevenue,
+        totalFixedAssets: payload.totalFixedAssets,
+        employeeCount: payload.employeeCount,
+        isVatRegistered: payload.isVatRegistered,
+        vatNumber: payload.vatNumber,
+        businessType: payload.businessType,
+        address: { state: payload.state, lga: payload.lga },
+      }),
+    });
+
+    const business = created?.data?.business;
+    if (!created || created.success !== true || !business?.id) {
+      throw new ApiError(502, 'INVALID_BUSINESS_PROFILE_RESPONSE', 'The server did not create a valid business profile.');
+    }
+    return business;
   }
 }
 
@@ -283,24 +413,11 @@ export async function patchBusinessProfile(
 export async function postComplianceEvent(
   event: ComplianceEventPayload,
 ): Promise<{ id: string; logged_at: string }> {
-  try {
-    return await apiRequest<{ id: string; logged_at: string }>('/api/v1/compliance-events', {
-      method: 'POST',
-      body: JSON.stringify(event),
-    });
-  } catch (error) {
-    if (!(error instanceof ApiError)) {
-      const { offlineQueue } = await import('./offlineQueue');
-      await offlineQueue.enqueue('COMPLIANCE_EVENT', {
-        event_type: event.event_type,
-        business_id: event.business_id,
-        metadata: event.metadata ?? {},
-        client_timestamp: event.client_timestamp ?? new Date().toISOString(),
-        source: event.source ?? 'mobile',
-      });
-    }
-    throw error;
-  }
+  return apiRequest<{ id: string; logged_at: string }>('/api/v1/compliance-events', {
+    method: 'POST',
+    headers: { 'Idempotency-Key': event.idempotency_key },
+    body: JSON.stringify(event),
+  });
 }
 
 /**
@@ -309,33 +426,17 @@ export async function postComplianceEvent(
  */
 export async function postInvoice(
   invoice: InvoicePayload,
-): Promise<{ id: string; firs_ref?: string; status: string }> {
-  try {
-    const response = await apiRequest<{ id: string; firs_ref?: string; status: string }>('/api/v1/invoices', {
-      method: 'POST',
-      body: JSON.stringify(invoice),
-    });
-
-    await postComplianceEvent({
-      event_type: 'invoice_submitted',
-      metadata: {
-        invoice_id: response.id,
-        firs_ref: response.firs_ref,
-        status: response.status,
-      },
-      client_timestamp: new Date().toISOString(),
-      idempotency_key: `${invoice.idempotency_key}:event`,
-      source: 'mobile',
-    }).catch(() => undefined);
-
-    return response;
-  } catch (error) {
-    if (!(error instanceof ApiError)) {
-      const { offlineQueue } = await import('./offlineQueue');
-      await offlineQueue.enqueue('INVOICE_SUBMIT', invoice as unknown as Record<string, unknown>);
-    }
-    throw error;
-  }
+): Promise<{ invoiceId: string; status: string }> {
+  return apiRequest<{ invoiceId: string; status: string }>('/api/v1/invoices', {
+    method: 'POST',
+    headers: { 'Idempotency-Key': invoice.idempotency_key },
+    body: JSON.stringify({
+      customerName: invoice.customerName,
+      customerTIN: invoice.customerTIN,
+      customerEndpointId: invoice.customerEndpointId,
+      items: invoice.items,
+    }),
+  });
 }
 
 /**
@@ -344,25 +445,34 @@ export async function postInvoice(
  */
 export async function initiatePayment(
   payload: PaymentPayload,
-): Promise<{ remita_rrr: string; checkout_url: string }> {
+): Promise<{ rrr: string; paymentUrl: string | null; amount: number; gateway?: string }> {
   try {
-    const response = await apiRequest<{ remita_rrr: string; checkout_url: string }>('/api/v1/payments/initiate', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
-
-    const db = await getDatabase();
-    await db.runAsync(
-      `INSERT INTO tax_payments (provider, remita_rrr, amount, currency, status)
-       VALUES ('remita', ?, ?, 'NGN', 'pending')`,
-      [response.remita_rrr, payload.amount]
+    const response = await apiRequest<{ rrr: string; paymentUrl: string | null; amount: number; gateway?: string }>(
+      '/api/v1/payments/generate',
+      {
+        method: 'POST',
+        headers: { 'Idempotency-Key': payload.idempotency_key },
+        body: JSON.stringify({
+          invoiceId: payload.invoiceId,
+          payerName: payload.payerName,
+          payerEmail: payload.payerEmail,
+          payerPhone: payload.payerPhone,
+          gateway: payload.gateway,
+          callbackUrl: payload.callbackUrl,
+        }),
+      },
     );
 
+    const db = await getDatabase();
+    const provider = response.gateway ?? payload.gateway ?? 'remita';
+    await db.runAsync(
+      "INSERT INTO tax_payments (provider, provider_ref, remita_rrr, amount, currency, status) VALUES (?, ?, ?, ?, 'NGN', 'pending')",
+      [provider, response.rrr, provider === 'remita' ? response.rrr : null, response.amount],
+    );
     return response;
   } catch (error) {
     if (!(error instanceof ApiError)) {
-      const { offlineQueue } = await import('./offlineQueue');
-      await offlineQueue.enqueue('PAYMENT_INITIATE', payload as unknown as Record<string, unknown>);
+      Sentry.captureException(error, { tags: { operation: 'payment_initiation_outcome_unknown' } });
     }
     throw error;
   }
@@ -374,68 +484,113 @@ export async function initiatePayment(
  */
 export async function verifyTin(
   tin: string,
-): Promise<{ status: 'pending' | 'verified' | 'failed'; message?: string }> {
-  return apiRequest<{ status: 'pending' | 'verified' | 'failed'; message?: string }>('/api/v1/tin/verify', {
-    method: 'POST',
-    body: JSON.stringify({ tin }),
-  });
+): Promise<{ status: 'verified' | 'failed'; message?: string }> {
+  const normalizedTin = tin.trim();
+  if (!/^\d{8}$/.test(normalizedTin)) {
+    throw new ApiError(400, 'INVALID_TIN_FORMAT', 'TIN must contain exactly 8 digits.');
+  }
+
+  try {
+    const result = await apiRequest<{
+      valid: true;
+      entityName?: string;
+      entityType?: string;
+      registrationDate?: string;
+    }>('/api/v1/onboarding/tin', {
+      method: 'POST',
+      body: JSON.stringify({ tin: normalizedTin }),
+    });
+    return {
+      status: 'verified',
+      message: result.entityName ? 'TIN verified for ' + result.entityName : 'TIN verified',
+    };
+  } catch (error) {
+    if (
+      error instanceof ApiError &&
+      error.status === 422 &&
+      (error.details as JsonRecord | undefined)?.error === 'TIN_INVALID'
+    ) {
+      return { status: 'failed', message: error.message };
+    }
+    throw error;
+  }
 }
 
 /**
  * Fetch pending admin-broadcast alerts for the authenticated user.
  */
-export async function getAlerts(): Promise<AdminAlert[]> {
-  return apiRequest<AdminAlert[]>('/api/v1/alerts');
-}
-
 /**
  * Submit a scanned receipt for backend validation and VAT credit processing.
  */
+/**
+ * Legacy OCR-only receipt submission is intentionally disabled. Use
+ * uploadReceiptEvidence() from receiptEvidence.ts to create a signed upload,
+ * verify the uploaded bytes, scan for malware and complete human review.
+ */
 export async function submitReceipt(
-  payload: ReceiptPayload,
-): Promise<{ id: string; vat_credit_ngn?: number; status: string }> {
-  try {
-    return await apiRequest<{ id: string; vat_credit_ngn?: number; status: string }>('/api/v1/receipts', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
-  } catch (error) {
-    if (!(error instanceof ApiError)) {
-      const { offlineQueue } = await import('./offlineQueue');
-      await offlineQueue.enqueue('RECEIPT_SUBMIT', payload as unknown as Record<string, unknown>);
-    }
-    throw error;
-  }
+  _payload: ReceiptPayload,
+): Promise<never> {
+  throw new ApiError(
+    410,
+    'RECEIPT_EVIDENCE_WORKFLOW_REQUIRED',
+    'Legacy OCR-only receipt submission is disabled. Use the verified receipt-evidence upload workflow.',
+  );
 }
 
 /**
  * Submit a VAT return payload.
  */
-export async function submitVatReturn(
+/**
+ * Create an internal TaxBridge VAT return record. This does not file with NRS.
+ */
+export async function prepareVatReturn(
   payload: VatReturnPayload,
-): Promise<{ id: string; firs_ref: string; period: string }> {
-  try {
-    return await apiRequest<{ id: string; firs_ref: string; period: string }>('/api/v1/vat-returns', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
-  } catch (error) {
-    if (!(error instanceof ApiError)) {
-      const { offlineQueue } = await import('./offlineQueue');
-      await offlineQueue.enqueue('VAT_RETURN', payload as unknown as Record<string, unknown>);
-    }
-    throw error;
+): Promise<PreparedVatReturnResponse> {
+  if (payload.receipt_ids.length > 0) {
+    throw new ApiError(
+      422,
+      'RECEIPT_EVIDENCE_LINKING_NOT_SUPPORTED',
+      'Receipt attachments must be linked through server-verified evidence before they can support a VAT return.',
+    );
   }
+  if (
+    !Number.isInteger(payload.period_month) ||
+    payload.period_month < 1 ||
+    payload.period_month > 12 ||
+    !Number.isInteger(payload.period_year) ||
+    payload.period_year < 2000 ||
+    payload.period_year > 2200
+  ) {
+    throw new ApiError(400, 'INVALID_VAT_PERIOD', 'VAT period must contain a valid month and year.');
+  }
+
+  return apiRequest<PreparedVatReturnResponse>('/api/v1/filings/vat', {
+    method: 'POST',
+    headers: { 'X-Idempotency-Key': 'vat-return:' + payload.period_year + '-' + String(payload.period_month).padStart(2, '0') },
+    body: JSON.stringify({
+      period: payload.period_year + '-' + String(payload.period_month).padStart(2, '0'),
+      outputVAT: payload.output_vat_ngn,
+      inputVAT: payload.input_vat_credits_ngn,
+    }),
+  });
 }
 
 /**
  * Request a server-side tax calculation for validation.
  */
+/**
+ * Run one of the server's explicit tax calculators. The taxType discriminator
+ * is part of the request contract and selects the matching backend schema.
+ */
 export async function calculateTax(
   payload: TaxCalculationRequest,
-): Promise<TaxCalculationResult> {
-  return apiRequest<TaxCalculationResult>('/api/v1/tax/calculate', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  });
+): Promise<ServerTaxCalculationResponse> {
+  const { taxType, ...body } = payload;
+  return apiRequest<ServerTaxCalculationResponse>(
+    '/api/v1/tax/calculate/' + taxType.toLowerCase(),
+    {
+      method: 'POST',
+      body: JSON.stringify(body),
+    },
+  );
 }

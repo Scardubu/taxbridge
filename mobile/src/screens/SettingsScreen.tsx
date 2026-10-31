@@ -910,16 +910,18 @@ function SettingsScreen() {
 
                   {mfaToken && (
                     <>
-                      <Text style={styles.label}>{t('auth.authenticatorCodeLabel')}</Text>
+                      <Text style={styles.label}>Authenticator or backup code</Text>
                       <TextInput
                         style={styles.input}
                         value={totpCode}
-                        onChangeText={setTotpCode}
-                        placeholder={t('auth.otpPlaceholder')}
+                        onChangeText={(value) => setTotpCode(value.replace(/\s/g, '').toUpperCase())}
+                        placeholder="000000"
                         placeholderTextColor={colors.disabled}
-                        keyboardType="number-pad"
-                        autoCapitalize="none"
+                        keyboardType="default"
+                        autoCapitalize="characters"
                         autoCorrect={false}
+                        maxLength={8}
+                        accessibilityLabel="Authenticator or backup code"
                       />
                       <AnimatedButton
                         title={t('auth.verifyMfa')}

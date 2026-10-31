@@ -9,6 +9,7 @@ import { PrismaClient, Prisma } from '@prisma/client';
 import QRCode from 'qrcode';
 import { createLogger } from '../lib/logger';
 import { calculateInvoiceTotals, InvoiceLineItem } from '../utils/taxCalculator';
+import { appendInvoiceLifecycleEvent, appendInvoiceRevision } from './invoice-lifecycle';
 
 const log = createLogger('invoice-service');
 
@@ -18,6 +19,7 @@ const log = createLogger('invoice-service');
 
 export interface CreateInvoiceInput {
   userId: string;
+  organizationId?: string;
   businessId?: string;
   customer: {
     name: string;
@@ -64,6 +66,7 @@ export interface UpdateInvoiceInput {
 export interface InvoiceListFilters {
   userId: string;
   businessId?: string;
+  organizationId?: string;
   status?: string;
   fromDate?: string;
   toDate?: string;
@@ -140,31 +143,80 @@ export class InvoiceService {
     }));
 
     const totals = calculateInvoiceTotals(items);
+    const status = input.businessId ? 'draft' : (input.asDraft ? 'draft' : 'queued');
 
-    const status = input.asDraft ? 'draft' : 'queued';
-
-    const invoice = await this.prisma.invoice.create({
-      data: {
-        userId: input.userId,
-        businessId: input.businessId || null,
-        invoiceNumber,
-        customerName: input.customer.name,
-        customerEmail: input.customer.email || null,
-        customerPhone: input.customer.phone || null,
-        customerTIN: input.customer.tin || null,
-        customerAddress: input.customer.address || null,
-        customerEndpointId: input.customer.endpointId || null,
-        items: input.items,
-        subtotal: totals.subtotal.toFixed(2),
-        vat: totals.vat.toFixed(2),
-        total: totals.total.toFixed(2),
-        dueDate: input.dueDate ? new Date(input.dueDate) : null,
-        template: input.template || 'professional',
-        nrsCompliant: input.nrsCompliant ?? true,
-        notes: input.notes || null,
-        status,
-      },
-    });
+    let invoice;
+    if (input.businessId) {
+      if (!input.asDraft || !input.organizationId) {
+        throw new Error('Business-bound invoices must be created as drafts with an organization context');
+      }
+      const business = await this.prisma.business.findFirst({
+        where: { id: input.businessId, organizationId: input.organizationId },
+        select: { id: true, organizationId: true },
+      });
+      if (!business?.organizationId) {
+        throw new Error('Business not found in the active organization');
+      }
+      invoice = await this.prisma.$transaction(async (tx) => {
+        const created = await tx.invoice.create({
+          data: {
+            userId: input.userId,
+            businessId: business.id,
+            invoiceNumber,
+            customerName: input.customer.name,
+            customerEmail: input.customer.email || null,
+            customerPhone: input.customer.phone || null,
+            customerTIN: input.customer.tin || null,
+            customerAddress: input.customer.address || null,
+            customerEndpointId: input.customer.endpointId || null,
+            items: input.items,
+            subtotal: totals.subtotal.toFixed(2),
+            vat: totals.vat.toFixed(2),
+            total: totals.total.toFixed(2),
+            dueDate: input.dueDate ? new Date(input.dueDate) : null,
+            template: input.template || 'professional',
+            nrsCompliant: false,
+            notes: input.notes || null,
+            status: 'draft',
+            approvalStatus: 'DRAFT',
+          },
+        });
+        await appendInvoiceRevision(tx, created, input.userId);
+        await appendInvoiceLifecycleEvent(tx, {
+          invoiceId: created.id,
+          organizationId: business.organizationId!,
+          actorUserId: input.userId,
+          eventType: 'DRAFT_CREATED',
+          fromApprovalStatus: null,
+          toApprovalStatus: 'DRAFT',
+          revision: created.version,
+        });
+        return created;
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    } else {
+      invoice = await this.prisma.invoice.create({
+        data: {
+          userId: input.userId,
+          businessId: null,
+          invoiceNumber,
+          customerName: input.customer.name,
+          customerEmail: input.customer.email || null,
+          customerPhone: input.customer.phone || null,
+          customerTIN: input.customer.tin || null,
+          customerAddress: input.customer.address || null,
+          customerEndpointId: input.customer.endpointId || null,
+          items: input.items,
+          subtotal: totals.subtotal.toFixed(2),
+          vat: totals.vat.toFixed(2),
+          total: totals.total.toFixed(2),
+          dueDate: input.dueDate ? new Date(input.dueDate) : null,
+          template: input.template || 'professional',
+          nrsCompliant: input.businessId ? false : (input.nrsCompliant ?? true),
+          notes: input.notes || null,
+          status,
+        },
+      });
+    }
 
     await this.prisma.auditLog.create({
       data: {
@@ -175,7 +227,7 @@ export class InvoiceService {
           invoiceNumber,
           status,
           total: totals.total,
-          nrsCompliant: input.nrsCompliant ?? true,
+          nrsCompliant: invoice.nrsCompliant,
         },
       },
     });
@@ -209,6 +261,9 @@ export class InvoiceService {
 
     if (!existing) {
       throw new Error(`Invoice not found: ${invoiceId}`);
+    }
+    if (existing.businessId) {
+      throw new Error('Business-bound invoices must be edited through the versioned invoice lifecycle API');
     }
 
     const editableStatuses = ['draft', 'failed', 'queued'];
@@ -273,9 +328,13 @@ export class InvoiceService {
   /**
    * Get invoice by ID with full details
    */
-  async getInvoice(invoiceId: string, userId: string) {
+  async getInvoice(invoiceId: string, userId: string, organizationId?: string) {
     const invoice = await this.prisma.invoice.findFirst({
-      where: { id: invoiceId, userId },
+      where: {
+        id: invoiceId,
+        userId,
+        ...(organizationId ? { business: { is: { organizationId } } } : {}),
+      },
       include: {
         business: {
           select: { id: true, name: true, tin: true, email: true, phone: true },
@@ -342,6 +401,7 @@ export class InvoiceService {
 
     const where: any = {
       userId: filters.userId,
+      ...(filters.organizationId ? { business: { is: { organizationId: filters.organizationId } } } : {}),
     };
 
     if (filters.businessId) where.businessId = filters.businessId;
@@ -411,6 +471,9 @@ export class InvoiceService {
     });
 
     if (!invoice) throw new Error(`Invoice not found: ${invoiceId}`);
+    if (invoice.businessId) {
+      throw new Error('Business-bound invoices require a governed lifecycle cancellation transition');
+    }
 
     const cancellableStatuses = ['draft', 'queued', 'failed', 'sent', 'stamped'];
     if (!cancellableStatuses.includes(invoice.status)) {
@@ -442,6 +505,12 @@ export class InvoiceService {
     });
 
     if (!invoice) throw new Error(`Invoice not found: ${invoiceId}`);
+    if (invoice.businessId && (invoice.approvalStatus !== 'APPROVED' || invoice.approvedVersion !== invoice.version)) {
+      throw new Error('Business-bound invoice must be approved at its current revision before it can be marked as sent');
+    }
+    if (invoice.businessId && invoice.status !== 'stamped') {
+      throw new Error('Business-bound invoices must complete NRS stamping before they can be marked as sent');
+    }
 
     if (invoice.status !== 'stamped' && invoice.status !== 'draft') {
       throw new Error(`Cannot mark invoice as sent in status '${invoice.status}'`);
@@ -464,6 +533,9 @@ export class InvoiceService {
     });
 
     if (!invoice) throw new Error(`Invoice not found: ${invoiceId}`);
+    if (invoice.businessId && (invoice.approvalStatus !== 'APPROVED' || invoice.approvedVersion !== invoice.version)) {
+      throw new Error('Business-bound invoice requires independent approval of the current revision before NRS submission');
+    }
 
     if (invoice.status !== 'draft') {
       throw new Error(`Only draft invoices can be submitted for stamping`);
@@ -555,8 +627,11 @@ export class InvoiceService {
   /**
    * Get invoice statistics for a user/business
    */
-  async getInvoiceStats(userId: string, businessId?: string) {
-    const where: any = { userId };
+  async getInvoiceStats(userId: string, businessId?: string, organizationId?: string) {
+    const where: any = {
+      userId,
+      ...(organizationId ? { business: { is: { organizationId } } } : {}),
+    };
     if (businessId) where.businessId = businessId;
 
     const [total, draft, sent, paid, overdue, cancelled] = await Promise.all([

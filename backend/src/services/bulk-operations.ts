@@ -40,6 +40,7 @@ export interface BulkDeleteInput {
 export interface BulkExportInput {
   entityType: BulkEntityType;
   businessId: string;
+  organizationId: string;
   filters?: {
     status?: string;
     fromDate?: string;
@@ -76,11 +77,7 @@ export class BulkOperationsService {
       try {
         switch (entityType) {
           case 'invoice':
-            await this.prisma.invoice.updateMany({
-              where: { id, userId: businessId },
-              data: { status: status as any },
-            });
-            break;
+            throw new Error('Bulk invoice status updates are disabled; use the governed invoice lifecycle and dedicated delivery transitions');
           case 'expense':
             await this.prisma.expense.updateMany({
               where: { id, businessId },
@@ -124,12 +121,16 @@ export class BulkOperationsService {
     for (const id of ids) {
       try {
         switch (entityType) {
-          case 'invoice':
-            await this.prisma.invoice.updateMany({
-              where: { id, userId: businessId, status: { in: ['DRAFT', 'FAILED'] } },
-              data: { status: 'CANCELLED' },
+          case 'invoice': {
+            const updated = await this.prisma.invoice.updateMany({
+              where: { id, userId: businessId, businessId: null, status: { in: ['draft', 'failed'] } },
+              data: { status: 'cancelled' },
             });
+            if (updated.count !== 1) {
+              throw new Error('Invoice not found or not eligible for legacy bulk cancellation');
+            }
             break;
+          }
           case 'expense':
             await this.prisma.expense.deleteMany({
               where: { id, businessId, status: 'pending' },
@@ -165,7 +166,7 @@ export class BulkOperationsService {
   // ---------------------------------------------------------------------------
 
   async bulkExport(input: BulkExportInput): Promise<BulkExportResult> {
-    const { entityType, businessId, filters, format } = input;
+    const { entityType, businessId, organizationId, filters, format } = input;
 
     log.info('Bulk export', { entityType, format, filters });
 
@@ -177,7 +178,10 @@ export class BulkOperationsService {
 
     switch (entityType) {
       case 'invoice': {
-        const where: any = { userId: businessId };
+        const where: any = {
+          userId: businessId,
+          business: { is: { organizationId } },
+        };
         if (filters?.status) where.status = filters.status as any;
         if (Object.keys(dateFilter).length) where.createdAt = dateFilter;
         records = await this.prisma.invoice.findMany({ where, orderBy: { createdAt: 'desc' } });

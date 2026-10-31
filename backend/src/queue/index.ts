@@ -1,11 +1,7 @@
 import path from 'path';
-
 import dotenv from 'dotenv';
 import { Worker } from 'bullmq';
 import { prisma } from '../lib/prisma';
-
-dotenv.config({ path: path.resolve(process.cwd(), '.env') });
-
 import { closeRedisConnection, getRedisConnection, toBullMQConnection } from './client';
 import { submitToDigiTax } from '../../integrations/digitax/adapter';
 import { DigiTaxError } from '../../integrations/digitax/adapter';
@@ -14,7 +10,14 @@ import { validateUblXml } from '../lib/ubl/validate';
 import { createLogger } from '../lib/logger';
 import { notifyInvoiceStamped } from '../services/notifications';
 import { createDeviceSyncWorker } from '../workers/syncWorker';
+import { startOperationWorker } from '../operations/operation-worker';
+import { dispatchOutboxBatch, closeOutboxDispatcher } from '../operations/outbox-dispatcher';
+import { initialiseObservability } from '../lib/observability';
+import { processReceiptJobsBatch } from '../services/receipt-processing';
 
+dotenv.config({ path: path.resolve(process.cwd(), '.env') });
+
+initialiseObservability();
 
 const log = createLogger('worker');
 
@@ -40,6 +43,21 @@ export const invoiceSyncWorker = new Worker(
     if (!invoice) {
       job.discard();
       throw new Error(`Invoice not found: ${invoiceId}`);
+    }
+
+    if (
+      invoice.businessId &&
+      (invoice.approvalStatus !== 'APPROVED' || invoice.approvedVersion !== invoice.version)
+    ) {
+      job.discard();
+      await prisma.auditLog.create({
+        data: {
+          action: 'invoice_sync_blocked_missing_approval',
+          userId: invoice.userId,
+          metadata: { invoiceId, invoiceVersion: invoice.version, approvalStatus: invoice.approvalStatus },
+        },
+      });
+      return { status: 'blocked', reason: 'INVOICE_APPROVAL_REQUIRED' };
     }
 
     if (invoice.status === 'stamped') {
@@ -201,6 +219,25 @@ export const invoiceSyncWorker = new Worker(
 );
 
 const deviceSyncWorker = createDeviceSyncWorker();
+const operationWorker = startOperationWorker();
+let outboxDispatching = false;
+const configuredOutboxPollIntervalMs = Number.parseInt(process.env.OUTBOX_POLL_INTERVAL_MS || '1000', 10);
+const outboxPollIntervalMs = Number.isFinite(configuredOutboxPollIntervalMs) && configuredOutboxPollIntervalMs >= 100 ? configuredOutboxPollIntervalMs : 1000;
+async function pollOperationOutbox(): Promise<void> {
+  if (outboxDispatching) return;
+  outboxDispatching = true;
+  try { await dispatchOutboxBatch(100); }
+  catch (error) { log.error('Operation outbox dispatch failed', { err: error }); }
+  finally { outboxDispatching = false; }
+}
+void pollOperationOutbox();
+const outboxTimer = setInterval(() => { void pollOperationOutbox(); }, outboxPollIntervalMs);
+const configuredReceiptPollMs = Number.parseInt(process.env.RECEIPT_PROCESSING_POLL_MS || '2000', 10);
+const receiptProcessingPollMs = Number.isFinite(configuredReceiptPollMs) && configuredReceiptPollMs >= 1000
+  ? configuredReceiptPollMs : 2000;
+const receiptProcessingTimer = setInterval(() => {
+  void processReceiptJobsBatch(5).catch((error) => log.error('Receipt processing batch failed', { err: error }));
+}, receiptProcessingPollMs);
 
 invoiceSyncWorker.on('completed', (job, result) => {
   log.info('job completed', {
@@ -235,6 +272,18 @@ deviceSyncWorker.on('failed', (job, err) => {
 });
 
 async function shutdown() {
+  clearInterval(outboxTimer);
+  clearInterval(receiptProcessingTimer);
+  try {
+    await operationWorker.close();
+  } catch {
+    // ignore
+  }
+  try {
+    await closeOutboxDispatcher();
+  } catch {
+    // ignore
+  }
   try {
     await invoiceSyncWorker.close();
   } catch {

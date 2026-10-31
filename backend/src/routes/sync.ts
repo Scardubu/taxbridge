@@ -168,6 +168,37 @@ export default async function syncRoutes(app: FastifyInstance) {
             continue;
           }
 
+          // Validate invoice identity, ownership, and lifecycle before recording or
+          // queueing a device mutation. The worker repeats these checks at execution
+          // time because queued work may outlive this request.
+          if (job.entity === 'invoice') {
+            const candidateInvoiceId = job.payload?.id;
+            if (typeof candidateInvoiceId !== 'string' || !z.string().uuid().safeParse(candidateInvoiceId).success) {
+              results.failed.push(job.clientId);
+              continue;
+            }
+
+            const targetInvoice = await prisma.invoice.findUnique({
+              where: { id: candidateInvoiceId },
+              select: { id: true, userId: true, businessId: true },
+            });
+
+            if (targetInvoice && targetInvoice.userId !== userId) {
+              results.failed.push(job.clientId);
+              continue;
+            }
+
+            if (targetInvoice?.businessId) {
+              results.failed.push(job.clientId);
+              continue;
+            }
+
+            if (job.action === 'update' && !targetInvoice) {
+              results.failed.push(job.clientId);
+              continue;
+            }
+          }
+
           // Create SyncJob audit record
           const syncJob = await prisma.syncJob.create({
             data: {
@@ -529,6 +560,13 @@ export default async function syncRoutes(app: FastifyInstance) {
         return reply.status(403).send({ error: 'Unauthorized' });
       }
 
+      if (conflict.invoice?.businessId) {
+        return reply.status(409).send({
+          error: 'INVOICE_LIFECYCLE_REQUIRED',
+          message: 'Business-bound invoice conflicts must be resolved through a governed invoice revision; legacy device-sync conflict resolution is disabled.',
+        });
+      }
+
       if (conflict.resolution) {
         return reply.status(400).send({ error: 'Conflict already resolved' });
       }
@@ -663,3 +701,4 @@ export default async function syncRoutes(app: FastifyInstance) {
     }
   });
 }
+

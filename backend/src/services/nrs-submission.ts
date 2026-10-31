@@ -113,6 +113,21 @@ export async function submitToNRS(
         };
       }
 
+      // Internal approval is required before any business-bound NRS submission.
+      // Internal approval never sets tax compliance or submits an invoice externally.
+      if (
+        invoice.businessId &&
+        (invoice.approvalStatus !== 'APPROVED' || invoice.approvedVersion !== invoice.version)
+      ) {
+        return {
+          success: false,
+          invoiceId,
+          error: 'Business-bound invoice requires independent approval of the current revision',
+          retryable: false,
+          attemptNumber,
+        };
+      }
+
       // Validate invoice is ready for NRS submission
       if (!invoice.nrsCompliant) {
         return {

@@ -8,6 +8,8 @@ let _dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
 
 export async function initDatabase(): Promise<void> {
   await getDatabase();
+
+
 }
 
 export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
@@ -283,4 +285,178 @@ async function runMigrations(db: SQLite.SQLiteDatabase): Promise<void> {
       `);
     });
   }
+  if (v < 6) {
+    await db.withExclusiveTransactionAsync(async tx => {
+      await tx.execAsync(`
+        ALTER TABLE offline_operations ADD COLUMN next_attempt_at TEXT;
+        UPDATE offline_operations
+          SET status = 'dead',
+              error_msg = 'Payment initiation is not eligible for automatic offline replay'
+          WHERE type = 'PAYMENT_INITIATE' AND status IN ('pending', 'syncing');
+        CREATE INDEX IF NOT EXISTS idx_offline_ops_due
+          ON offline_operations (status, next_attempt_at, created_at);
+        PRAGMA user_version = 6;
+      `);
+    });
+    v = 6;
+  }
+
+
+  if (v < 7) {
+    await db.withExclusiveTransactionAsync(async tx => {
+      await tx.execAsync(`
+        ALTER TABLE offline_operations RENAME TO offline_operations_v6;
+        CREATE TABLE offline_operations (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          client_id TEXT NOT NULL UNIQUE,
+          type TEXT NOT NULL CHECK(type IN (
+            'EXPENSE_CREATE','TIN_VERIFY','VAT_REGISTER','EINVOICE_SUBMIT',
+            'INVOICE_SUBMIT','PROFILE_SYNC','PAYMENT_INITIATE','COMPLIANCE_EVENT',
+            'RECEIPT_SUBMIT','VAT_RETURN')),
+          payload TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'pending'
+            CHECK(status IN ('pending','syncing','done','failed','dead')),
+          retry_count INTEGER NOT NULL DEFAULT 0,
+          max_retries INTEGER NOT NULL DEFAULT 5,
+          error_msg TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          synced_at TEXT,
+          next_attempt_at TEXT
+        );
+        INSERT INTO offline_operations (
+          id, client_id, type, payload, status, retry_count, max_retries,
+          error_msg, created_at, synced_at, next_attempt_at
+        )
+        SELECT id, client_id, type, payload, status, retry_count, max_retries,
+          error_msg, created_at, synced_at, next_attempt_at
+        FROM offline_operations_v6;
+        DROP TABLE offline_operations_v6;
+        CREATE INDEX IF NOT EXISTS idx_offline_ops_due
+          ON offline_operations (status, next_attempt_at, created_at);
+        PRAGMA user_version = 7;
+      `);
+    });
+    v = 7;
+  }
+
+  if (v < 8) {
+    await db.withExclusiveTransactionAsync(async tx => {
+      await tx.execAsync(`
+        ALTER TABLE offline_operations RENAME TO offline_operations_v7;
+        CREATE TABLE offline_operations (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          client_id TEXT NOT NULL UNIQUE,
+          type TEXT NOT NULL CHECK(type IN (
+            'EXPENSE_CREATE','INVOICE_CREATE','TIN_VERIFY','VAT_REGISTER',
+            'EINVOICE_SUBMIT','INVOICE_SUBMIT','PROFILE_SYNC','PAYMENT_INITIATE',
+            'COMPLIANCE_EVENT','RECEIPT_SUBMIT','VAT_RETURN')),
+          payload TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'pending'
+            CHECK(status IN ('pending','syncing','done','failed','dead')),
+          retry_count INTEGER NOT NULL DEFAULT 0,
+          max_retries INTEGER NOT NULL DEFAULT 5,
+          error_msg TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          synced_at TEXT,
+          next_attempt_at TEXT
+        );
+        INSERT INTO offline_operations (
+          id, client_id, type, payload, status, retry_count, max_retries,
+          error_msg, created_at, synced_at, next_attempt_at
+        )
+        SELECT id, client_id, type, payload, status, retry_count, max_retries,
+          error_msg, created_at, synced_at, next_attempt_at
+        FROM offline_operations_v7;
+        DROP TABLE offline_operations_v7;
+        CREATE INDEX IF NOT EXISTS idx_offline_ops_due
+          ON offline_operations (status, next_attempt_at, created_at);
+        PRAGMA user_version = 8;
+      `);
+    });
+    v = 8;
+  }
+
+  if (v < 9) {
+    await db.withExclusiveTransactionAsync(async tx => {
+      await tx.execAsync(`
+        ALTER TABLE offline_operations RENAME TO offline_operations_v8;
+        CREATE TABLE offline_operations (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          client_id TEXT NOT NULL UNIQUE,
+          type TEXT NOT NULL CHECK(type IN (
+            'EXPENSE_CREATE','INVOICE_CREATE','RECEIPT_ATTACH','TIN_VERIFY','VAT_REGISTER',
+            'EINVOICE_SUBMIT','INVOICE_SUBMIT','PROFILE_SYNC','PAYMENT_INITIATE',
+            'COMPLIANCE_EVENT','RECEIPT_SUBMIT','VAT_RETURN')),
+          payload TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'pending'
+            CHECK(status IN ('pending','syncing','done','failed','dead')),
+          retry_count INTEGER NOT NULL DEFAULT 0,
+          max_retries INTEGER NOT NULL DEFAULT 5,
+          error_msg TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          synced_at TEXT,
+          next_attempt_at TEXT
+        );
+        INSERT INTO offline_operations (
+          id, client_id, type, payload, status, retry_count, max_retries,
+          error_msg, created_at, synced_at, next_attempt_at
+        )
+        SELECT id, client_id, type, payload, status, retry_count, max_retries,
+          error_msg, created_at, synced_at, next_attempt_at
+        FROM offline_operations_v8;
+        DROP TABLE offline_operations_v8;
+        CREATE INDEX IF NOT EXISTS idx_offline_ops_due
+          ON offline_operations (status, next_attempt_at, created_at);
+        PRAGMA user_version = 9;
+      `);
+    });
+    v = 9;
+  }
+  if (v < 10) {
+    await db.withExclusiveTransactionAsync(async tx => {
+      await tx.execAsync(`
+        CREATE TABLE IF NOT EXISTS receipt_upload_sessions (
+          client_upload_id TEXT PRIMARY KEY,
+          business_id TEXT NOT NULL,
+          filename TEXT NOT NULL,
+          content_type TEXT NOT NULL CHECK(content_type IN ('image/jpeg','image/png','image/webp','application/pdf')),
+          local_uri TEXT NOT NULL,
+          byte_size INTEGER NOT NULL CHECK(byte_size > 0 AND byte_size <= 10485760),
+          sha256 TEXT NOT NULL CHECK(length(sha256) = 64),
+          server_receipt_id TEXT UNIQUE,
+          status TEXT NOT NULL DEFAULT 'STAGED'
+            CHECK(status IN ('STAGED','INTENT_CREATED','UPLOADING','UPLOAD_RETRY','VERIFY_PENDING','QUARANTINED','SCANNING','CLEAN','INFECTED','SCAN_FAILED','REJECTED','EXPIRED','ATTACHED','FAILED')),
+          server_status TEXT,
+          review_status TEXT,
+          scan_verdict TEXT,
+          ocr_status TEXT,
+          retry_count INTEGER NOT NULL DEFAULT 0,
+          next_attempt_at TEXT,
+          last_error TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_receipt_upload_recovery
+          ON receipt_upload_sessions (status, next_attempt_at, created_at);
+        CREATE INDEX IF NOT EXISTS idx_receipt_upload_business
+          ON receipt_upload_sessions (business_id, created_at);
+        PRAGMA user_version = 10;
+      `);
+    });
+    v = 10;
+  }
+
+  if (v < 11) {
+    await db.withExclusiveTransactionAsync(async tx => {
+      await tx.execAsync(`
+        ALTER TABLE offline_operations
+          ADD COLUMN server_accepted INTEGER NOT NULL DEFAULT 0;
+        CREATE INDEX IF NOT EXISTS idx_offline_ops_server_accepted
+          ON offline_operations (server_accepted, status, next_attempt_at);
+        PRAGMA user_version = 11;
+      `);
+    });
+    v = 11;
+  }
+
 }

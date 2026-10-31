@@ -116,50 +116,44 @@ export default async function invoiceManagementRoutes(
       });
     }
 
+    if (!parsed.data.businessId) {
+      return reply.status(400).send({
+        success: false,
+        error: 'BUSINESS_ID_REQUIRED',
+        message: 'A business-bound invoice is required for governed invoice creation.',
+      });
+    }
+    if (parsed.data.asDraft !== true) {
+      return reply.status(409).send({
+        success: false,
+        error: 'INVOICE_APPROVAL_REQUIRED',
+        message: 'Invoices must be created as drafts and pass the separate approval workflow before any NRS submission.',
+      });
+    }
+
+    const business = await prisma.business.findFirst({
+      where: { id: parsed.data.businessId, organizationId: orgId },
+      select: { id: true },
+    });
+    if (!business) {
+      return reply.status(404).send({
+        success: false,
+        error: 'BUSINESS_NOT_FOUND',
+        message: 'Business not found in the active organization.',
+      });
+    }
+
     try {
       const result = await invoiceService.createInvoice({
         userId,
+        organizationId: orgId,
         ...parsed.data,
-        businessId: parsed.data.businessId ?? orgId,
+        businessId: business.id,
+        asDraft: true,
+        nrsCompliant: false,
       });
 
-      // If not a draft, queue for NRS stamping
-      if (!parsed.data.asDraft) {
-        try {
-          const queue = getInvoiceSyncQueue();
-          if (queue) {
-            const maxAttempts = Number.parseInt(
-              process.env.INVOICE_SYNC_MAX_ATTEMPTS || '5',
-              10
-            );
-            const backoffMs = Number.parseInt(
-              process.env.INVOICE_SYNC_BACKOFF_MS || '1000',
-              10
-            );
-
-            await queue.add(
-              'sync',
-              { invoiceId: result.id },
-              {
-                attempts:
-                  Number.isFinite(maxAttempts) && maxAttempts > 0 ? maxAttempts : 5,
-                backoff: {
-                  type: 'exponential',
-                  delay:
-                    Number.isFinite(backoffMs) && backoffMs > 0 ? backoffMs : 1000,
-                },
-                removeOnComplete: true,
-                removeOnFail: false,
-              }
-            );
-          }
-        } catch (queueErr) {
-          log.error('Failed to queue invoice for NRS sync', {
-            invoiceId: result.id,
-            err: queueErr,
-          });
-        }
-      }
+      // Approval is a separate, explicit workflow; this route never queues NRS work.
 
       await invalidateDashboardCache(redis, userId);
 
@@ -199,7 +193,8 @@ export default async function invoiceManagementRoutes(
       const result = await invoiceService.listInvoices({
         userId,
         ...parsed.data,
-        businessId: parsed.data.businessId ?? orgId,
+        businessId: parsed.data.businessId,
+        organizationId: orgId,
       });
 
       return reply.send({
@@ -224,10 +219,13 @@ export default async function invoiceManagementRoutes(
   }, async (req, reply) => {
     const { orgId } = req.orgContext;
     const { userId } = req.user;
-    const businessId = (req.query as Record<string, string>)?.businessId ?? orgId;
+    const parsed = ListQuerySchema.pick({ businessId: true }).safeParse(req.query);
+    if (!parsed.success) {
+      return reply.status(400).send({ success: false, error: 'Invalid businessId filter' });
+    }
 
     try {
-      const stats = await invoiceService.getInvoiceStats(userId, businessId);
+      const stats = await invoiceService.getInvoiceStats(userId, parsed.data.businessId, orgId);
       return reply.send({ success: true, data: stats });
     } catch (err: any) {
       log.error('Failed to get invoice stats', { err });
@@ -249,7 +247,7 @@ export default async function invoiceManagementRoutes(
     const { id } = req.params as z.infer<typeof IdParamSchema>;
 
     try {
-      const invoice = await invoiceService.getInvoice(id, userId);
+      const invoice = await invoiceService.getInvoice(id, userId, req.orgContext.orgId);
       if (!invoice) {
         return reply.status(404).send({
           success: false,
@@ -291,7 +289,7 @@ export default async function invoiceManagementRoutes(
       await invalidateDashboardCache(redis, userId);
       return reply.send({ success: true, data: { invoice: result } });
     } catch (err: any) {
-      const status = err.message?.includes('not found') ? 404 : err.message?.includes('Cannot edit') ? 409 : 500;
+      const status = err.message?.includes('not found') ? 404 : (err.message?.includes('Cannot edit') || err.message?.includes('Business-bound invoices')) ? 409 : 500;
       return reply.status(status).send({
         success: false,
         error: err.message || 'Failed to update invoice',
@@ -314,7 +312,7 @@ export default async function invoiceManagementRoutes(
       await invalidateDashboardCache(redis, userId);
       return reply.send({ success: true, data: result });
     } catch (err: any) {
-      const status = err.message?.includes('not found') ? 404 : err.message?.includes('Cannot cancel') ? 409 : 500;
+      const status = err.message?.includes('not found') ? 404 : (err.message?.includes('Cannot cancel') || err.message?.includes('Business-bound invoices')) ? 409 : 500;
       return reply.status(status).send({
         success: false,
         error: err.message || 'Failed to cancel invoice',
@@ -337,7 +335,7 @@ export default async function invoiceManagementRoutes(
       await invalidateDashboardCache(redis, userId);
       return reply.send({ success: true, data: result });
     } catch (err: any) {
-      const status = err.message?.includes('not found') ? 404 : err.message?.includes('Cannot mark') ? 409 : 500;
+      const status = err.message?.includes('not found') ? 404 : (err.message?.includes('Cannot mark') || err.message?.includes('must be approved')) ? 409 : 500;
       return reply.status(status).send({
         success: false,
         error: err.message || 'Failed to mark invoice as sent',
@@ -374,7 +372,7 @@ export default async function invoiceManagementRoutes(
       await invalidateDashboardCache(redis, userId);
       return reply.send({ success: true, data: result });
     } catch (err: any) {
-      const status = err.message?.includes('not found') ? 404 : err.message?.includes('Only draft') ? 409 : 500;
+      const status = err.message?.includes('not found') ? 404 : (err.message?.includes('Only draft') || err.message?.includes('independent approval')) ? 409 : 500;
       return reply.status(status).send({
         success: false,
         error: err.message || 'Failed to submit for NRS stamping',
@@ -396,7 +394,7 @@ export default async function invoiceManagementRoutes(
     const options = parsed.success ? parsed.data : { includeQR: true, includeNRSBadge: true };
 
     try {
-      const invoice = await invoiceService.getInvoice(id, userId);
+      const invoice = await invoiceService.getInvoice(id, userId, req.orgContext.orgId);
       if (!invoice) {
         return reply.status(404).send({
           success: false,

@@ -41,17 +41,35 @@ const dlqRoutes: FastifyPluginAsync = async (fastify) => {
   }, async (request, reply) => {
     const jobId = (request.params as any).id;
 
-    // require2FA for bulk retry of > 10 jobs (here: single retry is unrestricted)
-    const dlqDepth = await (prisma as any).dLQJob?.count({ where: { status: 'FAILED' } }).catch(() => 0) ?? 0;
+    // A failed count lookup cannot silently disable the step-up threshold.
+    let dlqDepth: number;
+    try {
+      const count = await (prisma as any).dLQJob?.count({ where: { status: 'FAILED' } });
+      if (typeof count !== 'number' || !Number.isSafeInteger(count) || count < 0) {
+        request.log.error({ count }, 'DLQ depth is unavailable; refusing retry');
+        return reply.code(503).send({ error: 'DLQ_STATE_UNAVAILABLE' });
+      }
+      dlqDepth = count;
+    } catch (error) {
+      request.log.error({ err: error }, 'DLQ depth lookup failed; refusing retry');
+      return reply.code(503).send({ error: 'DLQ_STATE_UNAVAILABLE' });
+    }
+
     if (dlqDepth > 10) {
       await require2FA(request, reply);
       if (reply.sent) return;
     }
 
-    const job = await (prisma as any).dLQJob?.update({
-      where:  { id: jobId },
-      data: { status: 'RETRYING', retryAt: new Date() },
-    }).catch(() => null);
+    let job: any;
+    try {
+      job = await (prisma as any).dLQJob?.update({
+        where: { id: jobId },
+        data: { status: 'RETRYING', retryAt: new Date() },
+      });
+    } catch (error) {
+      request.log.error({ err: error, jobId }, 'DLQ retry state update failed');
+      return reply.code(503).send({ error: 'DLQ_STATE_UNAVAILABLE' });
+    }
 
     if (!job) return reply.code(404).send({ error: 'JOB_NOT_FOUND' });
 

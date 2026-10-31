@@ -13,7 +13,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { jwtVerify, type JWTPayload } from 'jose';
+import { importSPKI, jwtVerify, type JWTPayload } from 'jose';
 
 // Routes that are publicly accessible (no auth required)
 const PUBLIC_PATHS = new Set([
@@ -24,120 +24,161 @@ const PUBLIC_PATHS = new Set([
   '/favicon.ico',
 ]);
 
-// Role-version cache (30s in-memory — avoids Vercel Edge Config on every request)
-const roleVersionCache = new Map<string, { version: number; cachedAt: number }>();
-const ROLE_VERSION_CACHE_TTL_MS = 30_000;
-const BACKEND_URL = (
-  process.env.BACKEND_API_URL ||
-  process.env.BACKEND_URL ||
-  process.env.NEXT_PUBLIC_BACKEND_URL ||
-  process.env.NEXT_PUBLIC_API_URL ||
-  'https://taxbridge-api-ker8.onrender.com'
-).replace(/\/$/, '');
+const JWT_ISSUER = 'taxbridge-api';
+const JWT_AUDIENCE = 'taxbridge-client';
+const BACKEND_URL = (process.env.BACKEND_API_URL || process.env.BACKEND_URL || '').replace(/\/$/, '');
+const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY ?? '';
 
 interface AdminJWTPayload extends JWTPayload {
-  sub:          string;   // userId
-  role:         string;
-  orgId?:       string;
-  roleVersion?: number;
-  role_version?: number;
+  sub: string;
+  role: string;
+  orgId: string;
+  role_version: number;
 }
+interface RefreshedTokens { accessToken: string; refreshToken: string; }
 
-/**
- * Verify a JWT issued by the TaxBridge backend (RS256 or HS256 depending on env).
- * Returns the decoded payload or null on failure.
- */
 async function verifyAdminJWT(token: string): Promise<AdminJWTPayload | null> {
   try {
-    const secret = new TextEncoder().encode(
-      process.env.NEXTAUTH_SECRET ?? process.env.JWT_SECRET ?? '',
-    );
-    const { payload } = await jwtVerify(token, secret);
+    const production = process.env.NODE_ENV === 'production';
+    const key = production
+      ? await importSPKI(atob(process.env.JWT_PUBLIC_KEY ?? ''), 'RS256')
+      : new TextEncoder().encode(process.env.JWT_SECRET ?? '');
+    const { payload } = await jwtVerify(token, key, {
+      algorithms: production ? ['RS256'] : ['HS256'],
+      issuer: JWT_ISSUER,
+      audience: JWT_AUDIENCE,
+      requiredClaims: ['sub', 'exp', 'iat', 'iss', 'aud'],
+    });
+    const roleVersion = payload.role_version;
+    if (
+      typeof payload.sub !== 'string' ||
+      typeof payload.orgId !== 'string' ||
+      typeof payload.role !== 'string' ||
+      !['ADMIN', 'SUPER_ADMIN'].includes(payload.role.toUpperCase()) ||
+      typeof roleVersion !== 'number' ||
+      !Number.isSafeInteger(roleVersion) ||
+      roleVersion < 0 ||
+      payload.type === 'refresh'
+    ) return null;
     return payload as AdminJWTPayload;
   } catch {
     return null;
   }
 }
 
-/**
- * Retrieve the current role version for a user.
- * Uses 30s in-memory cache to reduce API latency on Edge.
- */
-async function getRoleVersion(userId: string, token: string): Promise<number | null> {
-  const cached = roleVersionCache.get(userId);
-  if (cached && Date.now() - cached.cachedAt < ROLE_VERSION_CACHE_TTL_MS) {
-    return cached.version;
-  }
+async function getRoleVersion(userId: string): Promise<number | null> {
+  if (!BACKEND_URL || !INTERNAL_API_KEY) return null;
   try {
-    const res = await fetch(`${BACKEND_URL}/api/v1/admin/role-version/${userId}`, {
-      headers: { 'X-Internal-Key': process.env.INTERNAL_API_KEY ?? '' },
-      signal: AbortSignal.timeout(3000),
-      cache: 'no-store',
-    });
+    const res = await fetch(
+      BACKEND_URL + '/api/v1/admin/role-version/' + encodeURIComponent(userId),
+      {
+        headers: { 'X-Internal-Key': INTERNAL_API_KEY },
+        signal: AbortSignal.timeout(3000),
+        cache: 'no-store',
+      },
+    );
     if (!res.ok) return null;
-    const data = await res.json() as { roleVersion: number };
-    roleVersionCache.set(userId, { version: data.roleVersion, cachedAt: Date.now() });
-    return data.roleVersion;
+    const data = await res.json() as { roleVersion?: unknown };
+    return typeof data.roleVersion === 'number' && Number.isSafeInteger(data.roleVersion)
+      ? data.roleVersion
+      : null;
   } catch {
-    // Non-fatal — allow request through if role-version endpoint is unavailable
     return null;
   }
 }
 
+type RefreshAdminSessionResult =
+  | { status: 'ok'; tokens: RefreshedTokens }
+  | { status: 'invalid' }
+  | { status: 'unavailable' };
+
+async function refreshAdminSession(refreshToken: string): Promise<RefreshAdminSessionResult> {
+  if (!BACKEND_URL) return { status: 'unavailable' };
+  try {
+    const response = await fetch(BACKEND_URL + '/api/v1/auth/refresh', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ refreshToken }),
+      signal: AbortSignal.timeout(5000),
+      cache: 'no-store',
+    });
+    if (response.status === 401 || response.status === 403) return { status: 'invalid' };
+    if (!response.ok) return { status: 'unavailable' };
+    const data = await response.json() as Record<string, unknown>;
+    if (typeof data.accessToken !== 'string' || typeof data.refreshToken !== 'string') {
+      return { status: 'unavailable' };
+    }
+    return {
+      status: 'ok',
+      tokens: { accessToken: data.accessToken, refreshToken: data.refreshToken },
+    };
+  } catch {
+    return { status: 'unavailable' };
+  }
+}
+
+function loginRedirect(request: NextRequest, reason: string): NextResponse {
+  const url = new URL('/login', request.url);
+  url.searchParams.set('reason', reason);
+  return NextResponse.redirect(url);
+}
+
 export async function proxy(request: NextRequest): Promise<NextResponse> {
   const { pathname } = request.nextUrl;
+  const publicPath =
+    pathname === '/login' ||
+    pathname === '/api/health' ||
+    pathname === '/favicon.ico' ||
+    pathname.startsWith('/api/auth/') ||
+    pathname.startsWith('/_next/');
+  if (publicPath) return NextResponse.next();
 
-  // ── Allow public paths through immediately ───────────────────────────────
-  if (
-    PUBLIC_PATHS.has(pathname) ||
-    [...PUBLIC_PATHS].some(p => pathname.startsWith(p))
-  ) {
-    return NextResponse.next();
-  }
+  let rawToken = request.headers.get('authorization')?.match(/^Bearer\s+(.+)$/i)?.[1]
+    ?? request.cookies.get('admin_token')?.value;
+  const refreshToken = request.cookies.get('admin_refresh_token')?.value;
+  let payload = rawToken ? await verifyAdminJWT(rawToken) : null;
+  let refreshed: RefreshedTokens | null = null;
 
-  // ── Early-access bypass: skip auth when ADMIN_AUTH_ENFORCE is not "true" ──
-  // During initial deployment only a few trusted users access the admin panel.
-  // Set ADMIN_AUTH_ENFORCE=true in Vercel when ready for full auth gating.
-  if (process.env.ADMIN_AUTH_ENFORCE !== 'true') {
-    return NextResponse.next();
-  }
-
-  // ── Step 1: Extract and verify JWT ──────────────────────────────────────
-  const authHeader  = request.headers.get('authorization');
-  const cookieToken = request.cookies.get('admin_token')?.value;
-  const rawToken    = authHeader?.replace('Bearer ', '') ?? cookieToken;
-
-  if (!rawToken) {
-    const loginUrl = new URL('/login', request.url);
-    loginUrl.searchParams.set('reason', 'unauthenticated');
-    return NextResponse.redirect(loginUrl);
-  }
-
-  const payload = await verifyAdminJWT(rawToken);
-  if (!payload || !payload.sub) {
-    const loginUrl = new URL('/login', request.url);
-    loginUrl.searchParams.set('reason', 'invalid_token');
-    return NextResponse.redirect(loginUrl);
-  }
-
-  // ── Step 2: role_version check (30s cache) ───────────────────────────────
-  const tokenRoleVersion = payload.role_version ?? payload.roleVersion;
-  if (tokenRoleVersion !== undefined) {
-    const currentVersion = await getRoleVersion(payload.sub, rawToken);
-    if (currentVersion !== null && currentVersion > tokenRoleVersion) {
-      // Role has changed since token was issued — force re-auth
-      const loginUrl = new URL('/login', request.url);
-      loginUrl.searchParams.set('reason', 'session_expired');
-      return NextResponse.redirect(loginUrl);
+  if (!payload && refreshToken) {
+    const refreshResult = await refreshAdminSession(refreshToken);
+    if (refreshResult.status === 'unavailable') {
+      return NextResponse.json(
+        { error: 'AUTH_DEPENDENCY_UNAVAILABLE', message: 'Session refresh is unavailable.' },
+        { status: 503, headers: { 'Cache-Control': 'no-store' } },
+      );
     }
+    if (refreshResult.status === 'invalid') {
+      return loginRedirect(request, 'session_expired');
+    }
+    refreshed = refreshResult.tokens;
+    rawToken = refreshed.accessToken;
+    payload = await verifyAdminJWT(refreshed.accessToken);
   }
+  if (!payload || !rawToken) return loginRedirect(request, 'unauthenticated');
 
-  // ── Step 3: CSRF protection for mutating requests ────────────────────────
+  const currentVersion = await getRoleVersion(payload.sub);
+  if (currentVersion === null) {
+    return NextResponse.json(
+      { error: 'AUTH_DEPENDENCY_UNAVAILABLE', message: 'Session validation is unavailable.' },
+      { status: 503, headers: { 'Cache-Control': 'no-store' } },
+    );
+  }
+  if (currentVersion !== payload.role_version) return loginRedirect(request, 'session_expired');
+
   const method = request.method.toUpperCase();
-  if (['POST', 'PATCH', 'DELETE'].includes(method)) {
+  if (['POST', 'PATCH', 'DELETE', 'PUT'].includes(method)) {
+    const origin = request.headers.get('origin');
+    if (origin) {
+      try {
+        if (new URL(origin).origin !== request.nextUrl.origin) {
+          return NextResponse.json({ error: 'CSRF_INVALID' }, { status: 403 });
+        }
+      } catch {
+        return NextResponse.json({ error: 'CSRF_INVALID' }, { status: 403 });
+      }
+    }
     const csrfHeader = request.headers.get('x-csrf-token');
     const csrfCookie = request.cookies.get('csrf_token')?.value;
-
     if (!csrfHeader || !csrfCookie || csrfHeader !== csrfCookie) {
       return NextResponse.json(
         { error: 'CSRF_INVALID', message: 'CSRF token mismatch. Request rejected.' },
@@ -146,13 +187,29 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
     }
   }
 
-  // ── Forward user context to route handlers ───────────────────────────────
   const requestHeaders = new Headers(request.headers);
-  requestHeaders.set('x-user-id',   payload.sub);
-  requestHeaders.set('x-user-role', payload.role ?? '');
-  requestHeaders.set('x-org-id',    payload.orgId ?? '');
+  requestHeaders.set('x-user-id', payload.sub);
+  requestHeaders.set('x-user-role', payload.role);
+  requestHeaders.set('x-org-id', payload.orgId);
+  const response = NextResponse.next({ request: { headers: requestHeaders } });
 
-  return NextResponse.next({ request: { headers: requestHeaders } });
+  if (refreshed) {
+    response.cookies.set('admin_token', refreshed.accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 15 * 60,
+      path: '/',
+    });
+    response.cookies.set('admin_refresh_token', refreshed.refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60,
+      path: '/',
+    });
+  }
+  return response;
 }
 
 export const config = {

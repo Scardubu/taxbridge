@@ -1,4 +1,5 @@
 import { getDatabase } from './database';
+import * as Crypto from 'expo-crypto';
 import { postComplianceEvent } from './api';
 
 export type ComplianceEventType =
@@ -52,16 +53,19 @@ export async function logComplianceEvent(
   try {
     await postComplianceEvent({
       event_type: type,
-      business_id: context?.businessId,
+      business_id: context?.businessId && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(context.businessId)
+        ? context.businessId
+        : undefined,
       metadata: {
         description,
         severity,
         ...metadata,
       },
       client_timestamp: new Date().toISOString(),
-      source: context?.source ?? 'mobile',
+      idempotency_key: Crypto.randomUUID(),
+      source: 'mobile',
     });
   } catch {
-    // postComplianceEvent already handles offline queue fallback for transport errors.
+    // Local history is retained; remote compliance-event delivery is best-effort and online-only.
   }
 }

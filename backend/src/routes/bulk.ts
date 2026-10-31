@@ -90,6 +90,7 @@ export default async function bulkRoutes(
     const result = await bulkService.bulkExport({
       ...body,
       businessId: userId,
+      organizationId: req.orgContext.orgId,
     });
 
     reply.header('Content-Type', result.mimeType);

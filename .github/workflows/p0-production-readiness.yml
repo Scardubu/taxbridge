@@ -1,0 +1,68 @@
+name: P0 Production Readiness
+
+on:
+  pull_request:
+    branches: [master]
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+jobs:
+  backend-mobile-and-admin:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: taxbridge
+          POSTGRES_PASSWORD: taxbridge
+          POSTGRES_DB: taxbridge_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U taxbridge -d taxbridge_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      DATABASE_URL: postgresql://taxbridge:taxbridge@localhost:5432/taxbridge_ci
+      DIRECT_URL: postgresql://taxbridge:taxbridge@localhost:5432/taxbridge_ci
+      NODE_ENV: test
+      PHASE1C_DATABASE_TESTS: '1'
+      JWT_SECRET: taxbridge-ci-only-secret-at-least-32-characters
+      ALLOWED_ORIGINS: http://localhost:3000
+      REDIS_URL: redis://localhost:6379
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26
+          cache: npm
+      - name: Install root npm workspace graph
+        run: npm ci
+      - name: Generate Prisma client
+        run: npm run prisma:generate --workspace=@taxbridge/backend
+      - name: Build shared contracts and enforce compatibility
+        run: |
+          npm run build --workspace=@taxbridge/contracts
+          node packages/contracts/scripts/check-contract-compatibility.cjs
+      - name: Apply Prisma migrations to clean PostgreSQL
+        run: npm run prisma:migrate:deploy --workspace=@taxbridge/backend
+      - name: Build backend
+        run: npm run build --workspace=@taxbridge/backend
+      - name: Verify Phase 1C transactional handler against PostgreSQL
+        run: npm run test:phase1c --workspace=@taxbridge/backend
+      - name: Type-check admin dashboard
+        run: npm run type-check --workspace=admin-dashboard
+      - name: Install mobile dependencies
+        run: npm ci --prefix mobile
+      - name: Type-check mobile
+        run: npm run type-check --prefix mobile
+      - name: Run mobile unit tests
+        run: npm test --prefix mobile -- --runInBand
+      - name: Export Android JavaScript bundle
+        run: npm run export:android-smoke --prefix mobile
+      - name: Build canonical production API image
+        run: docker build --pull --no-cache --tag taxbridge-api:p0-ci .

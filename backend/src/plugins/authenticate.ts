@@ -1,7 +1,10 @@
 import fp from 'fastify-plugin';
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { jwtVerify, importSPKI } from 'jose';
-import { redis } from '../lib/redis';
+import { prisma } from '../lib/prisma';
+
+const JWT_ISSUER = 'taxbridge-api';
+const JWT_AUDIENCE = 'taxbridge-client';
 
 let publicKeyPromise: ReturnType<typeof importSPKI> | undefined;
 
@@ -26,6 +29,7 @@ declare module 'fastify' {
       orgId: string;
       role: string;
       roleVersion: number;
+      jti?: string;
     };
   }
 }
@@ -38,44 +42,64 @@ export default fp(async function authenticatePlugin(fastify) {
     const match = authorization?.match(/^Bearer\s+(.+)$/i);
     if (!match) return reply.code(401).send({ error: 'UNAUTHORIZED' });
 
+    const production = process.env.NODE_ENV === 'production';
+    const key = production
+      ? await getPublicKey()
+      : new TextEncoder().encode(process.env.JWT_SECRET ?? '');
+
+    let payload: Awaited<ReturnType<typeof jwtVerify>>['payload'];
     try {
-      const production = process.env.NODE_ENV === 'production';
-      const key = production
-        ? await getPublicKey()
-        : new TextEncoder().encode(process.env.JWT_SECRET ?? '');
-
-      const { payload } = await jwtVerify(match[1], key, {
+      const verified = await jwtVerify(match[1], key, {
         algorithms: production ? ['RS256'] : ['HS256'],
-        requiredClaims: ['sub', 'exp', 'iat'],
+        issuer: JWT_ISSUER,
+        audience: JWT_AUDIENCE,
+        requiredClaims: ['sub', 'exp', 'iat', 'iss', 'aud'],
       });
-
-      const userId = payload.sub;
-      const orgId = typeof payload.orgId === 'string' ? payload.orgId : '';
-      const role = typeof payload.role === 'string' ? payload.role : '';
-      const roleVersion = payload.role_version;
-
-      if (!userId || !orgId || !role || !Number.isInteger(roleVersion)) {
-        return reply.code(401).send({ error: 'INVALID_TOKEN_CLAIMS' });
-      }
-
-      // Redis is a mandatory authentication dependency. A Redis failure must
-      // never be interpreted as absence of a revocation record.
-      const storedVersion = await redis.get(`role_version:${userId}`);
-      if (storedVersion !== null && Number(storedVersion) !== roleVersion) {
-        return reply.code(401).send({
-          error: 'TOKEN_EXPIRED',
-          message: 'Session invalidated — please log in again',
-        });
-      }
-
-      request.user = { userId, orgId, role, roleVersion };
+      payload = verified.payload;
     } catch (error) {
-      request.log.warn({ err: error }, 'Authentication rejected');
-      if ((error as Error).message?.includes('ECONN') ||
-          (error as Error).message?.includes('Redis')) {
-        return reply.code(503).send({ error: 'AUTHENTICATION_DEPENDENCY_UNAVAILABLE' });
-      }
+      request.log.warn({ err: error }, 'Authentication token rejected');
       return reply.code(401).send({ error: 'UNAUTHORIZED' });
     }
+
+    const userId = payload.sub;
+    const orgId = typeof payload.orgId === 'string' ? payload.orgId : '';
+    const role = typeof payload.role === 'string' ? payload.role : '';
+    const roleVersion = payload.role_version;
+    if (
+      typeof userId !== 'string' ||
+      !orgId ||
+      !role ||
+      (payload.type === 'refresh' || payload.type === 'mfa_challenge') ||
+      typeof roleVersion !== 'number' ||
+      !Number.isSafeInteger(roleVersion) ||
+      roleVersion < 0
+    ) {
+      return reply.code(401).send({ error: 'INVALID_TOKEN_CLAIMS' });
+    }
+
+    let sessionUser;
+    try {
+      sessionUser = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { authVersion: true, deleted: true },
+      });
+    } catch (error) {
+      request.log.error({ err: error }, 'Authentication database lookup failed');
+      return reply.code(503).send({ error: 'AUTHENTICATION_DEPENDENCY_UNAVAILABLE' });
+    }
+
+    if (!sessionUser || sessionUser.deleted) return reply.code(401).send({ error: 'UNAUTHORIZED' });
+    if (sessionUser.authVersion !== roleVersion) {
+      return reply.code(401).send({
+        error: 'TOKEN_EXPIRED',
+        message: 'Session invalidated — please log in again',
+      });
+    }
+
+    const jti = typeof payload.jti === 'string' && payload.jti.length <= 128
+      ? payload.jti
+      : undefined;
+
+    request.user = { userId, orgId, role, roleVersion, jti };
   });
 });

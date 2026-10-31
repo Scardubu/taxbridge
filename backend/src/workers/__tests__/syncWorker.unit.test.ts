@@ -89,7 +89,7 @@ describe('processSyncJob', () => {
     };
 
     mockPrisma.syncJob.findUnique.mockResolvedValue(syncJob);
-    mockPrisma.invoice.findUnique.mockResolvedValue({ id: 'inv-2', version: 3 });
+    mockPrisma.invoice.findUnique.mockResolvedValue({ id: 'inv-2', userId: 'user-2', businessId: null, version: 3 });
     mockPrisma.conflict.create.mockResolvedValue({ id: 'conflict-1' });
     mockPrisma.syncJob.update.mockResolvedValue({ id: 'job-2' });
     mockPrisma.auditLog.create.mockResolvedValue({});
@@ -105,4 +105,43 @@ describe('processSyncJob', () => {
       })
     );
   });
+
+  it('fails closed when a queued job references another user invoice', async () => {
+    const syncJob = {
+      id: 'job-3',
+      entity: 'invoice',
+      action: 'update',
+      clientVersion: 1,
+      payload: { id: 'inv-3', subtotal: 120, vat: 12, total: 132, items: [] },
+      userId: 'user-3',
+      deviceId: 'device-3',
+      invoiceId: 'inv-3',
+      startedAt: null
+    };
+
+    mockPrisma.syncJob.findUnique.mockResolvedValue(syncJob);
+    mockPrisma.invoice.findUnique.mockResolvedValue({
+      id: 'inv-3',
+      userId: 'different-user',
+      businessId: null,
+      version: 1
+    });
+    mockPrisma.syncJob.update.mockResolvedValue({ id: 'job-3' });
+
+    const result = await processSyncJob('job-3');
+
+    expect(result.status).toBe('invoice_not_found');
+    expect(mockPrisma.conflict.create).not.toHaveBeenCalled();
+    expect(mockPrisma.invoice.update).not.toHaveBeenCalled();
+    expect(mockPrisma.syncJob.update).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: { id: 'job-3' },
+        data: expect.objectContaining({
+          status: 'failed',
+          result: { error: 'INVOICE_NOT_FOUND' }
+        })
+      })
+    );
+  });
+
 });
