@@ -18,7 +18,6 @@ import { writeAuditEvent } from '../../services/audit';
 import { validate } from '../../plugins/validate';
 import {
   createRefreshSession,
-  hashRefreshToken,
   rotateRefreshSession,
 } from '../../services/refreshTokenRotation';
 
