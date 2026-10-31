@@ -18,6 +18,16 @@ const routes: FastifyPluginAsync = async (app) => {
   app.post('/api/v1/sync/operations', {
     preHandler: [app.authenticate, app.resolveOrgContext],
   }, async (request, reply) => {
+    if (process.env.OPERATION_PIPELINE_ENABLED !== 'true') {
+      return reply.code(503).send({
+        error: 'OPERATION_PIPELINE_DISABLED',
+        message: 'Offline operation processing is not enabled in this environment',
+        code: 'OPERATION_PIPELINE_DISABLED',
+        requestId: request.id,
+        retryable: true,
+      });
+    }
+
     const parsed = OperationEnvelopeSchema.safeParse(request.body);
     if (!parsed.success) {
       return reply.code(400).send({

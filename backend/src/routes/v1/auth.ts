@@ -26,13 +26,18 @@ const RefreshSchema = z.object({
   refreshToken: z.string(),
 });
 
+const JWT_ISSUER = process.env.JWT_ISSUER ?? 'taxbridge-api';
+const JWT_AUDIENCE = process.env.JWT_AUDIENCE ?? 'taxbridge-clients';
+
 async function signToken(
   payload:  Record<string, unknown>,
   secret:   string | Uint8Array,
   expiresIn: string,
 ): Promise<string> {
   const builder = new SignJWT(payload)
-    .setProtectedHeader({ alg: process.env.NODE_ENV === 'production' ? 'RS256' : 'HS256' })
+    .setProtectedHeader({ alg: process.env.NODE_ENV === 'production' ? 'RS256' : 'HS256', typ: 'JWT' })
+    .setIssuer(JWT_ISSUER)
+    .setAudience(JWT_AUDIENCE)
     .setIssuedAt()
     .setExpirationTime(expiresIn);
 
@@ -117,7 +122,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     const roleVersion = parseInt(await redis.get(`role_version:${user.id}`) ?? '0', 10);
 
     const accessToken = await signToken(
-      { sub: user.id, orgId: primaryMembership.orgId, role: primaryMembership.role ?? user.role, role_version: roleVersion },
+      { sub: user.id, orgId: primaryMembership.orgId, role: primaryMembership.role ?? user.role, role_version: roleVersion, type: 'access' },
       typeof secret === 'string' ? secret : secret,
       '15m',
     );
@@ -153,7 +158,12 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     try {
       const { jwtVerify } = await import('jose');
       const verifyKey = await getRefreshVerifyKey();
-      const { payload } = await jwtVerify(refreshToken, verifyKey);
+      const { payload } = await jwtVerify(refreshToken, verifyKey, {
+        algorithms: process.env.NODE_ENV === 'production' ? ['RS256'] : ['HS256'],
+        issuer: JWT_ISSUER,
+        audience: JWT_AUDIENCE,
+        requiredClaims: ['sub', 'exp', 'iat', 'iss', 'aud', 'type', 'family'],
+      });
 
       if ((payload as any).type !== 'refresh') {
         return reply.code(401).send({ error: 'INVALID_TOKEN' });
@@ -191,7 +201,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
         : new TextEncoder().encode(process.env.JWT_SECRET!);
 
       const newAccessToken = await signToken(
-        { sub: userId, orgId: membership.orgId, role: membership.role ?? user.role, role_version: roleVersion },
+        { sub: userId, orgId: membership.orgId, role: membership.role ?? user.role, role_version: roleVersion, type: 'access' },
         signingSecret,
         '15m',
       );

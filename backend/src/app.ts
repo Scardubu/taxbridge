@@ -8,6 +8,7 @@
  */
 import './validateEnv'; // ← MUST be absolute first import; hard-crashes on missing env
 
+import { timingSafeEqual } from 'node:crypto';
 import Fastify, { FastifyInstance }     from 'fastify';
 import fastifyCors                       from '@fastify/cors';
 import fastifyHelmet                     from '@fastify/helmet';
@@ -54,6 +55,7 @@ import cryptoRoutes             from './routes/crypto';
 import reconciliationRoutes     from './routes/reconciliation';
 import syncRoutes                from './routes/sync';
 import syncOperationRoutes        from './routes/syncOperations';
+import adminSyncRoutes             from './routes/adminSync';
 
 // Webhook Route imports
 import flutterwaveWebhook    from './routes/webhooks/flutterwave';
@@ -71,8 +73,9 @@ export async function buildApp(): Promise<FastifyInstance> {
     logger: {
       level: process.env.LOG_LEVEL ?? 'info',
       redact: [
-        'req.headers.authorization', 'body.password', 'body.tin',
-        'body.bvn', 'body.receiptUrl', 'body.documentUrl',
+        'req.headers.authorization', 'req.headers.x-internal-key', 'req.headers.x-admin-api-key',
+        'body.password', 'body.tin', 'body.nin', 'body.bvn',
+        'body.receiptUrl', 'body.documentUrl', 'body.raw_ocr_text', 'body.refreshToken',
       ],
       ...(process.env.LOG_FORMAT !== 'json'
         ? { transport: { target: 'pino-pretty' } }
@@ -177,9 +180,33 @@ export async function buildApp(): Promise<FastifyInstance> {
   // sync.ts owns its explicit /api/v1 paths; register exactly once.
   await fastify.register(syncRoutes);
   await fastify.register(syncOperationRoutes);
+  await fastify.register(adminSyncRoutes);
   await fastify.register(flutterwaveWebhook,  { prefix: '/webhooks' });
   await fastify.register(paystackWebhook,     { prefix: '/webhooks' });
   await fastify.register(remitaWebhook,       { prefix: '/webhooks' });
+
+  fastify.get<{ Params: { userId: string } }>('/api/v1/admin/role-version/:userId', async (request, reply) => {
+    const expected = process.env.INTERNAL_API_KEY ?? '';
+    const header = request.headers['x-internal-key'];
+    const supplied = typeof header === 'string' ? header : '';
+    const expectedBytes = Buffer.from(expected);
+    const suppliedBytes = Buffer.from(supplied);
+    if (expectedBytes.length < 32) return reply.code(503).send({ error: 'INTERNAL_API_NOT_CONFIGURED' });
+    if (expectedBytes.length !== suppliedBytes.length || !timingSafeEqual(expectedBytes, suppliedBytes)) {
+      return reply.code(401).send({ error: 'UNAUTHORIZED' });
+    }
+    try {
+      const stored = await redis.get(`role_version:${request.params.userId}`);
+      const roleVersion = stored === null ? 0 : Number(stored);
+      if (!Number.isSafeInteger(roleVersion) || roleVersion < 0) {
+        return reply.code(503).send({ error: 'ROLE_VERSION_UNAVAILABLE' });
+      }
+      return reply.send({ roleVersion });
+    } catch (error) {
+      request.log.error({ err: error }, 'Role-version lookup failed');
+      return reply.code(503).send({ error: 'ROLE_VERSION_UNAVAILABLE' });
+    }
+  });
 
   fastify.get('/health/live', async (_request, reply) => {
     return reply.code(200).send({ status: 'ok' });
