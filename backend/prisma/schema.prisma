@@ -259,6 +259,7 @@ model ReceiptEvidence {
   uploadExpiresAt   DateTime  @map("upload_expires_at")
   verifiedAt        DateTime? @map("verified_at")
   retentionUntil    DateTime  @map("retention_until")
+  objectsPurgedAt   DateTime? @map("objects_purged_at")
   createdAt         DateTime  @default(now()) @map("created_at")
   updatedAt         DateTime  @updatedAt @map("updated_at")
 
@@ -275,6 +276,7 @@ model ReceiptEvidence {
   @@index([userId, createdAt], map: "receipt_evidence_user_created_idx")
   @@index([expenseId], map: "receipt_evidence_expense_id_idx")
   @@index([status, uploadExpiresAt], map: "receipt_evidence_status_expiry_idx")
+  @@index([objectsPurgedAt, retentionUntil], map: "receipt_evidence_retention_cleanup_idx")
   @@map("receipt_evidence")
 }
 

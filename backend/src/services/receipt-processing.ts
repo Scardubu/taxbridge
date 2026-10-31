@@ -177,6 +177,102 @@ async function processJob(job: { id: string; receipt_evidence_id: string; attemp
   }
 }
 
+const PENDING_UPLOAD_EXPIRY_GRACE_MS = 15 * 60_000;
+const RETENTION_PURGE_STATUSES = ['CLEAN', 'ATTACHED', 'INFECTED', 'SCAN_FAILED', 'REJECTED'] as const;
+
+/**
+ * Purge evidence objects only after the server-owned upload expiry grace period
+ * or the explicit seven-year retention deadline. The evidence row and scan
+ * audit remain; OCR text and the user-supplied filename are redacted.
+ *
+ * A row is first moved to EXPIRED with a conditional write. Object deletion is
+ * idempotent and retried on the next batch until objectsPurgedAt is recorded.
+ */
+export async function purgeExpiredReceiptEvidence(batchSize = 50): Promise<number> {
+  if (!Number.isSafeInteger(batchSize) || batchSize < 1 || batchSize > 500) {
+    throw new Error('Invalid receipt retention batch size');
+  }
+
+  const now = new Date();
+  const uploadCutoff = new Date(now.getTime() - PENDING_UPLOAD_EXPIRY_GRACE_MS);
+  const rows = await prisma.receiptEvidence.findMany({
+    where: {
+      objectsPurgedAt: null,
+      OR: [
+        { status: 'EXPIRED' },
+        { status: 'PENDING_UPLOAD', uploadExpiresAt: { lte: uploadCutoff } },
+        { status: { in: [...RETENTION_PURGE_STATUSES] }, retentionUntil: { lte: now } },
+      ],
+    },
+    orderBy: [{ retentionUntil: 'asc' }, { createdAt: 'asc' }],
+    take: batchSize,
+    select: {
+      id: true,
+      status: true,
+      uploadExpiresAt: true,
+      retentionUntil: true,
+      storageKey: true,
+      uploadKey: true,
+      cleanStorageKey: true,
+    },
+  });
+
+  if (rows.length === 0) return 0;
+  const { client, bucket } = storage();
+  let purged = 0;
+
+  for (const row of rows) {
+    if (row.status !== 'EXPIRED') {
+      const expiryCondition = row.status === 'PENDING_UPLOAD'
+        ? { status: 'PENDING_UPLOAD', uploadExpiresAt: { lte: uploadCutoff } }
+        : { status: row.status, retentionUntil: { lte: now } };
+      const claim = await prisma.receiptEvidence.updateMany({
+        where: { id: row.id, objectsPurgedAt: null, ...expiryCondition },
+        data: { status: 'EXPIRED' },
+      });
+      if (claim.count !== 1) continue;
+    }
+
+    const keys = [...new Set([row.uploadKey, row.storageKey, row.cleanStorageKey].filter(
+      (key): key is string => typeof key === 'string' && key.length > 0,
+    ))];
+    const deletions = await Promise.allSettled(
+      keys.map((key) => client.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }))),
+    );
+    const failure = deletions.find((result) => result.status === 'rejected');
+    if (failure?.status === 'rejected') {
+      process.stderr.write(
+        '[receipt-retention] object purge will be retried for receipt ' + row.id + ': ' +
+        (failure.reason instanceof Error ? failure.reason.message : String(failure.reason)) + '\n',
+      );
+      continue;
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.receiptOcrExtraction.updateMany({
+        where: { receiptEvidenceId: row.id },
+        data: {
+          status: 'FAILED',
+          extractedText: null,
+          meanConfidence: null,
+          fieldCandidates: { retentionExpired: true },
+        },
+      });
+      await tx.receiptEvidence.updateMany({
+        where: { id: row.id, status: 'EXPIRED', objectsPurgedAt: null },
+        data: {
+          objectsPurgedAt: now,
+          cleanStorageKey: null,
+          originalFilename: '[retention-expired]',
+        },
+      });
+    });
+    purged += 1;
+  }
+
+  return purged;
+}
+
 let running = false;
 export async function processReceiptJobsBatch(limit = 5): Promise<number> {
   if (running) return 0;
@@ -188,6 +284,14 @@ export async function processReceiptJobsBatch(limit = 5): Promise<number> {
       if (!job) break;
       await processJob(job);
       processed++;
+    }
+    try {
+      await purgeExpiredReceiptEvidence();
+    } catch (error) {
+      process.stderr.write(
+        '[receipt-retention] cleanup batch failed: ' +
+        (error instanceof Error ? error.message : String(error)) + '\n',
+      );
     }
     return processed;
   } finally { running = false; }

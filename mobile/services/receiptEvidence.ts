@@ -120,7 +120,7 @@ async function applyServerStatus(clientUploadId: string, status: ReceiptEvidence
     last_error: null,
     next_attempt_at: null,
   });
-  if (status.verifiedAt && status.status !== 'PENDING_UPLOAD') {
+  if ((status.verifiedAt && status.status !== 'PENDING_UPLOAD') || status.status === 'EXPIRED') {
     const session = await getSession(clientUploadId);
     await FileSystem.deleteAsync(session.local_uri, { idempotent: true }).catch(() => undefined);
   }
