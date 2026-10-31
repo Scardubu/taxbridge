@@ -26,7 +26,7 @@ export async function verifyPhone(userId: string, otp: string): Promise<void> {
     { skipAuth: true, retryOnUnauthorized: false }
   )) as { accessToken?: string; refreshToken?: string };
 
-  if (res?.accessToken) {
+  if (res?.accessToken && res?.refreshToken) {
     await setAuthTokens({ accessToken: res.accessToken, refreshToken: res.refreshToken });
   }
 }
@@ -38,23 +38,31 @@ export async function login(phone: string, password: string, deviceId?: string):
     { skipAuth: true, retryOnUnauthorized: false }
   )) as any;
 
-  if (res?.accessToken && res?.refreshToken) {
-    await setAuthTokens({ accessToken: res.accessToken, refreshToken: res.refreshToken });
+  if (res?.mfaRequired === true && typeof res.challengeToken === 'string') {
+    return { success: true, requiresMfa: true, mfaToken: res.challengeToken };
   }
 
-  return res as LoginResponse;
+  if (res?.accessToken && res?.refreshToken) {
+    await setAuthTokens({ accessToken: res.accessToken, refreshToken: res.refreshToken });
+    return { success: true, ...res };
+  }
+
+  throw new Error('Authentication service returned an invalid login response.');
 }
 
 export async function mfaLogin(mfaToken: string, totpCode: string): Promise<void> {
   const res = (await api.post(
-    '/auth/mfa/login',
-    { mfaToken, totpCode },
+    '/auth/mfa/verify',
+    { challengeToken: mfaToken, code: totpCode },
     { skipAuth: true, retryOnUnauthorized: false }
   )) as { accessToken?: string; refreshToken?: string };
 
   if (res?.accessToken && res?.refreshToken) {
     await setAuthTokens({ accessToken: res.accessToken, refreshToken: res.refreshToken });
+    return;
   }
+
+  throw new Error('Two-factor verification did not return a valid session.');
 }
 
 export async function logout(): Promise<void> {

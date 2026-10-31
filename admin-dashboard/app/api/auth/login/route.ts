@@ -70,6 +70,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'AUTH_FAILED', message }, { status: backendRes.status });
   }
 
+  if (data.mfaRequired === true && typeof data.challengeToken === 'string') {
+    return NextResponse.json(
+      { success: true, mfaRequired: true, challengeToken: data.challengeToken, expiresIn: data.expiresIn },
+      { status: 200, headers: { 'Cache-Control': 'no-store' } },
+    );
+  }
+
   const accessToken = typeof data.accessToken === 'string' ? data.accessToken : null;
   const refreshToken = typeof data.refreshToken === 'string' ? data.refreshToken : null;
   if (!accessToken || !refreshToken) {

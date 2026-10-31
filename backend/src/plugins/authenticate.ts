@@ -69,7 +69,7 @@ export default fp(async function authenticatePlugin(fastify) {
       typeof userId !== 'string' ||
       !orgId ||
       !role ||
-      payload.type === 'refresh' ||
+      (payload.type === 'refresh' || payload.type === 'mfa_challenge') ||
       typeof roleVersion !== 'number' ||
       !Number.isSafeInteger(roleVersion) ||
       roleVersion < 0

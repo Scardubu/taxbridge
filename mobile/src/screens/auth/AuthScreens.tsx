@@ -36,12 +36,13 @@ export function LoginScreen() {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<any>();
-  const { login, status, error, clearError } = useAuthStore();
+  const { login, verifyMfa, cancelMfa, mfaChallengeToken, status, error, clearError } = useAuthStore();
 
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
   const [touched, setTouched]   = useState({ email: false, password: false });
   const [showPass, setShowPass] = useState(false);
+  const [mfaCode, setMfaCode] = useState('');
 
   const emailError    = touched.email    ? validateEmail(email)       : null;
   const passwordError = touched.password ? validatePassword(password)  : null;
@@ -54,11 +55,32 @@ export function LoginScreen() {
     clearError();
     try {
       await login(email.trim().toLowerCase(), password);
-      navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
+      if (useAuthStore.getState().mfaChallengeToken) {
+        setPassword('');
+      } else {
+        navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
+      }
     } catch {
       // Error displayed via store.error
     }
-  }, [isValid, email, password, login, clearError]);
+  }, [isValid, email, password, login, clearError, navigation]);
+
+  const handleVerifyMfa = useCallback(async () => {
+    if (!mfaCode.trim()) return;
+    clearError();
+    try {
+      await verifyMfa(mfaCode.trim());
+      navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
+    } catch {
+      // Error is surfaced through the auth store.
+    }
+  }, [mfaCode, verifyMfa, clearError, navigation]);
+
+  const handleCancelMfa = useCallback(() => {
+    setMfaCode('');
+    cancelMfa();
+    clearError();
+  }, [cancelMfa, clearError]);
 
   return (
     <KeyboardAvoidingView
@@ -98,78 +120,117 @@ export function LoginScreen() {
             </Animated.View>
           )}
 
-          <TextInputField
-            label={t('auth.email')}
-            value={email}
-            onChangeText={setEmail}
-            onBlur={() => setTouched(t => ({ ...t, email: true }))}
-            error={emailError ?? undefined}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoCorrect={false}
-            autoComplete="email"
-            textContentType="emailAddress"
-            placeholder="you@business.ng"
-            required
-            testID="login-email"
-          />
+          {mfaChallengeToken ? (
+            <>
+              <Text style={styles.cardSubtitle}>
+                Enter your six-digit authenticator code or an unused eight-character backup code.
+              </Text>
+              <TextInputField
+                label="Two-factor authentication code"
+                value={mfaCode}
+                onChangeText={setMfaCode}
+                keyboardType="default"
+                autoCapitalize="characters"
+                autoCorrect={false}
+                autoComplete="one-time-code"
+                placeholder="000000"
+                required
+                testID="login-mfa-code"
+              />
+              <Button
+                label={isLoading ? t('common.loading') : 'Verify and sign in'}
+                onPress={handleVerifyMfa}
+                loading={isLoading}
+                disabled={!mfaCode.trim() || isLoading}
+                fullWidth
+                size="lg"
+                style={{ marginTop: spacing[2] }}
+                testID="login-mfa-submit"
+              />
+              <Pressable onPress={handleCancelMfa} style={styles.switchLink} accessibilityRole="button">
+                <Text style={styles.switchLinkHighlight}>Use a different account</Text>
+              </Pressable>
+            </>
+          ) : (
+            <>
+            <TextInputField
+              label={t('auth.email')}
+              value={email}
+              onChangeText={setEmail}
+              onBlur={() => setTouched(t => ({ ...t, email: true }))}
+              error={emailError ?? undefined}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoComplete="email"
+              textContentType="emailAddress"
+              placeholder="you@business.ng"
+              required
+              testID="login-email"
+            />
+  
+            <TextInputField
+              label={t('auth.password')}
+              value={password}
+              onChangeText={setPassword}
+              onBlur={() => setTouched(t => ({ ...t, password: true }))}
+              error={passwordError ?? undefined}
+              secureTextEntry={!showPass}
+              autoComplete="current-password"
+              textContentType="password"
+              placeholder="••••••••"
+              required
+              testID="login-password"
+            />
+  
+            <Pressable
+              onPress={() => setShowPass(v => !v)}
+              style={styles.showPass}
+              accessibilityRole="button"
+              accessibilityLabel={showPass ? t('auth.hidePassword') : t('auth.showPassword')}
+            >
+              <Text style={styles.showPassText}>
+                {showPass ? t('auth.hidePassword') : t('auth.showPassword')}
+              </Text>
+            </Pressable>
+  
+            <Pressable
+              onPress={() => {}}
+              style={styles.forgotLink}
+              accessibilityRole="link"
+            >
+              <Text style={styles.forgotLinkText}>{t('auth.forgotPassword')}</Text>
+            </Pressable>
+  
+            <Button
+              label={isLoading ? t('common.loading') : t('auth.login')}
+              onPress={handleLogin}
+              loading={isLoading}
+              disabled={!isValid || isLoading}
+              fullWidth
+              size="lg"
+              style={{ marginTop: spacing[2] }}
+              testID="login-submit"
+            />
+  
+  
+            </>
+          )}
 
-          <TextInputField
-            label={t('auth.password')}
-            value={password}
-            onChangeText={setPassword}
-            onBlur={() => setTouched(t => ({ ...t, password: true }))}
-            error={passwordError ?? undefined}
-            secureTextEntry={!showPass}
-            autoComplete="current-password"
-            textContentType="password"
-            placeholder="••••••••"
-            required
-            testID="login-password"
-          />
-
-          <Pressable
-            onPress={() => setShowPass(v => !v)}
-            style={styles.showPass}
-            accessibilityRole="button"
-            accessibilityLabel={showPass ? t('auth.hidePassword') : t('auth.showPassword')}
-          >
-            <Text style={styles.showPassText}>
-              {showPass ? t('auth.hidePassword') : t('auth.showPassword')}
-            </Text>
-          </Pressable>
-
-          <Pressable
-            onPress={() => {}}
-            style={styles.forgotLink}
-            accessibilityRole="link"
-          >
-            <Text style={styles.forgotLinkText}>{t('auth.forgotPassword')}</Text>
-          </Pressable>
-
-          <Button
-            label={isLoading ? t('common.loading') : t('auth.login')}
-            onPress={handleLogin}
-            loading={isLoading}
-            disabled={!isValid || isLoading}
-            fullWidth
-            size="lg"
-            style={{ marginTop: spacing[2] }}
-            testID="login-submit"
-          />
-
-          <DividerWithLabel label={t('common.or')} />
-
-          <Pressable
-            onPress={() => navigation.navigate('Register' as never)}
-            style={styles.switchLink}
-            accessibilityRole="link"
-          >
-            <Text style={styles.switchLinkText}>
-              {t('auth.noAccount')}{' '}
-              <Text style={styles.switchLinkHighlight}>{t('auth.createAccount')}</Text>
-            </Text>
-          </Pressable>
+          {!mfaChallengeToken && (
+            <DividerWithLabel label={t('common.or')} />
+  
+            <Pressable
+              onPress={() => navigation.navigate('Register' as never)}
+              style={styles.switchLink}
+              accessibilityRole="link"
+            >
+              <Text style={styles.switchLinkText}>
+                {t('auth.noAccount')}{' '}
+                <Text style={styles.switchLinkHighlight}>{t('auth.createAccount')}</Text>
+              </Text>
+            </Pressable>
+          )}
         </Animated.View>
 
         {/* Footer */}

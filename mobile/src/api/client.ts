@@ -74,6 +74,18 @@ export interface AuthResponse {
   accessToken:  string;
   refreshToken: string;
 }
+export interface SessionTokenResponse {
+  accessToken: string;
+  refreshToken: string;
+  expiresIn: number;
+  user: User;
+}
+export interface MfaChallengeResponse {
+  mfaRequired: true;
+  challengeToken: string;
+  expiresIn: number;
+}
+export type LoginResult = SessionTokenResponse | MfaChallengeResponse;
 export interface User {
   id:           string;
   email:        string;
@@ -81,7 +93,7 @@ export interface User {
   businessName?: string;
   tin?:         string;
   businessType?: string;
-  role:         'user' | 'admin' | 'super-admin';
+  role:         'user' | 'admin' | 'super-admin' | 'owner' | 'accountant' | 'employee' | 'viewer' | 'member';
   createdAt:    string;
 }
 
@@ -449,11 +461,19 @@ async function apiFetch<T>(
 
 export const authApi = {
   login: (data: LoginRequest) =>
-    apiFetch<ApiResponse<AuthResponse>>('/api/v1/auth/login', {
+    apiFetch<LoginResult>('/api/v1/auth/login', {
       method:   'POST',
       body:     JSON.stringify(data),
       skipAuth: true,
       retries:  0,
+    }),
+
+  verifyMfa: (challengeToken: string, code: string) =>
+    apiFetch<SessionTokenResponse>('/api/v1/auth/mfa/verify', {
+      method: 'POST',
+      body: JSON.stringify({ challengeToken, code }),
+      skipAuth: true,
+      retries: 0,
     }),
 
   register: (data: RegisterRequest) =>
