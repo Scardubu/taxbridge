@@ -7,7 +7,7 @@ on:
     branches: [ main, master, develop ]
 
 env:
-  NODE_VERSION: '18'
+  NODE_VERSION: '20.19.4'
   DUPLO_CLIENT_ID: ${{ secrets.DUPLO_CLIENT_ID }}
   DUPLO_CLIENT_SECRET: ${{ secrets.DUPLO_CLIENT_SECRET }}
   DUPLO_API_URL: ${{ secrets.DUPLO_API_URL }}
@@ -255,7 +255,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'yarn'
+          cache: 'npm'
 
       - name: Install dependencies
         run: |
@@ -283,7 +283,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'yarn'
+          cache: 'npm'
 
       - name: Install dependencies
         run: |

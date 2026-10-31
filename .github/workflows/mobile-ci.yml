@@ -105,11 +105,11 @@ jobs:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
-      - name: EAS Build — production-apk (no-wait)
+      - name: EAS Build — wait for production-apk completion
         run: >
           eas build
           --platform android
           --profile production-apk
           --non-interactive
-          --no-wait
+          --wait
           --message "CI ${{ github.run_number }}: ${{ github.event.head_commit.message }}"
