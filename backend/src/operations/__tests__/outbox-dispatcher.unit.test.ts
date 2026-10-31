@@ -62,7 +62,7 @@ describe('operation outbox dispatcher', () => {
     expect(mockPrisma.operationOutbox.updateMany).not.toHaveBeenCalled();
   });
 
-  it('does not enqueue a retry before its nextAttemptAt', async () => {
+  it('enqueues the retry with a delay derived from its future nextAttemptAt', async () => {
     const row = {
       id: 'outbox-2',
       operationId: 'operation-2',
