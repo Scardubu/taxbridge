@@ -72,11 +72,14 @@ export async function checkRateLimit(
   identifier: string,
   type: keyof typeof RATE_LIMITS,
   ip?: string
-): Promise<{ allowed: boolean; remaining: number; resetTime?: Date; blocked?: boolean }> {
+): Promise<{ allowed: boolean; remaining: number; resetTime?: Date; blocked?: boolean; unavailable?: boolean }> {
   const redis = getRedis();
   if (!redis) {
-    // Skip rate limiting if Redis unavailable
-    return { allowed: true, remaining: 100 };
+    // In production, an unavailable distributed limiter must not become an
+    // allow-all path. Local memory is not a valid multi-instance substitute.
+    return process.env.NODE_ENV === 'production'
+      ? { allowed: false, remaining: 0, blocked: true, unavailable: true }
+      : { allowed: true, remaining: 100 };
   }
 
   const config = RATE_LIMITS[type];
@@ -114,8 +117,10 @@ export async function checkRateLimit(
     return { allowed: true, remaining, resetTime };
   } catch (error) {
     log.error('Rate limit check failed', { error, identifier, type });
-    // Fail open - allow request if rate limiting fails
-    return { allowed: true, remaining: 1 };
+    // Fail closed in production; development may proceed for local work.
+    return process.env.NODE_ENV === 'production'
+      ? { allowed: false, remaining: 0, blocked: true, unavailable: true }
+      : { allowed: true, remaining: 1 };
   }
 }
 
@@ -228,8 +233,10 @@ export function securityMiddleware(options: { enableRateLimit?: boolean; enableI
     if (enableRateLimit) {
       const rateLimitResult = await checkRateLimit(ip, 'api', ip);
       if (!rateLimitResult.allowed) {
-        reply.code(429).send({
-          error: 'Rate limit exceeded',
+        const status = rateLimitResult.unavailable ? 503 : 429;
+        reply.code(status).send({
+          error: rateLimitResult.unavailable ? 'Rate limiting temporarily unavailable' : 'Rate limit exceeded',
+          code: rateLimitResult.unavailable ? 'RATE_LIMIT_UNAVAILABLE' : 'RATE_LIMIT_EXCEEDED',
           resetTime: rateLimitResult.resetTime
         });
         return;

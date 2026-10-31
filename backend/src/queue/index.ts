@@ -6,6 +6,9 @@ import { prisma } from '../lib/prisma';
 
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
+import { initialiseObservability } from '../lib/observability';
+initialiseObservability();
+
 import { closeRedisConnection, getRedisConnection, toBullMQConnection } from './client';
 import { submitToDigiTax } from '../../integrations/digitax/adapter';
 import { DigiTaxError } from '../../integrations/digitax/adapter';

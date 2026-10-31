@@ -31,16 +31,17 @@ const sanitizePhone = (phone: string): string => {
 
 // Rate limiting helper
 async function checkRateLimit(phoneNumber: string): Promise<boolean> {
-  if (!redis) return true; // Skip rate limiting if Redis unavailable
-  
-  const key = `ussd:rate:${sanitizePhone(phoneNumber)}`;
-  const current = await redis.incr(key);
-  
-  if (current === 1) {
-    await redis.expire(key, RATE_LIMIT_WINDOW);
+  if (!redis) return process.env.NODE_ENV !== 'production';
+
+  try {
+    const key = `ussd:rate:${sanitizePhone(phoneNumber)}`;
+    const current = await redis.incr(key);
+    if (current === 1) await redis.expire(key, RATE_LIMIT_WINDOW);
+    return current <= RATE_LIMIT_MAX;
+  } catch (error) {
+    log.error('USSD rate-limit dependency unavailable', { error });
+    return process.env.NODE_ENV !== 'production';
   }
-  
-  return current <= RATE_LIMIT_MAX;
 }
 
 export class USSDHandler {

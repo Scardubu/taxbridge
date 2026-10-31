@@ -11,7 +11,7 @@ import { FastifyPluginAsync }  from 'fastify';
 import { requireRole }         from '../../plugins/requireRole';
 import { prisma }              from '../../lib/prisma';
 import { redis }               from '../../lib/redis';
-import { register }            from '../../metrics';
+import { registry }            from '../../services/metrics';
 
 const monitoringRoutes: FastifyPluginAsync = async (fastify) => {
   const isDocsMode = process.env.TAXBRIDGE_DOCS_MODE === '1';
@@ -49,7 +49,7 @@ const monitoringRoutes: FastifyPluginAsync = async (fastify) => {
     preHandler: [fastify.authenticate, requireRole('ADMIN')],
     config: { rateLimit: { max: 10, timeWindow: '1 minute' } },
   }, async (_request, reply) => {
-    const metrics = await register.metrics();
+    const metrics = await registry.metrics();
     return reply.type('text/plain; version=0.0.4').send(metrics);
   });
 };

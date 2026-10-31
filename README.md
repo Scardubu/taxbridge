@@ -370,3 +370,11 @@ Proprietary — © 2026 TaxBridge Nigeria
 
 </div>
 
+
+## Current web deployment boundary
+
+The canonical deployed web application is `admin-dashboard/` (Next.js 16). The Vercel project root is configured to `admin-dashboard`, and its package declares the Vercel-compatible Node runtime. The separate `admin/` application is not part of the canonical deployment target and must not be treated as a second production admin surface.
+
+The current web deliverable is an internal operations/admin console. This repository revision does not establish a complete SME-facing browser product. Customer registration, business setup, invoicing, receipts, filing and account-security journeys must not be described as shipped on the web until they are implemented and validated independently.
+
+See [docs/ADMIN_ARCHITECTURE.md](docs/ADMIN_ARCHITECTURE.md) for the deployment boundary, authentication contract and environment requirements.

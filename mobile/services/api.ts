@@ -1,5 +1,5 @@
-import * as Device from 'expo-device';
 import * as Crypto from 'expo-crypto';
+import * as SecureStore from 'expo-secure-store';
 import * as Sentry from '@sentry/react-native';
 import { TokenService } from './tokenService';
 import { useAuthStore } from '../stores/authStore';
@@ -7,6 +7,9 @@ import { getDatabase } from './database';
 import type { TaxCalculationResult } from '../types/taxEngine';
 
 type JsonRecord = Record<string, unknown>;
+
+const DEVICE_ID_KEY = 'taxbridge:installation_device_id';
+const DEVICE_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 let deviceIdPromise: Promise<string> | null = null;
 let refreshPromise: Promise<string | null> | null = null;
@@ -26,11 +29,18 @@ function getBaseUrl(): string {
 
 async function getDeviceId(): Promise<string> {
   deviceIdPromise ??= (async () => {
-    const generated = typeof Crypto.randomUUID === 'function'
-      ? Crypto.randomUUID()
-      : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-    return Device.osInternalBuildId ?? Device.deviceName ?? generated;
-  })();
+    const stored = await SecureStore.getItemAsync(DEVICE_ID_KEY);
+    if (stored && DEVICE_ID_PATTERN.test(stored)) return stored;
+
+    // Device model/build identifiers are shared by many installations. Use a
+    // random per-install UUID persisted in SecureStore for stable sync identity.
+    const generated = Crypto.randomUUID();
+    await SecureStore.setItemAsync(DEVICE_ID_KEY, generated);
+    return generated;
+  })().catch((error) => {
+    deviceIdPromise = null;
+    throw error;
+  });
   return deviceIdPromise;
 }
 
@@ -51,13 +61,22 @@ async function refreshAccessToken(): Promise<string | null> {
       body: JSON.stringify({ refreshToken }),
     });
 
-    if (!response.ok) {
+    if (response.status === 401 || response.status === 403) {
       return null;
+    }
+    if (!response.ok) {
+      const payload = await readErrorPayload(response);
+      throw new ApiError(
+        response.status,
+        typeof payload.code === 'string' ? payload.code : 'refresh_failed',
+        typeof payload.message === 'string' ? payload.message : 'Unable to refresh session',
+        payload,
+      );
     }
 
     const data = (await response.json()) as { accessToken?: string; refreshToken?: string };
     if (!data.accessToken) {
-      return null;
+      throw new ApiError(502, 'AUTH_REFRESH_INVALID_RESPONSE', 'Refresh response did not contain an access token');
     }
 
     await TokenService.setTokens(data.accessToken, data.refreshToken ?? refreshToken);
@@ -103,27 +122,31 @@ export async function apiRequest<T>(path: string, options: RequestInit = {}, has
   const response = await executeRequest(path, options, accessToken);
 
   if (response.status === 401 && !hasRetried) {
-    try {
-      const newAccessToken = await refreshAccessToken();
-      if (!newAccessToken) {
-        throw new ApiError(401, 'session_expired', 'Session expired');
-      }
-      const retryResponse = await executeRequest(path, options, newAccessToken);
-      if (!retryResponse.ok) {
-        const retryPayload = await readErrorPayload(retryResponse);
-        throw new ApiError(
-          retryResponse.status,
-          typeof retryPayload.code === 'string' ? retryPayload.code : 'api_error',
-          typeof retryPayload.message === 'string' ? retryPayload.message : 'api_error',
-          retryPayload,
-        );
-      }
-      return retryResponse.json() as Promise<T>;
-    } catch {
+    // Only a definitive refresh-token rejection expires the local session.
+    // Network errors and 5xx responses are propagated without deleting tokens.
+    const newAccessToken = await refreshAccessToken();
+    if (!newAccessToken) {
       await TokenService.clearTokens();
       await useAuthStore.getState().logout();
       throw new ApiError(401, 'session_expired', 'Session expired');
     }
+
+    const retryResponse = await executeRequest(path, options, newAccessToken);
+    if (!retryResponse.ok) {
+      const retryPayload = await readErrorPayload(retryResponse);
+      if (retryResponse.status === 401) {
+        await TokenService.clearTokens();
+        await useAuthStore.getState().logout();
+        throw new ApiError(401, 'session_expired', 'Session expired', retryPayload);
+      }
+      throw new ApiError(
+        retryResponse.status,
+        typeof retryPayload.code === 'string' ? retryPayload.code : 'api_error',
+        typeof retryPayload.message === 'string' ? retryPayload.message : 'api_error',
+        retryPayload,
+      );
+    }
+    return retryResponse.json() as Promise<T>;
   }
 
   if (!response.ok) {
@@ -345,40 +368,53 @@ export async function postInvoice(
 export async function initiatePayment(
   payload: PaymentPayload,
 ): Promise<{ remita_rrr: string; checkout_url: string }> {
-  try {
-    const response = await apiRequest<{ remita_rrr: string; checkout_url: string }>('/api/v1/payments/initiate', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+  // Payment initiation has an external side effect. It must never be queued for
+  // blind offline replay; the user must retry only after checking server status.
+  const response = await apiRequest<{ remita_rrr: string; checkout_url: string }>('/api/v1/payments/initiate', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
 
-    const db = await getDatabase();
-    await db.runAsync(
-      `INSERT INTO tax_payments (provider, remita_rrr, amount, currency, status)
-       VALUES ('remita', ?, ?, 'NGN', 'pending')`,
-      [response.remita_rrr, payload.amount]
-    );
+  const db = await getDatabase();
+  await db.runAsync(
+    `INSERT INTO tax_payments (provider, remita_rrr, amount, currency, status)
+     VALUES ('remita', ?, ?, 'NGN', 'pending')`,
+    [response.remita_rrr, payload.amount]
+  );
 
-    return response;
-  } catch (error) {
-    if (!(error instanceof ApiError)) {
-      const { offlineQueue } = await import('./offlineQueue');
-      await offlineQueue.enqueue('PAYMENT_INITIATE', payload as unknown as Record<string, unknown>);
-    }
-    throw error;
-  }
+  return response;
 }
 
 /**
- * Trigger asynchronous TIN verification via FIRS lookup.
- * @param tin 10-digit TIN string.
+ * Verify a TIN through the active onboarding API contract.
+ * The API currently accepts the server-defined 8-digit format and returns
+ * { valid, entityName, entityType, registrationDate }.
  */
 export async function verifyTin(
   tin: string,
 ): Promise<{ status: 'pending' | 'verified' | 'failed'; message?: string }> {
-  return apiRequest<{ status: 'pending' | 'verified' | 'failed'; message?: string }>('/api/v1/tin/verify', {
-    method: 'POST',
-    body: JSON.stringify({ tin }),
-  });
+  try {
+    const result = await apiRequest<{
+      valid: boolean;
+      entityName?: string;
+    }>('/api/v1/onboarding/tin', {
+      method: 'POST',
+      body: JSON.stringify({ tin }),
+    });
+
+    return {
+      status: result.valid ? 'verified' : 'failed',
+      ...(result.entityName ? { message: `Verified: ${result.entityName}` } : {}),
+    };
+  } catch (error) {
+    const details = error instanceof ApiError && error.details && typeof error.details === 'object'
+      ? error.details as JsonRecord
+      : {};
+    if (error instanceof ApiError && (error.code === 'TIN_INVALID' || details.error === 'TIN_INVALID')) {
+      return { status: 'failed', message: error.message };
+    }
+    throw error;
+  }
 }
 
 /**
