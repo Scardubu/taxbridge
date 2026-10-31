@@ -12,7 +12,10 @@ services:
     name: taxbridge-api
     region: frankfurt
     runtime: docker
-    healthCheckPath: /api/v2/monitoring/health
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    preDeployCommand: npx prisma migrate deploy --schema=backend/prisma/schema.prisma
+    healthCheckPath: /health/ready
     envVars:
       - key: NODE_ENV
         value: production
@@ -24,13 +27,13 @@ services:
         value: https://admin.taxbridge.ng,https://taxbridge.ng
       # Integration mock modes — disable when live credentials are set in Dashboard
       - key: DIGITAX_MOCK_MODE
-        value: "true"
+        value: "false"
       - key: REMITA_MOCK_MODE
-        value: "true"
+        value: "false"
       - key: FLW_MOCK_MODE
-        value: "true"
+        value: "false"
       - key: PAYSTACK_MOCK_MODE
-        value: "true"
+        value: "false"
       # DigiTax API URL (non-secret)
       - key: DIGITAX_API_URL
         value: https://api.digitax.ng
@@ -44,6 +47,12 @@ services:
           type: redis
           name: taxbridge-redis
           property: connectionString
+      - key: JWT_PRIVATE_KEY
+        sync: false
+      - key: JWT_PUBLIC_KEY
+        sync: false
+      - key: INTERNAL_API_KEY
+        sync: false
       - key: JWT_SECRET
         sync: false
       - key: JWT_REFRESH_SECRET
@@ -56,6 +65,10 @@ services:
         sync: false
       - key: ADMIN_API_KEYS
         sync: false
+      - key: OPERATION_PIPELINE_ENABLED
+        value: "false"
+      - key: NRS_MOCK_MODE
+        value: "false"
       - key: REMITA_MERCHANT_ID
         sync: false
       - key: REMITA_API_KEY
@@ -78,6 +91,7 @@ services:
     autoDeploy: true
     buildCommand: >-
       npm ci &&
+      npm run build --workspace=@taxbridge/contracts &&
       npm run build --workspace=@taxbridge/backend &&
       npm run ubl:download-xsd --workspace=@taxbridge/backend
     startCommand: npm run worker --workspace=@taxbridge/backend
@@ -108,9 +122,15 @@ services:
       
       # Integration Mode - Stage 1 Soft Launch: Enable mock mode
       - key: DIGITAX_MOCK_MODE
-        value: "true"
+        value: "false"
       - key: REMITA_MOCK_MODE
-        value: "true"
+        value: "false"
+      - key: FLW_MOCK_MODE
+        value: "false"
+      - key: PAYSTACK_MOCK_MODE
+        value: "false"
+      - key: NRS_MOCK_MODE
+        value: "false"
       # DigiTax API base URL
       - key: DIGITAX_API_URL
         value: https://api.digitax.ng
