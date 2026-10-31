@@ -29,6 +29,7 @@ declare module 'fastify' {
       orgId: string;
       role: string;
       roleVersion: number;
+      jti?: string;
     };
   }
 }
@@ -95,6 +96,10 @@ export default fp(async function authenticatePlugin(fastify) {
       });
     }
 
-    request.user = { userId, orgId, role, roleVersion };
+    const jti = typeof payload.jti === 'string' && payload.jti.length <= 128
+      ? payload.jti
+      : undefined;
+
+    request.user = { userId, orgId, role, roleVersion, jti };
   });
 });

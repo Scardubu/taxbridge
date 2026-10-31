@@ -107,6 +107,11 @@ const totpRoutes: FastifyPluginAsync = async (fastify) => {
     const userId = requireAuth(request, reply);
     if (!userId) return;
 
+    const sessionId = (request as any).user?.jti;
+    if (typeof sessionId !== 'string' || sessionId.length === 0 || sessionId.length > 128) {
+      return reply.code(401).send({ error: 'SESSION_REAUTHENTICATION_REQUIRED' });
+    }
+
     const parsed = VerifyBody.safeParse(request.body);
     if (!parsed.success) {
       return reply.status(400).send({ error: 'VALIDATION_ERROR', issues: parsed.error.issues });
@@ -141,8 +146,9 @@ const totpRoutes: FastifyPluginAsync = async (fastify) => {
         },
       });
 
-      // Mark session as 2FA-passed in Redis
-      await redis.setex(`totp:verified:${userId}`, 300, '1');
+      // Step-up proof belongs to this bearer-token session only. A successful
+      // TOTP challenge on one device must never authorize another device.
+      await redis.setex(`totp:verified:${userId}:${sessionId}`, 300, '1');
 
       await writeAuditEvent(
         { actorId: userId, action: 'TOTP_ACTIVATED', details: {} },
@@ -199,7 +205,12 @@ const totpRoutes: FastifyPluginAsync = async (fastify) => {
         await bumpAuthVersion(tx, userId);
       });
       await revokeUserRefreshSessions(userId);
-      await redis.del(`totp:verified:${userId}`);
+      const sessionId = (request as any).user?.jti;
+      const verificationKeys = [`totp:verified:${userId}`];
+      if (typeof sessionId === 'string' && sessionId.length > 0) {
+        verificationKeys.push(`totp:verified:${userId}:${sessionId}`);
+      }
+      await redis.del(...verificationKeys);
 
       await writeAuditEvent(
         { actorId: userId, action: 'ROLE_CHANGE', details: { reason: 'totp_disabled' } },

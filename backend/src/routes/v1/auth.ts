@@ -142,7 +142,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     const roleVersion = user.authVersion;
 
     const accessToken = await signToken(
-      { sub: user.id, orgId: primaryMembership.orgId, role: primaryMembership.role ?? user.role, role_version: roleVersion },
+      { sub: user.id, orgId: primaryMembership.orgId, role: primaryMembership.role ?? user.role, role_version: roleVersion, jti: randomUUID() },
       typeof secret === 'string' ? secret : secret,
       '15m',
     );
@@ -248,6 +248,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
         orgId: membership.orgId,
         role: membership.role ?? user.role,
         role_version: user.authVersion,
+        jti: randomUUID(),
       }, signingSecret, '15m');
 
       const newRefreshToken = await signToken(
