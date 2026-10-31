@@ -3,6 +3,10 @@ import NetInfo from '@react-native-community/netinfo';
 import { getDatabase } from './database';
 import { apiRequest } from './api';
 
+// The durable server operation pipeline has no approved business handlers yet.
+// Keep queued writes local until the shared contract and server worker are enabled.
+const SYNC_PIPELINE_ENABLED = process.env.EXPO_PUBLIC_SYNC_PIPELINE_ENABLED === 'true';
+
 export type OpType =
   | 'TIN_VERIFY'
   | 'VAT_REGISTER'
@@ -11,7 +15,6 @@ export type OpType =
   | 'RECEIPT_SUBMIT'
   | 'VAT_RETURN'
   | 'PROFILE_SYNC'
-  | 'PAYMENT_INITIATE'
   | 'COMPLIANCE_EVENT';
 
 export class OfflineQueue {
@@ -27,8 +30,10 @@ export class OfflineQueue {
   start(): void {
     if (this.ready) return;
     this.ready = true;
+    if (!SYNC_PIPELINE_ENABLED) return;
+
     this.unsubscribe = NetInfo.addEventListener((state) => {
-      if (state.isConnected && !this.flushing) {
+      if (state.isConnected === true && state.isInternetReachable === true && !this.flushing) {
         this.flush().catch(() => undefined);
       }
     });
@@ -54,11 +59,16 @@ export class OfflineQueue {
   }
 
   async flush(): Promise<void> {
-    if (this.flushing) return;
+    if (!SYNC_PIPELINE_ENABLED || this.flushing) return;
     this.flushing = true;
-    const db = await getDatabase();
 
     try {
+      // Require confirmed internet reachability, not merely an active network
+      // interface (which may be a captive portal or disconnected upstream).
+      const network = await NetInfo.fetch();
+      if (network.isConnected !== true || network.isInternetReachable !== true) return;
+
+      const db = await getDatabase();
       await db.runAsync("UPDATE offline_operations SET status='pending' WHERE status='syncing'");
 
       const operations = await db.getAllAsync<{

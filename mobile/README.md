@@ -1010,3 +1010,8 @@ For technical support:
 **Built with ❤️ for Nigerian SMEs**
 
 </div>
+
+
+## Release environment requirements
+
+The Android app reads release crash reporting from `EXPO_PUBLIC_SENTRY_DSN`. Configure this value as an EAS production/preview environment secret; do not place the DSN or any private Sentry upload credential in a checked-in profile. The offline operation replay feature remains disabled by default (`EXPO_PUBLIC_SYNC_PIPELINE_ENABLED=false`) until the API operation envelope, approved business handlers, dispatcher/worker deployment and end-to-end idempotency tests are enabled together.

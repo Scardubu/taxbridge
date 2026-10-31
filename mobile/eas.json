@@ -14,7 +14,8 @@
       "env": {
         "EAS_BUILD_DISABLE_NPM_CACHE": "1",
         "METRO_CACHE_DISABLED": "1",
-        "CI": "1"
+        "CI": "1",
+        "EXPO_PUBLIC_SYNC_PIPELINE_ENABLED": "false"
       },
       "distribution": "internal",
       "channel": "development"
@@ -24,8 +25,7 @@
       "developmentClient": true,
       "env": {
         "EXPO_PUBLIC_ENV": "development",
-        "EXPO_PUBLIC_API_URL": "${EXPO_PUBLIC_DEV_API_URL}",
-        "SENTRY_DSN": "SET_VIA_EAS_SECRET"
+        "EXPO_PUBLIC_API_URL": "${EXPO_PUBLIC_DEV_API_URL}"
       },
       "android": {
         "buildType": "apk"
@@ -50,8 +50,7 @@
       },
       "env": {
         "EXPO_PUBLIC_ENV": "preview",
-        "EXPO_PUBLIC_API_URL": "https://taxbridge-api-ker8.onrender.com",
-        "SENTRY_DSN": "SET_VIA_EAS_SECRET"
+        "EXPO_PUBLIC_API_URL": "https://taxbridge-api-ker8.onrender.com"
       }
     },
     "production-apk": {
@@ -70,7 +69,6 @@
         "NODE_ENV": "production",
         "EXPO_PUBLIC_ENV": "production",
         "EXPO_PUBLIC_API_URL": "https://taxbridge-api-ker8.onrender.com",
-        "SENTRY_DSN": "SET_VIA_EAS_SECRET",
         "CI": "1"
       }
     },
@@ -82,9 +80,9 @@
       },
       "distribution": "store",
       "android": {
-          "buildType": "app-bundle",
-          "gradleCommand": ":app:bundleRelease"
-        },
+        "buildType": "app-bundle",
+        "gradleCommand": ":app:bundleRelease"
+      },
       "ios": {
         "buildConfiguration": "Release",
         "autoIncrement": "buildNumber"
@@ -93,7 +91,6 @@
         "NODE_ENV": "production",
         "EXPO_PUBLIC_ENV": "production",
         "EXPO_PUBLIC_API_URL": "https://taxbridge-api-ker8.onrender.com",
-        "SENTRY_DSN": "SET_VIA_EAS_SECRET",
         "CI": "1"
       }
     }
