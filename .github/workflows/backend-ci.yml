@@ -55,7 +55,7 @@ jobs:
       postgres:
         image: postgres:15
         env:
-          POSTGRES_PASSWORD: postgres
+          POSTGRES_PASSWORD: ${{ format('tbci-{0}-{1}', github.run_id, github.run_attempt) }}
           POSTGRES_DB: taxbridge_test
         options: >-
           --health-cmd pg_isready
@@ -95,13 +95,13 @@ jobs:
           npm run prisma:generate --prefix backend
           npm run db:migrate --prefix backend
         env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/taxbridge_test
+          DATABASE_URL: postgresql://postgres:${{ format('tbci-{0}-{1}', github.run_id, github.run_attempt) }}@localhost:5432/taxbridge_test
 
       - name: Run integration tests
         run: npm run test:integration --prefix backend
         env:
           CI: true
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/taxbridge_test
+          DATABASE_URL: postgresql://postgres:${{ format('tbci-{0}-{1}', github.run_id, github.run_attempt) }}@localhost:5432/taxbridge_test
           REDIS_URL: redis://localhost:6379
 
       - name: Test Duplo integration
@@ -222,7 +222,7 @@ jobs:
           npm run dev --prefix backend &
           sleep 30
         env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/taxbridge_test
+          DATABASE_URL: postgresql://postgres:${{ format('tbci-{0}-{1}', github.run_id, github.run_attempt) }}@localhost:5432/taxbridge_test
           REDIS_URL: redis://localhost:6379
 
       - name: Run load tests
