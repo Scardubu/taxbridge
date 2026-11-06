@@ -6,7 +6,6 @@
  * C-07: Always 200 — FALLBACK_* on every .catch()
  */
 import { FastifyPluginAsync }  from 'fastify';
-import { requireRole }         from '../../plugins/requireRole';
 import { prisma }              from '../../lib/prisma';
 
 const FALLBACK_EMPTY = { data: [], meta: { total: 0 } };
