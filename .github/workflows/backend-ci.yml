@@ -20,6 +20,17 @@ jobs:
   unit-tests:
     name: Unit Tests
     runs-on: ubuntu-latest
+    env:
+      CI: 'true'
+      NODE_ENV: test
+      PORT: '3000'
+      JWT_SECRET: ci-only-taxbridge-jwt-secret-not-valid-outside-this-workflow
+      ALLOWED_ORIGINS: http://localhost:3000
+      DATABASE_URL: postgresql://build:build@127.0.0.1:5432/taxbridge_build
+      DIRECT_URL: postgresql://build:build@127.0.0.1:5432/taxbridge_build
+      REDIS_URL: redis://localhost:6379
+      TAXBRIDGE_DOCS_MODE: '1'
+      TAXBRIDGE_SKIP_REDIS_CONNECT: '1'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -52,6 +63,12 @@ jobs:
   integration-tests:
     name: Integration Tests
     runs-on: ubuntu-latest
+    env:
+      CI: 'true'
+      NODE_ENV: test
+      PORT: '3000'
+      JWT_SECRET: ci-only-taxbridge-jwt-secret-not-valid-outside-this-workflow
+      ALLOWED_ORIGINS: http://localhost:3000
     services:
       postgres:
         image: postgres:15
