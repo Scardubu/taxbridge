@@ -472,15 +472,20 @@ export default async function adminSyncRoutes(app: FastifyInstance) {
           }
         });
 
-        // Mark conflict as resolved
-        const resolvedConflict = await tx.conflict.update({
-          where: { id: body.conflictId },
+        // Atomically claim the unresolved conflict. Concurrent resolvers
+        // cannot both apply invoice changes or increment its version.
+        const claimedConflict = await tx.conflict.updateMany({
+          where: { id: body.conflictId, resolution: null },
           data: {
             resolution: body.resolution,
             status: resolutionStatus,
-            resolvedAt: new Date()
-          }
+            resolvedBy: adminActorId,
+            resolvedAt: new Date(),
+          },
         });
+        if (claimedConflict.count !== 1) {
+          throw new Error('CONFLICT_ALREADY_RESOLVED');
+        }
 
         // Create admin action audit record
         const adminAction = await tx.adminAction.create({
@@ -503,15 +508,15 @@ export default async function adminSyncRoutes(app: FastifyInstance) {
               changedFields: resolutionData.changedFields,
               resultingVersion: conflict.invoice.version + 1,
               totals: {
-                subtotal: finalData.subtotal ?? conflict.invoice.subtotal.toString(),
-                vat: finalData.vat ?? conflict.invoice.vat.toString(),
-                total: finalData.total ?? conflict.invoice.total.toString(),
+                subtotal: String(finalData.subtotal ?? conflict.invoice.subtotal.toString()),
+                vat: String(finalData.vat ?? conflict.invoice.vat.toString()),
+                total: String(finalData.total ?? conflict.invoice.total.toString()),
               }
             }
           }
         });
 
-        return { updatedInvoice, resolvedConflict, adminAction };
+        return { updatedInvoice, adminAction };
       });
 
       log.info('Admin conflict resolution', {
@@ -537,6 +542,9 @@ export default async function adminSyncRoutes(app: FastifyInstance) {
           error: 'Validation failed', 
           details: error.issues 
         });
+      }
+      if (error.message === 'CONFLICT_ALREADY_RESOLVED') {
+        return reply.status(409).send({ error: 'CONFLICT_ALREADY_RESOLVED' });
       }
       
       return reply.status(500).send({ error: 'Internal server error' });
