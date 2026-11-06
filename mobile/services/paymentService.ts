@@ -5,67 +5,60 @@ import { getDatabase } from './database';
 export type PaymentGateway = 'paystack' | 'flutterwave' | 'remita';
 
 export interface InitializePaymentInput {
-  invoiceId?: string;
-  taxRecordId?: string;
+  invoiceId: string;
+  idempotencyKey: string;
+  payerName: string;
+  payerEmail: string;
+  payerPhone: string;
   gateway: PaymentGateway;
-  amountNGN: number;
-  email: string;
   callbackUrl?: string;
 }
 
 export interface InitializePaymentResponse {
-  paymentId?: string;
-  reference: string;
-  authorizationUrl?: string;
-  accessCode?: string;
+  rrr: string;
+  paymentUrl: string | null;
   gateway: PaymentGateway;
   amount: number;
-  remitaRrr?: string;
-  status: string;
 }
 
 export async function initializePayment(input: InitializePaymentInput): Promise<InitializePaymentResponse> {
-  const response = await apiRequest<InitializePaymentResponse>('/api/v1/payments/initialize', {
-    method: 'POST',
-    body: JSON.stringify({
-      ...input,
-      amount: input.amountNGN,
-    }),
-  });
-
-  if (input.gateway === 'remita' && response.remitaRrr) {
-    const db = await getDatabase();
-    const numericTaxRecordId = input.taxRecordId && /^\d+$/.test(input.taxRecordId)
-      ? Number(input.taxRecordId)
-      : null;
-
-    await db.runAsync(
-      `INSERT INTO tax_payments (
-         server_id, tax_record_id, provider, provider_ref, remita_rrr, amount, currency, status
-       ) VALUES (?, ?, 'remita', ?, ?, ?, 'NGN', ?)` ,
-      [
-        response.paymentId ?? null,
-        numericTaxRecordId,
-        response.reference,
-        response.remitaRrr,
-        input.amountNGN,
-        response.status,
-      ]
-    );
+  if (input.idempotencyKey.trim().length < 16 || input.idempotencyKey.length > 200) {
+    throw new Error('A stable payment idempotency key is required');
   }
 
-  await logComplianceEvent('tax_payment_initiated', `Payment initiated via ${input.gateway}`, 'info', {
-    gateway: input.gateway,
-    amount: input.amountNGN,
-    reference: response.reference,
-    remitaRrr: response.remitaRrr,
+  const { idempotencyKey, ...paymentRequest } = input;
+  const response = await apiRequest<InitializePaymentResponse>('/api/v1/payments/generate', {
+    method: 'POST',
+    headers: { 'Idempotency-Key': idempotencyKey },
+    body: JSON.stringify(paymentRequest),
+  });
+
+  const db = await getDatabase();
+  await db.runAsync(
+    `INSERT INTO tax_payments (
+       provider, provider_ref, remita_rrr, amount, currency, status
+     ) VALUES (?, ?, ?, ?, 'NGN', 'pending')`,
+    [
+      response.gateway,
+      response.rrr,
+      response.gateway === 'remita' ? response.rrr : null,
+      response.amount,
+    ]
+  );
+
+  await logComplianceEvent('tax_payment_initiated', 'Invoice payment initiated via ' + input.gateway, 'info', {
+    gateway: response.gateway,
+    invoiceId: input.invoiceId,
+    amount: response.amount,
+    reference: response.rrr,
   }).catch(() => undefined);
 
   return response;
 }
 
-export async function verifyPayment(reference: string) {
-  return apiRequest('/api/v1/payments/verify/' + reference, {
+/** Fetch the server-authoritative payment status for an invoice. */
+export async function verifyPayment(invoiceId: string) {
+  return apiRequest('/api/v1/payments/' + encodeURIComponent(invoiceId) + '/status', {
     method: 'GET',
   });
 }
@@ -75,7 +68,7 @@ export async function markPaymentConfirmed(remitaRrr: string): Promise<void> {
   await db.runAsync(
     `UPDATE tax_payments
      SET status = 'successful', completed_at = datetime('now')
-     WHERE remita_rrr = ?`,
-    [remitaRrr]
+     WHERE remita_rrr = ? OR provider_ref = ?`,
+    [remitaRrr, remitaRrr]
   );
 }
