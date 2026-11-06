@@ -96,7 +96,7 @@ export default async function invoicesRoutes(app: FastifyInstance, opts: { prism
 
   app.post(
     '/api/v1/invoices',
-    { preHandler: [app.authenticate] },
+    { preHandler: [app.authenticate, app.resolveOrgContext] },
     async (req, reply) => {
       const bodyParse = InvoiceBodySchema.safeParse(req.body);
       if (!bodyParse.success) {
@@ -208,7 +208,7 @@ export default async function invoicesRoutes(app: FastifyInstance, opts: { prism
 
   app.get(
     '/api/v1/invoices',
-    { preHandler: [app.authenticate] },
+    { preHandler: [app.authenticate, app.resolveOrgContext] },
     async (req, reply) => {
       const userId = await requireResolvedUserId(req);
 
@@ -243,7 +243,7 @@ export default async function invoicesRoutes(app: FastifyInstance, opts: { prism
 
   app.get(
     '/api/v1/invoices/:id',
-    { preHandler: [app.authenticate] },
+    { preHandler: [app.authenticate, app.resolveOrgContext] },
     async (req, reply) => {
       const paramsParse = InvoiceParamsSchema.safeParse(req.params);
       if (!paramsParse.success) {
@@ -281,7 +281,7 @@ export default async function invoicesRoutes(app: FastifyInstance, opts: { prism
 
   app.put(
     '/api/v1/invoices/:id',
-    { preHandler: [app.authenticate] },
+    { preHandler: [app.authenticate, app.resolveOrgContext] },
     async (req, reply) => {
       const paramsParse = InvoiceParamsSchema.safeParse(req.params);
       if (!paramsParse.success) {
