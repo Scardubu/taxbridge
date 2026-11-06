@@ -80,7 +80,7 @@ export function getAccessibleResources(userRole: UserRole): Resource[] {
 export function assertValidRole(role: unknown): asserts role is UserRole {
   const valid: UserRole[] = ['SUPER_ADMIN', 'ADMIN', 'OWNER', 'ACCOUNTANT', 'EMPLOYEE', 'VIEWER'];
   // Also accept lowercase legacy roles (backward compat with V12 JWTs)
-  const validLower = ['admin', 'owner', 'accountant', 'employee', 'viewer'];
+  const validLower = ['admin', 'owner', 'accountant', 'employee', 'member', 'viewer'];
   if (!valid.includes(role as UserRole) && !validLower.includes(role as string)) {
     throw new Error(`Invalid role: "${role}". Must be one of: ${valid.join(', ')}`);
   }
@@ -91,8 +91,11 @@ export function assertValidRole(role: unknown): asserts role is UserRole {
  * Migration helper — drop when all JWTs are re-issued with uppercase roles.
  */
 export function normaliseRole(role: string): UserRole {
-  const upper = role.toUpperCase() as UserRole;
-  if (ROLE_HIERARCHY[upper] !== undefined) return upper;
-  // Fallback
+  const upper = role.trim().toUpperCase();
+  if (upper === 'MEMBER') return 'EMPLOYEE';
+  if (Object.prototype.hasOwnProperty.call(ROLE_HIERARCHY, upper)) {
+    return upper as UserRole;
+  }
+  // Unknown or absent legacy roles receive the least-privileged role.
   return 'VIEWER';
 }
