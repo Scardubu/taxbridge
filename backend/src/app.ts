@@ -8,6 +8,7 @@
  */
 import './validateEnv'; // ← MUST be absolute first import; hard-crashes on missing env
 
+import * as Sentry from '@sentry/node';
 import { timingSafeEqual } from 'node:crypto';
 import Fastify, { FastifyInstance }     from 'fastify';
 import fastifyCors                       from '@fastify/cors';
@@ -243,6 +244,19 @@ export async function buildApp(): Promise<FastifyInstance> {
     fastify.log.error({ err: error }, 'Unhandled error');
     const status = Number.isInteger((error as any).statusCode) ? (error as any).statusCode : 500;
     const code = status >= 500 ? 'INTERNAL_ERROR' : ((error as any).code ?? 'REQUEST_ERROR');
+
+    // Capture handled server errors without attaching request bodies, headers,
+    // identifiers, or other potentially sensitive tax and authentication data.
+    if (status >= 500) {
+      Sentry.withScope((scope) => {
+        scope.setTag('component', 'fastify-api');
+        scope.setTag('http.method', _request.method);
+        scope.setTag('http.route', _request.routeOptions?.url ?? 'unmatched');
+        scope.setExtra('requestId', _request.id);
+        Sentry.captureException(error);
+      });
+    }
+
     reply.code(status).send({
       error: code,
       message: status >= 500 ? 'An unexpected error occurred' : error.message,
