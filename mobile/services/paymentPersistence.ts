@@ -1,12 +1,12 @@
+import type * as SQLite from 'expo-sqlite';
+
 export interface LocalPaymentResult {
   gateway: 'paystack' | 'flutterwave' | 'remita';
   rrr: string;
   amount: number;
 }
 
-export interface LocalPaymentDatabase {
-  runAsync(sql: string, ...params: unknown[]): Promise<unknown>;
-}
+export type LocalPaymentDatabase = SQLite.SQLiteDatabase;
 
 /**
  * Persist a server-authoritative payment result exactly once locally.
