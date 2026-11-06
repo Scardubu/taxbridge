@@ -12,6 +12,7 @@
 export * from './constants';
 export * from './pit';
 export * from './vat';
+export * from './invoice';
 export * from './wht';
 export * from './cit';
 export * from './cgt';
