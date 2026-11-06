@@ -197,10 +197,7 @@ describe('payment initiation idempotency and recovery', () => {
     expect(response.json().code).toBe('IDEMPOTENCY_KEY_REQUIRED');
     expect(mockInitializePayment).not.toHaveBeenCalled();
   });
-});
 
-
-describe('payment provider configuration and key invariants', () => {
   it('does not create a reservation when no gateway is configured', async () => {
     mockGetAvailableGateways.mockReturnValue([]);
 
@@ -234,4 +231,6 @@ describe('payment provider configuration and key invariants', () => {
     expect(second.json().code).toBe('IDEMPOTENCY_KEY_REUSED');
     expect(mockInitializePayment).toHaveBeenCalledTimes(1);
   });
+
 });
+
