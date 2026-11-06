@@ -16,6 +16,7 @@ on:
 
 env:
   NODE_VERSION: '20.x'
+  PRISMA_SKIP_POSTINSTALL_GENERATE: 'true'
   DOCKER_REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
 
@@ -114,7 +115,7 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-          cache-dependency-path: backend/package-lock.json
+          cache-dependency-path: package-lock.json
 
       - name: Install root workspace dependencies
         run: npm ci
@@ -124,6 +125,9 @@ jobs:
 
       - name: Generate Prisma client
         working-directory: ./backend
+        env:
+          DATABASE_URL: postgresql://build:build@127.0.0.1:5432/taxbridge_build
+          DIRECT_URL: postgresql://build:build@127.0.0.1:5432/taxbridge_build
         run: npx prisma generate
 
       - name: Run database migrations
@@ -172,8 +176,7 @@ jobs:
     name: Build Docker Images (staging only)
     runs-on: ubuntu-latest
     needs: [validate, backend-tests]
-    if: github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'staging'
-    if: always() && (needs.backend-tests.result == 'success' || needs.backend-tests.result == 'skipped')
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.environment == 'staging' && (needs.backend-tests.result == 'success' || needs.backend-tests.result == 'skipped')
     permissions:
       contents: read
       packages: write
