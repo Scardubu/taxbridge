@@ -6,9 +6,8 @@
  */
 
 import { PaystackAdapter } from '../integrations/paystack/adapter';
-import { FlutterwaveAdapter } from '../integrations/flutterwave/adapter';
+import { FlutterwaveAdapter, flutterwaveAdapter } from '../integrations/flutterwave/adapter';
 import { paystackAdapter } from '../integrations/paystack/adapter';
-import { flutterwaveAdapter } from '../integrations/flutterwave/adapter';
 import { paymentGateway } from '../services/payment-gateway';
 import { paystackBreaker } from '../services/circuit-breaker';
 
