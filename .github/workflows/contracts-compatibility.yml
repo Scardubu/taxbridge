@@ -9,6 +9,9 @@ on:
 permissions:
   contents: read
 
+env:
+  PRISMA_SKIP_POSTINSTALL_GENERATE: 'true'
+
 jobs:
   v1-compatibility:
     name: Enforce append-only /api/v1 contracts
