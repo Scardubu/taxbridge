@@ -227,11 +227,13 @@ export interface InvoicePayload {
 }
 
 export interface PaymentPayload {
-  amount: number;
-  description: string;
-  tax_type: string;
-  period: string;
+  invoiceId: string;
+  payerName: string;
+  payerEmail: string;
+  payerPhone: string;
   idempotency_key: string;
+  gateway?: 'paystack' | 'flutterwave' | 'remita';
+  callbackUrl?: string;
 }
 
 export interface AdminAlert {
@@ -367,19 +369,30 @@ export async function postInvoice(
  */
 export async function initiatePayment(
   payload: PaymentPayload,
-): Promise<{ remita_rrr: string; checkout_url: string }> {
-  // Payment initiation has an external side effect. It must never be queued for
-  // blind offline replay; the user must retry only after checking server status.
-  const response = await apiRequest<{ remita_rrr: string; checkout_url: string }>('/api/v1/payments/initiate', {
+): Promise<{ rrr: string; paymentUrl: string | null; amount: number; gateway: 'paystack' | 'flutterwave' | 'remita' }> {
+  // Payment creation is online-only and invoice-backed. The server calculates
+  // the payable amount from the authenticated user's stamped invoice.
+  if (payload.idempotency_key.trim().length < 16 || payload.idempotency_key.length > 200) {
+    throw new ApiError(400, 'IDEMPOTENCY_KEY_REQUIRED', 'A stable payment idempotency key is required');
+  }
+
+  const { idempotency_key, ...paymentRequest } = payload;
+  const response = await apiRequest<{
+    rrr: string;
+    paymentUrl: string | null;
+    amount: number;
+    gateway: 'paystack' | 'flutterwave' | 'remita';
+  }>('/api/v1/payments/generate', {
     method: 'POST',
-    body: JSON.stringify(payload),
+    headers: { 'Idempotency-Key': idempotency_key },
+    body: JSON.stringify(paymentRequest),
   });
 
   const db = await getDatabase();
   await db.runAsync(
-    `INSERT INTO tax_payments (provider, remita_rrr, amount, currency, status)
-     VALUES ('remita', ?, ?, 'NGN', 'pending')`,
-    [response.remita_rrr, payload.amount]
+    `INSERT INTO tax_payments (provider, provider_ref, remita_rrr, amount, currency, status)
+     VALUES (?, ?, ?, ?, 'NGN', 'pending')`,
+    [response.gateway, response.rrr, response.gateway === 'remita' ? response.rrr : null, response.amount]
   );
 
   return response;
