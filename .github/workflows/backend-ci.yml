@@ -158,9 +158,44 @@ jobs:
         run: docker-compose -f infra/docker-compose.dev.yml down
 
   # Security Tests (5% of test pyramid)
+  # Security Tests (API-backed; uses the same application and dependencies as runtime)
   security-tests:
     name: Security Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ${{ format('tbci-{0}-{1}', github.run_id, github.run_attempt) }}
+          POSTGRES_DB: taxbridge_security
+        options: >-
+          --health-cmd "pg_isready -U postgres -d taxbridge_security"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+        ports:
+          - 5432:5432
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+        ports:
+          - 6379:6379
+    env:
+      CI: 'true'
+      NODE_ENV: development
+      PORT: '3000'
+      LOG_FORMAT: json
+      LOG_LEVEL: error
+      JWT_SECRET: ci-only-taxbridge-jwt-secret-not-valid-outside-this-workflow
+      ALLOWED_ORIGINS: http://localhost:3000
+      DATABASE_URL: postgresql://postgres:${{ format('tbci-{0}-{1}', github.run_id, github.run_attempt) }}@localhost:5432/taxbridge_security
+      REDIS_URL: redis://localhost:6379
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -171,20 +206,48 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
 
-      - name: Install dependencies
-        run: |
-          npm ci
-          npm ci --prefix backend
+      - name: Install workspace dependencies
+        run: npm ci
 
-      - name: Run security audit
+      - name: Generate Prisma client and apply migrations
+        run: |
+          npm run prisma:generate --prefix backend
+          npm run prisma:migrate:deploy --prefix backend
+
+      - name: Start the actual Fastify API
+        run: |
+          npm run dev --prefix backend > "$RUNNER_TEMP/taxbridge-security-api.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/taxbridge-security-api.pid"
+          for attempt in $(seq 1 60); do
+            if curl --silent --fail http://localhost:3000/health/ready >/dev/null; then
+              echo "Fastify API is ready."
+              exit 0
+            fi
+            sleep 2
+          done
+          cat "$RUNNER_TEMP/taxbridge-security-api.log"
+          echo "Fastify API failed to become ready." >&2
+          exit 1
+
+      - name: Run route-aware security regression checks
         run: npm run test:security --prefix backend
 
-      - name: Run OWASP ZAP Baseline Scan
+      - name: Run OWASP ZAP Baseline Scan against the API documentation surface
         uses: zaproxy/action-baseline@v0.7.0
         with:
-          target: 'http://localhost:3000'
+          target: 'http://localhost:3000/docs'
           rules_file_name: '.zap/rules.tsv'
           cmd_options: '-a'
+
+      - name: Stop Fastify API
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/taxbridge-security-api.pid" ]; then
+            kill "$(cat "$RUNNER_TEMP/taxbridge-security-api.pid")" 2>/dev/null || true
+          fi
+          if [ -f "$RUNNER_TEMP/taxbridge-security-api.log" ]; then
+            tail -n 100 "$RUNNER_TEMP/taxbridge-security-api.log"
+          fi
 
   # Performance/Load Tests
   performance-tests:
@@ -244,9 +307,11 @@ jobs:
           node backend/scripts/check-performance-gates.js
 
   # OCR Processing Tests
+  # OCR Processing Tests
   ocr-tests:
     name: OCR Processing Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -257,19 +322,13 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
 
-      - name: Install dependencies
-        run: |
-          npm ci
-          npm ci --prefix backend
+      - name: Install workspace dependencies
+        run: npm ci
 
-      - name: Run OCR tests
-        run: npm run ocr:test --prefix backend
-
-      - name: Run OCR assertions
-        run: npm run ocr:assert --prefix backend
+      - name: Run the committed OCR integration tests
+        run: npm exec --prefix backend -- jest src/__tests__/performOCR.test.ts --runInBand
         env:
-          CI: true
-
+          CI: 'true'
   # Build and Package
   build:
     name: Build Application
