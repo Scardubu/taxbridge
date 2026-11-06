@@ -3,7 +3,7 @@ import { mkdirSync, writeFileSync } from 'fs';
 const SWAGGER_ENV_DEFAULTS: Record<string, string> = {
   DATABASE_URL: 'postgresql://taxbridge:taxbridge@localhost:5432/taxbridge',
   REDIS_URL: 'redis://localhost:6379',
-  JWT_SECRET: 'swagger-docs-jwt-secret',
+  JWT_SECRET: 'swagger-docs-jwt-secret-must-be-at-least-32-chars-long',
   NRS_API_KEY: 'swagger-docs-nrs-key',
   CLOUDFLARE_R2_BUCKET: 'swagger-docs-bucket',
   CLOUDFLARE_R2_ENDPOINT: 'https://example-account.r2.cloudflarestorage.com',

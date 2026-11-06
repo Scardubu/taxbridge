@@ -131,13 +131,15 @@ jobs:
           REDIS_URL: redis://localhost:6379
 
       - name: Test Duplo integration
-        run: npm exec --prefix backend -- jest src/integrations/duplo.integration.test.ts --verbose
+        working-directory: backend
+        run: npx jest src/integrations/duplo.integration.test.ts --verbose
         env:
           CI: true
           NODE_ENV: test
 
       - name: Test Remita integration
-        run: npm exec --prefix backend -- jest src/integrations/remita.integration.test.ts --verbose
+        working-directory: backend
+        run: npx jest src/integrations/remita.integration.test.ts --verbose
         env:
           CI: true
           NODE_ENV: test
@@ -459,7 +461,8 @@ jobs:
         run: npm ci
 
       - name: Run the committed OCR integration tests
-        run: npm exec --prefix backend -- jest src/__tests__/performOCR.test.ts --runInBand
+        working-directory: backend
+        run: npx jest src/__tests__/performOCR.test.ts --runInBand
         env:
           CI: 'true'
   # Build and Package
@@ -490,7 +493,7 @@ jobs:
           DIRECT_URL: postgresql://build:build@127.0.0.1:5432/taxbridge_build
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: backend-build
           path: backend/dist/
@@ -507,7 +510,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Download build artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: backend-build
           path: backend/dist/
@@ -530,7 +533,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Download build artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: backend-build
           path: backend/dist/

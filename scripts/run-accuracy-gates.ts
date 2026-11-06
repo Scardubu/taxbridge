@@ -1,4 +1,4 @@
-import { calculatePIT, calculatePenalty, calculateCIT } from '../packages/contracts/src/index';
+import { calculatePIT, calculatePenalty, calculateCIT } from '@taxbridge/contracts';
 import { formatNGN } from '../mobile/src/design-system/ngn';
 
 function assertEqual(actual: number | string, expected: number | string, label: string): void {

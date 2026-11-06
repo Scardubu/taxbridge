@@ -1,6 +1,6 @@
 #!/usr/bin/env tsx
 import { existsSync, readFileSync } from 'fs';
-import path from 'path';
+import * as path from 'path';
 
 const ROOT = path.resolve(__dirname, '..');
 const MASTER_PROMPT = path.join(ROOT, 'prompts', 'v13_master_prompt.md');
