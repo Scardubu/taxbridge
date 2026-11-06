@@ -13,6 +13,7 @@ concurrency:
 env:
   NODE_VERSION: '20.x'
   PRISMA_CLIENT_ENGINE_TYPE: binary
+  PRISMA_SKIP_POSTINSTALL_GENERATE: 'true'
 
 # ─────────────────────────────────────────────────────────────────────────────
 # JOB 1: Backend — TypeScript, Tests, Tax Compliance
@@ -96,6 +97,10 @@ jobs:
       - name: Build shared contracts
         run: npm run build --workspace=@taxbridge/contracts
 
+      - name: Generate Prisma client
+        working-directory: backend
+        run: npx prisma generate
+
       - name: TypeScript type check (zero errors required)
         working-directory: backend
         run: npx tsc --noEmit
@@ -104,10 +109,6 @@ jobs:
       - name: Lint
         working-directory: backend
         run: npm run lint --if-present
-
-      - name: Generate Prisma client
-        working-directory: backend
-        run: npx prisma generate
 
       - name: Run database migrations
         working-directory: backend
