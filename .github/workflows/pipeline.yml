@@ -64,7 +64,12 @@ jobs:
         run: npm run build --workspace=@taxbridge/contracts
       - name: Generate Prisma client
         run: npm run prisma:generate --prefix backend
-      - run: npx tsc --noEmit
+      - name: Type-check Fastify backend
+        run: npx tsc --noEmit --project backend/tsconfig.json
+      - name: Type-check Expo mobile application
+        run: npm --prefix mobile run typecheck
+      - name: Type-check canonical admin dashboard
+        run: npm --prefix admin-dashboard run type-check
 
   stage-3-immutability-and-schema:
     name: Stage 3 — Immutability + Schema Integrity
