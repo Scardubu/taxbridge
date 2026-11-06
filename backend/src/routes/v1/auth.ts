@@ -10,13 +10,13 @@
 import { randomUUID } from 'node:crypto';
 import { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
-import { normaliseRole } from '@taxbridge/contracts';
 import * as bcrypt from 'bcryptjs';
 import { SignJWT, importPKCS8, importSPKI, jwtVerify } from 'jose';
 import { prisma } from '../../lib/prisma';
 import { redis } from '../../lib/redis';
 import { writeAuditEvent } from '../../services/audit';
 import { validate } from '../../plugins/validate';
+import { resolveAccessTokenRole } from '../../services/accessTokenRole';
 import {
   createRefreshSession,
   rotateRefreshSession,
@@ -45,20 +45,6 @@ const LogoutSchema = z.object({
 const JWT_ISSUER = process.env.JWT_ISSUER ?? 'taxbridge-api';
 const JWT_AUDIENCE = process.env.JWT_AUDIENCE ?? 'taxbridge-clients';
 
-/**
- * Preserve the platform-wide administrator role in the access token. All
- * non-platform roles remain organization-scoped and are re-resolved by
- * resolveOrgContext before tenant operations.
- */
-function resolveAccessTokenRole(userRole: unknown, membershipRole: unknown): string {
-  const platformRole = normaliseRole(typeof userRole === 'string' ? userRole : 'VIEWER');
-  if (platformRole === 'ADMIN' || platformRole === 'SUPER_ADMIN') return platformRole;
-  return normaliseRole(
-    typeof membershipRole === 'string'
-      ? membershipRole
-      : typeof userRole === 'string' ? userRole : 'VIEWER',
-  );
-}
 
 async function signToken(
   payload: Record<string, unknown>,
