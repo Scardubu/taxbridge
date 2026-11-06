@@ -5,6 +5,7 @@
  * 5 endpoints for admin panels (ADMIN+)
  * C-07: Always 200 — FALLBACK_* on every .catch()
  */
+import { requirePlatformAdmin } from '../../plugins/requirePlatformAdmin';
 import { FastifyPluginAsync }  from 'fastify';
 import { prisma }              from '../../lib/prisma';
 
