@@ -2,8 +2,9 @@ import * as Crypto from 'expo-crypto';
 import NetInfo from '@react-native-community/netinfo';
 import { getDatabase } from './database';
 import { apiRequest } from './api';
+import { OperationResultSchema } from '@taxbridge/contracts';
 import { buildMobileOperationEnvelope } from './operationEnvelope';
-import { classifyQueueFailure } from './offlineQueuePolicy';
+import { classifyQueueFailure, classifyServerOperationStatus } from './offlineQueuePolicy';
 
 // The durable server operation pipeline has no approved business handlers yet.
 // Keep queued writes local until the shared contract and server worker are enabled.
@@ -105,16 +106,43 @@ export class OfflineQueue {
           });
 
           requestStarted = true;
-          await apiRequest('/api/v1/sync/operations', {
+          const response = await apiRequest<unknown>('/api/v1/sync/operations', {
             method: 'POST',
             headers: { 'Idempotency-Key': operation.client_id },
             body: JSON.stringify(envelope),
           });
+          const parsedResponse = OperationResultSchema.safeParse(response);
+          if (!parsedResponse.success) {
+            const invalidResponse = new Error('Sync API returned an invalid operation result') as Error & {
+              status: number;
+              details: { retryable: boolean };
+            };
+            invalidResponse.status = 502;
+            invalidResponse.details = { retryable: true };
+            throw invalidResponse;
+          }
 
-          await db.runAsync(
-            "UPDATE offline_operations SET status='done', synced_at=datetime('now'), error_msg=NULL WHERE id=?",
-            [operation.id]
-          );
+          const disposition = classifyServerOperationStatus(parsedResponse.data.status);
+          if (disposition === 'complete') {
+            await db.runAsync(
+              "UPDATE offline_operations SET status='done', synced_at=datetime('now'), error_msg=NULL WHERE id=?",
+              [operation.id]
+            );
+          } else if (disposition === 'terminal') {
+            await db.runAsync(
+              "UPDATE offline_operations SET status='dead', error_msg=? WHERE id=?",
+              [parsedResponse.data.errorCode ?? 'SERVER_OPERATION_DEAD_LETTER', operation.id]
+            );
+          } else {
+            // HTTP 202 means the server durably accepted the operation, not
+            // that its business effect completed. Keep it locally pending.
+            // The next flush replays the same idempotency key and reads the
+            // authoritative server status without duplicating the operation.
+            await db.runAsync(
+              "UPDATE offline_operations SET status='syncing', error_msg=? WHERE id=?",
+              [`Server operation status: ${parsedResponse.data.status}`, operation.id]
+            );
+          }
         } catch (error) {
           // Malformed local payload/envelope data cannot be fixed by retrying.
           if (!requestStarted) {
