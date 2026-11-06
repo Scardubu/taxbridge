@@ -541,7 +541,11 @@ export default async function syncRoutes(app: FastifyInstance) {
         return reply.status(404).send({ error: 'Conflict not found' });
       }
 
-      if (conflict.device.userId !== userId) {
+      if (
+        conflict.userId !== userId ||
+        conflict.device.userId !== userId ||
+        conflict.invoice.userId !== userId
+      ) {
         return reply.status(403).send({ error: 'Unauthorized' });
       }
 
