@@ -200,12 +200,23 @@ export async function buildApp(): Promise<FastifyInstance> {
       return reply.code(401).send({ error: 'UNAUTHORIZED' });
     }
     try {
-      const stored = await redis.get(`role_version:${request.params.userId}`);
+      const [stored, user] = await Promise.all([
+        redis.get(`role_version:${request.params.userId}`),
+        prisma.user.findFirst({
+          where: { id: request.params.userId, deleted: false },
+          select: { role: true },
+        }),
+      ]);
+      if (!user) return reply.code(404).send({ error: 'USER_NOT_FOUND' });
+
       const roleVersion = stored === null ? 0 : Number(stored);
       if (!Number.isSafeInteger(roleVersion) || roleVersion < 0) {
         return reply.code(503).send({ error: 'ROLE_VERSION_UNAVAILABLE' });
       }
-      return reply.send({ roleVersion });
+      return reply.send({
+        roleVersion,
+        platformRole: String(user.role ?? '').toUpperCase(),
+      });
     } catch (error) {
       request.log.error({ err: error }, 'Role-version lookup failed');
       return reply.code(503).send({ error: 'ROLE_VERSION_UNAVAILABLE' });
