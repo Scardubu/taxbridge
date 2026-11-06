@@ -1,6 +1,7 @@
 import fp from 'fastify-plugin';
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { prisma } from '../lib/prisma';
+import { normaliseRole } from '@taxbridge/contracts';
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -49,7 +50,7 @@ export default fp(async function resolveOrgContextPlugin(fastify) {
 
     request.orgContext = {
       orgId: member.org.id,
-      role: member.role,
+      role: normaliseRole(member.role),
       memberId: member.id,
     };
   });
