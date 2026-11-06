@@ -6,7 +6,7 @@ import { remitaAdapter } from '../integrations/remita/adapter';
 import { paystackAdapter } from '../integrations/paystack/adapter';
 import { flutterwaveAdapter } from '../integrations/flutterwave/adapter';
 import { paymentGateway, GatewayName } from '../services/payment-gateway';
-import { computeRequestHash } from '../lib/idempotency';
+import { computeRequestHash, isIdempotencyExpired } from '../lib/idempotency';
 import { getPaymentQueue } from '../queue/client';
 import {
   ValidationError,

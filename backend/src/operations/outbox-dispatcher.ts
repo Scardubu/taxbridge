@@ -1,9 +1,10 @@
 import { Queue } from 'bullmq';
 import { prisma } from '../lib/prisma';
 import { redis } from '../lib/redis';
+import { toBullMQConnection } from '../queue/client';
 
 const QUEUE_NAME = 'taxbridge-operations';
-const queue = new Queue(QUEUE_NAME, { connection: redis });
+const queue = new Queue(QUEUE_NAME, { connection: toBullMQConnection(redis) });
 
 /**
  * At-least-once dispatcher. Deterministic BullMQ job IDs make a repeated

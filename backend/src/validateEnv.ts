@@ -22,7 +22,7 @@ if (process.env.NODE_ENV === 'production') {
   }
   try {
     const sentryDsn = new URL(process.env.SENTRY_DSN!);
-    if (sentryDsn.protocol !== 'https:' || !sentryDsn.username || !sentryDsn.pathname.replace(/\\//g, '')) {
+    if (sentryDsn.protocol !== 'https:' || !sentryDsn.username || !sentryDsn.pathname.replace(/\//g, '')) {
       fatal('SENTRY_DSN must be a valid HTTPS DSN with a project path');
     }
   } catch {

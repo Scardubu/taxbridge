@@ -80,7 +80,7 @@ export async function recordOperationFailure(
         operationType: operation.operationType,
         idempotencyKey: operation.idempotencyKey,
         payloadFingerprint: operation.payloadFingerprint,
-        payload: operation.payload,
+        payload: operation.payload === null ? Prisma.JsonNull : (operation.payload as Prisma.InputJsonValue),
         attemptCount,
         failureCode: failure.code,
         failureReason: failure.message,
