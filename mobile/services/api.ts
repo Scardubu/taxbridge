@@ -390,10 +390,20 @@ export async function initiatePayment(
   });
 
   const db = await getDatabase();
+  // The backend replays the same payment response for a repeated key.
+  // Persist that response under the same local key so retry/recovery calls
+  // cannot create duplicate SQLite payment rows.
   await db.runAsync(
-    `INSERT INTO tax_payments (provider, provider_ref, remita_rrr, amount, currency, status)
-     VALUES (?, ?, ?, ?, 'NGN', 'pending')`,
-    [response.gateway, response.rrr, response.gateway === 'remita' ? response.rrr : null, response.amount]
+    `INSERT OR IGNORE INTO tax_payments (
+       provider, provider_ref, remita_rrr, amount, currency, status, idempotency_key
+     ) VALUES (?, ?, ?, ?, 'NGN', 'pending', ?)`,
+    [
+      response.gateway,
+      response.rrr,
+      response.gateway === 'remita' ? response.rrr : null,
+      response.amount,
+      idempotency_key,
+    ]
   );
 
   return response;
