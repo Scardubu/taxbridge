@@ -34,6 +34,13 @@ const RefreshSchema = z.object({
   refreshToken: z.string().min(1).max(8192),
 });
 
+// Backwards-compatible with mobile v1 logout requests that authenticate with
+// a bearer access token and send no body. The admin web proxy supplies the
+// refresh token through its HttpOnly cookie.
+const LogoutSchema = z.object({
+  refreshToken: z.string().min(1).max(8192).optional(),
+}).default({});
+
 const JWT_ISSUER = process.env.JWT_ISSUER ?? 'taxbridge-api';
 const JWT_AUDIENCE = process.env.JWT_AUDIENCE ?? 'taxbridge-clients';
 
@@ -325,50 +332,70 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
   });
 
   // Global logout: advance the user role-version, revoking access and refresh
-  // tokens across all devices. The refresh token proves possession without
-  // requiring a still-valid 15-minute access token.
+  // tokens across all devices. Mobile v1 callers use bearer access tokens;
+  // the admin web proxy uses its HttpOnly refresh-token cookie.
   fastify.post('/logout', {
     config: { rateLimit: { max: 5, timeWindow: '1 minute' } },
-    preHandler: [validate(RefreshSchema)],
+    preHandler: [validate(LogoutSchema)],
   }, async (request, reply) => {
-    const { refreshToken } = request.body as z.infer<typeof RefreshSchema>;
-    let payload;
-    try {
-      const verifyKey = await getRefreshVerifyKey();
-      const verified = await jwtVerify(refreshToken, verifyKey, {
-        algorithms: process.env.NODE_ENV === 'production' ? ['RS256'] : ['HS256'],
-        issuer: JWT_ISSUER,
-        audience: JWT_AUDIENCE,
-        requiredClaims: ['sub', 'exp', 'iat', 'iss', 'aud', 'type', 'family', 'role_version'],
-      });
-      payload = verified.payload;
-    } catch {
-      return reply.code(401).send({ error: 'INVALID_TOKEN' });
-    }
+    const { refreshToken } = request.body as z.infer<typeof LogoutSchema>;
+    let userId: string;
 
-    if (
-      payload.type !== 'refresh' ||
-      typeof payload.sub !== 'string' || !payload.sub ||
-      typeof payload.family !== 'string' || !FAMILY_ID_PATTERN.test(payload.family) ||
-      typeof payload.role_version !== 'number' ||
-      !Number.isSafeInteger(payload.role_version) || payload.role_version < 0
-    ) {
-      return reply.code(401).send({ error: 'INVALID_TOKEN_CLAIMS' });
-    }
-
-    try {
-      const currentVersion = await readRoleVersion(payload.sub);
-      if (currentVersion !== payload.role_version) {
-        return reply.code(401).send({ error: 'SESSION_REVOKED' });
+    if (refreshToken) {
+      let payload;
+      try {
+        const verifyKey = await getRefreshVerifyKey();
+        const verified = await jwtVerify(refreshToken, verifyKey, {
+          algorithms: process.env.NODE_ENV === 'production' ? ['RS256'] : ['HS256'],
+          issuer: JWT_ISSUER,
+          audience: JWT_AUDIENCE,
+          requiredClaims: ['sub', 'exp', 'iat', 'iss', 'aud', 'type', 'family', 'role_version'],
+        });
+        payload = verified.payload;
+      } catch {
+        return reply.code(401).send({ error: 'INVALID_TOKEN' });
       }
-      await redis.incr('role_version:' + payload.sub);
+
+      if (
+        payload.type !== 'refresh' ||
+        typeof payload.sub !== 'string' || !payload.sub ||
+        typeof payload.family !== 'string' || !FAMILY_ID_PATTERN.test(payload.family) ||
+        typeof payload.role_version !== 'number' ||
+        !Number.isSafeInteger(payload.role_version) || payload.role_version < 0
+      ) {
+        return reply.code(401).send({ error: 'INVALID_TOKEN_CLAIMS' });
+      }
+
+      try {
+        const currentVersion = await readRoleVersion(payload.sub);
+        if (currentVersion !== payload.role_version) {
+          return reply.code(401).send({ error: 'SESSION_REVOKED' });
+        }
+      } catch (error) {
+        request.log.error({ err: error }, 'Session revocation dependency unavailable');
+        return reply.code(503).send({ error: 'SESSION_STORE_UNAVAILABLE' });
+      }
+      userId = payload.sub;
+    } else {
+      // Existing mobile clients authenticate through the bearer access token.
+      await fastify.authenticate(request, reply);
+      if (reply.sent) return;
+      const authenticatedUserId = (request as any).user?.userId;
+      if (typeof authenticatedUserId !== 'string' || !authenticatedUserId) {
+        return reply.code(401).send({ error: 'UNAUTHORIZED' });
+      }
+      userId = authenticatedUserId;
+    }
+
+    try {
+      await redis.incr('role_version:' + userId);
     } catch (error) {
       request.log.error({ err: error }, 'Session revocation dependency unavailable');
       return reply.code(503).send({ error: 'SESSION_STORE_UNAVAILABLE' });
     }
 
     await writeAuditEvent({
-      actorId: payload.sub,
+      actorId: userId,
       action: 'LOGOUT',
       resource: 'UserSession',
       ip: request.ip,
@@ -378,6 +405,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
 
     return reply.send({ success: true, scope: 'all_sessions' });
   });
+
 };
 
 export default authRoutes;
