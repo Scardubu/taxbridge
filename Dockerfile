@@ -6,6 +6,11 @@ RUN apk add --no-cache python3 make g++ openssl libc6-compat
 RUN npm install --global npm@10.9.2
 
 ENV PRISMA_SKIP_POSTINSTALL_GENERATE=true
+# Prisma schema validation during generate needs datasource URLs; these are
+# non-routable build-only values and are not copied into the runtime stage.
+ENV DATABASE_URL=postgresql://build:build@127.0.0.1:5432/taxbridge_build
+ENV DIRECT_URL=postgresql://build:build@127.0.0.1:5432/taxbridge_build
+
 COPY . .
 RUN npm ci
 RUN npm run build --workspace=@taxbridge/contracts
