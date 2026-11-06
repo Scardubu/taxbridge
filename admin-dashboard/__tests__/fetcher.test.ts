@@ -66,6 +66,25 @@ describe('admin fetcher session security', () => {
     expect(new Headers(retryInit.headers).get('X-CSRF-Token')).toBe('csrf-rotated-nonce');
   });
 
+  it('shares one refresh attempt across concurrent expired API requests', async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({ error: 'UNAUTHENTICATED' }, 401))
+      .mockResolvedValueOnce(jsonResponse({ error: 'UNAUTHENTICATED' }, 401))
+      .mockResolvedValueOnce(jsonResponse({ success: true }))
+      .mockResolvedValueOnce(jsonResponse({ success: true, request: 1 }))
+      .mockResolvedValueOnce(jsonResponse({ success: true, request: 2 }));
+
+    const [first, second] = await Promise.all([
+      fetchJson('/api/admin/devices'),
+      fetchJson('/api/admin/sync/stats'),
+    ]);
+
+    expect(first).toEqual({ success: true, request: 1 });
+    expect(second).toEqual({ success: true, request: 2 });
+    expect(fetchMock).toHaveBeenCalledTimes(5);
+    expect(fetchMock.mock.calls.filter(([url]) => url === '/api/auth/refresh')).toHaveLength(1);
+  });
+
   it('does not recurse when the refresh endpoint rejects the session', async () => {
     fetchMock
       .mockResolvedValueOnce(jsonResponse({ error: 'UNAUTHENTICATED' }, 401))
