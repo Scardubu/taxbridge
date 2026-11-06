@@ -16,6 +16,8 @@ services:
     dockerContext: .
     preDeployCommand: npx prisma migrate deploy --schema=backend/prisma/schema.prisma
     healthCheckPath: /health/ready
+    # V14: manual promotion only until production readiness gates are signed off.
+    autoDeploy: false
     envVars:
       - key: NODE_ENV
         value: production
@@ -90,7 +92,8 @@ services:
     plan: starter
     region: frankfurt
     branch: master
-    autoDeploy: true
+    # V14: worker must not update automatically from unapproved master commits.
+    autoDeploy: false
     buildCommand: >-
       npm ci &&
       npm run build --workspace=@taxbridge/contracts &&
