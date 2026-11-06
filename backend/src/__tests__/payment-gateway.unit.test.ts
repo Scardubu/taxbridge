@@ -5,9 +5,8 @@
  * in mock mode (no real API calls).
  */
 
-import { PaystackAdapter } from '../integrations/paystack/adapter';
+import { PaystackAdapter, paystackAdapter } from '../integrations/paystack/adapter';
 import { FlutterwaveAdapter, flutterwaveAdapter } from '../integrations/flutterwave/adapter';
-import { paystackAdapter } from '../integrations/paystack/adapter';
 import { paymentGateway } from '../services/payment-gateway';
 import { paystackBreaker } from '../services/circuit-breaker';
 
