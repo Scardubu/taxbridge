@@ -6,7 +6,7 @@ export interface LocalPaymentResult {
   amount: number;
 }
 
-export type LocalPaymentDatabase = SQLite.SQLiteDatabase;
+export type LocalPaymentDatabase = Pick<SQLite.SQLiteDatabase, 'runAsync'>;
 
 /**
  * Persist a server-authoritative payment result exactly once locally.
