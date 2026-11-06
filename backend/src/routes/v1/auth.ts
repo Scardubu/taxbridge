@@ -10,6 +10,7 @@
 import { randomUUID } from 'node:crypto';
 import { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
+import { normaliseRole } from '@taxbridge/contracts';
 import * as bcrypt from 'bcryptjs';
 import { SignJWT, importPKCS8, importSPKI, jwtVerify } from 'jose';
 import { prisma } from '../../lib/prisma';
@@ -163,7 +164,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       {
         sub: user.id,
         orgId: primaryMembership.orgId,
-        role: primaryMembership.role ?? user.role,
+        role: normaliseRole(primaryMembership.role ?? user.role ?? 'VIEWER'),
         role_version: roleVersion,
         type: 'access',
       },
@@ -278,7 +279,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
         {
           sub: userId,
           orgId: membership.orgId,
-          role: membership.role ?? user.role,
+          role: normaliseRole(membership.role ?? user.role ?? 'VIEWER'),
           role_version: currentRoleVersion,
           type: 'access',
         },
