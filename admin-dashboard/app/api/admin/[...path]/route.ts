@@ -41,12 +41,16 @@ async function forward(request: NextRequest, context: RouteContext): Promise<Nex
     return NextResponse.json({ error: 'ADMIN_API_NOT_CONFIGURED' }, { status: 503 });
   }
 
-  const backendUrl = (
-    process.env.BACKEND_API_URL ||
-    process.env.BACKEND_URL ||
-    'https://taxbridge-api-ker8.onrender.com'
-  ).replace(/\/$/, '');
-  const target = new URL(`/api/admin/${route}`, backendUrl);
+  const backendUrl = (process.env.BACKEND_API_URL || process.env.BACKEND_URL || '').replace(/\/$/, '');
+  if (!backendUrl) {
+    return NextResponse.json({ error: 'ADMIN_BACKEND_NOT_CONFIGURED' }, { status: 503 });
+  }
+  let target: URL;
+  try {
+    target = new URL(`/api/admin/${route}`, backendUrl);
+  } catch {
+    return NextResponse.json({ error: 'ADMIN_BACKEND_URL_INVALID' }, { status: 503 });
+  }
   target.search = request.nextUrl.search;
 
   const headers = new Headers({
