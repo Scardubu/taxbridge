@@ -56,7 +56,10 @@ status="$(request_status "$API_BASE/health/ready")"
 expect_status "Readiness endpoint (PostgreSQL and Redis available)" "200" "$status"
 
 # 2. Helmet headers must be present on a real application response.
-curl --silent --show-error --dump-header "$HEADER_FILE" --output /dev/null --max-time 15 "$API_BASE/health/live"
+# The API trusts its configured reverse proxy. Simulate the TLS-terminating proxy
+# so Helmet emits HSTS; an HTTP-only localhost request correctly omits HSTS.
+curl --silent --show-error --dump-header "$HEADER_FILE" --output /dev/null --max-time 15 \
+  -H 'X-Forwarded-Proto: https' "$API_BASE/health/live"
 if grep -Eiq '^x-content-type-options: *nosniff' "$HEADER_FILE"; then
   pass "X-Content-Type-Options nosniff"
 else
