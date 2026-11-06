@@ -37,9 +37,14 @@ export default async function paymentRoutes(app: FastifyInstance, opts: { prisma
     gateway: z.string().optional()
   });
 
-  app.post('/api/v1/payments/generate', async (req, reply) => {
+  app.post('/api/v1/payments/generate', {
+    preHandler: [app.authenticate, app.resolveOrgContext],
+  }, async (req, reply) => {
     const idempotencyKeyHeader = req.headers['idempotency-key'];
-    const idempotencyKey = Array.isArray(idempotencyKeyHeader) ? idempotencyKeyHeader[0] : idempotencyKeyHeader;
+    const suppliedIdempotencyKey = Array.isArray(idempotencyKeyHeader) ? idempotencyKeyHeader[0] : idempotencyKeyHeader;
+    const idempotencyKey = suppliedIdempotencyKey
+      ? `payment:${req.user.userId}:${suppliedIdempotencyKey}`
+      : undefined;
     const requestHash = computeRequestHash({ method: req.method, path: req.url, body: req.body });
 
     if (idempotencyKey) {
@@ -71,7 +76,12 @@ export default async function paymentRoutes(app: FastifyInstance, opts: { prisma
 
     const { invoiceId, payerName, payerEmail, payerPhone } = parsed.data;
 
-    const invoice = await prisma.invoice.findUnique({ where: { id: invoiceId } });
+    // An authenticated, active organization member may only create a payment
+    // against an invoice owned by their own user identity. The current legacy
+    // invoice model has no organizationId column; never infer cross-member access.
+    const invoice = await prisma.invoice.findFirst({
+      where: { id: invoiceId, userId: req.user.userId },
+    });
     if (!invoice) {
       const error = new NotFoundError('Invoice', invoiceId);
       return reply.status(error.statusCode).send(formatErrorResponse(error));
@@ -229,11 +239,20 @@ export default async function paymentRoutes(app: FastifyInstance, opts: { prisma
   // Legacy endpoint (backward compatibility)
   app.post('/webhooks/remita/payment', remitaWebhookHandler);
 
-  app.get('/api/v1/payments/:invoiceId/status', async (req, reply) => {
-    const { invoiceId } = req.params as { invoiceId: string };
+  app.get('/api/v1/payments/:invoiceId/status', {
+    preHandler: [app.authenticate, app.resolveOrgContext],
+  }, async (req, reply) => {
+    const params = z.object({ invoiceId: z.string().uuid() }).safeParse(req.params);
+    if (!params.success) {
+      return reply.status(400).send({ error: 'VALIDATION_ERROR', issues: params.error.issues });
+    }
+    const { invoiceId } = params.data;
 
     const payment = await prisma.payment.findFirst({
-      where: { invoiceId },
+      where: {
+        invoiceId,
+        invoice: { is: { userId: req.user.userId } },
+      },
       orderBy: { createdAt: 'desc' },
       include: { invoice: true },
     });
