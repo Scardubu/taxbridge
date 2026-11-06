@@ -45,6 +45,21 @@ const LogoutSchema = z.object({
 const JWT_ISSUER = process.env.JWT_ISSUER ?? 'taxbridge-api';
 const JWT_AUDIENCE = process.env.JWT_AUDIENCE ?? 'taxbridge-clients';
 
+/**
+ * Preserve the platform-wide administrator role in the access token. All
+ * non-platform roles remain organization-scoped and are re-resolved by
+ * resolveOrgContext before tenant operations.
+ */
+function resolveAccessTokenRole(userRole: unknown, membershipRole: unknown): string {
+  const platformRole = normaliseRole(typeof userRole === 'string' ? userRole : 'VIEWER');
+  if (platformRole === 'ADMIN' || platformRole === 'SUPER_ADMIN') return platformRole;
+  return normaliseRole(
+    typeof membershipRole === 'string'
+      ? membershipRole
+      : typeof userRole === 'string' ? userRole : 'VIEWER',
+  );
+}
+
 async function signToken(
   payload: Record<string, unknown>,
   secret: string | Uint8Array,
@@ -164,7 +179,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       {
         sub: user.id,
         orgId: primaryMembership.orgId,
-        role: normaliseRole(primaryMembership.role ?? user.role ?? 'VIEWER'),
+        role: resolveAccessTokenRole(user.role, primaryMembership.role),
         role_version: roleVersion,
         type: 'access',
       },
@@ -279,7 +294,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
         {
           sub: userId,
           orgId: membership.orgId,
-          role: normaliseRole(membership.role ?? user.role ?? 'VIEWER'),
+          role: resolveAccessTokenRole(user.role, membership.role),
           role_version: currentRoleVersion,
           type: 'access',
         },
