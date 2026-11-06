@@ -69,6 +69,16 @@ export default async function paymentRoutes(app: FastifyInstance, opts: { prisma
     }
 
     const { invoiceId, payerName, payerEmail, payerPhone } = parsed.data;
+    if (paymentGateway.getAvailableGateways().length === 0) {
+      return reply.code(503).send({
+        error: 'PAYMENT_GATEWAY_UNAVAILABLE',
+        message: 'No payment provider is configured in this environment',
+        code: 'PAYMENT_GATEWAY_UNAVAILABLE',
+        requestId: req.id,
+        retryable: true,
+      });
+    }
+
     const invoice = await prisma.invoice.findFirst({
       where: { id: invoiceId, userId: req.user.userId },
     });
