@@ -18,13 +18,13 @@ if (process.env.VERCEL_ENV === 'production') {
   }
 }
 
-
 const nextConfig: NextConfig = {
   // Use default output for Vercel compatibility
   // Ensure proper handling of environment variables
   outputFileTracingRoot: resolve(currentDirectory, '..'),
   // Runtime configuration is supplied through environment-scoped Vercel variables.
-    // Production optimizations
+
+  // Production optimizations
   compress: true,
   poweredByHeader: false,
   
