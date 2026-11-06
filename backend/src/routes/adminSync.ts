@@ -29,8 +29,44 @@ export default async function adminSyncRoutes(app: FastifyInstance) {
   // Admin authentication middleware
   app.addHook('preHandler', async (request: FastifyRequest, reply: FastifyReply) => {
     await requireAdminApiKey(request, reply);
-    if (reply.sent) {
-      return reply;
+    if (reply.sent) return reply;
+
+    // A shared API key authenticates the trusted service boundary, not the
+    // human actor. Require a real, active administrator identity before any
+    // administrative read or write so direct API callers cannot invent audit
+    // actors by supplying an arbitrary UUID header.
+    const adminActorId = getAdminActorId(request);
+    if (!adminActorId) {
+      return reply.code(401).send({ error: 'ADMIN_IDENTITY_REQUIRED' });
+    }
+
+    try {
+      const user = await prisma.user.findFirst({
+        where: { id: adminActorId, deleted: false },
+        select: { id: true, role: true },
+      });
+      if (!user) {
+        return reply.code(403).send({ error: 'ADMIN_IDENTITY_NOT_ACTIVE' });
+      }
+
+      const globalAdmin = ['admin', 'ADMIN', 'super_admin', 'SUPER_ADMIN'].includes(user.role);
+      if (!globalAdmin) {
+        const membership = await prisma.orgMember.findFirst({
+          where: {
+            userId: adminActorId,
+            removedAt: null,
+            status: 'active',
+            role: { in: ['admin', 'ADMIN', 'super_admin', 'SUPER_ADMIN'] },
+          },
+          include: { org: { select: { status: true } } },
+        });
+        if (!membership || membership.org.status !== 'active') {
+          return reply.code(403).send({ error: 'ADMIN_ROLE_REQUIRED' });
+        }
+      }
+    } catch (error) {
+      request.log.error({ err: error }, 'Admin actor verification unavailable');
+      return reply.code(503).send({ error: 'ADMIN_IDENTITY_UNAVAILABLE' });
     }
   });
 
