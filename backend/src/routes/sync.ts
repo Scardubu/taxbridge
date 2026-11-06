@@ -1,4 +1,5 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import type { Invoice } from '@prisma/client';
 import { z } from 'zod';
 import { getPrismaClient } from '../lib/prisma';
 import { HeartbeatSchema, PushSyncSchema, type HeartbeatPayload } from '@taxbridge/contracts';
@@ -169,12 +170,43 @@ export default async function syncRoutes(app: FastifyInstance) {
             continue;
           }
 
+          // Validate the client invoice ID and ownership before creating any
+          // SyncJob/Conflict row that references it. A device must never be able
+          // to create a conflict against another user's invoice UUID.
+          let invoiceId: string | null = null;
+          let existingInvoice: Invoice | null = null;
+          if (job.entity === 'invoice') {
+            const parsedInvoiceId = z.string().uuid().safeParse(job.payload.id);
+            if (!parsedInvoiceId.success) {
+              results.failed.push(job.clientId);
+              continue;
+            }
+
+            invoiceId = parsedInvoiceId.data;
+            existingInvoice = await prisma.invoice.findUnique({ where: { id: invoiceId } });
+
+            if (existingInvoice && existingInvoice.userId !== userId) {
+              log.warn('Rejected cross-tenant invoice sync reference', {
+                userId,
+                deviceId: device.id,
+                clientId: job.clientId,
+              });
+              results.failed.push(job.clientId);
+              continue;
+            }
+
+            if (job.action !== 'create' && !existingInvoice) {
+              results.failed.push(job.clientId);
+              continue;
+            }
+          }
+
           // Create SyncJob audit record
           const syncJob = await prisma.syncJob.create({
             data: {
               deviceId: device.id,
               userId,
-              invoiceId: job.entity === 'invoice' ? (job.payload.id as string) : null,
+              invoiceId,
               clientId: job.clientId,
               entity: job.entity,
               action: job.action,
@@ -188,13 +220,9 @@ export default async function syncRoutes(app: FastifyInstance) {
 
           // Handle invoice entity
           if (job.entity === 'invoice') {
-            const invoiceId = job.payload.id as string;
-
+            const resolvedInvoiceId = invoiceId!;
             if (job.action === 'create') {
-              // Check if invoice already exists
-              const existing = await prisma.invoice.findUnique({
-                where: { id: invoiceId }
-              });
+              const existing = existingInvoice;
 
               if (existing) {
                 // Conflict: invoice already exists
@@ -229,21 +257,8 @@ export default async function syncRoutes(app: FastifyInstance) {
 
               results.synced.push(job.clientId);
             } else if (job.action === 'update') {
-              const existing = await prisma.invoice.findUnique({
-                where: { id: invoiceId }
-              });
-
-              if (!existing) {
-                results.failed.push(job.clientId);
-                await prisma.syncJob.update({
-                  where: { id: syncJob.id },
-                  data: { 
-                    status: 'failed',
-                    result: { error: 'Invoice not found' }
-                  }
-                });
-                continue;
-              }
+              const existing = existingInvoice!;
+              // Ownership was verified before the SyncJob row was created.
 
               // Version conflict detection
               if (existing.version > job.clientVersion) {
@@ -278,7 +293,7 @@ export default async function syncRoutes(app: FastifyInstance) {
 
               results.synced.push(job.clientId);
             } else if (job.action === 'delete') {
-              // Soft delete - mark as deleted
+              // Ownership and existence were verified before SyncJob creation.
               await enqueueDeviceSync(syncJob.id);
 
               await prisma.syncJob.update({
