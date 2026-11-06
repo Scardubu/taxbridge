@@ -570,14 +570,18 @@ export default async function syncRoutes(app: FastifyInstance) {
           },
         });
 
-        await tx.conflict.update({
-          where: { id: body.conflictId },
+        const claimedConflict = await tx.conflict.updateMany({
+          where: { id: body.conflictId, resolution: null },
           data: {
             resolution: body.resolution,
             status,
+            resolvedBy: userId,
             resolvedAt: new Date(),
           },
         });
+        if (claimedConflict.count !== 1) {
+          throw new Error('CONFLICT_ALREADY_RESOLVED');
+        }
       });
 
       log.info('Conflict resolved', { 
@@ -592,11 +596,15 @@ export default async function syncRoutes(app: FastifyInstance) {
       });
     } catch (error: any) {
       log.error('Resolve conflict error', { error: error.message });
-      
+
+      if (error.message === 'CONFLICT_ALREADY_RESOLVED') {
+        return reply.status(409).send({ error: 'CONFLICT_ALREADY_RESOLVED' });
+      }
+
       if (error.message.includes('authorization') || error.message.includes('token')) {
         return reply.status(403).send({ error: error.message });
       }
-      
+
       return reply.status(400).send({ error: error.message });
     }
   });
