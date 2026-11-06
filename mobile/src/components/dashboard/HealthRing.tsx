@@ -8,7 +8,7 @@
  *
  * Constraints:
  *   C-06  All i18n strings from en.json + pidgin.json
- *   C-13  SVG arcs only — never ProgressBar
+ *   C-13  SVG arcs only — never linear bar
  *   C-15  accessibilityLabel required (score + status, not color alone)
  *   C-16  No raw animation durations — use DURATION.* / EASE.*
  *

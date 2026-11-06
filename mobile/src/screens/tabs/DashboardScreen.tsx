@@ -2,7 +2,7 @@
  * TaxBridge Dashboard Screen — V10.3 Production Build
  *
  * Fixes applied:
- *   C-13  SVG arc gauge via react-native-svg (no ProgressBar)
+ *   C-13  SVG arc gauge via react-native-svg (no linear bar)
  *   C-14  Single useDashboard() composite hook (no waterfall)
  *   C-16  All animations use DURATION.* + EASE.* tokens
  *   C-17  All 5 zones present: apex, signal, action, context, ambient

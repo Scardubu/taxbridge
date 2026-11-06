@@ -10,7 +10,7 @@
  *
  * Constraints:
  *   C-06  All strings from i18n
- *   C-13  SVG only — never a native ProgressBar or View-based bar
+ *   C-13  SVG only — never a native linear bar or View-based bar
  *   C-15  Flagged bars: color + shape (rect taller threshold line) + text label
  *   C-16  No raw animation durations — DURATION.* only
  *

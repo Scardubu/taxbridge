@@ -525,9 +525,9 @@ export function DividerWithLabel({ label }: { label: string }) {
   );
 }
 
-// ─── ProgressBar ──────────────────────────────────────────────────────────────
+// ─── LinearMeter ──────────────────────────────────────────────────────────────
 
-interface ProgressBarProps {
+interface LinearMeterProps {
   value:   number;  // 0–1
   color?:  string;
   height?: number;
@@ -535,9 +535,9 @@ interface ProgressBarProps {
   animated?: boolean;
 }
 
-export function ProgressBar({
+export function LinearMeter({
   value, color = colors.primary[500], height = 6, style, animated = true,
-}: ProgressBarProps) {
+}: LinearMeterProps) {
   const width = useSharedValue(0);
 
   React.useEffect(() => {

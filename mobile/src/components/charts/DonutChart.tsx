@@ -5,7 +5,7 @@
  * Constraints:
  *   C-06  All strings from i18n (en + pidgin)
  *   C-08  No Math.random — all arc math is deterministic
- *   C-13  Pure SVG — no ProgressBar for data visualisation
+ *   C-13  Pure SVG — no linear bar for data visualisation
  *   C-15  Color + shape glyph + text label on each legend row (not color alone)
  *   C-16  All durations use DURATION.* and EASE.* (no raw numeric durations)
  *

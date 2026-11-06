@@ -10,7 +10,7 @@
  * Constraints:
  *   C-06  All strings via i18n
  *   C-08  No Math.random — colors must be deterministic from slice data
- *   C-13  SVG only — never ProgressBar
+ *   C-13  SVG only — never linear bar
  *   C-15  Legend: color swatch + text label (not color alone)
  *   C-16  No raw animation durations — DURATION.* only
  *

@@ -14,7 +14,7 @@ import { useTranslation } from 'react-i18next';
 import ActiveTaxGuideScreen from '../TaxGuideScreen';
 import { colors, typography, spacing, radii, shadows } from '../../design-system/tokens';
 import { DURATION, STAGGER } from '../../design-system/animation';
-import { Card, NairaInput, Button, Badge, ProgressBar } from '../../design-system/components';
+import { Card, NairaInput, Button, Badge, LinearMeter } from '../../design-system/components';
 import { TaxTooltip } from '../../components/education/TaxEducation';
 import {
   PIT_BRACKETS,
@@ -196,7 +196,7 @@ function PITCalc() {
                     </Text>
                   </View>
                 </View>
-                <ProgressBar value={band.rate / 0.25} height={4} style={{ marginTop: 6 }} />
+                <LinearMeter value={band.rate / 0.25} height={4} style={{ marginTop: 6 }} />
               </Card>
             </Animated.View>
           ))}

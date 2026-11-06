@@ -6,7 +6,7 @@
  * C-16: Animation tokens only — DURATION.* + EASE.* from animation.ts
  * C-17: Exactly 5 DashboardZone elements (apex | signal | action | context | ambient)
  * C-18: Every dashboard section wrapped in DashboardZone zone="…"
- * C-19: Anomaly empty state = null — never "No anomalies" text
+ * C-19: Anomaly empty state = null — never render empty text when zero issues
  * C-20: computeGaugeMode imported from TaxHealthGauge — never inlined
  * C-47: All lists via FlashList — never FlatList
  */

@@ -1,8 +1,8 @@
 /**
  * TaxHealthGauge — TaxBridge V13 Sovereign
  *
- * C-13: SVG arc gauge only — ProgressBar is NEVER a substitute
- * C-19: Anomaly empty: empty={null} — never render "No anomalies"
+ * C-13: SVG arc gauge only — linear meter is NEVER a substitute
+ * C-19: Anomaly empty: empty={null} — never render zero-issue placeholder
  *
  * 230° SVG arc. Score animates with withTiming + gauge easing.
  * computeGaugeMode exported — imported by DashboardScreen (C-20).

@@ -1,9 +1,9 @@
 /**
  * TaxBridge — TaxHealthGauge Component
- * SVG arc gauge replacing ProgressBar for Tax Health Score (C-13)
+ * SVG arc gauge for Tax Health Score (C-13)
  *
  * Constraints:
- *   C-13: Must use SVG arc — never ProgressBar for health score
+ *   C-13: Must use SVG arc — never linear meter for health score
  *   C-15: accessibilityLabel carries score + status (not color alone)
  *
  * Dependencies: react-native-svg (bundled with Expo SDK 54 — no extra install)
@@ -297,7 +297,7 @@ const styles = StyleSheet.create({
  * Usage:
  *   import { TaxHealthGauge, TaxHealthGaugeSkeleton } from '../components/TaxHealthGauge';
  *
- *   // In TaxHealthCard (replaces ProgressBar):
+ *   // In TaxHealthCard:
  *   {loading
  *     ? <TaxHealthGaugeSkeleton />
  *     : <TaxHealthGauge score={score} showTrend trendDelta={trendDelta} />
