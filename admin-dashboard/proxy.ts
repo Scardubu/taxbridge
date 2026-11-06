@@ -65,7 +65,7 @@ async function verifyAdminJWT(token: string): Promise<AdminJWTPayload | null> {
   }
 }
 
-async function getRoleVersion(userId: string): Promise<number | null> {
+async function getAdminSessionAuthority(userId: string): Promise<{ roleVersion: number; platformRole: string } | null> {
   const internalKey = process.env.INTERNAL_API_KEY;
   if (!internalKey || !BACKEND_URL) return null;
   try {
@@ -78,10 +78,16 @@ async function getRoleVersion(userId: string): Promise<number | null> {
       },
     );
     if (!response.ok) return null;
-    const data = await response.json() as { roleVersion?: unknown };
-    return typeof data.roleVersion === 'number' && Number.isSafeInteger(data.roleVersion)
-      ? data.roleVersion
-      : null;
+    const data = await response.json() as { roleVersion?: unknown; platformRole?: unknown };
+    if (
+      typeof data.roleVersion !== 'number' ||
+      !Number.isSafeInteger(data.roleVersion) ||
+      typeof data.platformRole !== 'string'
+    ) return null;
+    return {
+      roleVersion: data.roleVersion,
+      platformRole: data.platformRole.toUpperCase(),
+    };
   } catch {
     return null;
   }
@@ -127,14 +133,20 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'FORBIDDEN' }, { status: 403 });
   }
 
-  const currentRoleVersion = await getRoleVersion(payload.sub);
-  if (currentRoleVersion === null) {
+  const adminAuthority = await getAdminSessionAuthority(payload.sub);
+  if (adminAuthority === null) {
     return NextResponse.json(
       { error: 'ROLE_VERSION_UNAVAILABLE' },
       { status: 503, headers: { 'Cache-Control': 'no-store' } },
     );
   }
-  if (currentRoleVersion !== payload.role_version) {
+  if (adminAuthority.platformRole !== 'ADMIN' && adminAuthority.platformRole !== 'SUPER_ADMIN') {
+    return NextResponse.json(
+      { error: 'PLATFORM_ADMIN_REQUIRED' },
+      { status: 403, headers: { 'Cache-Control': 'no-store' } },
+    );
+  }
+  if (adminAuthority.roleVersion !== payload.role_version) {
     return authenticationFailure(request, 'session_expired');
   }
 
