@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { MAX_INVOICE_AMOUNT } from '../lib/constants';
-import { calculateInvoiceTotals } from '../utils/taxCalculator';
+import { calculateInvoiceTotals } from '@taxbridge/contracts';
 
 const InvoiceItemSchema = z.object({
   description: z.string().trim().min(1).max(500),
