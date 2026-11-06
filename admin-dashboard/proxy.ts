@@ -89,6 +89,16 @@ function loginRedirect(request: NextRequest, reason: string): NextResponse {
   return NextResponse.redirect(url);
 }
 
+function authenticationFailure(request: NextRequest, reason: string): NextResponse {
+  if (request.nextUrl.pathname.startsWith('/api/')) {
+    return NextResponse.json(
+      { error: 'UNAUTHENTICATED', reason },
+      { status: 401, headers: { 'Cache-Control': 'no-store' } },
+    );
+  }
+  return loginRedirect(request, reason);
+}
+
 export async function proxy(request: NextRequest): Promise<NextResponse> {
   if (isPublicPath(request.nextUrl.pathname)) return NextResponse.next();
 
@@ -98,10 +108,10 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
 
   const authHeader = request.headers.get('authorization');
   const token = authHeader?.match(/^Bearer\s+(.+)$/i)?.[1] ?? request.cookies.get('admin_token')?.value;
-  if (!token) return loginRedirect(request, 'unauthenticated');
+  if (!token) return authenticationFailure(request, 'unauthenticated');
 
   const payload = await verifyAdminJWT(token);
-  if (!payload) return loginRedirect(request, 'invalid_token');
+  if (!payload) return authenticationFailure(request, 'invalid_token');
 
   const role = payload.role.toUpperCase();
   if (role !== 'ADMIN' && role !== 'SUPER_ADMIN') {
@@ -113,7 +123,7 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
     return NextResponse.json({ error: 'ROLE_VERSION_UNAVAILABLE' }, { status: 503 });
   }
   if (currentRoleVersion !== payload.role_version) {
-    return loginRedirect(request, 'session_expired');
+    return authenticationFailure(request, 'session_expired');
   }
 
   if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method.toUpperCase())) {
