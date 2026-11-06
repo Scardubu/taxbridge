@@ -29,3 +29,13 @@ export function classifyQueueFailure(error: unknown): QueueFailureDisposition {
   // Fetch/network failures have no HTTP status and remain retryable.
   return 'retry';
 }
+
+
+export type ServerOperationDisposition = 'complete' | 'terminal' | 'pending';
+
+/** Only explicit acknowledgement/resolution completes a local operation. */
+export function classifyServerOperationStatus(status: string): ServerOperationDisposition {
+  if (status === 'acknowledged' || status === 'resolved') return 'complete';
+  if (status === 'dead_letter') return 'terminal';
+  return 'pending';
+}
