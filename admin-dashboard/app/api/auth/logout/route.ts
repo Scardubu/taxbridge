@@ -3,6 +3,7 @@
  * Backend logout advances role_version and therefore revokes all devices.
  */
 import { NextRequest, NextResponse } from 'next/server';
+import { isSameOriginAuthRequest } from '@/lib/auth-origin';
 
 const COOKIE_SECURE = process.env.NODE_ENV === 'production';
 
@@ -28,8 +29,11 @@ function clearSessionCookies(response: NextResponse): void {
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  if (request.headers.get('origin') && request.headers.get('origin') !== request.nextUrl.origin) {
-    return NextResponse.json({ error: 'ORIGIN_NOT_ALLOWED' }, { status: 403 });
+  if (!isSameOriginAuthRequest(request.headers.get('origin'), request.nextUrl.origin)) {
+    return NextResponse.json(
+      { error: 'ORIGIN_NOT_ALLOWED' },
+      { status: 403, headers: { 'Cache-Control': 'no-store' } },
+    );
   }
 
   const refreshToken = request.cookies.get('admin_refresh_token')?.value;
