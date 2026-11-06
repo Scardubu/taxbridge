@@ -6,6 +6,7 @@
  */
 import { randomBytes } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
+import { isSameOriginAuthRequest } from '@/lib/auth-origin';
 
 const ACCESS_TOKEN_MAX_AGE_SECONDS = 15 * 60;
 const REFRESH_TOKEN_MAX_AGE_SECONDS = 7 * 24 * 60 * 60;
@@ -27,8 +28,11 @@ function getBackendUrl(): string | null {
 }
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
-  if (request.headers.get('origin') && request.headers.get('origin') !== request.nextUrl.origin) {
-    return NextResponse.json({ error: 'ORIGIN_NOT_ALLOWED' }, { status: 403 });
+  if (!isSameOriginAuthRequest(request.headers.get('origin'), request.nextUrl.origin)) {
+    return NextResponse.json(
+      { error: 'ORIGIN_NOT_ALLOWED' },
+      { status: 403, headers: { 'Cache-Control': 'no-store' } },
+    );
   }
 
   let email: string | undefined;
