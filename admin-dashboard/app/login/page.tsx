@@ -12,7 +12,7 @@
  * - useSearchParams() wrapped in Suspense boundary (Next.js 16 requirement)
  */
 
-import { useState, useCallback, FormEvent, Suspense } from 'react';
+import { useState, useCallback, useEffect, useRef, FormEvent, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -63,6 +63,31 @@ function LoginPageContent() {
   const [password,  setPassword]  = useState('');
   const [loading,   setLoading]   = useState(false);
   const [error,     setError]     = useState<string | null>(null);
+
+  const refreshAttempted = useRef(false);
+
+  useEffect(() => {
+    if (!['unauthenticated', 'invalid_token', 'session_expired'].includes(reason)) return;
+    if (refreshAttempted.current) return;
+    refreshAttempted.current = true;
+
+    let active = true;
+    void fetch('/api/auth/refresh', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { Accept: 'application/json' },
+      cache: 'no-store',
+    }).then((response) => {
+      if (active && response.ok) {
+        router.replace('/dashboard');
+        router.refresh();
+      }
+    }).catch(() => undefined);
+
+    return () => {
+      active = false;
+    };
+  }, [reason, router]);
 
   const handleSubmit = useCallback(async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
