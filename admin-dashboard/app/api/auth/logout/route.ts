@@ -39,7 +39,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
   const refreshToken = request.cookies.get('admin_refresh_token')?.value;
   const backendUrl = getBackendUrl();
   if (!backendUrl) {
-    return NextResponse.json({ error: 'AUTH_BACKEND_NOT_CONFIGURED' }, { status: 503 });
+    // An explicit local logout must always remove browser credentials, even
+    // when backend revocation cannot be reached/configured. Report that remote
+    // revocation did not occur rather than claiming a full-session logout.
+    const response = NextResponse.json(
+      { success: false, error: 'AUTH_BACKEND_NOT_CONFIGURED', localSessionCleared: true, scope: 'local_only' },
+      { status: 503 },
+    );
+    clearSessionCookies(response);
+    response.headers.set('Cache-Control', 'no-store');
+    return response;
   }
 
   let backendError: string | null = null;
