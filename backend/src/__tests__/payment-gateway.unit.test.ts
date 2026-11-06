@@ -7,6 +7,10 @@
 
 import { PaystackAdapter } from '../integrations/paystack/adapter';
 import { FlutterwaveAdapter } from '../integrations/flutterwave/adapter';
+import { paystackAdapter } from '../integrations/paystack/adapter';
+import { flutterwaveAdapter } from '../integrations/flutterwave/adapter';
+import { paymentGateway } from '../services/payment-gateway';
+import { paystackBreaker } from '../services/circuit-breaker';
 
 // =============================================================================
 // Paystack Adapter (Mock Mode)
@@ -181,5 +185,53 @@ describe('Gateway reference format consistency', () => {
 
     delete process.env.PAYSTACK_MOCK_MODE;
     delete process.env.FLW_MOCK_MODE;
+  });
+});
+
+
+describe('PaymentGatewayManager ambiguous initialization outcomes', () => {
+  it('does not initialize a second gateway after the first provider call throws', async () => {
+    const originalPaystackKey = process.env.PAYSTACK_SECRET_KEY;
+    const originalFlutterwaveKey = process.env.FLW_SECRET_KEY;
+
+    process.env.PAYSTACK_SECRET_KEY = 'test-paystack-key';
+    process.env.FLW_SECRET_KEY = 'test-flutterwave-key';
+
+    const breakerSpy = jest.spyOn(paystackBreaker, 'canAttempt').mockReturnValue(true);
+    const paystackSpy = jest.spyOn(paystackAdapter, 'initializeTransaction')
+      .mockRejectedValue(new Error('socket hang up after request submission'));
+    const flutterwaveSpy = jest.spyOn(flutterwaveAdapter, 'initializePayment')
+      .mockResolvedValue({
+        success: true,
+        reference: 'FLW-MUST-NOT-BE-CREATED',
+        checkoutUrl: 'https://checkout.flutterwave.com/mock/should-not-run',
+      });
+
+    try {
+      const result = await paymentGateway.initializePayment({
+        invoiceId: '4fb24ad5-2dc9-45f7-baa0-1e0038d96b55',
+        amount: 25_000,
+        payerName: 'Test Merchant',
+        payerEmail: 'merchant@example.invalid',
+        payerPhone: '+2348012345678',
+        gateway: 'paystack',
+      });
+
+      expect(paystackSpy).toHaveBeenCalledTimes(1);
+      expect(flutterwaveSpy).not.toHaveBeenCalled();
+      expect(result).toMatchObject({
+        success: false,
+        gateway: 'paystack',
+        reference: '',
+        paymentUrl: null,
+        error: 'PAYMENT_INITIALIZATION_OUTCOME_UNKNOWN',
+      });
+    } finally {
+      jest.restoreAllMocks();
+      if (originalPaystackKey === undefined) delete process.env.PAYSTACK_SECRET_KEY;
+      else process.env.PAYSTACK_SECRET_KEY = originalPaystackKey;
+      if (originalFlutterwaveKey === undefined) delete process.env.FLW_SECRET_KEY;
+      else process.env.FLW_SECRET_KEY = originalFlutterwaveKey;
+    }
   });
 });
