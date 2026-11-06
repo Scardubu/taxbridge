@@ -74,9 +74,12 @@ export async function buildApp(): Promise<FastifyInstance> {
     logger: {
       level: process.env.LOG_LEVEL ?? 'info',
       redact: [
-        'req.headers.authorization', 'req.headers.x-internal-key', 'req.headers.x-admin-api-key',
-        'body.password', 'body.tin', 'body.nin', 'body.bvn',
-        'body.receiptUrl', 'body.documentUrl', 'body.raw_ocr_text', 'body.refreshToken',
+        'req.headers.authorization', 'req.headers.cookie', 'req.headers.x-api-key',
+        'req.headers.x-internal-key', 'req.headers.x-admin-api-key', 'req.headers.x-admin-user-id',
+        'body.password', 'body.refreshToken', 'body.accessToken', 'body.verificationToken', 'body.otp',
+        'body.email', 'body.phone', 'body.tin', 'body.nin', 'body.bvn', 'body.customerTIN',
+        'body.customerTin', 'body.payerName', 'body.payerEmail', 'body.payerPhone',
+        'body.receiptUrl', 'body.documentUrl', 'body.raw_ocr_text',
       ],
       ...(process.env.LOG_FORMAT !== 'json'
         ? { transport: { target: 'pino-pretty' } }
