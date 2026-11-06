@@ -11,12 +11,10 @@ import { getPaymentQueue } from '../queue/client';
 import {
   ValidationError,
   NotFoundError,
-  RemitaError,
   formatErrorResponse
 } from '../lib/errors';
 import { metrics } from '../services/metrics';
 import { redis } from '../lib/redis';
-import { invalidateDashboardCache } from './dashboard-composite';
 import { requireRole } from '../plugins/requireRole';
 import { PaymentGatewayUnavailableError } from '../services/circuit-breaker';
 
