@@ -3,7 +3,7 @@
  *
  * Fastify plugin. prefix: '/api/v2/monitoring'
  * GET /health  — ALWAYS HTTP 200 (never 503); check DB + Redis health; degrade gracefully
- * GET /metrics — preHandler: [authenticate, requireRole('ADMIN')]; Prometheus text format
+ * GET /metrics — preHandler: [authenticate, requirePlatformAdmin]; Prometheus text format
  *
  * C-07: Health endpoint is ALWAYS 200 — 'degraded' is a valid healthy state for Render.
  */
