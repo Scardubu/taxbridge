@@ -18,6 +18,11 @@ export interface InvoiceTotals {
   total: number;
 }
 
+function roundCurrency(value: number): number {
+  const rounded = Math.round((value + Number.EPSILON) * 100) / 100;
+  return Object.is(rounded, -0) ? 0 : rounded;
+}
+
 export function calculateInvoiceTotals(
   items: InvoiceLineItem[],
   vatRate: number = VAT_RATE,
@@ -29,7 +34,7 @@ export function calculateInvoiceTotals(
     throw new RangeError('VAT rate must be a finite value between 0 and 1');
   }
 
-  const subtotal = items.reduce((sum, item) => {
+  const subtotalRaw = items.reduce((sum, item) => {
     if (
       !item ||
       !Number.isFinite(item.quantity) ||
@@ -42,12 +47,13 @@ export function calculateInvoiceTotals(
     return sum + item.quantity * item.unitPrice;
   }, 0);
 
-  if (!Number.isFinite(subtotal)) {
+  if (!Number.isFinite(subtotalRaw)) {
     throw new RangeError('Invoice subtotal is outside the supported numeric range');
   }
 
-  const vat = Number((subtotal * vatRate).toFixed(2));
-  const total = Number((subtotal + vat).toFixed(2));
+  const subtotal = roundCurrency(subtotalRaw);
+  const vat = roundCurrency(subtotal * vatRate);
+  const total = roundCurrency(subtotal + vat);
   if (!Number.isFinite(vat) || !Number.isFinite(total)) {
     throw new RangeError('Invoice totals are outside the supported numeric range');
   }
