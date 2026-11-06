@@ -322,12 +322,12 @@ export function EnterpriseShell({ children }: EnterpriseShellProps) {
                 type="button"
                 onClick={handleLogout}
                 disabled={isLoggingOut}
-                aria-label={isLoggingOut ? 'Signing out' : 'Sign out'}
+                aria-label={isLoggingOut ? 'Signing out all devices' : 'Sign out all devices'}
                 aria-busy={isLoggingOut}
                 className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
               >
                 <LogOut className="h-4 w-4" aria-hidden="true" />
-                <span className="hidden sm:inline">{isLoggingOut ? 'Signing out…' : 'Sign out'}</span>
+                <span className="hidden sm:inline">{isLoggingOut ? 'Signing out…' : 'Sign out all devices'}</span>
               </button>
             </div>
           </div>
