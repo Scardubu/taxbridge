@@ -11,7 +11,7 @@
  *   - Never import this module more than once (singleton pattern)
  *   - All Prometheus metrics created here are exported for use in services
  *   - Sentry tracesSampleRate: 0.2 in production, 1.0 in development/test
- *   - C-26: No console.log — use logger from lib/logger.ts
+ *   - C-26: Zero raw console output — use logger from lib/logger.ts
  */
 
 import * as Sentry from '@sentry/node';

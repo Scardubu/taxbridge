@@ -5,7 +5,7 @@
  * Routes: POST /login | POST /refresh
  *
  * C-47: No Express imports.
- * C-26: request.log.* only — no console.log.
+ * C-26: request.log.* only — zero raw console output.
  */
 import { randomUUID } from 'node:crypto';
 import { FastifyPluginAsync } from 'fastify';

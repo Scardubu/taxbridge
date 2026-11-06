@@ -8,7 +8,6 @@
  * C-46: Workers use createWorkerConnection() — not the global redis singleton.
  */
 import { EventEmitter } from 'events';
-import IORedis from 'ioredis';
 import { Queue }        from 'bullmq';
 import { redis } from '../lib/redis';
 import { toBullMQConnection } from '../queue/client';
@@ -61,14 +60,5 @@ export const pdfQueue = isDocsMode ? null : getPdfQueue();
 export const nrsStampQueue = isDocsMode ? null : getNrsStampQueue();
 export const notificationQueue = isDocsMode ? null : getNotificationQueue();
 
-export function createWorkerConnection(): IORedis {
-  if (isDocsMode) {
-    throw new Error('Cannot create worker connection in docs mode');
-  }
+export { createWorkerConnection } from '../lib/redis';
 
-  return new IORedis(process.env.REDIS_URL!, {
-    maxRetriesPerRequest: null,
-    enableReadyCheck: false,
-    lazyConnect: false,
-  });
-}

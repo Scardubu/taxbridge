@@ -51,5 +51,31 @@ export function getRedis(): IORedis {
   return redis;
 }
 
+/**
+ * Create dedicated connection for BullMQ Workers
+ */
+export function createWorkerConnection(options?: import('ioredis').RedisOptions): IORedis {
+  const isDocs = process.env.TAXBRIDGE_DOCS_MODE === '1';
+  if (isDocs) {
+    throw new Error('Cannot create worker connection in docs mode');
+  }
+
+  const workerOptions = {
+    maxRetriesPerRequest: null,
+    enableReadyCheck: false,
+    lazyConnect: false,
+    ...options,
+  };
+
+  const instance = new IORedis(process.env.REDIS_URL ?? 'redis://localhost:6379', workerOptions);
+
+  instance.on('error', (err) => {
+    process.stderr.write(`[redis-worker] connection error: ${err.message}\n`);
+  });
+
+  return instance;
+}
+
 process.once('SIGINT',  () => { redis.quit().catch(() => {}); });
 process.once('SIGTERM', () => { redis.quit().catch(() => {}); });
+
