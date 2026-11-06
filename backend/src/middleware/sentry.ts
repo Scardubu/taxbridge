@@ -12,7 +12,7 @@ import { VAT_RATE } from '../lib/constants';
 let initialized = false;
 
 export interface IntegrationHealth {
-  status: 'healthy' | 'degraded' | 'error';
+  status: 'healthy' | 'degraded' | 'error' | 'mock' | 'unconfigured';
   provider: 'digitax' | 'duplo' | 'remita';
   latency?: number | null;
   timestamp: string;

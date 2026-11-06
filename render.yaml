@@ -36,7 +36,9 @@ services:
         value: "false"
       - key: PAYSTACK_MOCK_MODE
         value: "false"
-      # DigiTax API URL (non-secret)
+      # DigiTax / Duplo API URL (non-secret)
+      - key: DUPLO_API_URL
+        value: https://api.duplo.co
       - key: DIGITAX_API_URL
         value: https://api.digitax.ng
       # Secrets — SET IN RENDER DASHBOARD
@@ -136,7 +138,9 @@ services:
         value: "false"
       - key: NRS_MOCK_MODE
         value: "false"
-      # DigiTax API base URL
+      # DigiTax / Duplo API base URL
+      - key: DUPLO_API_URL
+        value: https://api.duplo.co
       - key: DIGITAX_API_URL
         value: https://api.digitax.ng
       
@@ -183,6 +187,6 @@ services:
   - type: redis
     name: taxbridge-redis
     plan: starter
-    region: oregon
+    region: frankfurt
     maxmemoryPolicy: noeviction
     ipAllowList: []

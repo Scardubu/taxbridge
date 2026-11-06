@@ -177,13 +177,13 @@ export async function adminRoutes(app: FastifyInstance, options: { prisma: Prism
         safePrisma(() => prisma.payment.count(), 0, 'Admin stats: payments table unavailable', warnings),
         safeExternal(
           () => duploClient.checkHealth(),
-          { status: 'error', latency: null },
+          { status: 'error', providerState: 'ERROR', latency: null },
           'Admin stats: Duplo health check failed',
           warnings
         ),
         safeExternal(
           () => remitaClient.checkHealth(),
-          { status: 'error', latency: null },
+          { status: 'error', providerState: 'ERROR', latency: null },
           'Admin stats: Remita health check failed',
           warnings
         )

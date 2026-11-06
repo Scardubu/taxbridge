@@ -397,11 +397,9 @@ describe('Remita API Integration Tests', () => {
       // Create new client instance to test constructor behavior
       const newClient = new RemitaClient();
 
-      // Should still attempt API calls with empty strings
-      mockedAxios.get.mockRejectedValueOnce(new Error('Bad request') as any);
-
       const result = await newClient.checkHealth();
-      expect(result.status).toBe('error');
+      expect(result.status).toBe('unconfigured');
+      expect(result.providerState).toBe('UNCONFIGURED');
     });
 
     test('validates amount parameter in hash generation', async () => {

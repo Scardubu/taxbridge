@@ -17,17 +17,20 @@ const paystackWebhook: FastifyPluginAsync = async (fastify) => {
     if (!rawBody) return reply.code(400).send({ error: 'MISSING_BODY' });
 
     const payload  = rawBody.toString('utf8');
-    const webhookSecret = process.env.PAYSTACK_WEBHOOK_SECRET;
+    const webhookSecret = process.env.PAYSTACK_SECRET_KEY || process.env.PAYSTACK_SECRET || process.env.PAYSTACK_WEBHOOK_SECRET;
     if (!webhookSecret) return reply.code(500).send({ error: 'WEBHOOK_SECRET_NOT_CONFIGURED' });
-
-    const expected = createHmac('sha256', webhookSecret)
-      .update(payload).digest('hex');
 
     // Paystack uses x-paystack-signature (hex string, NOT hex-decoded buffer)
     const received = request.headers['x-paystack-signature'] as string | undefined;
     if (!received) return reply.code(403).send({ error: 'MISSING_SIGNATURE' });
 
-    if (expected.length !== received.length || !timingSafeEqual(Buffer.from(expected), Buffer.from(received))) {
+    const expected512 = createHmac('sha512', webhookSecret).update(payload).digest('hex');
+    const expected256 = createHmac('sha256', webhookSecret).update(payload).digest('hex');
+
+    const matches512 = received.length === expected512.length && timingSafeEqual(Buffer.from(expected512), Buffer.from(received));
+    const matches256 = received.length === expected256.length && timingSafeEqual(Buffer.from(expected256), Buffer.from(received));
+
+    if (!matches512 && !matches256) {
       return reply.code(403).send({ error: 'INVALID_SIGNATURE' });
     }
 

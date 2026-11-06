@@ -628,4 +628,81 @@ describe('Duplo API Integration Tests', () => {
       expect(mockPrismaClient.einvoiceSubmission.create).toHaveBeenCalledTimes(2);
     });
   });
+
+  describe('Provider Configuration and Health State Semantics', () => {
+    const origDuploUrl = process.env.DUPLO_API_URL;
+    const origDigitaxUrl = process.env.DIGITAX_API_URL;
+    const origClientId = process.env.DUPLO_CLIENT_ID;
+    const origClientSecret = process.env.DUPLO_CLIENT_SECRET;
+    const origMockMode = process.env.DIGITAX_MOCK_MODE;
+
+    afterEach(() => {
+      process.env.DUPLO_API_URL = origDuploUrl;
+      process.env.DIGITAX_API_URL = origDigitaxUrl;
+      process.env.DUPLO_CLIENT_ID = origClientId;
+      process.env.DUPLO_CLIENT_SECRET = origClientSecret;
+      process.env.DIGITAX_MOCK_MODE = origMockMode;
+    });
+
+    test('consumes DUPLO_API_URL when configured', () => {
+      process.env.DUPLO_API_URL = 'https://api-custom.duplo.co';
+      delete process.env.DIGITAX_API_URL;
+      const testClient = new DuploClient();
+      expect(testClient.getBaseURL()).toBe('https://api-custom.duplo.co');
+    });
+
+    test('falls back to DIGITAX_API_URL when DUPLO_API_URL is unset', () => {
+      delete process.env.DUPLO_API_URL;
+      process.env.DIGITAX_API_URL = 'https://api.digitax.ng';
+      const testClient = new DuploClient();
+      expect(testClient.getBaseURL()).toBe('https://api.digitax.ng');
+    });
+
+    test('falls back to default URL when neither is set', () => {
+      delete process.env.DUPLO_API_URL;
+      delete process.env.DIGITAX_API_URL;
+      const testClient = new DuploClient();
+      expect(testClient.getBaseURL()).toBe('https://api.duplo.co');
+    });
+
+    test('reports UNCONFIGURED and does NOT report healthy when credentials are absent', async () => {
+      delete process.env.DUPLO_CLIENT_ID;
+      delete process.env.DUPLO_CLIENT_SECRET;
+      delete process.env.DIGITAX_MOCK_MODE;
+      const unconfiguredClient = new DuploClient('https://api-test.duplo.co', '', '');
+      const health = await unconfiguredClient.checkHealth();
+
+      expect(health.status).toBe('unconfigured');
+      expect(health.providerState).toBe('UNCONFIGURED');
+      expect(health.latency).toBeNull();
+    });
+
+    test('reports MOCK when DIGITAX_MOCK_MODE is enabled', async () => {
+      process.env.DIGITAX_MOCK_MODE = 'true';
+      const mockClient = new DuploClient('https://api-test.duplo.co', 'test-client-id', 'test-client-secret');
+      const health = await mockClient.checkHealth();
+
+      expect(health.status).toBe('mock');
+      expect(health.providerState).toBe('MOCK');
+      expect(health.latency).toBeGreaterThanOrEqual(0);
+    });
+
+    test('reports CONFIGURED_AND_HEALTHY when upstream returns healthy status', async () => {
+      delete process.env.DIGITAX_MOCK_MODE;
+      mockedAxios.post.mockResolvedValueOnce({
+        data: { access_token: 'valid-token', token_type: 'Bearer', expires_in: 3600 }
+      });
+      mockedAxios.get.mockResolvedValueOnce({
+        data: { status: 'healthy', timestamp: new Date().toISOString(), version: '1.0' }
+      });
+
+      const configuredClient = new DuploClient('https://api-test.duplo.co', 'test-client-id', 'test-client-secret');
+      const health = await configuredClient.checkHealth();
+
+      expect(health.status).toBe('healthy');
+      expect(health.providerState).toBe('CONFIGURED_AND_HEALTHY');
+      expect(typeof health.latency).toBe('number');
+    });
+  });
 });
+

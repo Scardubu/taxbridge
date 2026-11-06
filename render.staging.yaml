@@ -30,6 +30,8 @@ services:
         value: "true"
       - key: REMITA_MOCK_MODE
         value: "true"
+      - key: DUPLO_API_URL
+        value: https://api-test.duplo.co
       - key: DIGITAX_API_URL
         value: https://sandbox.digitax.com/api
       - key: DATABASE_URL
@@ -100,6 +102,8 @@ services:
         value: "true"
       - key: REMITA_MOCK_MODE
         value: "true"
+      - key: DUPLO_API_URL
+        value: https://api-test.duplo.co
       - key: DIGITAX_API_URL
         value: https://sandbox.digitax.com/api
       - key: DATABASE_URL

@@ -78,11 +78,17 @@ export class RemitaClient {
     return crypto.createHash('sha512').update(payload).digest('hex');
   }
 
-  async checkHealth(): Promise<{ status: 'healthy' | 'degraded' | 'error'; latency: number | null }> {
+  async checkHealth(): Promise<{ status: 'healthy' | 'degraded' | 'error' | 'unconfigured' | 'mock'; providerState: 'CONFIGURED_AND_HEALTHY' | 'CONFIGURED_AND_DEGRADED' | 'UNCONFIGURED' | 'MOCK' | 'ERROR'; latency: number | null }> {
     const startTime = Date.now();
+    const mockMode = this.isMockMode();
+    const hasCreds = Boolean(this.merchantId && this.apiKey && this.serviceTypeId);
 
-    if (this.isMockMode()) {
-      return { status: 'healthy', latency: 2 };
+    if (mockMode) {
+      return { status: 'mock', providerState: 'MOCK', latency: 2 };
+    }
+
+    if (!hasCreds) {
+      return { status: 'unconfigured', providerState: 'UNCONFIGURED', latency: null };
     }
     
     try {
@@ -101,13 +107,16 @@ export class RemitaClient {
       );
 
       const latency = Math.max(1, Date.now() - startTime);
+      const isOk = response.status === 200;
       return {
-        status: response.status === 200 ? 'healthy' : 'degraded',
+        status: isOk ? 'healthy' : 'degraded',
+        providerState: isOk ? 'CONFIGURED_AND_HEALTHY' : 'CONFIGURED_AND_DEGRADED',
         latency,
       };
     } catch (error) {
       return {
         status: 'error',
+        providerState: 'ERROR',
         latency: null,
       };
     }

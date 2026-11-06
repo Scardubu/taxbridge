@@ -32,6 +32,19 @@ export interface DuploStatusResponse {
   rejection_reason?: string;
 }
 
+export type ProviderState =
+  | 'CONFIGURED_AND_HEALTHY'
+  | 'CONFIGURED_AND_DEGRADED'
+  | 'UNCONFIGURED'
+  | 'MOCK'
+  | 'ERROR';
+
+export interface ProviderHealthResult {
+  status: 'healthy' | 'degraded' | 'error' | 'unconfigured' | 'mock';
+  providerState: ProviderState;
+  latency: number | null;
+}
+
 // Cache instance for Duplo tokens (distributed cache via Redis)
 const duploCache = new CacheManager('duplo');
 const TOKEN_CACHE_KEY = 'oauth_token';
@@ -46,10 +59,14 @@ export class DuploClient {
   private accessToken: string | null = null;
   private tokenExpiry: number = 0;
 
-  constructor() {
-    this.baseURL = process.env.DUPLO_API_URL || 'https://api.duplo.co';
-    this.clientId = process.env.DUPLO_CLIENT_ID || '';
-    this.clientSecret = process.env.DUPLO_CLIENT_SECRET || '';
+  constructor(baseURL?: string, clientId?: string, clientSecret?: string) {
+    this.baseURL = (baseURL || process.env.DUPLO_API_URL || process.env.DIGITAX_API_URL || 'https://api.duplo.co').trim();
+    this.clientId = (clientId || process.env.DUPLO_CLIENT_ID || '').trim();
+    this.clientSecret = (clientSecret || process.env.DUPLO_CLIENT_SECRET || '').trim();
+  }
+
+  getBaseURL(): string {
+    return this.baseURL;
   }
 
   private async getAccessToken(): Promise<string> {
@@ -114,15 +131,24 @@ export class DuploClient {
     }
   }
 
-  async checkHealth(): Promise<{ status: 'healthy' | 'degraded' | 'error'; latency: number | null }> {
+  async checkHealth(): Promise<ProviderHealthResult> {
     const startTime = Date.now();
     const mockMode = String(process.env.DIGITAX_MOCK_MODE || 'false').toLowerCase() === 'true';
     const hasCreds = Boolean(this.clientId && this.clientSecret);
 
-    if (mockMode || !hasCreds) {
+    if (mockMode) {
       return {
-        status: 'healthy',
+        status: 'mock',
+        providerState: 'MOCK',
         latency: 2,
+      };
+    }
+
+    if (!hasCreds) {
+      return {
+        status: 'unconfigured',
+        providerState: 'UNCONFIGURED',
+        latency: null,
       };
     }
 
@@ -139,13 +165,16 @@ export class DuploClient {
       );
 
       const latency = Date.now() - startTime;
+      const isOk = response.data.status === 'ok' || response.data.status === 'healthy';
       return {
-        status: response.data.status === 'ok' ? 'healthy' : 'degraded',
+        status: isOk ? 'healthy' : 'degraded',
+        providerState: isOk ? 'CONFIGURED_AND_HEALTHY' : 'CONFIGURED_AND_DEGRADED',
         latency,
       };
     } catch (error) {
       return {
         status: 'error',
+        providerState: 'ERROR',
         latency: null,
       };
     }
