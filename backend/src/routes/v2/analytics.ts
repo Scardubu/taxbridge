@@ -12,7 +12,7 @@ import { prisma }              from '../../lib/prisma';
 const FALLBACK_EMPTY = { data: [], meta: { total: 0 } };
 
 const analyticsRoutes: FastifyPluginAsync = async (fastify) => {
-  const adminMiddleware = [fastify.authenticate, requireRole('ADMIN')];
+  const adminMiddleware = [fastify.authenticate, requirePlatformAdmin];
 
   const sendRevenue = async (_request: Parameters<typeof fastify.get>[1] extends never ? never : any, reply: any) => {
     const data = await (prisma as any).invoice.groupBy({
