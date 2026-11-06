@@ -45,12 +45,51 @@ export function initialiseSentry(): void {
       Sentry.httpIntegration(),
     ],
     beforeSend(event) {
-      // Strip PII from breadcrumbs
-      if (event.request?.headers) {
-        delete event.request.headers['authorization'];
-        delete event.request.headers['cookie'];
-        delete event.request.headers['x-api-key'];
+      // Tax identifiers, payer contact data and auth material must not leave
+      // the application through error telemetry.
+      if (event.request) {
+        if (event.request.headers) {
+          for (const headerName of Object.keys(event.request.headers)) {
+            if (/^(authorization|cookie|set-cookie|x-api-key|x-admin-api-key|x-internal-key|x-admin-user-id)$/i.test(headerName)) {
+              delete event.request.headers[headerName];
+            }
+          }
+        }
+        delete event.request.data;
+        delete event.request.cookies;
+        delete event.request.query_string;
+        if (event.request.url) {
+          try {
+            const url = new URL(event.request.url);
+            event.request.url = `${url.origin}${url.pathname}`;
+          } catch {
+            delete event.request.url;
+          }
+        }
       }
+
+      // User context often contains email, phone or internal identifiers.
+      delete event.user;
+
+      // HTTP breadcrumbs may carry request payloads or query strings.
+      for (const breadcrumb of event.breadcrumbs ?? []) {
+        if (!breadcrumb.data) continue;
+        for (const key of Object.keys(breadcrumb.data)) {
+          if (/body|payload|headers|cookies|authorization|token|email|phone|tin|nin|bvn/i.test(key)) {
+            delete breadcrumb.data[key];
+          }
+        }
+        const urlValue = breadcrumb.data.url;
+        if (typeof urlValue === 'string') {
+          try {
+            const url = new URL(urlValue);
+            breadcrumb.data.url = `${url.origin}${url.pathname}`;
+          } catch {
+            delete breadcrumb.data.url;
+          }
+        }
+      }
+
       return event;
     },
     ignoreErrors: [
