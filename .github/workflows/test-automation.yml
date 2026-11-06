@@ -26,7 +26,7 @@ jobs:
       postgres:
         image: postgres:15
         env:
-          POSTGRES_PASSWORD: postgres
+          POSTGRES_PASSWORD: ${{ format('tbci-{0}-{1}', github.run_id, github.run_attempt) }}
           POSTGRES_DB: taxbridge_test
         options: >-
           --health-cmd pg_isready
@@ -67,21 +67,21 @@ jobs:
         npm run db:migrate
         npm run prisma:generate
       env:
-        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/taxbridge_test
+        DATABASE_URL: postgresql://postgres:${{ format('tbci-{0}-{1}', github.run_id, github.run_attempt) }}@localhost:5432/taxbridge_test
         REDIS_URL: redis://localhost:6379
 
     - name: Run unit tests
       working-directory: ./backend
       run: npm run test:unit
       env:
-        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/taxbridge_test
+        DATABASE_URL: postgresql://postgres:${{ format('tbci-{0}-{1}', github.run_id, github.run_attempt) }}@localhost:5432/taxbridge_test
         REDIS_URL: redis://localhost:6379
 
     - name: Run integration tests
       working-directory: ./backend
       run: npm run test:integration
       env:
-        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/taxbridge_test
+        DATABASE_URL: postgresql://postgres:${{ format('tbci-{0}-{1}', github.run_id, github.run_attempt) }}@localhost:5432/taxbridge_test
         REDIS_URL: redis://localhost:6379
         DUPLO_CLIENT_ID: ${{ secrets.DUPLO_CLIENT_ID }}
         DUPLO_CLIENT_SECRET: ${{ secrets.DUPLO_CLIENT_SECRET }}
@@ -95,7 +95,7 @@ jobs:
       working-directory: ./backend
       run: npm run test:api
       env:
-        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/taxbridge_test
+        DATABASE_URL: postgresql://postgres:${{ format('tbci-{0}-{1}', github.run_id, github.run_attempt) }}@localhost:5432/taxbridge_test
         REDIS_URL: redis://localhost:6379
         DUPLO_CLIENT_ID: ${{ secrets.DUPLO_CLIENT_ID }}
         DUPLO_CLIENT_SECRET: ${{ secrets.DUPLO_CLIENT_SECRET }}
@@ -109,7 +109,7 @@ jobs:
       working-directory: ./backend
       run: npm run test:e2e
       env:
-        DATABASE_URL: postgresql://postgres:postgres@localhost:5432/taxbridge_test
+        DATABASE_URL: postgresql://postgres:${{ format('tbci-{0}-{1}', github.run_id, github.run_attempt) }}@localhost:5432/taxbridge_test
         REDIS_URL: redis://localhost:6379
         DUPLO_CLIENT_ID: ${{ secrets.DUPLO_CLIENT_ID }}
         DUPLO_CLIENT_SECRET: ${{ secrets.DUPLO_CLIENT_SECRET }}

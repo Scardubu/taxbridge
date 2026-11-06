@@ -231,12 +231,17 @@ export class AnomalyDetectionService {
     if (expenses.length < 5) return results;
 
     const amounts = expenses.map(e => Number(e.amount));
-    const mean = amounts.reduce((s, v) => s + v, 0) / amounts.length;
-    const std  = Math.sqrt(amounts.map(v => (v - mean) ** 2).reduce((s, v) => s + v, 0) / amounts.length);
-    if (std === 0) return results;
 
-    for (const e of expenses) {
+    for (let i = 0; i < expenses.length; i++) {
+      const e = expenses[i];
       const amount = Number(e.amount);
+      const others = amounts.filter((_, idx) => idx !== i);
+      const mean = others.reduce((s, v) => s + v, 0) / others.length;
+      const variance = others.map(v => (v - mean) ** 2).reduce((s, v) => s + v, 0) / others.length;
+      let std = Math.sqrt(variance);
+      if (std === 0) {
+        std = Math.max(mean * 0.05, 1);
+      }
       const z = Math.abs((amount - mean) / std);
       if (z > 3) {
         results.push(this.buildResult('zscore_spike', e.id, 'expense', amount, {
@@ -337,9 +342,10 @@ export class AnomalyDetectionService {
       });
 
       if (totalInWindow.length >= 2) {
-        const total = totalInWindow.reduce((s: number, e: any) => s + Number(e.amount), 0);
+        const cluster = [sorted[0], ...totalInWindow];
+        const total = cluster.reduce((s: number, e: any) => s + Number(e.amount), 0);
         results.push(this.buildResult('rapid_succession', sorted[0].id, 'expense', total, {
-          vendor, count: totalInWindow.length, totalAmount: total,
+          vendor, count: cluster.length, totalAmount: total,
         }));
       }
     }

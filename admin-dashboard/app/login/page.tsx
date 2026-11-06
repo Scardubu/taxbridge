@@ -12,7 +12,7 @@
  * - useSearchParams() wrapped in Suspense boundary (Next.js 16 requirement)
  */
 
-import { useState, useCallback, FormEvent, Suspense } from 'react';
+import { useState, useCallback, useEffect, useRef, FormEvent, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -28,6 +28,8 @@ const REASON_MESSAGES: Record<string, string> = {
   unauthenticated: 'Please sign in to access the admin dashboard.',
   session_expired: 'Your session has expired. Please sign in again.',
   invalid_token:   'Your session is no longer valid. Please sign in again.',
+  signed_out: 'You have been signed out.',
+  logout_server_unavailable: 'You were signed out on this device, but the server could not revoke other sessions. Please contact an administrator if this was unexpected.',
 };
 
 /**
@@ -61,6 +63,31 @@ function LoginPageContent() {
   const [password,  setPassword]  = useState('');
   const [loading,   setLoading]   = useState(false);
   const [error,     setError]     = useState<string | null>(null);
+
+  const refreshAttempted = useRef(false);
+
+  useEffect(() => {
+    if (!['unauthenticated', 'invalid_token', 'session_expired'].includes(reason)) return;
+    if (refreshAttempted.current) return;
+    refreshAttempted.current = true;
+
+    let active = true;
+    void fetch('/api/auth/refresh', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { Accept: 'application/json' },
+      cache: 'no-store',
+    }).then((response) => {
+      if (active && response.ok) {
+        router.replace('/dashboard');
+        router.refresh();
+      }
+    }).catch(() => undefined);
+
+    return () => {
+      active = false;
+    };
+  }, [reason, router]);
 
   const handleSubmit = useCallback(async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();

@@ -45,7 +45,7 @@ module.exports = {
       preset: 'ts-jest',
       testEnvironment: 'node',
       roots: ['<rootDir>/src'],
-      testRegex: '__tests__/.*\\.unit\\.test\\.ts$',
+      testRegex: '__tests__/.*(?<!integration|e2e)\\.test\\.ts$',
       testPathIgnorePatterns: ['/integration/', '/e2e/', '/dist/', 'tools'],
       setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
       moduleNameMapper: {

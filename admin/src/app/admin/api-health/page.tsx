@@ -199,7 +199,7 @@ export default function ApiHealthPage() {
               title="Last NRS Stamp"
               value={formatTimestamp(parsedMetrics.lastNrsStampAt)}
               detail="Most recent recorded NRS stamping activity from available metrics"
-              status={parsedMetrics.lastNrsStampAt ? { label: 'Recorded', tone: 'info', icon: '◉' } : { label: 'Unavailable', tone: 'neutral', icon: '○' }}
+              status={parsedMetrics.lastNrsStampAt ? { label: 'Recorded', tone: 'neutral', icon: '◉' } : { label: 'Unavailable', tone: 'neutral', icon: '○' }}
             />
             <StatusCard
               title="P99 Latency"

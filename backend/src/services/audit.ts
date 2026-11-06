@@ -11,7 +11,7 @@
 import { logger } from '../lib/logger';
 import { prisma } from '../lib/prisma';
 
-const auditLogger = logger.child({ service: 'audit' });
+const auditLogger = typeof logger?.child === 'function' ? logger.child({ service: 'audit' }) : logger;
 
 /**
  * Extended audit event input — accepts both the canonical field names

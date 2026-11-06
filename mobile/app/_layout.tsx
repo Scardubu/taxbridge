@@ -137,6 +137,9 @@ function RootLayout() {
           try {
             await initDatabase();
             offlineQueue.start();
+            // Reconcile server-accepted operations on app resume. Network
+            // transitions are not guaranteed to emit while the app is paused.
+            await offlineQueue.flush();
           } catch (error) {
             Sentry.captureException(error);
           }

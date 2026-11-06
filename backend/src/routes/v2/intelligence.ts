@@ -26,7 +26,7 @@ export default async function v2IntelligenceRoute(fastify: FastifyInstance) {
 
   // ── Anomalies with AI explanations and risk prioritization ────────────────
   fastify.get('/api/v2/intelligence/anomalies', {
-    preHandler: [fastify.authenticate],
+    preHandler: [fastify.authenticate, fastify.resolveOrgContext],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const userId = request.user.userId;
     const query = request.query as { days?: string; severity?: string };
@@ -70,7 +70,7 @@ export default async function v2IntelligenceRoute(fastify: FastifyInstance) {
 
   // ── Quarterly forecast ─────────────────────────────────────────────────────
   fastify.get('/api/v2/intelligence/forecast', {
-    preHandler: [fastify.authenticate],
+    preHandler: [fastify.authenticate, fastify.resolveOrgContext],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const userId = request.user.userId;
 
@@ -92,7 +92,7 @@ export default async function v2IntelligenceRoute(fastify: FastifyInstance) {
 
   // ── Health score with trends ───────────────────────────────────────────────
   fastify.get('/api/v2/intelligence/health-score', {
-    preHandler: [fastify.authenticate],
+    preHandler: [fastify.authenticate, fastify.resolveOrgContext],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const userId = request.user.userId;
 
@@ -160,7 +160,7 @@ export default async function v2IntelligenceRoute(fastify: FastifyInstance) {
 
   // ── Trends endpoint (CF-05) ─────────────────────────────────────────────────
   fastify.get('/api/v2/intelligence/trends', {
-    preHandler: [fastify.authenticate],
+    preHandler: [fastify.authenticate, fastify.resolveOrgContext],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const userId = request.user.userId;
     const query = request.query as { days?: string };

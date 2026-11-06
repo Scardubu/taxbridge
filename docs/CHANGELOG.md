@@ -1,5 +1,39 @@
 # Changelog
 
+## [14.0.0] - 2026-11-06 - V14 Sovereign Production Release
+
+### Fixed & Hardened (14.0.0)
+
+- `backend/src/plugins/requirePlatformAdmin.ts` — Added database-backed platform administrator guard enforcing verified platform-admin credentials on all global operational, metrics, telemetry, and device sync routes
+- `backend/src/services/accessTokenRole.ts` — Isolated platform-aware role selector to prevent tenant-scoped roles from gaining platform-admin access
+- `backend/src/services/refreshTokenRotation.ts` — Added atomic, transaction-backed refresh-token rotation with family-revocation replay detection
+- `backend/src/routes/v1/auth.ts` — Added database-backed logout revocation endpoint (`/api/v1/auth/logout`) and session invalidation
+- `admin-dashboard/lib/auth-origin.ts` & `proxy.ts` — Implemented strict same-origin browser request validation and double-submit CSRF protection
+- `admin-dashboard/.env.production.example` — Removed dangerous browser-exposed API keys (`NEXT_PUBLIC_ADMIN_API_KEY`)
+- `admin-dashboard/jest.polyfill.js` — Polyfilled web primitives (`Request`, `Response`, `Headers`, `TextEncoder`) for deterministic Jest test runs
+- `backend/src/routes/payments.ts` — Enforced pre-reservation of invoice payment attempts before provider initialization; scoped idempotency keys per invoice
+- `backend/src/services/payment-gateway.ts` — Suppressed cross-gateway failover upon ambiguous provider outcomes
+- `mobile/services/paymentPersistence.ts` — Added idempotent local payment persistence in SQLite with unique idempotency keys
+- `mobile/services/offlineQueue.ts` & `mobile/app/_layout.tsx` — Reconcile pending operations and restart offline queue listeners on app foreground
+- `.github/workflows/test-automation.yml` — Dynamic PostgreSQL test credentials replacing hardcoded runner passwords
+
+### Verified (14.0.0)
+
+- `npm run build --workspace=@taxbridge/contracts`: **PASS**
+- `npm run build --workspace=@taxbridge/backend`: **PASS**
+- `npm run build --workspace=admin-dashboard`: **PASS**
+- `npm run type-check:mobile`: **PASS** (0 errors)
+- `npm run type-check:admin`: **PASS** (0 errors)
+- `npm run type-check:backend`: **PASS** (0 errors)
+- `npm run accuracy:gates`: **PASS** (6/6 checks)
+- `npm run prompts:verify`: **PASS** (12/12 modules M00–M11)
+- `node packages/contracts/scripts/check-contract-compatibility.cjs`: **PASS**
+- Backend unit tests: **PASS** (452/452 passed, 23/23 suites)
+- Mobile test suite: **PASS** (396/397 passed, 1 skipped, 33/33 suites)
+- Admin dashboard tests: **PASS** (20/20 passed, 5/5 suites)
+
+---
+
 ## [13.5.0] - 2026-03-09
 
 ### Fixed (13.5.0)

@@ -1,20 +1,50 @@
+import 'dotenv/config';
+import * as Sentry from '@sentry/node';
 import { buildApp } from './app';
+import { initialiseObservability } from './lib/observability';
+import { prisma } from './lib/prisma';
 import { registerCronJobs } from './cron/orchestrator';
 
+let app: Awaited<ReturnType<typeof buildApp>> | null = null;
+let shuttingDown = false;
+
 async function start(): Promise<void> {
-  const app = await buildApp();
+  initialiseObservability();
+  app = await buildApp();
 
   app.addHook('onReady', () => {
-    registerCronJobs(app);
+    registerCronJobs(app!);
+  });
+  app.addHook('onClose', async () => {
+    await prisma.$disconnect();
   });
 
   await app.listen({
-    port: parseInt(process.env.PORT!, 10),
+    port: Number.parseInt(process.env.PORT!, 10),
     host: '0.0.0.0',
   });
 }
 
-start().catch((err) => {
-  process.stderr.write(String(err) + '\n');
-  process.exit(1);
+async function shutdown(signal: string): Promise<void> {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  process.stderr.write(`[server] ${signal} received; draining Fastify\n`);
+  try {
+    if (app) await app.close();
+    else await prisma.$disconnect();
+  } catch (error) {
+    Sentry.captureException(error);
+    await Sentry.flush(2000);
+    process.stderr.write(`[server] graceful shutdown failed: ${String(error)}\n`);
+    process.exitCode = 1;
+  }
+}
+process.once('SIGINT', () => { void shutdown('SIGINT'); });
+process.once('SIGTERM', () => { void shutdown('SIGTERM'); });
+
+start().catch(async (error) => {
+  Sentry.captureException(error);
+  await Sentry.flush(2000);
+  process.stderr.write(`[server] startup failed: ${String(error)}\n`);
+  process.exitCode = 1;
 });

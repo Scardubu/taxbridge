@@ -61,7 +61,7 @@ const totpRoutes: FastifyPluginAsync = async (fastify) => {
   // Does NOT activate 2FA until /verify succeeds.
 
   fastify.post('/setup', {
-    preHandler: [fastify.authenticate],
+    preHandler: [fastify.authenticate, fastify.resolveOrgContext],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const userId = requireAuth(request, reply);
     if (!userId) return;
@@ -101,7 +101,7 @@ const totpRoutes: FastifyPluginAsync = async (fastify) => {
   const VerifyBody = z.object({ token: z.string().length(6) });
 
   fastify.post('/verify', {
-    preHandler: [fastify.authenticate],
+    preHandler: [fastify.authenticate, fastify.resolveOrgContext],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const userId = requireAuth(request, reply);
     if (!userId) return;
@@ -166,7 +166,7 @@ const totpRoutes: FastifyPluginAsync = async (fastify) => {
   const DisableBody = z.object({ token: z.string().min(6).max(8) });
 
   fastify.post('/disable', {
-    preHandler: [fastify.authenticate],
+    preHandler: [fastify.authenticate, fastify.resolveOrgContext],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const userId = requireAuth(request, reply);
     if (!userId) return;
@@ -219,7 +219,7 @@ const totpRoutes: FastifyPluginAsync = async (fastify) => {
   const BackupBody = z.object({ token: z.string().length(6) });
 
   fastify.post('/backup', {
-    preHandler: [fastify.authenticate],
+    preHandler: [fastify.authenticate, fastify.resolveOrgContext],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const userId = requireAuth(request, reply);
     if (!userId) return;

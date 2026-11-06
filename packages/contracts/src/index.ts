@@ -12,6 +12,7 @@
 export * from './constants';
 export * from './pit';
 export * from './vat';
+export * from './invoice';
 export * from './wht';
 export * from './cit';
 export * from './cgt';
@@ -83,4 +84,6 @@ export {
 
 // ─── sync exports ─────────────────────────────────────────────────────────────
 export * from './sync';
-\n// Phase 1 operation and standardized API error contracts (additive v1).\nexport * from './operations';\n
+
+// Phase 1 operation and standardized API error contracts (additive v1).
+export * from './operations';

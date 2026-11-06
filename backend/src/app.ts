@@ -8,6 +8,8 @@
  */
 import './validateEnv'; // ← MUST be absolute first import; hard-crashes on missing env
 
+import * as Sentry from '@sentry/node';
+import { timingSafeEqual } from 'node:crypto';
 import Fastify, { FastifyInstance }     from 'fastify';
 import fastifyCors                       from '@fastify/cors';
 import fastifyHelmet                     from '@fastify/helmet';
@@ -54,6 +56,7 @@ import cryptoRoutes             from './routes/crypto';
 import reconciliationRoutes     from './routes/reconciliation';
 import syncRoutes                from './routes/sync';
 import syncOperationRoutes        from './routes/syncOperations';
+import adminSyncRoutes             from './routes/adminSync';
 
 // Webhook Route imports
 import flutterwaveWebhook    from './routes/webhooks/flutterwave';
@@ -71,8 +74,12 @@ export async function buildApp(): Promise<FastifyInstance> {
     logger: {
       level: process.env.LOG_LEVEL ?? 'info',
       redact: [
-        'req.headers.authorization', 'body.password', 'body.tin',
-        'body.bvn', 'body.receiptUrl', 'body.documentUrl',
+        'req.headers.authorization', 'req.headers.cookie', 'req.headers.x-api-key',
+        'req.headers.x-internal-key', 'req.headers.x-admin-api-key', 'req.headers.x-admin-user-id',
+        'body.password', 'body.refreshToken', 'body.accessToken', 'body.verificationToken', 'body.otp',
+        'body.email', 'body.phone', 'body.tin', 'body.nin', 'body.bvn', 'body.customerTIN',
+        'body.customerTin', 'body.payerName', 'body.payerEmail', 'body.payerPhone',
+        'body.receiptUrl', 'body.documentUrl', 'body.raw_ocr_text',
       ],
       ...(process.env.LOG_FORMAT !== 'json'
         ? { transport: { target: 'pino-pretty' } }
@@ -177,9 +184,44 @@ export async function buildApp(): Promise<FastifyInstance> {
   // sync.ts owns its explicit /api/v1 paths; register exactly once.
   await fastify.register(syncRoutes);
   await fastify.register(syncOperationRoutes);
+  await fastify.register(adminSyncRoutes);
   await fastify.register(flutterwaveWebhook,  { prefix: '/webhooks' });
   await fastify.register(paystackWebhook,     { prefix: '/webhooks' });
   await fastify.register(remitaWebhook,       { prefix: '/webhooks' });
+
+  fastify.get<{ Params: { userId: string } }>('/api/v1/admin/role-version/:userId', async (request, reply) => {
+    const expected = process.env.INTERNAL_API_KEY ?? '';
+    const header = request.headers['x-internal-key'];
+    const supplied = typeof header === 'string' ? header : '';
+    const expectedBytes = Buffer.from(expected);
+    const suppliedBytes = Buffer.from(supplied);
+    if (expectedBytes.length < 32) return reply.code(503).send({ error: 'INTERNAL_API_NOT_CONFIGURED' });
+    if (expectedBytes.length !== suppliedBytes.length || !timingSafeEqual(expectedBytes, suppliedBytes)) {
+      return reply.code(401).send({ error: 'UNAUTHORIZED' });
+    }
+    try {
+      const [stored, user] = await Promise.all([
+        redis.get(`role_version:${request.params.userId}`),
+        prisma.user.findFirst({
+          where: { id: request.params.userId, deleted: false },
+          select: { role: true },
+        }),
+      ]);
+      if (!user) return reply.code(404).send({ error: 'USER_NOT_FOUND' });
+
+      const roleVersion = stored === null ? 0 : Number(stored);
+      if (!Number.isSafeInteger(roleVersion) || roleVersion < 0) {
+        return reply.code(503).send({ error: 'ROLE_VERSION_UNAVAILABLE' });
+      }
+      return reply.send({
+        roleVersion,
+        platformRole: String(user.role ?? '').toUpperCase(),
+      });
+    } catch (error) {
+      request.log.error({ err: error }, 'Role-version lookup failed');
+      return reply.code(503).send({ error: 'ROLE_VERSION_UNAVAILABLE' });
+    }
+  });
 
   fastify.get('/health/live', async (_request, reply) => {
     return reply.code(200).send({ status: 'ok' });
@@ -216,6 +258,19 @@ export async function buildApp(): Promise<FastifyInstance> {
     fastify.log.error({ err: error }, 'Unhandled error');
     const status = Number.isInteger((error as any).statusCode) ? (error as any).statusCode : 500;
     const code = status >= 500 ? 'INTERNAL_ERROR' : ((error as any).code ?? 'REQUEST_ERROR');
+
+    // Capture handled server errors without attaching request bodies, headers,
+    // identifiers, or other potentially sensitive tax and authentication data.
+    if (status >= 500) {
+      Sentry.withScope((scope) => {
+        scope.setTag('component', 'fastify-api');
+        scope.setTag('http.method', _request.method);
+        scope.setTag('http.route', _request.routeOptions?.url ?? 'unmatched');
+        scope.setExtra('requestId', _request.id);
+        Sentry.captureException(error);
+      });
+    }
+
     reply.code(status).send({
       error: code,
       message: status >= 500 ? 'An unexpected error occurred' : error.message,

@@ -6,8 +6,8 @@
  * POST /dlq/:id/retry — retry a specific job (require2FA if depth > 10)
  * POST /dlq/:id/resolve — mark a job resolved
  */
+import { requirePlatformAdmin } from '../../plugins/requirePlatformAdmin';
 import { FastifyPluginAsync }   from 'fastify';
-import { requireRole }          from '../../plugins/requireRole';
 import { require2FA }           from '../../plugins/require2FA';
 import { prisma }               from '../../lib/prisma';
 import { writeAuditEvent }      from '../../services/audit';
@@ -15,7 +15,7 @@ import { writeAuditEvent }      from '../../services/audit';
 const dlqRoutes: FastifyPluginAsync = async (fastify) => {
   // GET /dlq — list DLQ jobs
   fastify.get('/dlq', {
-    preHandler: [fastify.authenticate, requireRole('ADMIN')],
+    preHandler: [fastify.authenticate, requirePlatformAdmin],
   }, async (request, reply) => {
     const cursor = (request.query as any).cursor;
     const limit  = Math.min(parseInt((request.query as any).limit ?? '20', 10), 100);
@@ -37,7 +37,7 @@ const dlqRoutes: FastifyPluginAsync = async (fastify) => {
 
   // POST /dlq/:id/retry
   fastify.post('/dlq/:id/retry', {
-    preHandler: [fastify.authenticate, requireRole('ADMIN')],
+    preHandler: [fastify.authenticate, requirePlatformAdmin],
   }, async (request, reply) => {
     const jobId = (request.params as any).id;
 
@@ -69,7 +69,7 @@ const dlqRoutes: FastifyPluginAsync = async (fastify) => {
 
   // POST /dlq/:id/resolve
   fastify.post('/dlq/:id/resolve', {
-    preHandler: [fastify.authenticate, requireRole('ADMIN')],
+    preHandler: [fastify.authenticate, requirePlatformAdmin],
   }, async (request, reply) => {
     const jobId = (request.params as any).id;
 

@@ -7,7 +7,7 @@
  * C-25: ACCESS_DENIED audit is fire-and-forget (.catch(()=>{}))
  */
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { ROLE_HIERARCHY, type UserRole } from '@taxbridge/contracts';
+import { ROLE_HIERARCHY, normaliseRole, type UserRole } from '@taxbridge/contracts';
 import { writeAuditEvent }              from '../services/audit';
 
 export function requireRole(minRole: UserRole) {
@@ -15,7 +15,7 @@ export function requireRole(minRole: UserRole) {
     request: FastifyRequest,
     reply:   FastifyReply,
   ) {
-    const actorRole = (request.orgContext?.role ?? request.user?.role ?? 'VIEWER') as UserRole;
+    const actorRole: UserRole = normaliseRole(request.orgContext?.role ?? request.user?.role ?? 'VIEWER');
     const actorLevel    = ROLE_HIERARCHY[actorRole]  ?? 0;
     const requiredLevel = ROLE_HIERARCHY[minRole]    ?? 99;
 

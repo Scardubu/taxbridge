@@ -938,6 +938,7 @@ model OrgMember {
   orgId           String      @map("org_id") @db.Uuid
   userId          String      @map("user_id") @db.Uuid
   role            String      @default("member") // owner, admin, accountant, member, viewer
+  status          String      @default("active")
   invitedBy       String?     @map("invited_by") @db.Uuid
   joinedAt        DateTime    @default(now()) @map("joined_at")
   removedAt       DateTime?   @map("removed_at")
@@ -948,6 +949,7 @@ model OrgMember {
   @@unique([orgId, userId])
   @@index([userId])
   @@index([orgId, role])
+  @@index([orgId, status, removedAt])
   @@map("org_members")
 }
 

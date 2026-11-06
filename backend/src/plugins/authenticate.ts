@@ -1,8 +1,10 @@
 import fp from 'fastify-plugin';
 import { FastifyRequest, FastifyReply } from 'fastify';
-import { jwtVerify, importSPKI } from 'jose';
+import { importSPKI, jwtVerify } from 'jose';
 import { redis } from '../lib/redis';
 
+const JWT_ISSUER = process.env.JWT_ISSUER ?? 'taxbridge-api';
+const JWT_AUDIENCE = process.env.JWT_AUDIENCE ?? 'taxbridge-clients';
 let publicKeyPromise: ReturnType<typeof importSPKI> | undefined;
 
 async function getPublicKey() {
@@ -21,61 +23,55 @@ declare module 'fastify' {
     authenticate: (req: FastifyRequest, rep: FastifyReply) => Promise<void>;
   }
   interface FastifyRequest {
-    user: {
-      userId: string;
-      orgId: string;
-      role: string;
-      roleVersion: number;
-    };
+    user: { userId: string; orgId: string; role: string; roleVersion: number };
   }
 }
 
 export default fp(async function authenticatePlugin(fastify) {
-  fastify.decorate('authenticate', async function authenticate(
-    request: FastifyRequest, reply: FastifyReply,
-  ) {
-    const authorization = request.headers.authorization;
-    const match = authorization?.match(/^Bearer\s+(.+)$/i);
+  fastify.decorate('authenticate', async function authenticate(request: FastifyRequest, reply: FastifyReply) {
+    const match = request.headers.authorization?.match(/^Bearer\s+(.+)$/i);
     if (!match) return reply.code(401).send({ error: 'UNAUTHORIZED' });
 
+    let payload;
     try {
       const production = process.env.NODE_ENV === 'production';
-      const key = production
-        ? await getPublicKey()
-        : new TextEncoder().encode(process.env.JWT_SECRET ?? '');
-
-      const { payload } = await jwtVerify(match[1], key, {
+      const key = production ? await getPublicKey() : new TextEncoder().encode(process.env.JWT_SECRET ?? '');
+      const verified = await jwtVerify(match[1], key, {
         algorithms: production ? ['RS256'] : ['HS256'],
-        requiredClaims: ['sub', 'exp', 'iat'],
+        issuer: JWT_ISSUER,
+        audience: JWT_AUDIENCE,
+        requiredClaims: ['sub', 'exp', 'iat', 'iss', 'aud', 'type', 'orgId', 'role', 'role_version'],
       });
-
-      const userId = payload.sub;
-      const orgId = typeof payload.orgId === 'string' ? payload.orgId : '';
-      const role = typeof payload.role === 'string' ? payload.role : '';
-      const roleVersion = payload.role_version;
-
-      if (!userId || !orgId || !role || !Number.isInteger(roleVersion)) {
-        return reply.code(401).send({ error: 'INVALID_TOKEN_CLAIMS' });
-      }
-
-      // Redis is a mandatory authentication dependency. A Redis failure must
-      // never be interpreted as absence of a revocation record.
-      const storedVersion = await redis.get(`role_version:${userId}`);
-      if (storedVersion !== null && Number(storedVersion) !== roleVersion) {
-        return reply.code(401).send({
-          error: 'TOKEN_EXPIRED',
-          message: 'Session invalidated — please log in again',
-        });
-      }
-
-      request.user = { userId, orgId, role, roleVersion };
+      payload = verified.payload;
     } catch (error) {
-      request.log.warn({ err: error }, 'Authentication rejected');
-      if ((error as Error).message?.includes('ECONN') ||
-          (error as Error).message?.includes('Redis')) {
-        return reply.code(503).send({ error: 'AUTHENTICATION_DEPENDENCY_UNAVAILABLE' });
-      }
+      request.log.warn({ err: error }, 'Authentication token rejected');
       return reply.code(401).send({ error: 'UNAUTHORIZED' });
     }
+
+    const userId = payload.sub;
+    const orgId = payload.orgId;
+    const role = payload.role;
+    const roleVersion = payload.role_version;
+    if (
+      typeof userId !== 'string' || userId.length === 0 ||
+      typeof orgId !== 'string' || orgId.length === 0 ||
+      typeof role !== 'string' || role.length === 0 ||
+      payload.type !== 'access' ||
+      typeof roleVersion !== 'number' || !Number.isSafeInteger(roleVersion) || roleVersion < 0
+    ) return reply.code(401).send({ error: 'INVALID_TOKEN_CLAIMS' });
+
+    let storedVersion: string | null;
+    try {
+      storedVersion = await redis.get(`role_version:${userId}`);
+    } catch (error) {
+      request.log.error({ err: error }, 'Role-version dependency unavailable');
+      return reply.code(503).send({ error: 'AUTHENTICATION_DEPENDENCY_UNAVAILABLE' });
+    }
+
+    const currentVersion = storedVersion === null ? 0 : Number(storedVersion);
+    if (!Number.isSafeInteger(currentVersion) || currentVersion !== roleVersion) {
+      return reply.code(401).send({ error: 'TOKEN_EXPIRED' });
+    }
+    request.user = { userId, orgId, role, roleVersion };
   });
 });

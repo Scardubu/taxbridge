@@ -1,7 +1,6 @@
 import { Prisma, PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
-import jwt from 'jsonwebtoken';
 
 import { computeRequestHash, isIdempotencyExpired } from '../lib/idempotency';
 import { getInvoiceSyncQueue } from '../queue/client';
@@ -13,68 +12,14 @@ import { emitTransactionCreated } from '../services/event-bus';
 export default async function invoicesRoutes(app: FastifyInstance, opts: { prisma: PrismaClient }) {
   const prisma = opts.prisma;
 
-  function shouldAllowDevUserFallback(): boolean {
-    const env = String(process.env.NODE_ENV || '').toLowerCase();
-    if (env === 'development' || env === 'test') return true;
-    return String(process.env.ALLOW_DEV_USER_FALLBACK || 'false').toLowerCase() === 'true';
-  }
-
-  function resolveUserIdFromRequest(req: FastifyRequest): string | null {
-    if (typeof req.user?.userId === 'string' && req.user.userId.trim()) {
-      return req.user.userId;
-    }
-
-    const authHeader = typeof req.headers?.authorization === 'string' ? req.headers.authorization : undefined;
-    const token = authHeader?.replace(/^Bearer\s+/i, '').trim();
-    if (token) {
-      const secrets = [process.env.JWT_SECRET, process.env.JWT_SECRET_PREVIOUS].filter(Boolean) as string[];
-      for (const secret of secrets) {
-        try {
-          const decoded = jwt.verify(token, secret) as { userId?: string };
-          if (decoded?.userId && typeof decoded.userId === 'string') return decoded.userId;
-        } catch {
-          // try next secret
-        }
-      }
-    }
-
-    const allowDebugHeader =
-      process.env.NODE_ENV !== 'production' &&
-      String(process.env.ALLOW_DEBUG_USER_ID_HEADER || 'false').toLowerCase() === 'true';
-
-    if (allowDebugHeader) {
-      const headerValue = req.headers?.['x-taxbridge-user-id'] ?? req.headers?.['x-user-id'];
-      const headerUserId = Array.isArray(headerValue) ? headerValue[0] : headerValue;
-      if (typeof headerUserId === 'string' && headerUserId.trim()) return headerUserId.trim();
-    }
-
-    return null;
-  }
-
   async function requireResolvedUserId(req: FastifyRequest): Promise<string> {
-    const resolvedUserId = resolveUserIdFromRequest(req);
-    const userId = resolvedUserId ?? (shouldAllowDevUserFallback() ? await getOrCreateDevUserId() : null);
-
-    if (!userId) {
-      throw new AuthenticationError();
-    }
-
+    // The canonical authenticate preHandler verifies HS256 in non-production
+    // and RS256 in production, including issuer, audience, token type, role
+    // version, and Redis-backed revocation state. Never trust request-supplied
+    // identity headers or synthesize a development user for invoice operations.
+    const userId = typeof req.user?.userId === 'string' ? req.user.userId.trim() : '';
+    if (!userId) throw new AuthenticationError();
     return userId;
-  }
-
-  async function getOrCreateDevUserId(): Promise<string> {
-    const devUserId = process.env.DEFAULT_DEV_USER_ID || '00000000-0000-0000-0000-000000000001';
-    const phone = process.env.DEFAULT_DEV_USER_PHONE || '00000000000';
-    const name = process.env.DEFAULT_DEV_USER_NAME || 'TaxBridge Test Merchant';
-    const tin = process.env.DEFAULT_DEV_USER_TIN || '12345678-0001';
-
-    await prisma.user.upsert({
-      where: { id: devUserId },
-      update: { name, tin },
-      create: { id: devUserId, phone, name, tin }
-    });
-
-    return devUserId;
   }
 
   const InvoiceBodySchema = z.object({
@@ -151,7 +96,7 @@ export default async function invoicesRoutes(app: FastifyInstance, opts: { prism
 
   app.post(
     '/api/v1/invoices',
-    {},
+    { preHandler: [app.authenticate, app.resolveOrgContext] },
     async (req, reply) => {
       const bodyParse = InvoiceBodySchema.safeParse(req.body);
       if (!bodyParse.success) {
@@ -263,7 +208,7 @@ export default async function invoicesRoutes(app: FastifyInstance, opts: { prism
 
   app.get(
     '/api/v1/invoices',
-    {},
+    { preHandler: [app.authenticate, app.resolveOrgContext] },
     async (req, reply) => {
       const userId = await requireResolvedUserId(req);
 
@@ -298,7 +243,7 @@ export default async function invoicesRoutes(app: FastifyInstance, opts: { prism
 
   app.get(
     '/api/v1/invoices/:id',
-    {},
+    { preHandler: [app.authenticate, app.resolveOrgContext] },
     async (req, reply) => {
       const paramsParse = InvoiceParamsSchema.safeParse(req.params);
       if (!paramsParse.success) {
@@ -336,7 +281,7 @@ export default async function invoicesRoutes(app: FastifyInstance, opts: { prism
 
   app.put(
     '/api/v1/invoices/:id',
-    {},
+    { preHandler: [app.authenticate, app.resolveOrgContext] },
     async (req, reply) => {
       const paramsParse = InvoiceParamsSchema.safeParse(req.params);
       if (!paramsParse.success) {

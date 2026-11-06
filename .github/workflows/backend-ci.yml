@@ -7,7 +7,8 @@ on:
     branches: [ main, master, develop ]
 
 env:
-  NODE_VERSION: '18'
+  NODE_VERSION: '20.19.4'
+  PRISMA_SKIP_POSTINSTALL_GENERATE: 'true'
   DUPLO_CLIENT_ID: ${{ secrets.DUPLO_CLIENT_ID }}
   DUPLO_CLIENT_SECRET: ${{ secrets.DUPLO_CLIENT_SECRET }}
   DUPLO_API_URL: ${{ secrets.DUPLO_API_URL }}
@@ -20,6 +21,17 @@ jobs:
   unit-tests:
     name: Unit Tests
     runs-on: ubuntu-latest
+    env:
+      CI: 'true'
+      NODE_ENV: test
+      PORT: '3000'
+      JWT_SECRET: ci-only-taxbridge-jwt-secret-not-valid-outside-this-workflow
+      ALLOWED_ORIGINS: http://localhost:3000
+      DATABASE_URL: postgresql://build:build@127.0.0.1:5432/taxbridge_build
+      DIRECT_URL: postgresql://build:build@127.0.0.1:5432/taxbridge_build
+      REDIS_URL: redis://localhost:6379
+      TAXBRIDGE_DOCS_MODE: '1'
+      TAXBRIDGE_SKIP_REDIS_CONNECT: '1'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -30,10 +42,14 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
 
-      - name: Install dependencies
-        run: |
-          npm ci
-          npm ci --prefix backend
+      - name: Install workspace dependencies
+        run: npm ci
+
+      - name: Build shared contracts
+        run: npm run build --workspace=@taxbridge/contracts
+
+      - name: Generate Prisma client
+        run: npm run prisma:generate --prefix backend
 
       - name: Run unit tests with coverage
         run: npm run test:unit --prefix backend
@@ -51,11 +67,18 @@ jobs:
   integration-tests:
     name: Integration Tests
     runs-on: ubuntu-latest
+    env:
+      CI: 'true'
+      NODE_ENV: test
+      PORT: '3000'
+      JWT_SECRET: ci-only-taxbridge-jwt-secret-not-valid-outside-this-workflow
+      ALLOWED_ORIGINS: http://localhost:3000
+      PRISMA_SKIP_POSTINSTALL_GENERATE: 'true'
     services:
       postgres:
         image: postgres:15
         env:
-          POSTGRES_PASSWORD: postgres
+          POSTGRES_PASSWORD: ${{ format('tbci-{0}-{1}', github.run_id, github.run_attempt) }}
           POSTGRES_DB: taxbridge_test
         options: >-
           --health-cmd pg_isready
@@ -88,20 +111,23 @@ jobs:
       - name: Install dependencies
         run: |
           npm ci
-          npm ci --prefix backend
 
-      - name: Setup database
+      - name: Build shared contracts
+        run: npm run build --workspace=@taxbridge/contracts
+
+      - name: Generate Prisma client and apply the canonical migration chain
         run: |
           npm run prisma:generate --prefix backend
-          npm run db:migrate --prefix backend
+          npm run prisma:migrate:deploy --prefix backend
         env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/taxbridge_test
+          DATABASE_URL: postgresql://postgres:${{ format('tbci-{0}-{1}', github.run_id, github.run_attempt) }}@localhost:5432/taxbridge_test
+          DIRECT_URL: postgresql://postgres:${{ format('tbci-{0}-{1}', github.run_id, github.run_attempt) }}@localhost:5432/taxbridge_test
 
       - name: Run integration tests
         run: npm run test:integration --prefix backend
         env:
           CI: true
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/taxbridge_test
+          DATABASE_URL: postgresql://postgres:${{ format('tbci-{0}-{1}', github.run_id, github.run_attempt) }}@localhost:5432/taxbridge_test
           REDIS_URL: redis://localhost:6379
 
       - name: Test Duplo integration
@@ -117,10 +143,46 @@ jobs:
           NODE_ENV: test
 
   # E2E Tests (10% of test pyramid)
+  # End-to-End Tests (run against the real Fastify API and disposable dependencies)
   e2e-tests:
     name: End-to-End Tests
     runs-on: ubuntu-latest
     needs: [unit-tests, integration-tests]
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ${{ format('tbci-{0}-{1}', github.run_id, github.run_attempt) }}
+          POSTGRES_DB: taxbridge_e2e
+        options: >-
+          --health-cmd "pg_isready -U postgres -d taxbridge_e2e"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+        ports:
+          - 5432:5432
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+        ports:
+          - 6379:6379
+    env:
+      CI: 'true'
+      NODE_ENV: development
+      PORT: '3000'
+      LOG_FORMAT: json
+      LOG_LEVEL: error
+      JWT_SECRET: ci-only-taxbridge-jwt-secret-not-valid-outside-this-workflow
+      ALLOWED_ORIGINS: http://localhost:3000
+      DATABASE_URL: postgresql://postgres:${{ format('tbci-{0}-{1}', github.run_id, github.run_attempt) }}@localhost:5432/taxbridge_e2e
+      DIRECT_URL: postgresql://postgres:${{ format('tbci-{0}-{1}', github.run_id, github.run_attempt) }}@localhost:5432/taxbridge_e2e
+      REDIS_URL: redis://localhost:6379
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -131,36 +193,85 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
 
-      - name: Install dependencies
-        run: |
-          npm ci
-          npm ci --prefix backend
+      - name: Install workspace dependencies
+        run: npm ci
 
-      - name: Start services
-        run: |
-          docker-compose -f infra/docker-compose.dev.yml up -d
-          sleep 30
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/taxbridge
-          REDIS_URL: redis://localhost:6379
+      - name: Build shared contracts
+        run: npm run build --workspace=@taxbridge/contracts
 
-      - name: Wait for backend to be ready
+      - name: Generate Prisma client and apply migrations
         run: |
-          timeout 60 bash -c 'until curl -f http://localhost:3000/api/health; do sleep 2; done'
+          npm run prisma:generate --prefix backend
+          npm run prisma:migrate:deploy --prefix backend
 
-      - name: Run E2E tests
+      - name: Start Fastify API
+        run: |
+          npm run dev --prefix backend > "$RUNNER_TEMP/taxbridge-e2e-api.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/taxbridge-e2e-api.pid"
+          for attempt in $(seq 1 60); do
+            if curl --silent --fail http://localhost:3000/health/ready >/dev/null; then
+              echo "Fastify API is ready."
+              exit 0
+            fi
+            sleep 2
+          done
+          cat "$RUNNER_TEMP/taxbridge-e2e-api.log"
+          echo "Fastify API failed to become ready." >&2
+          exit 1
+
+      - name: Run E2E test suite
         run: npm run test:e2e --prefix backend
-        env:
-          CI: true
-          BASE_URL: http://localhost:3000
 
-      - name: Cleanup
-        run: docker-compose -f infra/docker-compose.dev.yml down
+      - name: Stop Fastify API
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/taxbridge-e2e-api.pid" ]; then
+            kill "$(cat "$RUNNER_TEMP/taxbridge-e2e-api.pid")" 2>/dev/null || true
+          fi
+          if [ -f "$RUNNER_TEMP/taxbridge-e2e-api.log" ]; then
+            tail -n 100 "$RUNNER_TEMP/taxbridge-e2e-api.log"
+          fi
 
   # Security Tests (5% of test pyramid)
+  # Security Tests (API-backed; uses the same application and dependencies as runtime)
   security-tests:
     name: Security Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ${{ format('tbci-{0}-{1}', github.run_id, github.run_attempt) }}
+          POSTGRES_DB: taxbridge_security
+        options: >-
+          --health-cmd "pg_isready -U postgres -d taxbridge_security"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+        ports:
+          - 5432:5432
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+        ports:
+          - 6379:6379
+    env:
+      CI: 'true'
+      NODE_ENV: development
+      PORT: '3000'
+      LOG_FORMAT: json
+      LOG_LEVEL: error
+      JWT_SECRET: ci-only-taxbridge-jwt-secret-not-valid-outside-this-workflow
+      ALLOWED_ORIGINS: http://localhost:3000
+      DATABASE_URL: postgresql://postgres:${{ format('tbci-{0}-{1}', github.run_id, github.run_attempt) }}@localhost:5432/taxbridge_security
+      DIRECT_URL: postgresql://postgres:${{ format('tbci-{0}-{1}', github.run_id, github.run_attempt) }}@localhost:5432/taxbridge_security
+      REDIS_URL: redis://localhost:6379
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -171,27 +282,95 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
 
-      - name: Install dependencies
-        run: |
-          npm ci
-          npm ci --prefix backend
+      - name: Install workspace dependencies
+        run: npm ci
 
-      - name: Run security audit
+      - name: Build shared contracts
+        run: npm run build --workspace=@taxbridge/contracts
+
+      - name: Generate Prisma client and apply migrations
+        run: |
+          npm run prisma:generate --prefix backend
+          npm run prisma:migrate:deploy --prefix backend
+
+      - name: Start the actual Fastify API
+        run: |
+          npm run dev --prefix backend > "$RUNNER_TEMP/taxbridge-security-api.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/taxbridge-security-api.pid"
+          for attempt in $(seq 1 60); do
+            if curl --silent --fail http://localhost:3000/health/ready >/dev/null; then
+              echo "Fastify API is ready."
+              exit 0
+            fi
+            sleep 2
+          done
+          cat "$RUNNER_TEMP/taxbridge-security-api.log"
+          echo "Fastify API failed to become ready." >&2
+          exit 1
+
+      - name: Run route-aware security regression checks
         run: npm run test:security --prefix backend
 
-      - name: Run OWASP ZAP Baseline Scan
+      - name: Run OWASP ZAP Baseline Scan against the API documentation surface
         uses: zaproxy/action-baseline@v0.7.0
         with:
-          target: 'http://localhost:3000'
+          target: 'http://localhost:3000/docs'
           rules_file_name: '.zap/rules.tsv'
           cmd_options: '-a'
 
+      - name: Stop Fastify API
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/taxbridge-security-api.pid" ]; then
+            kill "$(cat "$RUNNER_TEMP/taxbridge-security-api.pid")" 2>/dev/null || true
+          fi
+          if [ -f "$RUNNER_TEMP/taxbridge-security-api.log" ]; then
+            tail -n 100 "$RUNNER_TEMP/taxbridge-security-api.log"
+          fi
+
+  # Performance/Load Tests
   # Performance/Load Tests
   performance-tests:
-    name: Performance Tests
+    name: Performance / Load Tests
     runs-on: ubuntu-latest
     needs: [integration-tests]
     if: github.ref == 'refs/heads/develop' || github.event_name == 'pull_request'
+    timeout-minutes: 35
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ${{ format('tbci-{0}-{1}', github.run_id, github.run_attempt) }}
+          POSTGRES_DB: taxbridge_performance
+        options: >-
+          --health-cmd "pg_isready -U postgres -d taxbridge_performance"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+        ports:
+          - 5432:5432
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+        ports:
+          - 6379:6379
+    env:
+      CI: 'true'
+      NODE_ENV: development
+      PORT: '3000'
+      LOG_FORMAT: json
+      LOG_LEVEL: error
+      JWT_SECRET: ci-only-taxbridge-jwt-secret-not-valid-outside-this-workflow
+      ALLOWED_ORIGINS: http://localhost:3000
+      DATABASE_URL: postgresql://postgres:${{ format('tbci-{0}-{1}', github.run_id, github.run_attempt) }}@localhost:5432/taxbridge_performance
+      DIRECT_URL: postgresql://postgres:${{ format('tbci-{0}-{1}', github.run_id, github.run_attempt) }}@localhost:5432/taxbridge_performance
+      REDIS_URL: redis://localhost:6379
+      BASE_URL: http://localhost:3000
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -210,43 +389,62 @@ jobs:
           sudo apt-get update
           sudo apt-get install k6
 
-      - name: Install dependencies
+      - name: Install workspace dependencies
+        run: npm ci
+
+      - name: Build shared contracts
+        run: npm run build --workspace=@taxbridge/contracts
+
+      - name: Generate Prisma client and apply migrations
         run: |
-          npm ci
-          npm ci --prefix backend
+          npm run prisma:generate --prefix backend
+          npm run prisma:migrate:deploy --prefix backend
 
       - name: Start backend server
         run: |
-          npm run prisma:generate --prefix backend
-          npm run db:migrate --prefix backend
-          npm run dev --prefix backend &
-          sleep 30
-        env:
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/taxbridge_test
-          REDIS_URL: redis://localhost:6379
+          npm run dev --prefix backend > "$RUNNER_TEMP/taxbridge-load-api.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/taxbridge-load-api.pid"
+          for attempt in $(seq 1 60); do
+            if curl --silent --fail http://localhost:3000/health/ready >/dev/null; then
+              echo "Fastify API is ready."
+              exit 0
+            fi
+            sleep 2
+          done
+          cat "$RUNNER_TEMP/taxbridge-load-api.log"
+          echo "Fastify API failed to become ready." >&2
+          exit 1
 
       - name: Run load tests
         run: |
           cd backend
           k6 run --out json=load-test-results.json load-test/k6-script.js
-        env:
-          BASE_URL: http://localhost:3000
 
       - name: Upload load test results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: load-test-results
           path: backend/load-test-results.json
+          if-no-files-found: error
 
       - name: Performance quality gates
+        run: node backend/scripts/check-performance-gates.js
+
+      - name: Stop backend server
+        if: always()
         run: |
-          # Check if load tests meet performance criteria
-          node backend/scripts/check-performance-gates.js
+          if [ -f "$RUNNER_TEMP/taxbridge-load-api.pid" ]; then
+            kill "$(cat "$RUNNER_TEMP/taxbridge-load-api.pid")" 2>/dev/null || true
+          fi
+          if [ -f "$RUNNER_TEMP/taxbridge-load-api.log" ]; then
+            tail -n 100 "$RUNNER_TEMP/taxbridge-load-api.log"
+          fi
 
   # OCR Processing Tests
   ocr-tests:
     name: OCR Processing Tests
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -255,21 +453,15 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'yarn'
+          cache: 'npm'
 
-      - name: Install dependencies
-        run: |
-          npm ci
-          npm ci --prefix backend
+      - name: Install workspace dependencies
+        run: npm ci
 
-      - name: Run OCR tests
-        run: npm run ocr:test --prefix backend
-
-      - name: Run OCR assertions
-        run: npm run ocr:assert --prefix backend
+      - name: Run the committed OCR integration tests
+        run: npm exec --prefix backend -- jest src/__tests__/performOCR.test.ts --runInBand
         env:
-          CI: true
-
+          CI: 'true'
   # Build and Package
   build:
     name: Build Application
@@ -283,15 +475,19 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'yarn'
+          cache: 'npm'
 
-      - name: Install dependencies
-        run: |
-          npm ci
-          npm ci --prefix backend
+      - name: Install workspace dependencies
+        run: npm ci
+
+      - name: Build shared contracts
+        run: npm run build --workspace=@taxbridge/contracts
 
       - name: Build backend
         run: npm run build --prefix backend
+        env:
+          DATABASE_URL: postgresql://build:build@127.0.0.1:5432/taxbridge_build
+          DIRECT_URL: postgresql://build:build@127.0.0.1:5432/taxbridge_build
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v3

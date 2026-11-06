@@ -5,15 +5,15 @@
  * GET  /audit        — cursor-paginated AuditEvent viewer (ADMIN+)
  * GET  /audit/export — NDJSON streaming export (ADMIN+)
  */
+import { requirePlatformAdmin } from '../../plugins/requirePlatformAdmin';
 import { FastifyPluginAsync }   from 'fastify';
-import { requireRole }          from '../../plugins/requireRole';
 import { prisma }               from '../../lib/prisma';
 import { writeAuditEvent }      from '../../services/audit';
 
 const auditRoutes: FastifyPluginAsync = async (fastify) => {
   // GET /audit — cursor-paginated audit log
   fastify.get('/audit', {
-    preHandler: [fastify.authenticate, requireRole('ADMIN')],
+    preHandler: [fastify.authenticate, requirePlatformAdmin],
   }, async (request, reply) => {
     const cursor = (request.query as any).cursor;
     const limit  = Math.min(parseInt((request.query as any).limit ?? '50', 10), 200);
@@ -41,7 +41,7 @@ const auditRoutes: FastifyPluginAsync = async (fastify) => {
 
   // GET /audit/export — NDJSON streaming export
   fastify.get('/audit/export', {
-    preHandler: [fastify.authenticate, requireRole('ADMIN')],
+    preHandler: [fastify.authenticate, requirePlatformAdmin],
   }, async (request, reply) => {
     const orgId = (request.query as any).orgId;
 

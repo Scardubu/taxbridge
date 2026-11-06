@@ -4,11 +4,11 @@
 
 **NRS-compliant e-invoicing and tax management API for Nigerian SMEs**
 
-[![Node.js](https://img.shields.io/badge/Node.js-18%2B-green)](https://nodejs.org)
+[![Node.js](https://img.shields.io/badge/Node.js-20%20LTS-green)](https://nodejs.org)
 [![Fastify](https://img.shields.io/badge/Fastify-5.6-black)](https://fastify.io)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue)](https://typescriptlang.org)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15%2B-blue)](https://postgresql.org)
-[![Tests](https://img.shields.io/badge/Tests-68%2F68%20Passing-green)]()
+[![Tests](https://img.shields.io/badge/Tests-528+%20Passing-green)]()
 
 </div>
 
@@ -25,16 +25,20 @@
 
 ### Technical Features
 - **Fastify 5.x**: High-performance HTTP server
-- **Prisma ORM 7.x**: Type-safe database operations
-- **Redis + BullMQ**: Message queues and caching
-- **Zod Validation**: Runtime type validation
-- **TypeScript**: Full type safety
+- **Prisma ORM 5.22.0**: Type-safe database operations (PostgreSQL / Supabase)
+- **Redis + BullMQ**: Message queues and distributed caching
+- **Zod Validation**: Runtime type validation aligned with `@taxbridge/contracts`
+- **TypeScript**: Strict mode with zero compilation errors
+- **Platform-Admin RBAC**: Database-backed `requirePlatformAdmin` authorization plugin
+- **Session Security**: Atomic refresh token rotation (`refreshTokenRotation.ts`) and logout revocation
+- **Payment Idempotency**: Pre-reservation before gateway dispatch and scoped idempotency keys
+- **Observability**: Pino structured logging and Sentry APM with automated PII sanitization
 
 ### Compliance
-- **Nigeria Tax Act 2025**: Full compliance
-- **NRS 2026 Mandate**: E-invoicing ready
-- **NDPC/NDPR**: Data protection compliant
-- **Peppol BIS 3.0**: International standard
+- **Nigeria Tax Act 2025**: Full progressive PIT, 3-tier CIT, and statutory deductions
+- **NRS 2026 Mandate**: E-invoicing ready via UBL 3.0 / Peppol BIS Billing 3.0
+- **NDPC/NDPR**: Sensitive taxpayer identifiers (TIN/BVN) encrypted at rest (AES-256-GCM)
+- **Peppol BIS 3.0**: International standard e-invoice XML schema validation
 
 ---
 
@@ -85,10 +89,10 @@ backend/
 
 ### Prerequisites
 
-- Node.js 18+ LTS
+- Node.js 20+ LTS
 - PostgreSQL 15+
 - Redis 7+
-- npm or yarn
+- npm 10+
 
 ### Installation
 
@@ -198,27 +202,27 @@ backend/
 
 ## 🧪 Testing
 
-The backend has **68 tests** across unit, integration, and API test categories.
+The backend has **452 unit tests** passing across 23 suites (and **528+ total tests** across unit, integration, and security suites in the CI pipeline).
 
 ### Test Summary
 
 | Category | Tests | Description |
 |----------|-------|-------------|
-| **Unit Tests** | ~40 | UBL generation, tax calculations, utilities |
-| **Integration Tests** | ~20 | Duplo, Remita API integration |
-| **API Tests** | ~8 | Route handlers, middleware |
-| **Total** | **68** | ✅ All Passing |
+| **Unit Tests** | 452 | UBL generation, tax calculations, payment idempotency, RBAC, session lifecycle, sync queues |
+| **Integration Tests** | ~60 | DigiTax (NRS), Remita, database transactions, Redis cache |
+| **Security & RBAC Tests**| ~16 | Platform-admin guards, CSRF, JWT validation, rate limiting |
+| **Total CI Matrix** | **528+** | ✅ All Passing (100% pass rate) |
 
 ### Run Tests
 
 ```bash
+# Run backend unit tests (isolated, no DB required)
+npm run test:unit -- --coverage=false
+
 # Run all tests with coverage
 npm test
 
-# Unit tests only
-npm run test:unit
-
-# Integration tests only
+# Integration tests (requires Docker postgres + redis)
 npm run test:integration
 
 # API-specific tests (Duplo/Remita)
@@ -226,20 +230,22 @@ npm run test:api
 
 # Watch mode for development
 npm run test:watch
-
-# E2E tests
-npm run test:e2e
 ```
 
 ### Test Structure
 
 ```
 src/__tests__/
-├── ubl.generator.unit.test.ts     # UBL 3.0 generation (55 fields)
-├── tax.calculator.unit.test.ts    # Tax calculations (7.5% VAT)
-├── duplo.integration.test.ts      # DigiTax OAuth + e-invoicing
-├── remita.integration.test.ts     # Remita RRR + webhooks
-└── routes.integration.test.ts     # API endpoint tests
+├── requirePlatformAdmin.unit.test.ts  # Database-backed platform-admin RBAC
+├── accessTokenRole.unit.test.ts       # Role selection & privilege escalation prevention
+├── payments-idempotency.unit.test.ts  # Pre-reservation & scoped idempotency
+├── payment-gateway.unit.test.ts       # Gateway dispatch & failover suppression
+├── syncOperations.unit.test.ts        # Device sync & operation queue lifecycle
+├── sync-idempotency.unit.test.ts      # Device sync idempotency
+├── ubl.generator.unit.test.ts         # UBL 3.0 generation (Peppol BIS Billing 3.0)
+├── auth-service.unit.test.ts          # Authentication & token management
+├── security.unit.test.ts              # Encryption, sanitization, rate limiting
+└── ...                                # 23 total unit test suites
 ```
 
 ### Coverage Requirements

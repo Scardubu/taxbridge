@@ -4,8 +4,16 @@ import { prisma } from '../lib/prisma';
 import { requireAdminApiKey } from '../lib/security';
 import { createLogger } from '../lib/logger';
 import { enqueueDeviceSync } from '../queue/client';
+import { buildConflictInvoiceUpdate } from '../services/conflictInvoiceData';
 
 const log = createLogger('admin-sync-routes');
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function getAdminActorId(request: FastifyRequest): string | null {
+  const value = request.headers['x-admin-user-id'];
+  return typeof value === 'string' && UUID_PATTERN.test(value) ? value : null;
+}
 
 // Feature flag check
 function isDeviceSyncEnabled(): boolean {
@@ -22,8 +30,35 @@ export default async function adminSyncRoutes(app: FastifyInstance) {
   // Admin authentication middleware
   app.addHook('preHandler', async (request: FastifyRequest, reply: FastifyReply) => {
     await requireAdminApiKey(request, reply);
-    if (reply.sent) {
-      return reply;
+    if (reply.sent) return reply;
+
+    // A shared API key authenticates the trusted service boundary, not the
+    // human actor. Require a real, active administrator identity before any
+    // administrative read or write so direct API callers cannot invent audit
+    // actors by supplying an arbitrary UUID header.
+    const adminActorId = getAdminActorId(request);
+    if (!adminActorId) {
+      return reply.code(401).send({ error: 'ADMIN_IDENTITY_REQUIRED' });
+    }
+
+    try {
+      const user = await prisma.user.findFirst({
+        where: { id: adminActorId, deleted: false },
+        select: { id: true, role: true },
+      });
+      if (!user) {
+        return reply.code(403).send({ error: 'ADMIN_IDENTITY_NOT_ACTIVE' });
+      }
+
+      const platformRole = String(user.role ?? '').toUpperCase();
+      if (platformRole !== 'ADMIN' && platformRole !== 'SUPER_ADMIN') {
+        // These endpoints query or mutate global device/sync/conflict data.
+        // An organization-level admin must not receive cross-tenant access.
+        return reply.code(403).send({ error: 'PLATFORM_ADMIN_REQUIRED' });
+      }
+    } catch (error) {
+      request.log.error({ err: error }, 'Admin actor verification unavailable');
+      return reply.code(503).send({ error: 'ADMIN_IDENTITY_UNAVAILABLE' });
     }
   });
 
@@ -146,6 +181,8 @@ export default async function adminSyncRoutes(app: FastifyInstance) {
     }
 
     try {
+      const adminActorId = getAdminActorId(request);
+      if (!adminActorId) return reply.status(403).send({ error: 'ADMIN_IDENTITY_REQUIRED' });
       const body = ForceSyncSchema.parse(request.body);
 
       // Verify device exists
@@ -161,7 +198,7 @@ export default async function adminSyncRoutes(app: FastifyInstance) {
       // Create admin action record
       await prisma.adminAction.create({
         data: {
-          adminId: device.userId, // In production, use actual admin user ID
+          adminId: adminActorId,
           action: 'force_sync',
           targetId: device.id,
           targetType: 'device',
@@ -359,10 +396,11 @@ export default async function adminSyncRoutes(app: FastifyInstance) {
         conflictId: z.string().uuid(),
         resolution: z.enum(['local_wins', 'server_wins', 'merged']),
         mergedData: z.record(z.string(), z.unknown()).optional(),
-        adminReason: z.string().min(10, 'Admin reason must be at least 10 characters'),
-        adminUserId: z.string().min(1, 'Admin user ID required')
+        adminReason: z.string().min(10, 'Admin reason must be at least 10 characters')
       });
 
+      const adminActorId = getAdminActorId(request);
+      if (!adminActorId) return reply.status(403).send({ error: 'ADMIN_IDENTITY_REQUIRED' });
       const body = ResolutionSchema.parse(request.body);
 
       // Find conflict with full context
@@ -384,36 +422,45 @@ export default async function adminSyncRoutes(app: FastifyInstance) {
         return reply.status(404).send({ error: 'Conflict not found' });
       }
 
+      if (conflict.userId !== conflict.device.userId || conflict.invoice.userId !== conflict.userId) {
+        log.error('Rejected tenant-inconsistent conflict record', {
+          conflictId: conflict.id,
+          conflictUserId: conflict.userId,
+          deviceUserId: conflict.device.userId,
+          invoiceUserId: conflict.invoice.userId,
+        });
+        return reply.status(409).send({ error: 'CONFLICT_TENANT_INTEGRITY_FAILED' });
+      }
+
       if (conflict.resolution) {
         return reply.status(400).send({ error: 'Conflict already resolved' });
       }
 
-      // Determine final data based on resolution strategy
-      let finalData: any;
-      let resolutionStatus: string;
-
-      if (body.resolution === 'local_wins') {
-        finalData = conflict.localData;
-        resolutionStatus = 'RESOLVED_CLIENT';
-      } else if (body.resolution === 'server_wins') {
-        finalData = conflict.serverData;
-        resolutionStatus = 'RESOLVED_SERVER';
-      } else if (body.resolution === 'merged' && body.mergedData) {
-        // Validate merged data has required fields
-        const requiredFields = ['subtotal', 'vat', 'total'];
-        const missingFields = requiredFields.filter(f => !(f in body.mergedData!));
-        
-        if (missingFields.length > 0) {
-          return reply.status(400).send({ 
-            error: `Merged data missing required fields: ${missingFields.join(', ')}` 
-          });
-        }
-        
-        finalData = body.mergedData;
-        resolutionStatus = 'RESOLVED_MANUAL';
-      } else {
-        return reply.status(400).send({ error: 'Invalid resolution or missing mergedData' });
+      // Resolve only explicitly editable invoice fields. Client/server snapshots
+      // are projected onto the allowlist; manually merged keys are strict.
+      const resolutionSource = body.resolution === 'local_wins'
+        ? conflict.localData
+        : body.resolution === 'server_wins'
+          ? conflict.serverData
+          : body.mergedData;
+      if (body.resolution === 'merged' && !body.mergedData) {
+        return reply.status(400).send({ error: 'MERGED_DATA_REQUIRED' });
       }
+
+      const resolutionData = buildConflictInvoiceUpdate(
+        resolutionSource,
+        body.resolution === 'merged' ? 'manual_merge' : 'trusted_snapshot',
+      );
+      if (!resolutionData.success) {
+        return reply.status(400).send({ error: resolutionData.error });
+      }
+
+      const finalData = resolutionData.data;
+      const resolutionStatus = body.resolution === 'local_wins'
+        ? 'RESOLVED_CLIENT'
+        : body.resolution === 'server_wins'
+          ? 'RESOLVED_SERVER'
+          : 'RESOLVED_MANUAL';
 
       // Transaction: Update invoice, mark conflict resolved, create admin action audit
       const result = await prisma.$transaction(async (tx) => {
@@ -426,15 +473,20 @@ export default async function adminSyncRoutes(app: FastifyInstance) {
           }
         });
 
-        // Mark conflict as resolved
-        const resolvedConflict = await tx.conflict.update({
-          where: { id: body.conflictId },
+        // Atomically claim the unresolved conflict. Concurrent resolvers
+        // cannot both apply invoice changes or increment its version.
+        const claimedConflict = await tx.conflict.updateMany({
+          where: { id: body.conflictId, resolution: null },
           data: {
             resolution: body.resolution,
             status: resolutionStatus,
-            resolvedAt: new Date()
-          }
+            resolvedBy: adminActorId,
+            resolvedAt: new Date(),
+          },
         });
+        if (claimedConflict.count !== 1) {
+          throw new Error('CONFLICT_ALREADY_RESOLVED');
+        }
 
         // Create admin action audit record
         const adminAction = await tx.adminAction.create({
@@ -442,7 +494,7 @@ export default async function adminSyncRoutes(app: FastifyInstance) {
             action: 'CONFLICT_RESOLVE',
             targetType: 'conflict',
             targetId: body.conflictId,
-            adminId: body.adminUserId,
+            adminId: adminActorId,
             metadata: {
               reason: body.adminReason,
               conflictId: body.conflictId,
@@ -454,20 +506,24 @@ export default async function adminSyncRoutes(app: FastifyInstance) {
               status: resolutionStatus,
               localVersion: conflict.localVersion,
               serverVersion: conflict.serverVersion,
-              localData: conflict.localData,
-              serverData: conflict.serverData,
-              finalData: finalData
+              changedFields: resolutionData.changedFields,
+              resultingVersion: conflict.invoice.version + 1,
+              totals: {
+                subtotal: String(finalData.subtotal ?? conflict.invoice.subtotal.toString()),
+                vat: String(finalData.vat ?? conflict.invoice.vat.toString()),
+                total: String(finalData.total ?? conflict.invoice.total.toString()),
+              }
             }
           }
         });
 
-        return { updatedInvoice, resolvedConflict, adminAction };
+        return { updatedInvoice, adminAction };
       });
 
       log.info('Admin conflict resolution', {
         conflictId: body.conflictId,
         resolution: body.resolution,
-        adminUserId: body.adminUserId,
+        adminUserId: adminActorId,
         deviceId: conflict.device.deviceId,
         userId: conflict.device.userId
       });
@@ -485,8 +541,11 @@ export default async function adminSyncRoutes(app: FastifyInstance) {
       if (error.name === 'ZodError') {
         return reply.status(400).send({ 
           error: 'Validation failed', 
-          details: error.errors 
+          details: error.issues 
         });
+      }
+      if (error.message === 'CONFLICT_ALREADY_RESOLVED') {
+        return reply.status(409).send({ error: 'CONFLICT_ALREADY_RESOLVED' });
       }
       
       return reply.status(500).send({ error: 'Internal server error' });

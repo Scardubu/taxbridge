@@ -7,7 +7,7 @@
 [![Expo](https://img.shields.io/badge/Expo-54.0.31-blue)](https://expo.dev)
 [![React Native](https://img.shields.io/badge/React%20Native-0.81.5-blue)](https://reactnative.dev)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue)](https://typescriptlang.org)
-[![Tests](https://img.shields.io/badge/Tests-382%20passing-success)]()
+[![Tests](https://img.shields.io/badge/Tests-396%20passing-success)]()
 [![Blueprint](https://img.shields.io/badge/Blueprint-v9-green)]()
 [![Version](https://img.shields.io/badge/Version-1.4.2-blue)]()
 [![Production](https://img.shields.io/badge/Status-Production%20Ready-success)]()
@@ -37,12 +37,19 @@ This codebase implements **TaxBridge V13 Mobile Blueprint v9**, the single autho
 
 - VAT: 7.5% output, input credit netting, net payable, nil-return detection
 - CIT: 3-tier (0% ≤₦25M • 20% ≤₦100M • 30% >₦100M) per NRS 2026
-- WHT: 22 rate codes per FIRS schedule
+- WHT: 22 rate codes per NRS statutory schedule
 - E-invoicing phase assignment (large/medium/small) + enforcement dates
 - Compliance score v2: 6-factor weighted (max 100 pts)
 - `useTaxEngine` memoised hook; `TaxCalculationSummary` on dashboard
 
-**Tests: 31/31 suites • 382 passing • 0 failing • 1 skipped • TypeScript: 0 errors**
+**SYSTEM-C — V14 Offline Sync & Payment Resilience**
+
+- Local SQLite payment persistence (`services/paymentPersistence.ts`) with unique idempotency keys
+- Foreground reconciliation via AppState listener in root layout (`app/_layout.tsx`)
+- Queue listener restart on app foregrounding with explicit server acknowledgement lifecycle
+- Isolated offline queue error classification and dead-letter protection
+
+**Tests: 33/33 suites • 396 passing • 0 failing • 1 skipped • TypeScript: 0 errors**
 
 #### Key Constraints Applied
 
@@ -78,7 +85,7 @@ This codebase implements **TaxBridge V13 Mobile Blueprint v9**, the single autho
 
 - **PIT Calculator**: Personal Income Tax calculator aligned with Nigeria Tax Act 2025
 - **VAT/CIT Awareness**: Conditional education on thresholds and rates
-- **FIRS Demo**: Mock e-invoicing simulation with educational disclaimers
+- **NRS Demo**: Mock e-invoicing simulation with educational disclaimers
 - **Interactive Quizzes**: Knowledge validation with instant feedback
 - **Progressive Disclosure**: Step-by-step tax education flow
 
@@ -103,7 +110,7 @@ This codebase implements **TaxBridge V13 Mobile Blueprint v9**, the single autho
   - Real-time calculation with deduction itemization
   - Knowledge quiz with contextual feedback
 - **VAT/CIT Awareness**: Context-aware education based on user profile
-- **FIRS Demo**: Animated e-invoicing flow with mock API simulation
+- **NRS E-Invoicing Demo**: Animated e-invoicing flow with mock API simulation
 - **Gamification**: Optional achievement system (7 badges)
 - **Community Features**: Referral codes with reward tracking
 
@@ -1010,3 +1017,8 @@ For technical support:
 **Built with ❤️ for Nigerian SMEs**
 
 </div>
+
+
+## Release environment requirements
+
+The Android app reads release crash reporting from `EXPO_PUBLIC_SENTRY_DSN`. Configure this value as an EAS production/preview environment secret; do not place the DSN or any private Sentry upload credential in a checked-in profile. The offline operation replay feature remains disabled by default (`EXPO_PUBLIC_SYNC_PIPELINE_ENABLED=false`) until the API operation envelope, approved business handlers, dispatcher/worker deployment and end-to-end idempotency tests are enabled together.

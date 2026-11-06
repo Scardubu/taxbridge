@@ -1,6 +1,8 @@
 import { Worker, Job } from 'bullmq';
+import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { redis } from '../lib/redis';
+import { toBullMQConnection } from '../queue/client';
 import {
   getOperationHandler,
   OperationFailure,
@@ -60,7 +62,7 @@ async function processOperation(job: Job<{ operationId: string }>): Promise<void
         data: {
           status: 'acknowledged',
           acknowledgedAt: new Date(),
-          result: outcome.result,
+          result: outcome.result as Prisma.InputJsonValue,
           providerReference: outcome.providerReference ?? operation.providerReference,
           lastErrorCode: null,
           lastErrorMessage: null,
@@ -79,7 +81,7 @@ async function processOperation(job: Job<{ operationId: string }>): Promise<void
         // This retry is scheduled only for a non-terminal operation. Once a
         // terminal failure is recorded, no further automatic enqueue occurs.
         const { Queue } = await import('bullmq');
-        const retryQueue = new Queue(QUEUE_NAME, { connection: redis });
+        const retryQueue = new Queue(QUEUE_NAME, { connection: toBullMQConnection(redis) });
         try {
           await retryQueue.add('execute-operation', { operationId }, {
             jobId: `operation-retry-${operationId}-${latest.attemptCount}`,
@@ -97,7 +99,7 @@ async function processOperation(job: Job<{ operationId: string }>): Promise<void
 
 export function startOperationWorker(): Worker {
   const worker = new Worker(QUEUE_NAME, processOperation, {
-    connection: redis,
+    connection: toBullMQConnection(redis),
     concurrency: Number.parseInt(process.env.OPERATION_WORKER_CONCURRENCY ?? '5', 10),
     // Retry scheduling is owned by PostgreSQL + recovery.ts, not BullMQ.
     // BullMQ itself must not apply a second, competing retry policy.

@@ -39,6 +39,11 @@ describeIfDb('Admin Sync Routes - Integration Tests', () => {
   let testInvoiceId: string;
   let testConflictId: string;
 
+  const adminHeaders = () => ({
+    'X-Admin-API-Key': 'test-admin-key-12345',
+    'X-Admin-User-ID': testUserId,
+  });
+
   beforeAll(async () => {
     const prismaModule = await import('../../lib/prisma');
     prisma = prismaModule.getPrismaClient();
@@ -52,38 +57,52 @@ describeIfDb('Admin Sync Routes - Integration Tests', () => {
 
     const user = await prisma.user.create({
       data: {
-        name: 'Test Admin User', email: 'admin@test.com',
-        phone: '+2341234567890', password: 'hashedpassword',
-        emailVerified: true, phoneVerified: true
+        name: 'Test Platform Admin',
+        email: 'admin@test.com',
+        phone: '+2341234567890',
+        role: 'ADMIN',
+        deleted: false,
       }
     });
     testUserId = user.id;
 
     const device = await prisma.device.create({
       data: {
-        deviceId: `test-device-${Date.now()}`, platform: 'android',
-        userId: testUserId, lastHeartbeat: new Date(), active: true
+        deviceId: `test-device-${Date.now()}`,
+        platform: 'android',
+        appVersion: '1.0.0',
+        userId: testUserId,
+        lastSeenAt: new Date(),
+        lastHeartbeat: new Date(),
+        active: true,
       }
     });
     testDeviceId = device.id;
 
     const invoice = await prisma.invoice.create({
       data: {
-        userId: testUserId, customerName: 'Test Customer',
-        total: 10000, taxAmount: 750, currency: 'NGN',
-        status: 'draft', version: 1, items: [],
-        dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+        userId: testUserId,
+        customerName: 'Test Customer',
+        subtotal: 10000,
+        vat: 750,
+        total: 10750,
+        status: 'draft',
+        version: 1,
+        items: [],
+        dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       }
     });
     testInvoiceId = invoice.id;
 
     const conflict = await prisma.conflict.create({
       data: {
-        userId: testUserId, deviceId: testDeviceId,
-        invoiceId: testInvoiceId, entity: 'invoice',
+        userId: testUserId,
+        deviceId: testDeviceId,
+        invoiceId: testInvoiceId,
         localData: { version: 1, total: 10000 },
         serverData: { version: 2, total: 12000 },
-        clientVersion: 1, serverVersion: 2
+        localVersion: 1,
+        serverVersion: 2,
       }
     });
     testConflictId = conflict.id;
@@ -111,7 +130,7 @@ describeIfDb('Admin Sync Routes - Integration Tests', () => {
     it('should list devices with valid admin API key', async () => {
       const response = await app.inject({
         method: 'GET', url: '/api/admin/devices',
-        headers: { 'X-Admin-API-Key': 'test-admin-key-12345' }
+        headers: adminHeaders()
       });
       expect(response.statusCode).toBe(200);
       const body = JSON.parse(response.body);
@@ -122,7 +141,7 @@ describeIfDb('Admin Sync Routes - Integration Tests', () => {
     it('should filter devices by platform', async () => {
       const response = await app.inject({
         method: 'GET', url: '/api/admin/devices?platform=android',
-        headers: { 'X-Admin-API-Key': 'test-admin-key-12345' }
+        headers: adminHeaders()
       });
       expect(response.statusCode).toBe(200);
       const body = JSON.parse(response.body);
@@ -134,7 +153,7 @@ describeIfDb('Admin Sync Routes - Integration Tests', () => {
     it('should return sync statistics', async () => {
       const response = await app.inject({
         method: 'GET', url: '/api/admin/sync/stats',
-        headers: { 'X-Admin-API-Key': 'test-admin-key-12345' }
+        headers: adminHeaders()
       });
       expect(response.statusCode).toBe(200);
       const body = JSON.parse(response.body);
@@ -146,7 +165,7 @@ describeIfDb('Admin Sync Routes - Integration Tests', () => {
     it('should list conflicts', async () => {
       const response = await app.inject({
         method: 'GET', url: '/api/admin/conflicts',
-        headers: { 'X-Admin-API-Key': 'test-admin-key-12345' }
+        headers: adminHeaders()
       });
       expect(response.statusCode).toBe(200);
       const body = JSON.parse(response.body);
@@ -159,7 +178,7 @@ describeIfDb('Admin Sync Routes - Integration Tests', () => {
     it('should list audit logs', async () => {
       const response = await app.inject({
         method: 'GET', url: '/api/admin/audit',
-        headers: { 'X-Admin-API-Key': 'test-admin-key-12345' }
+        headers: adminHeaders()
       });
       expect(response.statusCode).toBe(200);
       const body = JSON.parse(response.body);

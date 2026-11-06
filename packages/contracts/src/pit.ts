@@ -44,7 +44,7 @@ export function calculatePIT(input: PITInput): PITResult {
     grossIncome,
     rentPaid  = 0,
     pension   = Math.round(grossIncome * 0.08),  // default 8% employee pension
-    nhf       = 0,
+    nhf       = input.pension !== undefined ? (input.nhf ?? 0) : (input.nhf ?? Math.round(grossIncome * 0.025)),
   } = input;
 
   const rra           = calculateRRA(rentPaid);

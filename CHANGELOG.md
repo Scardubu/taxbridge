@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [14.0.0] - 2026-11-06 - V14 Sovereign Production Release & Security Hardening
+
+### Security & Authentication
+- **Platform-Admin RBAC Guard** — Added database-backed `requirePlatformAdmin` fastify plugin. All global operational, administrative, and telemetry endpoints (`/api/v1/auth/totp`, `/api/v1/team`, `/api/v2/monitoring`, `/api/v2/dlq`, `/api/v2/intelligence`, `/api/v2/audit`, `/api/v2/analytics`, `/api/v1/admin/sync`) now require verified platform administrator credentials.
+- **Platform-Aware Role Selector** — Isolated access token role selection (`accessTokenRole.ts`) to prevent privilege escalation between tenant-scoped roles and global platform administration.
+- **Atomic Refresh-Token Rotation** — Implemented transaction-backed atomic refresh token rotation (`refreshTokenRotation.ts`) with automatic replay detection, token family revocation, and double-submit protection.
+- **Session Revocation on Logout** — Added `/api/v1/auth/logout` endpoint that revokes sessions in the database, removes refresh tokens, and clears authentication cookies.
+- **Admin Double-Submit CSRF** — Attached double-submit CSRF cookie (`tb_csrf`) and header (`x-csrf-token`) validation to all state-modifying admin proxy routes.
+- **Strict Same-Origin Enforcement** — Enforced exact same-origin checking across browser sessions and Next.js proxy handlers (`lib/auth-origin.ts`), blocking unauthorized cross-origin requests.
+- **Credential Hygiene & Secret Scoping** — Completely eliminated browser-exposed admin API keys (`NEXT_PUBLIC_ADMIN_API_KEY`). Admin dashboard browser clients proxy exclusively through authenticated Next.js server routes with HTTP-only cookies.
+- **PII & Credential Redaction** — Implemented strict sanitization filters across Fastify request logging and Sentry observability to redact auth headers, cookies, passwords, TIN/BVN, taxpayer identity, and query parameters.
+- **Fail-Closed Distributed Rate Limiting** — Configured rate-limiting middleware to fail closed and preserve system integrity when distributed Redis instances are unreachable.
+
+### Payments & Invoicing
+- **Payment Attempt Pre-Reservation** — Payments now reserve invoice attempts in the database with pending state before external payment gateway provider initialization (`routes/payments.ts`), preventing orphan charges.
+- **Invoice-Scoped Idempotency** — Enforced scoped idempotency keys per invoice to prevent duplicate payment initiation and concurrent race conditions.
+- **Cross-Gateway Failover Suppression** — Suppressed cross-gateway failovers on ambiguous or non-deterministic provider responses to prevent double-charging taxpayers across Paystack and Flutterwave.
+- **Side-Effect Free Payment Reads** — Verified that status lookup routes (`GET /api/v1/payments/:id`) remain strictly read-only and require authenticated invoice ownership.
+- **Canonical Invoicing Contracts** — Extended `@taxbridge/contracts` with canonical `CreateInvoiceV1Request`/`Response` schemas, status enums, and append-only compatibility verification.
+
+### Mobile & Offline Sync
+- **Local SQLite Payment Persistence** — Isolated idempotent local payment rows with unique idempotency keys in mobile SQLite before sync transmission (`services/paymentPersistence.ts`).
+- **Foreground Sync Reconciliation** — Added app state listener in root layout (`app/_layout.tsx`) to reconcile pending operations and restart offline queue listeners whenever the app returns to the foreground.
+- **Explicit Server Acknowledgement Lifecycle** — Distinguish server operation acceptance from explicit client acknowledgement before marking offline queue operations complete.
+- **Expo SDK 54 & React Native 0.81.5** — Validated all 33 test suites (396 tests passing, 0 failing) with clean TypeScript compilation and native module alignment.
+
+### Admin Dashboard
+- **Graceful Degraded-State Handling** — Implemented fallback JSON payloads (`lib/adminApiFallback.ts`) with warmup warning banners to gracefully handle backend cold starts without 503 errors.
+- **Jest Web Primitives Polyfill** — Added `jest.polyfill.js` providing Web API primitives (`Request`, `Response`, `Headers`, `TextEncoder`) for deterministic Jest test runs.
+- **CSRF Token Propagation** — Updated `fetcher.ts` to propagate CSRF tokens on all mutating HTTP requests.
+
+### CI/CD & Build Infrastructure
+- **Dynamic Test DB Credentials** — Replaced hardcoded PostgreSQL passwords in `.github/workflows/test-automation.yml` and `.github/workflows/ci.yml` with dynamic runner-scoped credentials (`tbci-${{ github.run_id }}-${{ github.run_attempt }}`).
+- **Deterministic Docker Image Builds** — Supplied non-secret Prisma datasource URLs during build stages to eliminate database connection requirements during image compilation.
+- **V14 Promotion Gates** — Configured Render and Vercel release pipelines with manual promotion gates pending V14 production verification signoff.
+
+---
+
 ## [13.1.0] - 2026-03-24 - AI-Orchestrated Build Infrastructure & Expo SDK 54 Alignment
 
 ### Expo Doctor Fixes (0 errors target)

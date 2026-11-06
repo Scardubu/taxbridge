@@ -1,0 +1,19 @@
+# Exclude local/build artefacts to keep the image reproducible.
+.git
+node_modules
+**/node_modules
+**/.next
+**/dist
+**/coverage
+**/.expo
+**/.gradle
+**/build
+**/.turbo
+**/.cache
+**/*.log
+.env
+.env.*
+!.env.example
+!.env.production.example
+mobile/android
+mobile/ios

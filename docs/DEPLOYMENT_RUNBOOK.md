@@ -1,8 +1,8 @@
 # 🚀 TAXBRIDGE PRODUCTION DEPLOYMENT RUNBOOK
 ## Complete Launch Checklist & Emergency Procedures
 
-**Last Updated**: February 2026  
-**Version**: 1.0.0  
+**Last Updated**: November 6, 2026  
+**Version**: `v14.0.0-production`  
 **Status**: Production Ready
 
 ---
@@ -12,26 +12,27 @@
 ### 1. Code Quality & Testing (48 hours before launch)
 
 #### Backend
-- [ ] All 423 unit tests passing (`npm test` in `backend/`)
-- [ ] Test coverage >80% on critical paths (tax engine, payment, NRS)
-- [ ] No TypeScript errors (`npm run build`)
-- [ ] ESLint warnings <10 (`npm run lint`)
+- [ ] All 452 unit tests passing (`npm run test:unit -- --coverage=false` in `backend/`)
+- [ ] 528+ total tests in full CI matrix
+- [ ] Test coverage >80% on critical paths (tax engine 97.29%, payment idempotency, NRS)
+- [ ] No TypeScript errors (`npm run type-check:backend`)
+- [ ] ESLint warnings 0 (`npm run lint`)
 - [ ] Security audit clean (`npm audit --audit-level=high`)
-- [ ] Prisma migrations applied (`npx prisma db push`)
+- [ ] Prisma migrations applied (`npx prisma migrate deploy`)
 
 #### Mobile App
-- [ ] All mobile tests passing (`npm test` in `mobile/`)
+- [ ] All 396 mobile tests passing (`npm test` in `mobile/`, 33 suites)
 - [ ] Production build successful (`eas build --platform android --profile production-apk`)
-- [ ] App bundle size <5MB (measure with performance-audit.js)
-- [ ] Cold start <3s on test devices
-- [ ] Offline mode fully functional
-- [ ] OCR processing <2s average
+- [ ] App bundle size <5MB
+- [ ] Cold start <2.5s on test devices
+- [ ] Offline SQLite payment persistence and sync lifecycle verified
+- [ ] Receipt OCR processing <2s average
 
 #### Admin Dashboard
-- [ ] All admin tests passing (`npm test` in `admin-dashboard/`)
+- [ ] All 20 admin tests passing (`npm test` in `admin-dashboard/`, 5 suites)
 - [ ] Production build successful (`npm run build`)
 - [ ] Lighthouse score >90 (Performance, Accessibility, Best Practices)
-- [ ] No console errors in production build
+- [ ] No console errors or browser-exposed API keys in production build
 
 ---
 
@@ -67,7 +68,7 @@ YOUVERIFY_API_KEY=[...]
 YOUVERIFY_BASE_URL=https://api.youverify.co
 YOUVERIFY_SANDBOX=false
 
-# FIRS/DigiTax (PRODUCTION)
+# DigiTax (NRS Access Point, PRODUCTION)
 DIGITAX_API_KEY=[...]
 DIGITAX_BASE_URL=https://api.digitax.ng
 DIGITAX_HMAC_SECRET=[...]
@@ -95,11 +96,15 @@ EXPO_PUBLIC_MIXPANEL_TOKEN=[...] # Optional
 NODE_ENV=production
 ```
 
-#### Admin Dashboard Environment Variables
+#### Admin Dashboard Environment Variables (Server-Only Perimeter)
 ```bash
-NEXT_PUBLIC_API_URL=https://taxbridge-api-ker8.onrender.com
-NEXTAUTH_SECRET=[64-char hex - GENERATE NEW]
-NEXTAUTH_URL=https://taxbridge.vercel.app
+BACKEND_API_URL=https://taxbridge-api-ker8.onrender.com
+ADMIN_AUTH_ENFORCE=true
+JWT_PUBLIC_KEY=[base64-encoded-rs256-spki-public-pem]
+INTERNAL_API_KEY=[server-only-key-min-32-chars]
+ADMIN_API_KEYS=[comma-separated-server-keys]
+DATABASE_URL=postgresql://user:pass@host:6543/db?pgbouncer=true
+NEXT_PUBLIC_SENTRY_DSN=https://[...]@sentry.io/[...]
 NODE_ENV=production
 ```
 

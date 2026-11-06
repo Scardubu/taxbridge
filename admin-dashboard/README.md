@@ -5,10 +5,10 @@
 **Accountant-first admin dashboard for TaxBridge platform operations**
 
 [![Next.js](https://img.shields.io/badge/Next.js-16.1.1-black)](https://nextjs.org)
-[![React](https://img.shields.io/badge/React-19.2.3-blue)](https://react.dev)
+[![React](https://img.shields.io/badge/React-19.1.0-blue)](https://react.dev)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue)](https://typescriptlang.org)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.4-38bdf8)](https://tailwindcss.com)
-[![Tests](https://img.shields.io/badge/Tests-8%2F8%20Passing-green)]()
+[![Tests](https://img.shields.io/badge/Tests-20%2F20%20Passing-green)]()
 
 </div>
 
@@ -216,21 +216,17 @@ admin-dashboard/
    
    Configure the following variables:
    ```bash
-   # Backend API
-   BACKEND_URL=http://localhost:3000
-   ADMIN_API_KEY=your-admin-api-key
-   # Optional: provide comma-separated ADMIN_API_KEYS for rotation
-   # ADMIN_API_KEYS=primary-admin-key,secondary-admin-key
+   # Backend API & Server Perimeter (Never expose via NEXT_PUBLIC_)
+   BACKEND_API_URL=https://taxbridge-api-ker8.onrender.com
+   ADMIN_AUTH_ENFORCE=true
    
-   # Duplo Integration
-   DUPLO_CLIENT_ID=your-duplo-client-id
-   DUPLO_CLIENT_SECRET=your-duplo-client-secret
-   DUPLO_API_URL=https://sandbox.duplo.ng
+   # Server-Only Authentication & Verification Keys
+   JWT_PUBLIC_KEY="base64-encoded-rs256-spki-public-pem"
+   INTERNAL_API_KEY="your-server-internal-api-key"
+   ADMIN_API_KEYS="primary-admin-key,secondary-admin-key"
    
-   # Remita Integration
-   REMITA_MERCHANT_ID=your-merchant-id
-   REMITA_API_KEY=your-api-key
-   REMITA_API_URL=https://remitademo.net
+   # Note: Browser-exposed admin keys (e.g. NEXT_PUBLIC_ADMIN_API_KEY) are completely
+   # eliminated in V14. All client requests proxy via same-origin Next.js server handlers.
    ```
 
 3. **Start development server**:
@@ -319,15 +315,21 @@ import { UBLViewer } from '@/components/UBLViewer';
 
 ## 🧪 Testing
 
-The admin dashboard has **8 tests** across component and utility test suites.
+The admin dashboard has **20 tests** passing across 5 component, security, and utility test suites (100% pass rate).
 
 ### Test Summary
 
 | Test Suite | Tests | Description |
 |------------|-------|-------------|
-| `HealthCard.test.tsx` | 4 | Health card component rendering |
-| `UBLViewer.test.tsx` | 4 | UBL XML viewer validation |
-| **Total** | **8** | ✅ All Passing |
+| `auth-origin.test.ts` | 4 | Strict same-origin enforcement and cross-origin blocking |
+| `fetcher.test.ts` | 5 | CSRF token propagation, error handling, and timeout resilience |
+| `logout-session.test.ts` | 3 | Server session revocation, cookie clearing, and audit logging |
+| `HealthCard.test.tsx` | 4 | Health monitoring card component rendering and status badges |
+| `UBLViewer.test.tsx` | 4 | UBL 3.0 XML viewer rendering and compliance score calculation |
+| **Total** | **20** | ✅ All Passing (5 suites) |
+
+### Web Primitives Polyfill
+Tests execute under Node using `admin-dashboard/jest.polyfill.js`, which polyfills Next.js 16 App Router Web API primitives (`Request`, `Response`, `Headers`, `TextEncoder`).
 
 ### Run Tests
 
@@ -335,28 +337,26 @@ The admin dashboard has **8 tests** across component and utility test suites.
 # Run all tests
 npm test
 
+# Run with coverage
+npm run test:coverage
+
 # Watch mode
 npm run test:watch
 
-# Coverage report
-npm run test:coverage
-
 # Run specific test file
-npm test -- HealthCard.test.tsx
+npm test -- auth-origin.test.ts
 ```
 
 ### Test Structure
 
 ```
 __tests__/
-├── components/
-│   ├── HealthCard.test.tsx   # Health monitoring card tests
-│   └── UBLViewer.test.tsx    # UBL XML viewer tests
-│   └── UBLViewer.test.tsx
-├── lib/
-│   └── utils.test.ts
-└── api/
-    └── admin.test.ts
+├── auth-origin.test.ts        # Same-origin enforcement (lib/auth-origin.ts)
+├── fetcher.test.ts            # CSRF token propagation (lib/fetcher.ts)
+├── logout-session.test.ts     # Logout session revocation (/api/auth/logout)
+└── components/
+    ├── HealthCard.test.tsx    # Health card rendering
+    └── UBLViewer.test.tsx     # UBL XML viewer & compliance scoring
 ```
 
 ### Test Scenarios (50+)

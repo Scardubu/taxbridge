@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import useSWR from 'swr';
 import { cn, safeDate } from '@/lib/utils';
 import { FetchError, fetchJson } from '@/lib/fetcher';
@@ -12,6 +13,7 @@ import {
   AlertTriangle,
   XCircle,
   HelpCircle,
+  LogOut,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -90,7 +92,10 @@ const bannerVariants: Record<Exclude<SystemStatus, 'healthy' | 'unknown'>, strin
 
 export function EnterpriseShell({ children }: EnterpriseShellProps) {
   const { t, lang, setLang } = useAdminI18n();
+  const router = useRouter();
   const [currentTime, setCurrentTime] = useState('');
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [logoutError, setLogoutError] = useState<string | null>(null);
 
   // ── Health data ──────────────────────────────────────────────────────────
   const {
@@ -165,6 +170,34 @@ export function EnterpriseShell({ children }: EnterpriseShellProps) {
       lastCheckedLabel: safeDate(ts, { hour: '2-digit', minute: '2-digit' }) || undefined,
     };
   }, [integrationsError, integrationsHealth, isHealthLoading]);
+
+  const handleLogout = useCallback(async () => {
+    if (isLoggingOut) return;
+    setIsLoggingOut(true);
+    setLogoutError(null);
+    try {
+      const response = await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { Accept: 'application/json' },
+        cache: 'no-store',
+      });
+      const result = await response.json().catch(() => ({})) as {
+        success?: boolean;
+        localSessionCleared?: boolean;
+      };
+      if (result.localSessionCleared) {
+        router.replace(result.success ? '/login?reason=signed_out' : '/login?reason=logout_server_unavailable');
+        router.refresh();
+        return;
+      }
+      setLogoutError('Sign-out could not be completed. Please retry.');
+    } catch {
+      setLogoutError('Sign-out service is unavailable. Please retry.');
+    } finally {
+      setIsLoggingOut(false);
+    }
+  }, [isLoggingOut, router]);
 
   const StatusIcon = statusIcons[systemStatus];
   const showBanner = systemStatus === 'degraded' || systemStatus === 'error';
@@ -278,14 +311,25 @@ export function EnterpriseShell({ children }: EnterpriseShellProps) {
               </span>
             </div>
 
-            {/* Operator avatar */}
-            <button
-              type="button"
-              aria-label="Operator account"
-              className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-blue-700 text-xs font-bold text-white shadow transition-shadow hover:shadow-md"
-            >
-              AD
-            </button>
+            {/* Operator account / sign-out */}
+            <div className="flex items-center gap-2">
+              {logoutError && (
+                <span role="alert" className="hidden text-xs text-rose-600 sm:inline">
+                  {logoutError}
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={handleLogout}
+                disabled={isLoggingOut}
+                aria-label={isLoggingOut ? 'Signing out all devices' : 'Sign out all devices'}
+                aria-busy={isLoggingOut}
+                className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+              >
+                <LogOut className="h-4 w-4" aria-hidden="true" />
+                <span className="hidden sm:inline">{isLoggingOut ? 'Signing out…' : 'Sign out all devices'}</span>
+              </button>
+            </div>
           </div>
         </div>
       </header>

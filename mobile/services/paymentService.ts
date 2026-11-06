@@ -1,81 +1,56 @@
-import { apiRequest } from './api';
+import { apiRequest, initiatePayment as initiateInvoicePayment } from './api';
 import { logComplianceEvent } from './complianceEventService';
 import { getDatabase } from './database';
 
 export type PaymentGateway = 'paystack' | 'flutterwave' | 'remita';
 
 export interface InitializePaymentInput {
-  invoiceId?: string;
-  taxRecordId?: string;
+  invoiceId: string;
+  idempotencyKey: string;
+  payerName: string;
+  payerEmail: string;
+  payerPhone: string;
   gateway: PaymentGateway;
-  amountNGN: number;
-  email: string;
   callbackUrl?: string;
 }
 
-export interface InitializePaymentResponse {
-  paymentId?: string;
-  reference: string;
-  authorizationUrl?: string;
-  accessCode?: string;
-  gateway: PaymentGateway;
-  amount: number;
-  remitaRrr?: string;
-  status: string;
-}
+export type InitializePaymentResponse = Awaited<ReturnType<typeof initiateInvoicePayment>>;
 
+/**
+ * Thin domain wrapper around the canonical API helper. Local persistence
+ * happens in one place (api.ts), so callers cannot create duplicate SQLite
+ * payment rows by using different service entry points.
+ */
 export async function initializePayment(input: InitializePaymentInput): Promise<InitializePaymentResponse> {
-  const response = await apiRequest<InitializePaymentResponse>('/api/v1/payments/initialize', {
-    method: 'POST',
-    body: JSON.stringify({
-      ...input,
-      amount: input.amountNGN,
-    }),
+  const { idempotencyKey, ...paymentRequest } = input;
+  const response = await initiateInvoicePayment({
+    ...paymentRequest,
+    idempotency_key: idempotencyKey,
   });
 
-  if (input.gateway === 'remita' && response.remitaRrr) {
-    const db = await getDatabase();
-    const numericTaxRecordId = input.taxRecordId && /^\d+$/.test(input.taxRecordId)
-      ? Number(input.taxRecordId)
-      : null;
-
-    await db.runAsync(
-      `INSERT INTO tax_payments (
-         server_id, tax_record_id, provider, provider_ref, remita_rrr, amount, currency, status
-       ) VALUES (?, ?, 'remita', ?, ?, ?, 'NGN', ?)` ,
-      [
-        response.paymentId ?? null,
-        numericTaxRecordId,
-        response.reference,
-        response.remitaRrr,
-        input.amountNGN,
-        response.status,
-      ]
-    );
-  }
-
-  await logComplianceEvent('tax_payment_initiated', `Payment initiated via ${input.gateway}`, 'info', {
-    gateway: input.gateway,
-    amount: input.amountNGN,
-    reference: response.reference,
-    remitaRrr: response.remitaRrr,
+  await logComplianceEvent('tax_payment_initiated', 'Invoice payment initiated via ' + input.gateway, 'info', {
+    gateway: response.gateway,
+    invoiceId: input.invoiceId,
+    amount: response.amount,
+    reference: response.rrr,
   }).catch(() => undefined);
 
   return response;
 }
 
-export async function verifyPayment(reference: string) {
-  return apiRequest('/api/v1/payments/verify/' + reference, {
+/** Fetch the server-authoritative payment status for an invoice. */
+export async function verifyPayment(invoiceId: string) {
+  return apiRequest('/api/v1/payments/' + encodeURIComponent(invoiceId) + '/status', {
     method: 'GET',
   });
 }
 
-export async function markPaymentConfirmed(remitaRrr: string): Promise<void> {
+export async function markPaymentConfirmed(reference: string): Promise<void> {
   const db = await getDatabase();
   await db.runAsync(
     `UPDATE tax_payments
      SET status = 'successful', completed_at = datetime('now')
-     WHERE remita_rrr = ?`,
-    [remitaRrr]
+     WHERE remita_rrr = ? OR provider_ref = ?`,
+    [reference, reference]
   );
 }

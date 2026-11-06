@@ -13,6 +13,7 @@ concurrency:
 env:
   NODE_VERSION: '20.x'
   PRISMA_CLIENT_ENGINE_TYPE: binary
+  PRISMA_SKIP_POSTINSTALL_GENERATE: 'true'
 
 # ─────────────────────────────────────────────────────────────────────────────
 # JOB 1: Backend — TypeScript, Tests, Tax Compliance
@@ -28,7 +29,7 @@ jobs:
         image: postgres:15-alpine
         env:
           POSTGRES_USER:     taxbridge
-          POSTGRES_PASSWORD: testpassword
+          POSTGRES_PASSWORD: ${{ format('tbci-{0}-{1}', github.run_id, github.run_attempt) }}
           POSTGRES_DB:       taxbridge_test
         ports: ['5432:5432']
         options: >-
@@ -47,7 +48,8 @@ jobs:
           --health-retries 10
 
     env:
-      DATABASE_URL:               postgresql://taxbridge:testpassword@localhost:5432/taxbridge_test
+      DATABASE_URL:               postgresql://taxbridge:${{ format('tbci-{0}-{1}', github.run_id, github.run_attempt) }}@localhost:5432/taxbridge_test
+      DIRECT_URL:                 postgresql://taxbridge:${{ format('tbci-{0}-{1}', github.run_id, github.run_attempt) }}@localhost:5432/taxbridge_test
       REDIS_URL:                  redis://localhost:6379
       JWT_SECRET:                 test-jwt-secret-must-be-at-least-64-characters-long-for-production-use
       JWT_REFRESH_SECRET:         test-refresh-secret-must-be-at-least-64-characters-long-as-well
@@ -87,11 +89,17 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
-          cache-dependency-path: backend/package-lock.json
+          cache-dependency-path: package-lock.json
 
-      - name: Install dependencies
-        working-directory: backend
+      - name: Install root workspace dependencies
         run: npm ci
+
+      - name: Build shared contracts
+        run: npm run build --workspace=@taxbridge/contracts
+
+      - name: Generate Prisma client
+        working-directory: backend
+        run: npx prisma generate
 
       - name: TypeScript type check (zero errors required)
         working-directory: backend
@@ -101,10 +109,6 @@ jobs:
       - name: Lint
         working-directory: backend
         run: npm run lint --if-present
-
-      - name: Generate Prisma client
-        working-directory: backend
-        run: npx prisma generate
 
       - name: Run database migrations
         working-directory: backend

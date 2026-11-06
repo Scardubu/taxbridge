@@ -282,5 +282,18 @@ async function runMigrations(db: SQLite.SQLiteDatabase): Promise<void> {
         PRAGMA user_version = 5;
       `);
     });
+
+  if (v < 6) {
+    await db.withExclusiveTransactionAsync(async tx => {
+      await tx.execAsync(`
+        ALTER TABLE tax_payments ADD COLUMN idempotency_key TEXT;
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_tax_payments_idempotency
+          ON tax_payments (idempotency_key)
+          WHERE idempotency_key IS NOT NULL;
+        PRAGMA user_version = 6;
+      `);
+    });
+    v = 6;
+  }
   }
 }

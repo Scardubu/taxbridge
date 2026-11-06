@@ -64,7 +64,7 @@ describe('performOCR integration', () => {
     for (const pattern of nairaPatterns) {
       const match = pattern.match(amountRegex);
       expect(match).toBeTruthy();
-      expect(match![0]).toBeTruthy();
+      expect(match?.[0]).toBeTruthy();
     }
   });
 

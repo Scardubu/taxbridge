@@ -2,6 +2,13 @@ import * as Crypto from 'expo-crypto';
 import NetInfo from '@react-native-community/netinfo';
 import { getDatabase } from './database';
 import { apiRequest } from './api';
+import { OperationResultSchema } from '@taxbridge/contracts';
+import { buildMobileOperationEnvelope } from './operationEnvelope';
+import { classifyQueueFailure, classifyServerOperationStatus } from './offlineQueuePolicy';
+
+// The durable server operation pipeline has no approved business handlers yet.
+// Keep queued writes local until the shared contract and server worker are enabled.
+const SYNC_PIPELINE_ENABLED = process.env.EXPO_PUBLIC_SYNC_PIPELINE_ENABLED === 'true';
 
 export type OpType =
   | 'TIN_VERIFY'
@@ -11,7 +18,6 @@ export type OpType =
   | 'RECEIPT_SUBMIT'
   | 'VAT_RETURN'
   | 'PROFILE_SYNC'
-  | 'PAYMENT_INITIATE'
   | 'COMPLIANCE_EVENT';
 
 export class OfflineQueue {
@@ -27,8 +33,10 @@ export class OfflineQueue {
   start(): void {
     if (this.ready) return;
     this.ready = true;
+    if (!SYNC_PIPELINE_ENABLED) return;
+
     this.unsubscribe = NetInfo.addEventListener((state) => {
-      if (state.isConnected && !this.flushing) {
+      if (state.isConnected === true && state.isInternetReachable === true && !this.flushing) {
         this.flush().catch(() => undefined);
       }
     });
@@ -43,9 +51,8 @@ export class OfflineQueue {
 
   async enqueue(type: OpType, payload: Record<string, unknown>): Promise<void> {
     const db = await getDatabase();
-    const clientId = typeof Crypto.randomUUID === 'function'
-      ? Crypto.randomUUID()
-      : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    // Operation IDs must be UUIDs to satisfy the shared API contract.
+    const clientId = Crypto.randomUUID();
 
     await db.runAsync(
       'INSERT OR IGNORE INTO offline_operations (client_id, type, payload) VALUES (?,?,?)',
@@ -54,11 +61,16 @@ export class OfflineQueue {
   }
 
   async flush(): Promise<void> {
-    if (this.flushing) return;
+    if (!SYNC_PIPELINE_ENABLED || this.flushing) return;
     this.flushing = true;
-    const db = await getDatabase();
 
     try {
+      // Require confirmed internet reachability, not merely an active network
+      // interface (which may be a captive portal or disconnected upstream).
+      const network = await NetInfo.fetch();
+      if (network.isConnected !== true || network.isInternetReachable !== true) return;
+
+      const db = await getDatabase();
       await db.runAsync("UPDATE offline_operations SET status='pending' WHERE status='syncing'");
 
       const operations = await db.getAllAsync<{
@@ -79,21 +91,87 @@ export class OfflineQueue {
       for (const operation of operations) {
         await db.runAsync("UPDATE offline_operations SET status='syncing' WHERE id=?", [operation.id]);
 
+        let requestStarted = false;
         try {
-          await apiRequest('/api/v1/sync/operations', {
-            method: 'POST',
-            body: JSON.stringify({
-              clientId: operation.client_id,
-              type: operation.type,
-              payload: JSON.parse(operation.payload),
-            }),
+          const localPayload = JSON.parse(operation.payload) as Record<string, unknown>;
+          const operationId = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(operation.client_id)
+            ? operation.client_id
+            : Crypto.randomUUID();
+          const envelope = buildMobileOperationEnvelope({
+            operationId,
+            idempotencyKey: operation.client_id,
+            clientOperationType: operation.type,
+            payload: localPayload,
+            createdAt: new Date().toISOString(),
           });
 
-          await db.runAsync(
-            "UPDATE offline_operations SET status='done', synced_at=datetime('now') WHERE id=?",
-            [operation.id]
-          );
+          requestStarted = true;
+          const response = await apiRequest<unknown>('/api/v1/sync/operations', {
+            method: 'POST',
+            headers: { 'Idempotency-Key': operation.client_id },
+            body: JSON.stringify(envelope),
+          });
+          const parsedResponse = OperationResultSchema.safeParse(response);
+          if (!parsedResponse.success) {
+            const invalidResponse = new Error('Sync API returned an invalid operation result') as Error & {
+              status: number;
+              details: { retryable: boolean };
+            };
+            invalidResponse.status = 502;
+            invalidResponse.details = { retryable: true };
+            throw invalidResponse;
+          }
+
+          const disposition = classifyServerOperationStatus(parsedResponse.data.status);
+          if (disposition === 'complete') {
+            await db.runAsync(
+              "UPDATE offline_operations SET status='done', synced_at=datetime('now'), error_msg=NULL WHERE id=?",
+              [operation.id]
+            );
+          } else if (disposition === 'terminal') {
+            await db.runAsync(
+              "UPDATE offline_operations SET status='dead', error_msg=? WHERE id=?",
+              [parsedResponse.data.errorCode ?? 'SERVER_OPERATION_DEAD_LETTER', operation.id]
+            );
+          } else {
+            // HTTP 202 means the server durably accepted the operation, not
+            // that its business effect completed. Keep it locally pending.
+            // The next flush replays the same idempotency key and reads the
+            // authoritative server status without duplicating the operation.
+            await db.runAsync(
+              "UPDATE offline_operations SET status='syncing', error_msg=? WHERE id=?",
+              [`Server operation status: ${parsedResponse.data.status}`, operation.id]
+            );
+          }
         } catch (error) {
+          // Malformed local payload/envelope data cannot be fixed by retrying.
+          if (!requestStarted) {
+            await db.runAsync(
+              "UPDATE offline_operations SET status='dead', error_msg=? WHERE id=?",
+              [String(error), operation.id]
+            );
+            continue;
+          }
+
+          const disposition = classifyQueueFailure(error);
+          if (disposition === 'pause') {
+            // Preserve the operation and its idempotency key until the user
+            // restores a valid authenticated session.
+            await db.runAsync(
+              "UPDATE offline_operations SET status='pending', error_msg=? WHERE id=?",
+              [String(error), operation.id]
+            );
+            break;
+          }
+
+          if (disposition === 'terminal') {
+            await db.runAsync(
+              "UPDATE offline_operations SET status='dead', error_msg=? WHERE id=?",
+              [String(error), operation.id]
+            );
+            continue;
+          }
+
           const retryCount = operation.retry_count + 1;
           await db.runAsync(
             'UPDATE offline_operations SET status=?, retry_count=?, error_msg=? WHERE id=?',
@@ -133,6 +211,10 @@ export class OfflineQueue {
 
   destroy() {
     this.unsubscribe?.();
+    this.unsubscribe = null;
+    // The app root reuses this exported instance after background/resume.
+    // Reset readiness so start() can safely attach a fresh NetInfo listener.
+    this.ready = false;
     OfflineQueue.instance = null;
   }
 }

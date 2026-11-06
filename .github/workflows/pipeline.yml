@@ -8,11 +8,22 @@ on:
 
 env:
   NODE_VERSION: '20.x'
+  PRISMA_SKIP_POSTINSTALL_GENERATE: 'true'
 
 jobs:
   stage-1-docs-and-contamination:
     name: Stage 1 — Documentation + Contamination
     runs-on: ubuntu-latest
+    env:
+      NODE_ENV: test
+      PORT: '3000'
+      DATABASE_URL: postgresql://docs:docs@127.0.0.1:5432/taxbridge_docs
+      DIRECT_URL: postgresql://docs:docs@127.0.0.1:5432/taxbridge_docs
+      REDIS_URL: redis://127.0.0.1:6379
+      JWT_SECRET: ci-only-taxbridge-jwt-secret-not-valid-outside-this-workflow
+      ALLOWED_ORIGINS: http://localhost:3000
+      TAXBRIDGE_DOCS_MODE: '1'
+      TAXBRIDGE_SKIP_REDIS_CONNECT: '1'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -20,6 +31,10 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
       - run: npm ci
+      - name: Build shared contracts
+        run: npm run build --workspace=@taxbridge/contracts
+      - name: Generate Prisma client for API documentation
+        run: npm run prisma:generate --prefix backend
       - run: grep -q "## \[13\." docs/CHANGELOG.md || exit 1
       - run: grep -rn "FIRS\|from 'express'" backend/src mobile/src admin/src --include="*.ts" --include="*.tsx" | grep -v node_modules | wc -l | xargs -I{} test {} -eq 0
       # Filter out lines that reference Express/SDK 51/pages/admin only in "avoid this" documentation context
@@ -35,6 +50,9 @@ jobs:
     name: Stage 2 — TypeScript
     runs-on: ubuntu-latest
     needs: stage-1-docs-and-contamination
+    env:
+      DATABASE_URL: postgresql://build:build@127.0.0.1:5432/taxbridge_build
+      DIRECT_URL: postgresql://build:build@127.0.0.1:5432/taxbridge_build
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -42,7 +60,16 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
       - run: npm ci
-      - run: npx tsc --noEmit
+      - name: Build shared contracts
+        run: npm run build --workspace=@taxbridge/contracts
+      - name: Generate Prisma client
+        run: npm run prisma:generate --prefix backend
+      - name: Type-check Fastify backend
+        run: npx tsc --noEmit --project backend/tsconfig.json
+      - name: Type-check Expo mobile application
+        run: npm --prefix mobile run typecheck
+      - name: Type-check canonical admin dashboard
+        run: npm --prefix admin-dashboard run type-check
 
   stage-3-immutability-and-schema:
     name: Stage 3 — Immutability + Schema Integrity
@@ -59,6 +86,38 @@ jobs:
     name: Stage 4 — Tests + Coverage
     runs-on: ubuntu-latest
     needs: stage-3-immutability-and-schema
+    env:
+      CI: 'true'
+      NODE_ENV: test
+      PORT: '3000'
+      JWT_SECRET: ci-only-taxbridge-jwt-secret-not-valid-outside-this-workflow
+      ALLOWED_ORIGINS: http://localhost:3000
+      DATABASE_URL: postgresql://postgres:${{ format('tbci-{0}-{1}', github.run_id, github.run_attempt) }}@localhost:5432/taxbridge_pipeline
+      DIRECT_URL: postgresql://postgres:${{ format('tbci-{0}-{1}', github.run_id, github.run_attempt) }}@localhost:5432/taxbridge_pipeline
+      REDIS_URL: redis://localhost:6379
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ${{ format('tbci-{0}-{1}', github.run_id, github.run_attempt) }}
+          POSTGRES_DB: taxbridge_pipeline
+        options: >-
+          --health-cmd "pg_isready -U postgres -d taxbridge_pipeline"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+        ports:
+          - 5432:5432
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+        ports:
+          - 6379:6379
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -66,8 +125,15 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
       - run: npm ci
+      - name: Build shared contracts and generate Prisma client
+        run: |
+          npm run build --workspace=@taxbridge/contracts
+          npm run prisma:generate --prefix backend
+          npm run prisma:migrate:deploy --prefix backend
       - run: npm test --workspaces -- --coverage
-      - run: npx c8 --check-coverage --lines 95 --functions 95 --branches 90 npm test -- --workspace=packages/contracts
+      - name: Enforce shared-contract coverage thresholds
+        working-directory: packages/contracts
+        run: npm test -- --coverage --coverageThreshold='{"global":{"lines":95,"functions":95,"branches":90}}'
 
   stage-5-build-and-smoke:
     name: Stage 5 — Build + Smoke
@@ -81,4 +147,12 @@ jobs:
           cache: npm
       - run: npm ci
       - run: docker build -t taxbridge-api .
-      - run: bash scripts/smoke-test.sh $STAGING_URL
+      - name: Require and run the staging smoke target
+        env:
+          STAGING_URL: ${{ secrets.STAGING_URL }}
+        run: |
+          if [ -z "$STAGING_URL" ]; then
+            echo "STAGING_URL secret is required for the staging smoke gate." >&2
+            exit 1
+          fi
+          bash scripts/smoke-test.sh "$STAGING_URL"

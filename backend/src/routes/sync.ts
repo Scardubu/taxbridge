@@ -1,9 +1,11 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import type { Invoice } from '@prisma/client';
 import { z } from 'zod';
 import { getPrismaClient } from '../lib/prisma';
 import { HeartbeatSchema, PushSyncSchema, type HeartbeatPayload } from '@taxbridge/contracts';
 import { createLogger } from '../lib/logger';
 import { enqueueDeviceSync } from '../queue/client';
+import { buildConflictInvoiceUpdate } from '../services/conflictInvoiceData';
 
 const log = createLogger('sync-routes');
 const prisma = getPrismaClient();
@@ -168,12 +170,43 @@ export default async function syncRoutes(app: FastifyInstance) {
             continue;
           }
 
+          // Validate the client invoice ID and ownership before creating any
+          // SyncJob/Conflict row that references it. A device must never be able
+          // to create a conflict against another user's invoice UUID.
+          let invoiceId: string | null = null;
+          let existingInvoice: Invoice | null = null;
+          if (job.entity === 'invoice') {
+            const parsedInvoiceId = z.string().uuid().safeParse(job.payload.id);
+            if (!parsedInvoiceId.success) {
+              results.failed.push(job.clientId);
+              continue;
+            }
+
+            invoiceId = parsedInvoiceId.data;
+            existingInvoice = await prisma.invoice.findUnique({ where: { id: invoiceId } });
+
+            if (existingInvoice && existingInvoice.userId !== userId) {
+              log.warn('Rejected cross-tenant invoice sync reference', {
+                userId,
+                deviceId: device.id,
+                clientId: job.clientId,
+              });
+              results.failed.push(job.clientId);
+              continue;
+            }
+
+            if (job.action !== 'create' && !existingInvoice) {
+              results.failed.push(job.clientId);
+              continue;
+            }
+          }
+
           // Create SyncJob audit record
           const syncJob = await prisma.syncJob.create({
             data: {
               deviceId: device.id,
               userId,
-              invoiceId: job.entity === 'invoice' ? (job.payload.id as string) : null,
+              invoiceId,
               clientId: job.clientId,
               entity: job.entity,
               action: job.action,
@@ -187,19 +220,15 @@ export default async function syncRoutes(app: FastifyInstance) {
 
           // Handle invoice entity
           if (job.entity === 'invoice') {
-            const invoiceId = job.payload.id as string;
-
+            const resolvedInvoiceId = invoiceId!;
             if (job.action === 'create') {
-              // Check if invoice already exists
-              const existing = await prisma.invoice.findUnique({
-                where: { id: invoiceId }
-              });
+              const existing = existingInvoice;
 
               if (existing) {
                 // Conflict: invoice already exists
                 await prisma.conflict.create({
                   data: {
-                    invoiceId,
+                    invoiceId: resolvedInvoiceId,
                     userId,
                     deviceId: device.id,
                     localVersion: job.clientVersion,
@@ -228,27 +257,14 @@ export default async function syncRoutes(app: FastifyInstance) {
 
               results.synced.push(job.clientId);
             } else if (job.action === 'update') {
-              const existing = await prisma.invoice.findUnique({
-                where: { id: invoiceId }
-              });
-
-              if (!existing) {
-                results.failed.push(job.clientId);
-                await prisma.syncJob.update({
-                  where: { id: syncJob.id },
-                  data: { 
-                    status: 'failed',
-                    result: { error: 'Invoice not found' }
-                  }
-                });
-                continue;
-              }
+              const existing = existingInvoice!;
+              // Ownership was verified before the SyncJob row was created.
 
               // Version conflict detection
               if (existing.version > job.clientVersion) {
                 await prisma.conflict.create({
                   data: {
-                    invoiceId,
+                    invoiceId: resolvedInvoiceId,
                     userId,
                     deviceId: device.id,
                     localVersion: job.clientVersion,
@@ -277,7 +293,7 @@ export default async function syncRoutes(app: FastifyInstance) {
 
               results.synced.push(job.clientId);
             } else if (job.action === 'delete') {
-              // Soft delete - mark as deleted
+              // Ownership and existence were verified before SyncJob creation.
               await enqueueDeviceSync(syncJob.id);
 
               await prisma.syncJob.update({
@@ -525,7 +541,11 @@ export default async function syncRoutes(app: FastifyInstance) {
         return reply.status(404).send({ error: 'Conflict not found' });
       }
 
-      if (conflict.device.userId !== userId) {
+      if (
+        conflict.userId !== userId ||
+        conflict.device.userId !== userId ||
+        conflict.invoice.userId !== userId
+      ) {
         return reply.status(403).send({ error: 'Unauthorized' });
       }
 
@@ -533,7 +553,24 @@ export default async function syncRoutes(app: FastifyInstance) {
         return reply.status(400).send({ error: 'Conflict already resolved' });
       }
 
-      let finalData: any;
+      const resolutionSource = body.resolution === 'local_wins'
+        ? conflict.localData
+        : body.resolution === 'server_wins'
+          ? conflict.serverData
+          : body.mergedData;
+      if (body.resolution === 'merged' && !body.mergedData) {
+        return reply.status(400).send({ error: 'MERGED_DATA_REQUIRED' });
+      }
+
+      const resolutionData = buildConflictInvoiceUpdate(
+        resolutionSource,
+        body.resolution === 'merged' ? 'manual_merge' : 'trusted_snapshot',
+      );
+      if (!resolutionData.success) {
+        return reply.status(400).send({ error: resolutionData.error });
+      }
+      const finalData = resolutionData.data;
+
       const status =
         body.resolution === 'local_wins'
           ? 'RESOLVED_CLIENT'
@@ -541,58 +578,28 @@ export default async function syncRoutes(app: FastifyInstance) {
             ? 'RESOLVED_SERVER'
             : 'RESOLVED_MANUAL';
 
-      if (body.resolution === 'local_wins') {
-        finalData = conflict.localData;
-      } else if (body.resolution === 'server_wins') {
-        finalData = conflict.serverData;
-      } else if (body.resolution === 'merged' && body.mergedData) {
-        // Validate merged data contains required invoice fields
-        const requiredFields = ['subtotal', 'vat', 'total', 'items'];
-        const missingFields = requiredFields.filter(field => !(field in body.mergedData!));
-        
-        if (missingFields.length > 0) {
-          return reply.status(400).send({ 
-            error: `Merged data missing required fields: ${missingFields.join(', ')}` 
-          });
-        }
-        
-        // Validate numeric fields
-        if (typeof body.mergedData.subtotal !== 'number' || 
-            typeof body.mergedData.vat !== 'number' || 
-            typeof body.mergedData.total !== 'number') {
-          return reply.status(400).send({ 
-            error: 'Merged data numeric fields must be numbers' 
-          });
-        }
-        
-        // Validate items is an array
-        if (!Array.isArray(body.mergedData.items)) {
-          return reply.status(400).send({ 
-            error: 'Merged data items must be an array' 
-          });
-        }
-        
-        finalData = body.mergedData;
-      } else {
-        return reply.status(400).send({ error: 'Invalid resolution or missing mergedData' });
-      }
+      // Update and resolve atomically. The shared resolver rejects protected
+      // attributes and derives financial totals from the canonical tax utility.
+      await prisma.$transaction(async (tx) => {
+        await tx.invoice.update({
+          where: { id: conflict.invoiceId },
+          data: {
+            ...finalData,
+            version: { increment: 1 },
+          },
+        });
 
-      // Update invoice with resolved data
-      await prisma.invoice.update({
-        where: { id: conflict.invoiceId },
-        data: {
-          ...finalData,
-          version: { increment: 1 }
-        }
-      });
-
-      // Mark conflict as resolved
-      await prisma.conflict.update({
-        where: { id: body.conflictId },
-        data: {
-          resolution: body.resolution,
-          status,
-          resolvedAt: new Date()
+        const claimedConflict = await tx.conflict.updateMany({
+          where: { id: body.conflictId, resolution: null },
+          data: {
+            resolution: body.resolution,
+            status,
+            resolvedBy: userId,
+            resolvedAt: new Date(),
+          },
+        });
+        if (claimedConflict.count !== 1) {
+          throw new Error('CONFLICT_ALREADY_RESOLVED');
         }
       });
 
@@ -608,11 +615,15 @@ export default async function syncRoutes(app: FastifyInstance) {
       });
     } catch (error: any) {
       log.error('Resolve conflict error', { error: error.message });
-      
+
+      if (error.message === 'CONFLICT_ALREADY_RESOLVED') {
+        return reply.status(409).send({ error: 'CONFLICT_ALREADY_RESOLVED' });
+      }
+
       if (error.message.includes('authorization') || error.message.includes('token')) {
         return reply.status(403).send({ error: error.message });
       }
-      
+
       return reply.status(400).send({ error: error.message });
     }
   });

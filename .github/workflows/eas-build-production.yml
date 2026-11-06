@@ -101,11 +101,11 @@ jobs:
             --platform ${{ github.event.inputs.platform || 'android' }} \
             --profile ${{ github.event.inputs.profile || 'production-apk' }} \
             --clear-cache \
-            --no-wait \
-            --non-interactive
+            --non-interactive \
+            --wait
 
       - name: 📊 Build Status
         if: success()
         run: |
-          echo "✅ Build triggered successfully"
-          echo "🔗 Check status: https://expo.dev/accounts/taxbridge/projects/taxbridge/builds"
+          echo "✅ EAS build completed successfully"
+          echo "The EAS CLI returned success after the requested build completed."

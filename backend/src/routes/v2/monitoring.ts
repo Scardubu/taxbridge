@@ -3,15 +3,15 @@
  *
  * Fastify plugin. prefix: '/api/v2/monitoring'
  * GET /health  — ALWAYS HTTP 200 (never 503); check DB + Redis health; degrade gracefully
- * GET /metrics — preHandler: [authenticate, requireRole('ADMIN')]; Prometheus text format
+ * GET /metrics — preHandler: [authenticate, requirePlatformAdmin]; Prometheus text format
  *
  * C-07: Health endpoint is ALWAYS 200 — 'degraded' is a valid healthy state for Render.
  */
+import { requirePlatformAdmin } from '../../plugins/requirePlatformAdmin';
 import { FastifyPluginAsync }  from 'fastify';
-import { requireRole }         from '../../plugins/requireRole';
 import { prisma }              from '../../lib/prisma';
 import { redis }               from '../../lib/redis';
-import { register }            from '../../metrics';
+import { registry }            from '../../services/metrics';
 
 const monitoringRoutes: FastifyPluginAsync = async (fastify) => {
   const isDocsMode = process.env.TAXBRIDGE_DOCS_MODE === '1';
@@ -46,10 +46,10 @@ const monitoringRoutes: FastifyPluginAsync = async (fastify) => {
 
   // Prometheus metrics — ADMIN only; Grafana scrape target
   fastify.get('/metrics', {
-    preHandler: [fastify.authenticate, requireRole('ADMIN')],
+    preHandler: [fastify.authenticate, requirePlatformAdmin],
     config: { rateLimit: { max: 10, timeWindow: '1 minute' } },
   }, async (_request, reply) => {
-    const metrics = await register.metrics();
+    const metrics = await registry.metrics();
     return reply.type('text/plain; version=0.0.4').send(metrics);
   });
 };
