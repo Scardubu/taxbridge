@@ -364,8 +364,9 @@ export async function postInvoice(
 }
 
 /**
- * Initiate a Remita payment for a tax obligation.
- * @param payload Payment payload including idempotency_key.
+ * Initiate an invoice-backed payment through the canonical payment API.
+ * The server calculates the payable amount from the stamped invoice.
+ * @param payload Authenticated invoice and payer details with a stable idempotency key.
  */
 export async function initiatePayment(
   payload: PaymentPayload,
