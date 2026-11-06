@@ -1,6 +1,6 @@
 import { OperationEnvelopeSchema } from '@taxbridge/contracts';
 import { buildMobileOperationEnvelope } from '../services/operationEnvelope';
-import { classifyQueueFailure } from '../services/offlineQueuePolicy';
+import { classifyQueueFailure, classifyServerOperationStatus } from '../services/offlineQueuePolicy';
 
 describe('mobile durable operation envelope', () => {
   it('serializes an offline item using the shared contract shape', () => {
@@ -60,5 +60,24 @@ describe('offline operation retry classification', () => {
   it('treats validation and authorization failures as terminal', () => {
     expect(classifyQueueFailure({ status: 400 })).toBe('terminal');
     expect(classifyQueueFailure({ status: 403 })).toBe('terminal');
+  });
+});
+
+
+describe('server acknowledgement lifecycle', () => {
+  it('completes only acknowledged or explicitly resolved operations', () => {
+    expect(classifyServerOperationStatus('acknowledged')).toBe('complete');
+    expect(classifyServerOperationStatus('resolved')).toBe('complete');
+  });
+
+  it('keeps accepted and retrying operations pending locally', () => {
+    expect(classifyServerOperationStatus('pending')).toBe('pending');
+    expect(classifyServerOperationStatus('processing')).toBe('pending');
+    expect(classifyServerOperationStatus('retry_scheduled')).toBe('pending');
+    expect(classifyServerOperationStatus('reconciling')).toBe('pending');
+  });
+
+  it('dead-letters a server terminal outcome without marking it successful', () => {
+    expect(classifyServerOperationStatus('dead_letter')).toBe('terminal');
   });
 });
