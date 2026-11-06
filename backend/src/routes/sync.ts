@@ -4,6 +4,7 @@ import { getPrismaClient } from '../lib/prisma';
 import { HeartbeatSchema, PushSyncSchema, type HeartbeatPayload } from '@taxbridge/contracts';
 import { createLogger } from '../lib/logger';
 import { enqueueDeviceSync } from '../queue/client';
+import { buildConflictInvoiceUpdate } from '../services/conflictInvoiceData';
 
 const log = createLogger('sync-routes');
 const prisma = getPrismaClient();
@@ -533,7 +534,24 @@ export default async function syncRoutes(app: FastifyInstance) {
         return reply.status(400).send({ error: 'Conflict already resolved' });
       }
 
-      let finalData: any;
+      const resolutionSource = body.resolution === 'local_wins'
+        ? conflict.localData
+        : body.resolution === 'server_wins'
+          ? conflict.serverData
+          : body.mergedData;
+      if (body.resolution === 'merged' && !body.mergedData) {
+        return reply.status(400).send({ error: 'MERGED_DATA_REQUIRED' });
+      }
+
+      const resolutionData = buildConflictInvoiceUpdate(
+        resolutionSource,
+        body.resolution === 'merged' ? 'manual_merge' : 'trusted_snapshot',
+      );
+      if (!resolutionData.success) {
+        return reply.status(400).send({ error: resolutionData.error });
+      }
+      const finalData = resolutionData.data;
+
       const status =
         body.resolution === 'local_wins'
           ? 'RESOLVED_CLIENT'
@@ -541,59 +559,25 @@ export default async function syncRoutes(app: FastifyInstance) {
             ? 'RESOLVED_SERVER'
             : 'RESOLVED_MANUAL';
 
-      if (body.resolution === 'local_wins') {
-        finalData = conflict.localData;
-      } else if (body.resolution === 'server_wins') {
-        finalData = conflict.serverData;
-      } else if (body.resolution === 'merged' && body.mergedData) {
-        // Validate merged data contains required invoice fields
-        const requiredFields = ['subtotal', 'vat', 'total', 'items'];
-        const missingFields = requiredFields.filter(field => !(field in body.mergedData!));
-        
-        if (missingFields.length > 0) {
-          return reply.status(400).send({ 
-            error: `Merged data missing required fields: ${missingFields.join(', ')}` 
-          });
-        }
-        
-        // Validate numeric fields
-        if (typeof body.mergedData.subtotal !== 'number' || 
-            typeof body.mergedData.vat !== 'number' || 
-            typeof body.mergedData.total !== 'number') {
-          return reply.status(400).send({ 
-            error: 'Merged data numeric fields must be numbers' 
-          });
-        }
-        
-        // Validate items is an array
-        if (!Array.isArray(body.mergedData.items)) {
-          return reply.status(400).send({ 
-            error: 'Merged data items must be an array' 
-          });
-        }
-        
-        finalData = body.mergedData;
-      } else {
-        return reply.status(400).send({ error: 'Invalid resolution or missing mergedData' });
-      }
+      // Update and resolve atomically. The shared resolver rejects protected
+      // attributes and derives financial totals from the canonical tax utility.
+      await prisma.$transaction(async (tx) => {
+        await tx.invoice.update({
+          where: { id: conflict.invoiceId },
+          data: {
+            ...finalData,
+            version: { increment: 1 },
+          },
+        });
 
-      // Update invoice with resolved data
-      await prisma.invoice.update({
-        where: { id: conflict.invoiceId },
-        data: {
-          ...finalData,
-          version: { increment: 1 }
-        }
-      });
-
-      // Mark conflict as resolved
-      await prisma.conflict.update({
-        where: { id: body.conflictId },
-        data: {
-          resolution: body.resolution,
-          status,
-          resolvedAt: new Date()
-        }
+        await tx.conflict.update({
+          where: { id: body.conflictId },
+          data: {
+            resolution: body.resolution,
+            status,
+            resolvedAt: new Date(),
+          },
+        });
       });
 
       log.info('Conflict resolved', { 
