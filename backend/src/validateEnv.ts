@@ -17,8 +17,16 @@ if (!process.env.ALLOWED_ORIGINS && !process.env.CORS_ORIGIN) {
 }
 
 if (process.env.NODE_ENV === 'production') {
-  for (const key of ['JWT_PRIVATE_KEY', 'JWT_PUBLIC_KEY', 'INTERNAL_API_KEY', 'ADMIN_API_KEYS']) {
+  for (const key of ['JWT_PRIVATE_KEY', 'JWT_PUBLIC_KEY', 'INTERNAL_API_KEY', 'ADMIN_API_KEYS', 'SENTRY_DSN']) {
     if (!process.env[key]?.trim()) fatal(`env ${key} missing`);
+  }
+  try {
+    const sentryDsn = new URL(process.env.SENTRY_DSN!);
+    if (sentryDsn.protocol !== 'https:' || !sentryDsn.username || !sentryDsn.pathname.replace(/\\//g, '')) {
+      fatal('SENTRY_DSN must be a valid HTTPS DSN with a project path');
+    }
+  } catch {
+    fatal('SENTRY_DSN must be a valid HTTPS DSN');
   }
   if ((process.env.INTERNAL_API_KEY ?? '').length < 32) {
     fatal('INTERNAL_API_KEY must contain at least 32 characters');
