@@ -19,7 +19,7 @@ export default async function v2OnboardingRoute(fastify: FastifyInstance) {
 
   // Get onboarding progress
   fastify.get('/api/v2/onboarding/progress', {
-    preHandler: [fastify.authenticate],
+    preHandler: [fastify.authenticate, fastify.resolveOrgContext],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const userId = request.user.userId;
 
@@ -64,7 +64,7 @@ export default async function v2OnboardingRoute(fastify: FastifyInstance) {
 
   // Complete a step
   fastify.post('/api/v2/onboarding/step', {
-    preHandler: [fastify.authenticate],
+    preHandler: [fastify.authenticate, fastify.resolveOrgContext],
   }, async (request: FastifyRequest, reply: FastifyReply) => {
     const userId = request.user.userId;
     const body = request.body as { step: string; action?: 'complete' | 'skip' } | undefined;
