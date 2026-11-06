@@ -1,5 +1,4 @@
 import Fastify from 'fastify';
-import { computeRequestHash } from '../lib/idempotency';
 
 const mockInitializePayment = jest.fn();
 const mockPrisma = {
