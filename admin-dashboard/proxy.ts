@@ -57,6 +57,63 @@ async function verifyAdminJWT(token: string): Promise<AdminJWTPayload | null> {
   }
 }
 
+type SessionTokens = {
+  accessToken: string;
+  refreshToken: string;
+  expiresIn: number;
+};
+
+type RefreshOutcome =
+  | { kind: 'success'; tokens: SessionTokens }
+  | { kind: 'rejected' }
+  | { kind: 'unavailable' };
+
+async function refreshBackendSession(refreshToken: string): Promise<RefreshOutcome> {
+  if (!BACKEND_URL) return { kind: 'unavailable' };
+  try {
+    const response = await fetch(`${BACKEND_URL}/api/v1/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ refreshToken }),
+      signal: AbortSignal.timeout(5000),
+      cache: 'no-store',
+    });
+    if (response.status === 401 || response.status === 403) return { kind: 'rejected' };
+    if (!response.ok) return { kind: 'unavailable' };
+
+    const data = await response.json() as Record<string, unknown>;
+    if (typeof data.accessToken !== 'string' || typeof data.refreshToken !== 'string') {
+      return { kind: 'unavailable' };
+    }
+    return {
+      kind: 'success',
+      tokens: {
+        accessToken: data.accessToken,
+        refreshToken: data.refreshToken,
+        expiresIn: typeof data.expiresIn === 'number' && Number.isFinite(data.expiresIn)
+          ? Math.min(900, Math.max(60, Math.floor(data.expiresIn)))
+          : 900,
+      },
+    };
+  } catch {
+    return { kind: 'unavailable' };
+  }
+}
+
+function setSessionCookies(response: NextResponse, tokens: SessionTokens, existingCsrfToken?: string): void {
+  const secure = process.env.NODE_ENV === 'production';
+  response.cookies.set('admin_token', tokens.accessToken, {
+    httpOnly: true, secure, sameSite: 'lax', maxAge: tokens.expiresIn, path: '/',
+  });
+  response.cookies.set('admin_refresh_token', tokens.refreshToken, {
+    httpOnly: true, secure, sameSite: 'lax', maxAge: 7 * 24 * 60 * 60, path: '/api/auth',
+  });
+  response.cookies.set('csrf_token', existingCsrfToken || crypto.randomUUID(), {
+    httpOnly: false, secure, sameSite: 'lax', maxAge: 7 * 24 * 60 * 60, path: '/',
+  });
+  response.headers.set('Cache-Control', 'no-store');
+}
+
 async function getRoleVersion(userId: string): Promise<number | null> {
   const internalKey = process.env.INTERNAL_API_KEY;
   if (!internalKey || !BACKEND_URL) return null;
@@ -107,11 +164,30 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
   }
 
   const authHeader = request.headers.get('authorization');
-  const token = authHeader?.match(/^Bearer\s+(.+)$/i)?.[1] ?? request.cookies.get('admin_token')?.value;
-  if (!token) return authenticationFailure(request, 'unauthenticated');
+  let token = authHeader?.match(/^Bearer\\s+(.+)$/i)?.[1] ?? request.cookies.get('admin_token')?.value;
+  let rotatedTokens: SessionTokens | null = null;
+  let payload = token ? await verifyAdminJWT(token) : null;
 
-  const payload = await verifyAdminJWT(token);
-  if (!payload) return authenticationFailure(request, 'invalid_token');
+  if (!payload) {
+    const refreshToken = request.cookies.get('admin_refresh_token')?.value;
+    if (!refreshToken) {
+      return authenticationFailure(request, token ? 'invalid_token' : 'unauthenticated');
+    }
+    const refresh = await refreshBackendSession(refreshToken);
+    if (refresh.kind === 'unavailable') {
+      return NextResponse.json(
+        { error: 'AUTH_REFRESH_UNAVAILABLE' },
+        { status: 503, headers: { 'Cache-Control': 'no-store' } },
+      );
+    }
+    if (refresh.kind === 'rejected') {
+      return authenticationFailure(request, 'session_expired');
+    }
+    rotatedTokens = refresh.tokens;
+    token = refresh.tokens.accessToken;
+    payload = await verifyAdminJWT(token);
+    if (!payload) return authenticationFailure(request, 'invalid_token');
+  }
 
   const role = payload.role.toUpperCase();
   if (role !== 'ADMIN' && role !== 'SUPER_ADMIN') {
@@ -120,7 +196,12 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
 
   const currentRoleVersion = await getRoleVersion(payload.sub);
   if (currentRoleVersion === null) {
-    return NextResponse.json({ error: 'ROLE_VERSION_UNAVAILABLE' }, { status: 503 });
+    const response = NextResponse.json(
+      { error: 'ROLE_VERSION_UNAVAILABLE' },
+      { status: 503, headers: { 'Cache-Control': 'no-store' } },
+    );
+    if (rotatedTokens) setSessionCookies(response, rotatedTokens, request.cookies.get('csrf_token')?.value);
+    return response;
   }
   if (currentRoleVersion !== payload.role_version) {
     return authenticationFailure(request, 'session_expired');
@@ -141,7 +222,12 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
   requestHeaders.set('x-user-id', payload.sub);
   requestHeaders.set('x-user-role', payload.role);
   requestHeaders.set('x-org-id', payload.orgId);
-  return NextResponse.next({ request: { headers: requestHeaders } });
+  if (token) requestHeaders.set('authorization', `Bearer ${token}`);
+  const response = NextResponse.next({ request: { headers: requestHeaders } });
+  if (rotatedTokens) {
+    setSessionCookies(response, rotatedTokens, request.cookies.get('csrf_token')?.value);
+  }
+  return response;
 }
 
 export const config = {
