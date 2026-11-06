@@ -8,7 +8,15 @@ import { importSPKI, jwtVerify, type JWTPayload } from 'jose';
 
 const JWT_ISSUER = process.env.JWT_ISSUER ?? 'taxbridge-api';
 const JWT_AUDIENCE = process.env.JWT_AUDIENCE ?? 'taxbridge-clients';
-const PUBLIC_PATHS = ['/login', '/api/health', '/api/auth', '/_next', '/favicon.ico'];
+const PUBLIC_EXACT_PATHS = new Set([
+  '/login',
+  '/api/health',
+  '/api/auth/login',
+  '/api/auth/refresh',
+  '/api/auth/logout',
+  '/favicon.ico',
+]);
+const PUBLIC_PREFIX_PATHS = ['/_next'];
 // Server-only, environment-specific backend origin. Never infer production from a preview.
 const BACKEND_URL = (process.env.BACKEND_API_URL || process.env.BACKEND_URL || '').replace(/\/$/, '');
 
@@ -80,7 +88,8 @@ async function getRoleVersion(userId: string): Promise<number | null> {
 }
 
 function isPublicPath(pathname: string): boolean {
-  return PUBLIC_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`));
+  if (PUBLIC_EXACT_PATHS.has(pathname)) return true;
+  return PUBLIC_PREFIX_PATHS.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
 }
 
 function loginRedirect(request: NextRequest, reason: string): NextResponse {
