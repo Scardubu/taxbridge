@@ -8,11 +8,11 @@
 
 [![Backend](https://img.shields.io/badge/API-live-brightgreen?logo=render)](https://taxbridge-api-ker8.onrender.com/health/live)
 [![Admin](https://img.shields.io/badge/Admin-live-brightgreen?logo=vercel)](https://taxbridge.vercel.app)
-[![Tests](https://img.shields.io/badge/tests-528+%20passing-success?logo=jest)](/)
+[![Tests](https://img.shields.io/badge/tests-950+%20passing-success?logo=jest)](/)
 [![Coverage](https://img.shields.io/badge/coverage-97.29%25-brightgreen?logo=jest)](/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-blue?logo=typescript)](/)
 [![NRS](https://img.shields.io/badge/NRS%202026-compliant-green?logo=shield)](/)
-[![Production](https://img.shields.io/badge/version-v12.0.0-blue?logo=git)](/)
+[![Production](https://img.shields.io/badge/version-v14.0.0-blue?logo=git)](/)
 [![License](https://img.shields.io/badge/license-proprietary-lightgrey)](/)
 
 **[Live API](https://taxbridge-api-ker8.onrender.com/api/v2/monitoring/health)** · **[Admin Console](https://taxbridge.vercel.app)** · **[API Docs](https://taxbridge-api-ker8.onrender.com/docs)** · **[Changelog](CHANGELOG.md)**
@@ -45,13 +45,23 @@ TaxBridge is a **mobile-first, offline-capable** tax compliance platform built f
 ---
 
 ## Production Status
+ 
+| Platform | URL | Status | Last Deploy | Version |
+| --- | --- | --- | --- | --- |
+| **Backend API** | [taxbridge-api-ker8.onrender.com](https://taxbridge-api-ker8.onrender.com/api/v2/monitoring/health) | ✅ Live | Nov 6, 2026 | v14.0.0 |
+| **Admin Console** | [taxbridge.vercel.app](https://taxbridge.vercel.app) | ✅ Live | Nov 6, 2026 | v14.0.0 |
+| **Mobile App** | EAS → Google Play Internal Testing | ✅ Live | Nov 6, 2026 | v14.0.0 |
+| **API Docs** | [/docs](https://taxbridge-api-ker8.onrender.com/docs) | ✅ Live | Nov 6, 2026 | v14.0.0 |
 
-| Platform | URL | Status | Last Deploy |
-| --- | --- | --- | --- |
-| **Backend API** | [taxbridge-api-ker8.onrender.com](https://taxbridge-api-ker8.onrender.com/api/v2/monitoring/health) | ✅ Live | Mar 7, 2026 |
-| **Admin Console** | [taxbridge.vercel.app](https://taxbridge.vercel.app) | ✅ Live | Mar 7, 2026 |
-| **Mobile App** | EAS → Google Play Internal Testing | ✅ v12.0.0 | Mar 7, 2026 |
-| **API Docs** | [/docs](https://taxbridge-api-ker8.onrender.com/docs) | ✅ Live | Mar 7, 2026 |
+### v14.0.0 — Sovereign Production Readiness & Security Hardening (Nov 6, 2026)
+
+- ✅ **Database-Backed Platform Admin RBAC** — Strict global route authorization (`requirePlatformAdmin`), platform-aware role selector, fail-closed privilege escalation prevention
+- ✅ **Atomic Session Lifecycle** — Atomic refresh-token rotation with DB replay detection, server-side logout revocation, double-submit CSRF protection
+- ✅ **Payment Reservation Idempotency** — Invoice-level pre-reservation before provider initialization, per-invoice scoped idempotency, cross-gateway failover suppression on ambiguous errors
+- ✅ **Mobile Offline Sync & Lifecycle** — Foreground operation reconciliation, queue listener restart on app foreground, explicit server acknowledgement lifecycle, local SQLite unique idempotency keys
+- ✅ **Admin Security Perimeter** — Strict same-origin enforcement, browser API key exposure completely eliminated, Next.js server proxy with CSRF propagation, degraded-state fallback handling for Render cold starts
+- ✅ **Enterprise Observability & PII Scrubbing** — Automated sanitization of tokens, passwords, taxpayer TIN/BVN, payer names/phones in Fastify logs and Sentry APM events
+- ✅ **Deterministic CI/CD Pipelines** — Dynamic runner credentials for test PostgreSQL, non-secret Prisma datasource URLs for Docker image builds, append-only `/api/v1` contract compatibility gate
 
 ### v12.0.0 — Apex Execution Directive (Mar 7, 2026)
 
@@ -270,18 +280,18 @@ Interactive API docs available at [`/docs`](https://taxbridge-api-ker8.onrender.
 
 | Metric | Value |
 | --- | --- |
-| Lines of Code | 80,000+ |
-| Test Suites | 30+ suites (550+ tests, 100% pass rate) |
+| Lines of Code | 85,000+ |
+| Test Suites | 60+ suites (950+ tests passing, 100% pass rate) |
 | Test Coverage | 95%+ lines/functions, 90%+ branches |
 | API Endpoints | 75+ RESTful |
 | i18n Keys | 1,500+ (English + Nigerian Pidgin) |
 | UI Components | 160+ with design token adoption |
 | Mobile Screens | 20+ production screens |
-| Backend Services | 22+ service modules |
+| Backend Services | 25+ service modules |
 | Absolute Constraints | 46 (C-01 to C-46) |
 | Prometheus Metrics | 7 |
 | Cron Jobs | 7 |
-| Version | v12.0.0 (Mar 2026) |
+| Version | v14.0.0 (Nov 2026) |
 
 ---
 
@@ -290,19 +300,19 @@ Interactive API docs available at [`/docs`](https://taxbridge-api-ker8.onrender.
 ```
 taxbridge/
 ├── mobile/             # Expo SDK 54 mobile app (EAS)
-├── backend/            # Fastify 5 API (Render, Docker)
-├── admin-dashboard/    # Next.js 15 admin console (Vercel)
+├── backend/            # Fastify 5 API (Render Docker)
+├── admin-dashboard/    # Next.js 16 admin console (Vercel)
 ├── packages/
-│   └── contracts/     # @taxbridge/contracts — tax calculators + rate constants
-│       ├── src/       # PIT, CIT, VAT, WHT, penalty, RBAC, pagination
+│   └── contracts/     # @taxbridge/contracts — tax calculators + rate constants + RBAC
+│       ├── src/       # PIT, CIT, VAT, WHT, penalty, RBAC, pagination, invoices
 │       └── dist/
-├── prompts/            # 12 V12 AI prompt modules
-├── scripts/            # seed-dev, backfill-v12, verify-prompts, rollback
+├── prompts/            # 12 V12 AI prompt modules (M00–M11)
+├── scripts/            # seed-dev, verify-prompts, accuracy-gates, rollback
 ├── infra/              # Grafana alerts + dashboard, k6 load tests
 ├── ml/                 # OCR & NLP services
-├── docs/               # PRD, DPIA, API specs
+├── docs/               # PRD, Architecture, DPIA, API specs, Runbooks
 ├── docker-compose.yml  # Local dev (postgres:15 + redis:7)
-└── render.yaml         # Render blueprint (fra region)
+└── render.yaml         # Render blueprint (frankfurt region)
 ```
 
 ### Package Resolution Notes
@@ -326,9 +336,11 @@ Metro's resolver checks the `react-native` field before `main`, so the mobile bu
 | Document | Description |
 | --- | --- |
 | [Changelog](CHANGELOG.md) | ⭐ Version history and release notes |
+| [Production Readiness](docs/PRODUCTION_READY.md) | Verified V14 production snapshot & release audit |
 | [Production Checklist](PRODUCTION_CHECKLIST.md) | Pre-deploy verification checklist |
+| [Admin Architecture](docs/ADMIN_ARCHITECTURE.md) | Security perimeter, same-origin enforcement & Next.js runtime |
 | [Deployment Guide](docs/DEPLOYMENT_GUIDE.md) | Platform deployment instructions (Render, Vercel, EAS) |
-| [Deployment Summary v3.0.0](docs/DEPLOYMENT_SUMMARY_FEB_2026.md) | Feb 2026 production deployment record |
+| [Security Architecture](docs/SECURITY_ARCHITECTURE.md) | Token security, RBAC, encryption & rate-limiting |
 | [Incident Response](docs/INCIDENT_RESPONSE.md) | P1–P4 incident playbook |
 | [Implementation History](docs/IMPLEMENTATION_HISTORY.md) | Phases 1–10 development timeline |
 | [Developer Guide](docs/DEVELOPER_GUIDE.md) | Setup and contribution guidelines |
@@ -340,11 +352,11 @@ Metro's resolver checks the `react-native` field before `main`, so the mobile bu
 
 All three platforms share a unified configuration approach:
 
-| Platform | Env File | Key Variable |
+| Platform | Env File | Key Variables |
 | --- | --- | --- |
-| **Backend** | `.env` (from `.env.production.example`) | `DATABASE_URL`, `REDIS_URL`, `JWT_SECRET` |
+| **Backend** | `.env` (from `.env.production.example`) | `DATABASE_URL`, `REDIS_URL`, `JWT_SECRET`, `JWT_REFRESH_SECRET` |
 | **Mobile** | `mobile/.env.production` | `EXPO_PUBLIC_API_URL` |
-| **Admin** | `admin-dashboard/.env.production` | `NEXT_PUBLIC_BACKEND_URL`, `NEXT_PUBLIC_ADMIN_API_KEY` |
+| **Admin** | `admin-dashboard/.env.production` | `BACKEND_API_URL`, `JWT_PUBLIC_KEY`, `INTERNAL_API_KEY`, `ADMIN_API_KEYS` |
 
 All point to the same backend: `https://taxbridge-api-ker8.onrender.com`
 

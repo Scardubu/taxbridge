@@ -8,7 +8,7 @@
 [![React](https://img.shields.io/badge/React-19.2.3-blue)](https://react.dev)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue)](https://typescriptlang.org)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.4-38bdf8)](https://tailwindcss.com)
-[![Tests](https://img.shields.io/badge/Tests-8%2F8%20Passing-green)]()
+[![Tests](https://img.shields.io/badge/Tests-20%2F20%20Passing-green)]()
 
 </div>
 

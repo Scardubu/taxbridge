@@ -4,11 +4,11 @@
 
 **NRS-compliant e-invoicing and tax management API for Nigerian SMEs**
 
-[![Node.js](https://img.shields.io/badge/Node.js-18%2B-green)](https://nodejs.org)
+[![Node.js](https://img.shields.io/badge/Node.js-20%20LTS-green)](https://nodejs.org)
 [![Fastify](https://img.shields.io/badge/Fastify-5.6-black)](https://fastify.io)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue)](https://typescriptlang.org)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15%2B-blue)](https://postgresql.org)
-[![Tests](https://img.shields.io/badge/Tests-68%2F68%20Passing-green)]()
+[![Tests](https://img.shields.io/badge/Tests-528+%20Passing-green)]()
 
 </div>
 

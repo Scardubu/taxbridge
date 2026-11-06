@@ -7,7 +7,7 @@
 [![Expo](https://img.shields.io/badge/Expo-54.0.31-blue)](https://expo.dev)
 [![React Native](https://img.shields.io/badge/React%20Native-0.81.5-blue)](https://reactnative.dev)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue)](https://typescriptlang.org)
-[![Tests](https://img.shields.io/badge/Tests-382%20passing-success)]()
+[![Tests](https://img.shields.io/badge/Tests-396%20passing-success)]()
 [![Blueprint](https://img.shields.io/badge/Blueprint-v9-green)]()
 [![Version](https://img.shields.io/badge/Version-1.4.2-blue)]()
 [![Production](https://img.shields.io/badge/Status-Production%20Ready-success)]()
@@ -42,7 +42,7 @@ This codebase implements **TaxBridge V13 Mobile Blueprint v9**, the single autho
 - Compliance score v2: 6-factor weighted (max 100 pts)
 - `useTaxEngine` memoised hook; `TaxCalculationSummary` on dashboard
 
-**Tests: 31/31 suites • 382 passing • 0 failing • 1 skipped • TypeScript: 0 errors**
+**Tests: 33/33 suites • 396 passing • 0 failing • 1 skipped • TypeScript: 0 errors**
 
 #### Key Constraints Applied
 
