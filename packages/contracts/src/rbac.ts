@@ -61,14 +61,16 @@ export const RESOURCE_MIN_ROLE: Readonly<Record<Resource, UserRole>> = {
 // ─── Helper functions ─────────────────────────────────────────────────────────
 
 export function canAccess(userRole: UserRole, resource: Resource): boolean {
-  const userLevel     = ROLE_HIERARCHY[userRole]    ?? 0;
+  const canonicalRole = normaliseRole(userRole);
+  const userLevel     = ROLE_HIERARCHY[canonicalRole] ?? 0;
   const requiredRole  = RESOURCE_MIN_ROLE[resource];
   const requiredLevel = ROLE_HIERARCHY[requiredRole] ?? 99;
   return userLevel >= requiredLevel;
 }
 
 export function hasMinRole(userRole: UserRole, minRole: UserRole): boolean {
-  return (ROLE_HIERARCHY[userRole] ?? 0) >= (ROLE_HIERARCHY[minRole] ?? 99);
+  const canonicalRole = normaliseRole(userRole);
+  return (ROLE_HIERARCHY[canonicalRole] ?? 0) >= (ROLE_HIERARCHY[minRole] ?? 99);
 }
 
 export function getAccessibleResources(userRole: UserRole): Resource[] {
