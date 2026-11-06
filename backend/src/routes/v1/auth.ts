@@ -323,6 +323,61 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     // response is emitted. Exactly one request can consume a given token.
     return reply.send({ accessToken: newAccessToken, refreshToken: newRefreshToken, expiresIn: 900 });
   });
+
+  // Global logout: advance the user role-version, revoking access and refresh
+  // tokens across all devices. The refresh token proves possession without
+  // requiring a still-valid 15-minute access token.
+  fastify.post('/logout', {
+    config: { rateLimit: { max: 5, timeWindow: '1 minute' } },
+    preHandler: [validate(RefreshSchema)],
+  }, async (request, reply) => {
+    const { refreshToken } = request.body as z.infer<typeof RefreshSchema>;
+    let payload;
+    try {
+      const verifyKey = await getRefreshVerifyKey();
+      const verified = await jwtVerify(refreshToken, verifyKey, {
+        algorithms: process.env.NODE_ENV === 'production' ? ['RS256'] : ['HS256'],
+        issuer: JWT_ISSUER,
+        audience: JWT_AUDIENCE,
+        requiredClaims: ['sub', 'exp', 'iat', 'iss', 'aud', 'type', 'family', 'role_version'],
+      });
+      payload = verified.payload;
+    } catch {
+      return reply.code(401).send({ error: 'INVALID_TOKEN' });
+    }
+
+    if (
+      payload.type !== 'refresh' ||
+      typeof payload.sub !== 'string' || !payload.sub ||
+      typeof payload.family !== 'string' || !FAMILY_ID_PATTERN.test(payload.family) ||
+      typeof payload.role_version !== 'number' ||
+      !Number.isSafeInteger(payload.role_version) || payload.role_version < 0
+    ) {
+      return reply.code(401).send({ error: 'INVALID_TOKEN_CLAIMS' });
+    }
+
+    try {
+      const currentVersion = await readRoleVersion(payload.sub);
+      if (currentVersion !== payload.role_version) {
+        return reply.code(401).send({ error: 'SESSION_REVOKED' });
+      }
+      await redis.incr('role_version:' + payload.sub);
+    } catch (error) {
+      request.log.error({ err: error }, 'Session revocation dependency unavailable');
+      return reply.code(503).send({ error: 'SESSION_STORE_UNAVAILABLE' });
+    }
+
+    await writeAuditEvent({
+      actorId: payload.sub,
+      action: 'LOGOUT',
+      resource: 'UserSession',
+      ip: request.ip,
+      userAgent: request.headers['user-agent'],
+      details: { scope: 'all_sessions' },
+    });
+
+    return reply.send({ success: true, scope: 'all_sessions' });
+  });
 };
 
 export default authRoutes;
