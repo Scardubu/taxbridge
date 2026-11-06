@@ -50,20 +50,11 @@ export default async function adminSyncRoutes(app: FastifyInstance) {
         return reply.code(403).send({ error: 'ADMIN_IDENTITY_NOT_ACTIVE' });
       }
 
-      const globalAdmin = ['admin', 'ADMIN', 'super_admin', 'SUPER_ADMIN'].includes(user.role);
-      if (!globalAdmin) {
-        const membership = await prisma.orgMember.findFirst({
-          where: {
-            userId: adminActorId,
-            removedAt: null,
-            status: 'active',
-            role: { in: ['admin', 'ADMIN', 'super_admin', 'SUPER_ADMIN'] },
-          },
-          include: { org: { select: { status: true } } },
-        });
-        if (!membership || membership.org.status !== 'active') {
-          return reply.code(403).send({ error: 'ADMIN_ROLE_REQUIRED' });
-        }
+      const platformRole = String(user.role ?? '').toUpperCase();
+      if (platformRole !== 'ADMIN' && platformRole !== 'SUPER_ADMIN') {
+        // These endpoints query or mutate global device/sync/conflict data.
+        // An organization-level admin must not receive cross-tenant access.
+        return reply.code(403).send({ error: 'PLATFORM_ADMIN_REQUIRED' });
       }
     } catch (error) {
       request.log.error({ err: error }, 'Admin actor verification unavailable');
