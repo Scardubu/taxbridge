@@ -8,7 +8,6 @@
  * C-07: Health endpoint is ALWAYS 200 — 'degraded' is a valid healthy state for Render.
  */
 import { FastifyPluginAsync }  from 'fastify';
-import { requireRole }         from '../../plugins/requireRole';
 import { prisma }              from '../../lib/prisma';
 import { redis }               from '../../lib/redis';
 import { registry }            from '../../services/metrics';
@@ -46,7 +45,7 @@ const monitoringRoutes: FastifyPluginAsync = async (fastify) => {
 
   // Prometheus metrics — ADMIN only; Grafana scrape target
   fastify.get('/metrics', {
-    preHandler: [fastify.authenticate, requireRole('ADMIN')],
+    preHandler: [fastify.authenticate, requirePlatformAdmin],
     config: { rateLimit: { max: 10, timeWindow: '1 minute' } },
   }, async (_request, reply) => {
     const metrics = await registry.metrics();
