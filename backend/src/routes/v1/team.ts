@@ -49,21 +49,6 @@ async function invalidateSession(userId: string) {
 // ─── Routes ──────────────────────────────────────────────────────────────
 
 export default async function teamRoutes(app: FastifyInstance) {
-  app.get<{ Params: { userId: string } }>(
-    '/admin/role-version/:userId',
-    async (req, reply) => {
-      const internalKey = req.headers['x-internal-key'];
-      const expectedKey = process.env.INTERNAL_API_KEY;
-
-      if (!expectedKey || internalKey !== expectedKey) {
-        return reply.status(401).send({ error: 'UNAUTHORIZED' });
-      }
-
-      const roleVersion = parseInt(await redis.get(`role_version:${req.params.userId}`) ?? '0', 10);
-      return reply.send({ roleVersion });
-    },
-  );
-
   // ── List members ─────────────────────────────────────────────────────────
   app.get(
     '/team',
