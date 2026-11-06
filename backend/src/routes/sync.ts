@@ -206,7 +206,7 @@ export default async function syncRoutes(app: FastifyInstance) {
             data: {
               deviceId: device.id,
               userId,
-              invoiceId,
+              invoiceId: resolvedInvoiceId,
               clientId: job.clientId,
               entity: job.entity,
               action: job.action,
@@ -228,7 +228,7 @@ export default async function syncRoutes(app: FastifyInstance) {
                 // Conflict: invoice already exists
                 await prisma.conflict.create({
                   data: {
-                    invoiceId,
+                    invoiceId: resolvedInvoiceId,
                     userId,
                     deviceId: device.id,
                     localVersion: job.clientVersion,
@@ -264,7 +264,7 @@ export default async function syncRoutes(app: FastifyInstance) {
               if (existing.version > job.clientVersion) {
                 await prisma.conflict.create({
                   data: {
-                    invoiceId,
+                    invoiceId: resolvedInvoiceId,
                     userId,
                     deviceId: device.id,
                     localVersion: job.clientVersion,
