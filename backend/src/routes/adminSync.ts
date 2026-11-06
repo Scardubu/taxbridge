@@ -4,6 +4,7 @@ import { prisma } from '../lib/prisma';
 import { requireAdminApiKey } from '../lib/security';
 import { createLogger } from '../lib/logger';
 import { enqueueDeviceSync } from '../queue/client';
+import { buildConflictInvoiceUpdate } from '../services/conflictInvoiceData';
 
 const log = createLogger('admin-sync-routes');
 
@@ -434,32 +435,31 @@ export default async function adminSyncRoutes(app: FastifyInstance) {
         return reply.status(400).send({ error: 'Conflict already resolved' });
       }
 
-      // Determine final data based on resolution strategy
-      let finalData: any;
-      let resolutionStatus: string;
-
-      if (body.resolution === 'local_wins') {
-        finalData = conflict.localData;
-        resolutionStatus = 'RESOLVED_CLIENT';
-      } else if (body.resolution === 'server_wins') {
-        finalData = conflict.serverData;
-        resolutionStatus = 'RESOLVED_SERVER';
-      } else if (body.resolution === 'merged' && body.mergedData) {
-        // Validate merged data has required fields
-        const requiredFields = ['subtotal', 'vat', 'total'];
-        const missingFields = requiredFields.filter(f => !(f in body.mergedData!));
-        
-        if (missingFields.length > 0) {
-          return reply.status(400).send({ 
-            error: `Merged data missing required fields: ${missingFields.join(', ')}` 
-          });
-        }
-        
-        finalData = body.mergedData;
-        resolutionStatus = 'RESOLVED_MANUAL';
-      } else {
-        return reply.status(400).send({ error: 'Invalid resolution or missing mergedData' });
+      // Resolve only explicitly editable invoice fields. Client/server snapshots
+      // are projected onto the allowlist; manually merged keys are strict.
+      const resolutionSource = body.resolution === 'local_wins'
+        ? conflict.localData
+        : body.resolution === 'server_wins'
+          ? conflict.serverData
+          : body.mergedData;
+      if (body.resolution === 'merged' && !body.mergedData) {
+        return reply.status(400).send({ error: 'MERGED_DATA_REQUIRED' });
       }
+
+      const resolutionData = buildConflictInvoiceUpdate(
+        resolutionSource,
+        body.resolution === 'merged' ? 'manual_merge' : 'trusted_snapshot',
+      );
+      if (!resolutionData.success) {
+        return reply.status(400).send({ error: resolutionData.error });
+      }
+
+      const finalData = resolutionData.data;
+      const resolutionStatus = body.resolution === 'local_wins'
+        ? 'RESOLVED_CLIENT'
+        : body.resolution === 'server_wins'
+          ? 'RESOLVED_SERVER'
+          : 'RESOLVED_MANUAL';
 
       // Transaction: Update invoice, mark conflict resolved, create admin action audit
       const result = await prisma.$transaction(async (tx) => {
@@ -500,9 +500,13 @@ export default async function adminSyncRoutes(app: FastifyInstance) {
               status: resolutionStatus,
               localVersion: conflict.localVersion,
               serverVersion: conflict.serverVersion,
-              localData: conflict.localData,
-              serverData: conflict.serverData,
-              finalData: finalData
+              changedFields: resolutionData.changedFields,
+              resultingVersion: conflict.invoice.version + 1,
+              totals: {
+                subtotal: finalData.subtotal ?? conflict.invoice.subtotal.toString(),
+                vat: finalData.vat ?? conflict.invoice.vat.toString(),
+                total: finalData.total ?? conflict.invoice.total.toString(),
+              }
             }
           }
         });
@@ -531,7 +535,7 @@ export default async function adminSyncRoutes(app: FastifyInstance) {
       if (error.name === 'ZodError') {
         return reply.status(400).send({ 
           error: 'Validation failed', 
-          details: error.errors 
+          details: error.issues 
         });
       }
       
