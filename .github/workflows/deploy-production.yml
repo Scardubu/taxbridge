@@ -1,15 +1,8 @@
 name: Production Deployment
 
+# V14: release pipeline is manual-only while mandatory production exit criteria remain open.
+# Staging requires an explicit workflow_dispatch with environment=staging.
 on:
-  push:
-    branches: [main, master]
-    paths:
-      - 'backend/**'
-      - 'mobile/**'
-      - 'admin-dashboard/**'
-      - 'packages/**'
-      - 'ml/**'
-      - 'infra/**'
   workflow_dispatch:
     inputs:
       environment:
@@ -284,11 +277,12 @@ jobs:
   # Pattern: Deploy GREEN → smoke at 10% → validate 50% → complete 100%
   # Rollback tag is pinned BEFORE each stage; failure triggers auto-revert.
   # ─────────────────────────────────────────────────────────────────────────
+  # V14 hard stop: do not deploy production until every exit criterion is signed off.
   deploy-production:
-    name: P12 — Blue-Green Production Deployment
+    name: P12 — Blue-Green Production Deployment (BLOCKED by V14)
     runs-on: ubuntu-latest
     needs: [build-images, deploy-staging]
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.event.inputs.environment == 'production'
+    if: false
     environment: production
     env:
       PROD_API:   https://taxbridge-api-ker8.onrender.com
@@ -429,11 +423,12 @@ jobs:
           echo "**SHA:** \`${{ github.sha }}\`  **Rollback:** \`${PREV_TAG}\`  **Tag:** \`${RELEASE_TAG}\`" >> $GITHUB_STEP_SUMMARY
 
   # Deploy admin dashboard to Vercel
+  # V14 hard stop: canonical admin preview/build validation is separate from production promotion.
   deploy-admin:
-    name: Deploy Admin Dashboard
+    name: Deploy Admin Dashboard (BLOCKED by V14)
     runs-on: ubuntu-latest
     needs: [validate]
-    if: needs.validate.outputs.should_deploy_admin == 'true'
+    if: false
     
     steps:
       - uses: actions/checkout@v4
@@ -462,11 +457,12 @@ jobs:
           fi
 
   # Deploy mobile app
+  # V14 hard stop: no EAS submit/store release until mobile exit criteria pass.
   deploy-mobile:
-    name: Deploy Mobile App
+    name: Deploy Mobile App (BLOCKED by V14)
     runs-on: ubuntu-latest
     needs: [validate]
-    if: needs.validate.outputs.should_deploy_mobile == 'true' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    if: false
     
     steps:
       - uses: actions/checkout@v4
