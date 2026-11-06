@@ -7,6 +7,7 @@
  *
  * C-07: Health endpoint is ALWAYS 200 — 'degraded' is a valid healthy state for Render.
  */
+import { requirePlatformAdmin } from '../../plugins/requirePlatformAdmin';
 import { FastifyPluginAsync }  from 'fastify';
 import { prisma }              from '../../lib/prisma';
 import { redis }               from '../../lib/redis';
