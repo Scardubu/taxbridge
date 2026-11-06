@@ -1,198 +1,131 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-set -e
+# Route-aware smoke/regression checks. These checks intentionally target routes
+# registered by backend/src/app.ts; they do not treat arbitrary 404s as security
+# controls or claim to prove SQL-injection/XSS safety by submitting inert payloads.
+
+set -euo pipefail
 
 API_BASE="${1:-http://localhost:3000}"
-echo "🔒 Running Security Tests against $API_BASE"
-
+TMP_DIR="$(mktemp -d)"
+BODY_FILE="$TMP_DIR/body.json"
+HEADER_FILE="$TMP_DIR/headers.txt"
 PASSED=0
 FAILED=0
 
-# Helper functions
+cleanup() {
+  rm -rf "$TMP_DIR"
+}
+trap cleanup EXIT
+
 pass() {
-  echo "✅ PASS: $1"
+  printf 'PASS: %s\n' "$1"
   PASSED=$((PASSED + 1))
 }
 
 fail() {
-  echo "❌ FAIL: $1"
+  printf 'FAIL: %s\n' "$1" >&2
   FAILED=$((FAILED + 1))
 }
 
-# 1. SQL Injection Tests
-echo ""
-echo "=== SQL Injection Protection ==="
-RESPONSE=$(curl -s -X POST "$API_BASE/api/v1/invoices" \
-  -H "Content-Type: application/json" \
-  -d '{"customerName":"'"'"'; DROP TABLE users;--","items":[]}' \
-  -w "\n%{http_code}")
-HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+request_status() {
+  curl --silent --show-error --output "$BODY_FILE" --write-out '%{http_code}' --max-time 15 "$@"
+}
 
-if [ "$HTTP_CODE" != "500" ]; then
-  pass "SQL injection payload blocked"
-else
-  fail "SQL injection test produced 500 error"
-fi
-
-# 2. XSS Protection
-echo ""
-echo "=== XSS Protection ==="
-RESPONSE=$(curl -s -X POST "$API_BASE/api/v1/invoices" \
-  -H "Content-Type: application/json" \
-  -d '{"customerName":"<script>alert(1)</script>","items":[]}' \
-  -w "\n%{http_code}")
-HTTP_CODE=$(echo "$RESPONSE" | tail -1)
-
-if [ "$HTTP_CODE" = "400" ] || [ "$HTTP_CODE" = "422" ]; then
-  pass "XSS payload rejected"
-else
-  fail "XSS payload not properly sanitized"
-fi
-
-# 3. Authentication Tests
-echo ""
-echo "=== Authentication ==="
-RESPONSE=$(curl -s -X GET "$API_BASE/api/v1/invoices" \
-  -H "Authorization: Bearer invalid_token" \
-  -w "\n%{http_code}")
-HTTP_CODE=$(echo "$RESPONSE" | tail -1)
-
-if [ "$HTTP_CODE" = "401" ] || [ "$HTTP_CODE" = "403" ]; then
-  pass "Invalid token rejected"
-else
-  fail "Invalid token not properly rejected"
-fi
-
-# 4. Rate Limiting Tests
-echo ""
-echo "=== Rate Limiting (may take 30s) ==="
-
-# Send 110 requests in rapid succession (exceeds 100/minute limit)
-BLOCKED_COUNT=0
-for i in {1..110}; do
-  RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" "$API_BASE/health" --max-time 1)
-  if [ "$RESPONSE" = "429" ]; then
-    BLOCKED_COUNT=$((BLOCKED_COUNT + 1))
-  fi
-  [ $((i % 20)) -eq 0 ] && echo "  Sent $i requests..."
-done
-
-if [ "$BLOCKED_COUNT" -gt 0 ]; then
-  pass "Rate limiting active (blocked $BLOCKED_COUNT requests)"
-else
-  echo "⚠️  WARNING: Rate limiting not observed (may be disabled in development)"
-fi
-
-# 5. Path Traversal Tests
-echo ""
-echo "=== Path Traversal Protection ==="
-RESPONSE=$(curl -s -X GET "$API_BASE/api/v1/files/../../etc/passwd" -w "\n%{http_code}")
-HTTP_CODE=$(echo "$RESPONSE" | tail -1)
-
-if [ "$HTTP_CODE" = "403" ] || [ "$HTTP_CODE" = "404" ]; then
-  pass "Path traversal blocked"
-else
-  fail "Path traversal not properly prevented"
-fi
-
-# 6. HTTPS Enforcement (if not localhost)
-if [[ "$API_BASE" != *"localhost"* ]] && [[ "$API_BASE" != *"127.0.0.1"* ]]; then
-  echo ""
-  echo "=== HTTPS Enforcement ==="
-  if [[ "$API_BASE" == https://* ]]; then
-    pass "API uses HTTPS"
+expect_status() {
+  local label="$1"
+  local expected="$2"
+  local actual="$3"
+  if [ "$actual" = "$expected" ]; then
+    pass "$label (HTTP $actual)"
   else
-    fail "API not using HTTPS in production"
+    fail "$label (expected HTTP $expected, received HTTP $actual)"
+    if [ -s "$BODY_FILE" ]; then
+      sed -n '1,20p' "$BODY_FILE" >&2
+    fi
   fi
-fi
+}
 
-# 7. Security Headers
-echo ""
-echo "=== Security Headers ==="
-HEADERS=$(curl -s -I "$API_BASE/health")
+printf 'Running TaxBridge API security checks against %s\n' "$API_BASE"
 
-if echo "$HEADERS" | grep -qi "X-Content-Type-Options: nosniff"; then
-  pass "X-Content-Type-Options header present"
+# 1. The live and ready routes are registered at the application root.
+status="$(request_status "$API_BASE/health/live")"
+expect_status "Liveness endpoint" "200" "$status"
+
+status="$(request_status "$API_BASE/health/ready")"
+expect_status "Readiness endpoint (PostgreSQL and Redis available)" "200" "$status"
+
+# 2. Helmet headers must be present on a real application response.
+curl --silent --show-error --dump-header "$HEADER_FILE" --output /dev/null --max-time 15 "$API_BASE/health/live"
+if grep -Eiq '^x-content-type-options: *nosniff' "$HEADER_FILE"; then
+  pass "X-Content-Type-Options nosniff"
 else
-  fail "X-Content-Type-Options header missing"
+  fail "X-Content-Type-Options nosniff header missing"
 fi
 
-if echo "$HEADERS" | grep -qi "X-Frame-Options: DENY"; then
-  pass "X-Frame-Options header present"
+if grep -Eiq "^content-security-policy:.*frame-ancestors 'none'" "$HEADER_FILE"; then
+  pass "CSP frame-ancestors none"
 else
-  fail "X-Frame-Options header missing"
+  fail "CSP frame-ancestors none directive missing"
 fi
 
-if echo "$HEADERS" | grep -qi "Strict-Transport-Security"; then
+if grep -Eiq '^strict-transport-security:' "$HEADER_FILE"; then
   pass "HSTS header present"
 else
   fail "HSTS header missing"
 fi
 
-# 8. Password Policy
-echo ""
-echo "=== Password Policy ==="
-WEAK_PASSWORDS=("12345678" "password" "testtest")
-for pwd in "${WEAK_PASSWORDS[@]}"; do
-  RESPONSE=$(curl -s -X POST "$API_BASE/api/v1/auth/register" \
-    -H "Content-Type: application/json" \
-    -d "{\"phone\":\"+2348012345678\",\"name\":\"Test\",\"password\":\"$pwd\"}" \
-    -w "\n%{http_code}")
-  HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+# 3. Authentication is required on the authenticated invoice-management route.
+status="$(request_status -H 'Authorization: Bearer invalid-taxbridge-token' "$API_BASE/api/v1/invoice-mgmt")"
+expect_status "Invalid bearer token rejected by invoice-management route" "401" "$status"
 
-  if [ "$HTTP_CODE" = "400" ]; then
-    pass "Weak password '$pwd' rejected"
-  else
-    fail "Weak password '$pwd' accepted"
+# 4. Login schema rejects malformed credentials before authentication logic runs.
+status="$(request_status -X POST "$API_BASE/api/v1/auth/login" \
+  -H 'Content-Type: application/json' \
+  --data '{"email":"not-an-email","password":"short"}')"
+expect_status "Malformed login payload rejected by schema validation" "400" "$status"
+
+# 5. Login attempts must be rate-limited by the configured route policy.
+blocked=0
+for attempt in $(seq 1 8); do
+  status="$(request_status -X POST "$API_BASE/api/v1/auth/login" \
+    -H 'Content-Type: application/json' \
+    --data '{"email":"invalid@example.invalid","password":"not-a-valid-password"}')"
+  if [ "$status" = "429" ]; then
+    blocked=$((blocked + 1))
   fi
 done
 
-# 9. CSRF Protection
-echo ""
-echo "=== CSRF Protection ==="
-RESPONSE=$(curl -s -X POST "$API_BASE/api/v1/invoices" \
-  -H "Content-Type: application/json" \
-  -H "Origin: https://malicious-site.com" \
-  -d '{"items":[]}' \
-  -w "\n%{http_code}")
-HTTP_CODE=$(echo "$RESPONSE" | tail -1)
-
-if [ "$HTTP_CODE" = "401" ] || [ "$HTTP_CODE" = "403" ]; then
-  pass "Cross-origin POST blocked"
+if [ "$blocked" -gt 0 ]; then
+  pass "Login endpoint rate limit enforced ($blocked of 8 requests returned HTTP 429)"
 else
-  echo "⚠️  WARNING: CORS may need stricter origin validation"
+  fail "Login endpoint did not enforce its configured rate limit"
 fi
 
-# 10. File Upload Size Limit
-echo ""
-echo "=== File Upload Limits ==="
-LARGE_PAYLOAD=$(python3 -c "print('A' * 2000000)")  # 2MB payload
-RESPONSE=$(curl -s -X POST "$API_BASE/api/v1/ocr/process" \
-  -H "Content-Type: application/json" \
-  -d "{\"image\":\"$LARGE_PAYLOAD\"}" \
-  -w "\n%{http_code}" \
-  --max-time 5)
-HTTP_CODE=$(echo "$RESPONSE" | tail -1)
-
-if [ "$HTTP_CODE" = "413" ] || [ "$HTTP_CODE" = "400" ]; then
-  pass "Large payload rejected"
+# 6. A disallowed browser origin must not be reflected in CORS response headers.
+curl --silent --show-error --dump-header "$HEADER_FILE" --output /dev/null --max-time 15 \
+  -X OPTIONS "$API_BASE/api/v1/auth/login" \
+  -H 'Origin: https://malicious-site.invalid' \
+  -H 'Access-Control-Request-Method: POST' \
+  -H 'Access-Control-Request-Headers: content-type'
+if grep -Eiq '^access-control-allow-origin: *https://malicious-site\.invalid' "$HEADER_FILE"; then
+  fail "Untrusted Origin was reflected by CORS"
 else
-  echo "⚠️  WARNING: File upload size limits may need adjustment"
+  pass "Untrusted Origin is not reflected by CORS"
 fi
 
-# Summary
-echo ""
-echo "========================================"
-echo "Security Test Summary"
-echo "========================================"
-echo "Passed: $PASSED"
-echo "Failed: $FAILED"
-echo ""
+# 7. The application JSON parser must reject bodies above its 1 MiB limit.
+python3 - <<'PY' > "$BODY_FILE"
+import json
+print(json.dumps({"email": "a" * (2 * 1024 * 1024), "password": "not-used"}))
+PY
+status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' --max-time 20 \
+  -X POST "$API_BASE/api/v1/auth/login" \
+  -H 'Content-Type: application/json' \
+  --data-binary "@$BODY_FILE")"
+expect_status "JSON request body above 1 MiB is rejected" "413" "$status"
 
+printf '\nSecurity check summary: %s passed, %s failed\n' "$PASSED" "$FAILED"
 if [ "$FAILED" -gt 0 ]; then
-  echo "❌ Security tests FAILED"
   exit 1
-else
-  echo "✅ All security tests PASSED"
-  exit 0
 fi
