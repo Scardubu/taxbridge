@@ -79,6 +79,12 @@ fi
 status="$(request_status -H 'Authorization: Bearer invalid-taxbridge-token' "$API_BASE/api/v1/invoice-mgmt")"
 expect_status "Invalid bearer token rejected by invoice-management route" "401" "$status"
 
+status="$(request_status "$API_BASE/api/v1/invoices")"
+expect_status "Unauthenticated legacy invoice list rejected" "401" "$status"
+
+status="$(request_status -H 'Authorization: Bearer invalid-taxbridge-token' "$API_BASE/api/v1/invoices")"
+expect_status "Invalid bearer token rejected by legacy invoice list" "401" "$status"
+
 # 4. Login schema rejects malformed credentials before authentication logic runs.
 status="$(request_status -X POST "$API_BASE/api/v1/auth/login" \
   -H 'Content-Type: application/json' \
