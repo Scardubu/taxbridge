@@ -188,8 +188,23 @@ class PaymentGatewayManager {
         if (result === null) continue;
         return result;
       } catch (err: any) {
-        lastError = err.message || lastError;
-        log.warn(`Gateway ${gateway} errored — trying next`, { error: lastError });
+        lastError = err instanceof Error ? err.message : lastError;
+        // A transport/adapter exception after the provider call begins has an
+        // ambiguous external outcome: the provider may have created the
+        // payment even when TaxBridge did not receive its response. Do not
+        // initialize through a second gateway; that can create two payable
+        // obligations for one invoice. Fail closed and require reconciliation.
+        log.error(`Gateway ${gateway} initialization outcome is unknown; automatic failover suppressed`, {
+          error: lastError,
+          outcome: 'unknown',
+        });
+        return {
+          success: false,
+          gateway,
+          reference: '',
+          paymentUrl: null,
+          error: 'PAYMENT_INITIALIZATION_OUTCOME_UNKNOWN',
+        };
       }
     }
 
