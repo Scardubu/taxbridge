@@ -6,6 +6,7 @@
  * POST /dlq/:id/retry — retry a specific job (require2FA if depth > 10)
  * POST /dlq/:id/resolve — mark a job resolved
  */
+import { requirePlatformAdmin } from '../../plugins/requirePlatformAdmin';
 import { FastifyPluginAsync }   from 'fastify';
 import { require2FA }           from '../../plugins/require2FA';
 import { prisma }               from '../../lib/prisma';
