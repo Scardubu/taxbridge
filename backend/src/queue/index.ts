@@ -1,11 +1,7 @@
-import path from 'path';
-
-import dotenv from 'dotenv';
+import 'dotenv/config';
+import * as Sentry from '@sentry/node';
 import { Worker } from 'bullmq';
 import { prisma } from '../lib/prisma';
-
-dotenv.config({ path: path.resolve(process.cwd(), '.env') });
-
 import { initialiseObservability } from '../lib/observability';
 initialiseObservability();
 
@@ -219,6 +215,18 @@ invoiceSyncWorker.on('failed', (job, err) => {
     invoiceId: (job?.data as any)?.invoiceId,
     err
   });
+
+  const maxAttempts = Math.max(1, Number(job?.opts.attempts ?? 1));
+  if (!job || job.attemptsMade >= maxAttempts) {
+    Sentry.withScope((scope) => {
+      scope.setTag('component', 'bullmq-worker');
+      scope.setTag('queue', 'invoice-sync');
+      if (job?.id) scope.setExtra('jobId', job.id);
+      if (job?.name) scope.setExtra('jobName', job.name);
+      if (job) scope.setExtra('attemptsMade', job.attemptsMade);
+      Sentry.captureException(err);
+    });
+  }
 });
 
 deviceSyncWorker.on('completed', (job, result) => {
@@ -235,6 +243,18 @@ deviceSyncWorker.on('failed', (job, err) => {
     syncJobId: (job?.data as any)?.syncJobId,
     err
   });
+
+  const maxAttempts = Math.max(1, Number(job?.opts.attempts ?? 1));
+  if (!job || job.attemptsMade >= maxAttempts) {
+    Sentry.withScope((scope) => {
+      scope.setTag('component', 'bullmq-worker');
+      scope.setTag('queue', 'device-sync');
+      if (job?.id) scope.setExtra('jobId', job.id);
+      if (job?.name) scope.setExtra('jobName', job.name);
+      if (job) scope.setExtra('attemptsMade', job.attemptsMade);
+      Sentry.captureException(err);
+    });
+  }
 });
 
 async function shutdown() {
@@ -258,6 +278,7 @@ async function shutdown() {
   } catch {
     // ignore
   }
+  await Sentry.flush(2000);
 }
 
 process.on('SIGINT', () => {
@@ -270,10 +291,12 @@ process.on('SIGTERM', () => {
 
 process.on('unhandledRejection', (reason) => {
   log.error('unhandledRejection', { err: reason });
+  Sentry.captureException(reason);
   void shutdown().finally(() => process.exit(1));
 });
 
 process.on('uncaughtException', (err) => {
   log.error('uncaughtException', { err });
+  Sentry.captureException(err);
   void shutdown().finally(() => process.exit(1));
 });
