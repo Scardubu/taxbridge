@@ -5,6 +5,7 @@
  * GET  /audit        — cursor-paginated AuditEvent viewer (ADMIN+)
  * GET  /audit/export — NDJSON streaming export (ADMIN+)
  */
+import { requirePlatformAdmin } from '../../plugins/requirePlatformAdmin';
 import { FastifyPluginAsync }   from 'fastify';
 import { prisma }               from '../../lib/prisma';
 import { writeAuditEvent }      from '../../services/audit';
