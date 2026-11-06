@@ -9,13 +9,8 @@ import { importSPKI, jwtVerify, type JWTPayload } from 'jose';
 const JWT_ISSUER = process.env.JWT_ISSUER ?? 'taxbridge-api';
 const JWT_AUDIENCE = process.env.JWT_AUDIENCE ?? 'taxbridge-clients';
 const PUBLIC_PATHS = ['/login', '/api/health', '/api/auth', '/_next', '/favicon.ico'];
-const BACKEND_URL = (
-  process.env.BACKEND_API_URL ||
-  process.env.BACKEND_URL ||
-  process.env.NEXT_PUBLIC_BACKEND_URL ||
-  process.env.NEXT_PUBLIC_API_URL ||
-  'https://taxbridge-api-ker8.onrender.com'
-).replace(/\/$/, '');
+// Server-only, environment-specific backend origin. Never infer production from a preview.
+const BACKEND_URL = (process.env.BACKEND_API_URL || process.env.BACKEND_URL || '').replace(/\/$/, '');
 
 interface AdminJWTPayload extends JWTPayload {
   sub: string;
@@ -64,7 +59,7 @@ async function verifyAdminJWT(token: string): Promise<AdminJWTPayload | null> {
 
 async function getRoleVersion(userId: string): Promise<number | null> {
   const internalKey = process.env.INTERNAL_API_KEY;
-  if (!internalKey) return null;
+  if (!internalKey || !BACKEND_URL) return null;
   try {
     const response = await fetch(
       `${BACKEND_URL}/api/v1/admin/role-version/${encodeURIComponent(userId)}`,
@@ -98,9 +93,7 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
   if (isPublicPath(request.nextUrl.pathname)) return NextResponse.next();
 
   if (process.env.ADMIN_AUTH_ENFORCE !== 'true') {
-    return process.env.VERCEL_ENV === 'production'
-      ? NextResponse.json({ error: 'ADMIN_AUTH_NOT_CONFIGURED' }, { status: 503 })
-      : NextResponse.next();
+    return NextResponse.json({ error: 'ADMIN_AUTH_NOT_CONFIGURED' }, { status: 503 });
   }
 
   const authHeader = request.headers.get('authorization');
