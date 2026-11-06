@@ -6,11 +6,24 @@ import type { NextConfig } from "next";
 const require = createRequire(import.meta.url);
 const currentDirectory = dirname(fileURLToPath(import.meta.url));
 
+function getConfiguredApiOrigin(): string {
+  const configured = process.env.NEXT_PUBLIC_API_URL
+    || process.env.NEXT_PUBLIC_BACKEND_URL
+    || process.env.BACKEND_API_URL
+    || process.env.BACKEND_URL;
+  if (!configured) return '';
+  try {
+    const url = new URL(configured);
+    return url.protocol === 'https:' || url.protocol === 'http:' ? url.origin : '';
+  } catch {
+    return '';
+  }
+}
+
 if (process.env.VERCEL_ENV === 'production') {
   const required = ['JWT_PUBLIC_KEY', 'INTERNAL_API_KEY', 'ADMIN_API_KEYS'];
   const missing = required.filter((key) => !process.env[key]?.trim());
-  const backendOrigin = process.env.BACKEND_API_URL || process.env.BACKEND_URL;
-  if (!backendOrigin?.trim()) missing.push('BACKEND_API_URL or BACKEND_URL');
+  if (!getConfiguredApiOrigin()) missing.push('valid BACKEND_API_URL or BACKEND_URL');
   if (process.env.ADMIN_AUTH_ENFORCE !== 'true' || missing.length > 0) {
     throw new Error(
       `Production admin security configuration is incomplete: ${missing.join(', ') || 'ADMIN_AUTH_ENFORCE must be true'}`,
@@ -85,7 +98,7 @@ const nextConfig: NextConfig = {
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' data: https:",
       "font-src 'self' data:",
-      `connect-src 'self' ${process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BACKEND_URL || process.env.BACKEND_API_URL || process.env.BACKEND_URL || ''} https://*.vercel.app${vercelLiveSrc}`,
+      `connect-src 'self' ${getConfiguredApiOrigin()} https://*.vercel.app${vercelLiveSrc}`,
       "frame-ancestors 'none'",
       isProd ? "frame-src 'none'" : "frame-src https://vercel.live https://*.vercel.live",
     ].join('; ');
