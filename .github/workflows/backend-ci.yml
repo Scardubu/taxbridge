@@ -8,6 +8,7 @@ on:
 
 env:
   NODE_VERSION: '20.19.4'
+  PRISMA_SKIP_POSTINSTALL_GENERATE: 'true'
   DUPLO_CLIENT_ID: ${{ secrets.DUPLO_CLIENT_ID }}
   DUPLO_CLIENT_SECRET: ${{ secrets.DUPLO_CLIENT_SECRET }}
   DUPLO_API_URL: ${{ secrets.DUPLO_API_URL }}
@@ -47,6 +48,9 @@ jobs:
       - name: Build shared contracts
         run: npm run build --workspace=@taxbridge/contracts
 
+      - name: Generate Prisma client
+        run: npm run prisma:generate --prefix backend
+
       - name: Run unit tests with coverage
         run: npm run test:unit --prefix backend
         env:
@@ -69,6 +73,7 @@ jobs:
       PORT: '3000'
       JWT_SECRET: ci-only-taxbridge-jwt-secret-not-valid-outside-this-workflow
       ALLOWED_ORIGINS: http://localhost:3000
+      PRISMA_SKIP_POSTINSTALL_GENERATE: 'true'
     services:
       postgres:
         image: postgres:15
