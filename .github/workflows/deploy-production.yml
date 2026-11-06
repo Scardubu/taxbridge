@@ -56,7 +56,7 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
-          cache-dependency-path: backend/package-lock.json
+          cache-dependency-path: package-lock.json
 
       - name: Install backend dependencies
         working-directory: ./backend
@@ -87,7 +87,7 @@ jobs:
         image: postgres:15
         env:
           POSTGRES_USER: test
-          POSTGRES_PASSWORD: test
+          POSTGRES_PASSWORD: ${{ format('tbci-{0}-{1}', github.run_id, github.run_attempt) }}
           POSTGRES_DB: taxbridge_test
         ports:
           - 5432:5432
@@ -116,9 +116,11 @@ jobs:
           cache: 'npm'
           cache-dependency-path: backend/package-lock.json
 
-      - name: Install dependencies
-        working-directory: ./backend
+      - name: Install root workspace dependencies
         run: npm ci
+
+      - name: Build shared contracts
+        run: npm run build --workspace=@taxbridge/contracts
 
       - name: Generate Prisma client
         working-directory: ./backend
@@ -127,13 +129,15 @@ jobs:
       - name: Run database migrations
         working-directory: ./backend
         env:
-          DATABASE_URL: postgresql://test:test@localhost:5432/taxbridge_test
+          DATABASE_URL: postgresql://test:${{ format('tbci-{0}-{1}', github.run_id, github.run_attempt) }}@localhost:5432/taxbridge_test
+          DIRECT_URL: postgresql://test:${{ format('tbci-{0}-{1}', github.run_id, github.run_attempt) }}@localhost:5432/taxbridge_test
         run: npx prisma migrate deploy
 
       - name: Run tests
         working-directory: ./backend
         env:
-          DATABASE_URL:            postgresql://test:test@localhost:5432/taxbridge_test
+          DATABASE_URL:            postgresql://test:${{ format('tbci-{0}-{1}', github.run_id, github.run_attempt) }}@localhost:5432/taxbridge_test
+          DIRECT_URL:              postgresql://test:${{ format('tbci-{0}-{1}', github.run_id, github.run_attempt) }}@localhost:5432/taxbridge_test
           REDIS_URL:               redis://localhost:6379
           JWT_SECRET:              test-jwt-secret-must-be-at-least-64-characters-long-ok
           NRS_API_KEY:             test-nrs-key-placeholder
