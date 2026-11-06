@@ -1,6 +1,7 @@
 import Fastify from 'fastify';
 
 const mockInitializePayment = jest.fn();
+const mockGetAvailableGateways = jest.fn();
 const mockPrisma = {
   invoice: { findFirst: jest.fn() },
   payment: {
@@ -19,7 +20,10 @@ const mockPrisma = {
 
 jest.mock('../lib/prisma', () => ({ prisma: mockPrisma }));
 jest.mock('../services/payment-gateway', () => ({
-  paymentGateway: { initializePayment: mockInitializePayment },
+  paymentGateway: {
+    initializePayment: mockInitializePayment,
+    getAvailableGateways: mockGetAvailableGateways,
+  },
 }));
 jest.mock('../lib/redis', () => ({ redis: {} }));
 jest.mock('../queue/client', () => ({ getPaymentQueue: jest.fn(() => null), getRedisConnection: jest.fn(() => null) }));
@@ -44,6 +48,7 @@ describe('payment initiation idempotency and recovery', () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    mockGetAvailableGateways.mockReturnValue(['paystack']);
     mockInitializePayment.mockResolvedValue({
       success: true,
       gateway: 'paystack',
@@ -191,5 +196,42 @@ describe('payment initiation idempotency and recovery', () => {
     expect(response.statusCode).toBe(400);
     expect(response.json().code).toBe('IDEMPOTENCY_KEY_REQUIRED');
     expect(mockInitializePayment).not.toHaveBeenCalled();
+  });
+});
+
+
+describe('payment provider configuration and key invariants', () => {
+  it('does not create a reservation when no gateway is configured', async () => {
+    mockGetAvailableGateways.mockReturnValue([]);
+
+    const response = await submitPayment();
+    expect(response.statusCode).toBe(503);
+    expect(response.json().code).toBe('PAYMENT_GATEWAY_UNAVAILABLE');
+    expect(mockPrisma.idempotencyCache.create).not.toHaveBeenCalled();
+    expect(mockInitializePayment).not.toHaveBeenCalled();
+  });
+
+  it('rejects a different idempotency key for an invoice that already has a reservation', async () => {
+    const first = await submitPayment();
+    expect(first.statusCode).toBe(200);
+
+    const requestHash = mockPrisma.idempotencyCache.create.mock.calls[0][0].data.requestHash;
+    const completedState = mockPrisma.idempotencyCache.update.mock.calls[1][0].data.responseBody;
+    mockPrisma.idempotencyCache.findUnique.mockResolvedValue({
+      requestHash,
+      responseBody: completedState,
+      statusCode: 200,
+    });
+
+    const second = await app.inject({
+      method: 'POST',
+      url: '/api/v1/payments/generate',
+      headers: { 'Idempotency-Key': 'a-different-payment-key-0000001' },
+      payload: paymentRequest,
+    });
+
+    expect(second.statusCode).toBe(409);
+    expect(second.json().code).toBe('IDEMPOTENCY_KEY_REUSED');
+    expect(mockInitializePayment).toHaveBeenCalledTimes(1);
   });
 });
