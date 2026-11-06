@@ -17,6 +17,7 @@ import {
 import { metrics } from '../services/metrics';
 import { redis } from '../lib/redis';
 import { invalidateDashboardCache } from './dashboard-composite';
+import { requireRole } from '../plugins/requireRole';
 
 export default async function paymentRoutes(app: FastifyInstance, opts: { prisma: PrismaClient }) {
   const prisma = opts.prisma;
@@ -38,7 +39,7 @@ export default async function paymentRoutes(app: FastifyInstance, opts: { prisma
   });
 
   app.post('/api/v1/payments/generate', {
-    preHandler: [app.authenticate, app.resolveOrgContext],
+    preHandler: [app.authenticate, app.resolveOrgContext, requireRole('ACCOUNTANT')],
   }, async (req, reply) => {
     const idempotencyKeyHeader = req.headers['idempotency-key'];
     const suppliedIdempotencyKey = Array.isArray(idempotencyKeyHeader) ? idempotencyKeyHeader[0] : idempotencyKeyHeader;
@@ -240,7 +241,7 @@ export default async function paymentRoutes(app: FastifyInstance, opts: { prisma
   app.post('/webhooks/remita/payment', remitaWebhookHandler);
 
   app.get('/api/v1/payments/:invoiceId/status', {
-    preHandler: [app.authenticate, app.resolveOrgContext],
+    preHandler: [app.authenticate, app.resolveOrgContext, requireRole('VIEWER')],
   }, async (req, reply) => {
     const params = z.object({ invoiceId: z.string().uuid() }).safeParse(req.params);
     if (!params.success) {
@@ -254,40 +255,27 @@ export default async function paymentRoutes(app: FastifyInstance, opts: { prisma
         invoice: { is: { userId: req.user.userId } },
       },
       orderBy: { createdAt: 'desc' },
-      include: { invoice: true },
     });
     if (!payment) {
       const error = new NotFoundError('Payment', invoiceId);
       return reply.status(error.statusCode).send(formatErrorResponse(error));
     }
 
-    if (payment.status === 'pending') {
-      const gateway = (payment as any).gateway as GatewayName || 'remita';
-      const verification = await paymentGateway.verifyPayment(gateway, payment.rrr, invoiceId);
-      if (verification.status === 'paid') {
-        await prisma.payment.update({
-          where: { id: payment.id },
-          data: {
-            status: 'paid',
-            paidAt: new Date(),
-            gatewayRef: verification.gatewayRef || verification.reference,
-            channel: verification.channel,
-            metadata: {
-              cardType: verification.cardType,
-              last4: verification.last4,
-              bank: verification.bank,
-            },
-          },
-        });
-        await prisma.invoice.update({ where: { id: invoiceId }, data: { status: 'paid' } });
-        if ((payment as any).invoice?.userId) {
-          await invalidateDashboardCache(redis, (payment as any).invoice.userId);
-        }
-      }
-
-      return reply.send({ status: verification.status, gateway, payment });
-    }
-
-    return reply.send({ status: payment.status, payment });
+    // GET is read-only. Provider verification and state transitions are handled
+    // by signed webhook/reconciliation flows, never triggered by a page refresh.
+    // Return only the minimum fields required by the authenticated invoice owner.
+    return reply.send({
+      status: payment.status,
+      payment: {
+        id: payment.id,
+        invoiceId: payment.invoiceId,
+        gateway: payment.gateway,
+        rrr: payment.rrr,
+        amount: payment.amount.toString(),
+        status: payment.status,
+        createdAt: payment.createdAt.toISOString(),
+        paidAt: payment.paidAt?.toISOString() ?? null,
+      },
+    });
   });
 }
