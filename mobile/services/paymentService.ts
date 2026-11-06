@@ -1,4 +1,4 @@
-import { apiRequest } from './api';
+import { apiRequest, initiatePayment as initiateInvoicePayment } from './api';
 import { logComplianceEvent } from './complianceEventService';
 import { getDatabase } from './database';
 
@@ -14,37 +14,19 @@ export interface InitializePaymentInput {
   callbackUrl?: string;
 }
 
-export interface InitializePaymentResponse {
-  rrr: string;
-  paymentUrl: string | null;
-  gateway: PaymentGateway;
-  amount: number;
-}
+export type InitializePaymentResponse = Awaited<ReturnType<typeof initiateInvoicePayment>>;
 
+/**
+ * Thin domain wrapper around the canonical API helper. Local persistence
+ * happens in one place (api.ts), so callers cannot create duplicate SQLite
+ * payment rows by using different service entry points.
+ */
 export async function initializePayment(input: InitializePaymentInput): Promise<InitializePaymentResponse> {
-  if (input.idempotencyKey.trim().length < 16 || input.idempotencyKey.length > 200) {
-    throw new Error('A stable payment idempotency key is required');
-  }
-
   const { idempotencyKey, ...paymentRequest } = input;
-  const response = await apiRequest<InitializePaymentResponse>('/api/v1/payments/generate', {
-    method: 'POST',
-    headers: { 'Idempotency-Key': idempotencyKey },
-    body: JSON.stringify(paymentRequest),
+  const response = await initiateInvoicePayment({
+    ...paymentRequest,
+    idempotency_key: idempotencyKey,
   });
-
-  const db = await getDatabase();
-  await db.runAsync(
-    `INSERT INTO tax_payments (
-       provider, provider_ref, remita_rrr, amount, currency, status
-     ) VALUES (?, ?, ?, ?, 'NGN', 'pending')`,
-    [
-      response.gateway,
-      response.rrr,
-      response.gateway === 'remita' ? response.rrr : null,
-      response.amount,
-    ]
-  );
 
   await logComplianceEvent('tax_payment_initiated', 'Invoice payment initiated via ' + input.gateway, 'info', {
     gateway: response.gateway,
@@ -63,12 +45,12 @@ export async function verifyPayment(invoiceId: string) {
   });
 }
 
-export async function markPaymentConfirmed(remitaRrr: string): Promise<void> {
+export async function markPaymentConfirmed(reference: string): Promise<void> {
   const db = await getDatabase();
   await db.runAsync(
     `UPDATE tax_payments
      SET status = 'successful', completed_at = datetime('now')
      WHERE remita_rrr = ? OR provider_ref = ?`,
-    [remitaRrr, remitaRrr]
+    [reference, reference]
   );
 }
