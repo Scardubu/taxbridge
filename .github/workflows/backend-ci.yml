@@ -195,6 +195,7 @@ jobs:
       JWT_SECRET: ci-only-taxbridge-jwt-secret-not-valid-outside-this-workflow
       ALLOWED_ORIGINS: http://localhost:3000
       DATABASE_URL: postgresql://postgres:${{ format('tbci-{0}-{1}', github.run_id, github.run_attempt) }}@localhost:5432/taxbridge_security
+      DIRECT_URL: postgresql://postgres:${{ format('tbci-{0}-{1}', github.run_id, github.run_attempt) }}@localhost:5432/taxbridge_security
       REDIS_URL: redis://localhost:6379
     steps:
       - name: Checkout
