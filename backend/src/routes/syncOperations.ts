@@ -3,6 +3,7 @@ import { FastifyPluginAsync } from 'fastify';
 import { Prisma } from '@prisma/client';
 import { OperationEnvelopeSchema } from '@taxbridge/contracts';
 import { prisma } from '../lib/prisma';
+import { getOperationHandler } from '../operations/registry';
 
 function canonical(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`;
@@ -40,6 +41,21 @@ const routes: FastifyPluginAsync = async (app) => {
     }
 
     const input = parsed.data;
+    const handler = getOperationHandler(input.operationType);
+    if (!handler) {
+      // Never durably accept work that the worker cannot execute. The registry
+      // intentionally has no default handlers until each domain flow has been
+      // reviewed for tenant isolation, idempotency and provider reconciliation.
+      request.log.warn({ operationType: input.operationType }, 'Operation handler is not registered');
+      return reply.code(501).send({
+        error: 'OPERATION_HANDLER_NOT_REGISTERED',
+        message: 'This operation type is not available in the current release',
+        code: 'OPERATION_HANDLER_NOT_REGISTERED',
+        requestId: request.id,
+        retryable: false,
+      });
+    }
+
     const { orgId } = request.orgContext;
     const fingerprint = createHash('sha256')
       .update(canonical({ operationType: input.operationType, schemaVersion: input.schemaVersion, payload: input.payload }))
