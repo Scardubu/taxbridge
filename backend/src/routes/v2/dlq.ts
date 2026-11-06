@@ -7,7 +7,6 @@
  * POST /dlq/:id/resolve — mark a job resolved
  */
 import { FastifyPluginAsync }   from 'fastify';
-import { requireRole }          from '../../plugins/requireRole';
 import { require2FA }           from '../../plugins/require2FA';
 import { prisma }               from '../../lib/prisma';
 import { writeAuditEvent }      from '../../services/audit';
