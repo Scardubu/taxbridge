@@ -239,7 +239,7 @@ export default async function paymentRoutes(app: FastifyInstance, opts: { prisma
       });
     }
 
-    let initResult;
+    let initResult: Awaited<ReturnType<typeof paymentGateway.initializePayment>>;
     try {
       initResult = await paymentGateway.initializePayment({
         invoiceId,
