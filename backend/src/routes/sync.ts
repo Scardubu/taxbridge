@@ -206,7 +206,7 @@ export default async function syncRoutes(app: FastifyInstance) {
             data: {
               deviceId: device.id,
               userId,
-              invoiceId: resolvedInvoiceId,
+              invoiceId,
               clientId: job.clientId,
               entity: job.entity,
               action: job.action,
