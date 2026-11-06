@@ -84,7 +84,9 @@ function buildRequestHeaders(input: HeadersInit | undefined, method: string): He
   return headers;
 }
 
-async function refreshAdminSession(): Promise<boolean> {
+let refreshInFlight: Promise<boolean> | null = null;
+
+async function performSessionRefresh(): Promise<boolean> {
   try {
     const response = await fetch('/api/auth/refresh', {
       method: 'POST',
@@ -96,6 +98,33 @@ async function refreshAdminSession(): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+function refreshAdminSession(): Promise<boolean> {
+  if (refreshInFlight) return refreshInFlight;
+
+  const run = async (): Promise<boolean> => {
+    // Web Locks serialize refresh-token rotation across browser tabs. The
+    // second tab reads the replacement cookie only after the first rotation
+    // has completed, avoiding a false replay signal for a legitimate session.
+    if (typeof navigator !== 'undefined' && 'locks' in navigator && navigator.locks?.request) {
+      try {
+        return await navigator.locks.request(
+          'taxbridge-admin-refresh-token',
+          { mode: 'exclusive' },
+          performSessionRefresh,
+        );
+      } catch {
+        return false;
+      }
+    }
+    return performSessionRefresh();
+  };
+
+  refreshInFlight = run().finally(() => {
+    refreshInFlight = null;
+  });
+  return refreshInFlight;
 }
 
 export async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
