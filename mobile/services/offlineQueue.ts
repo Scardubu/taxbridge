@@ -211,6 +211,10 @@ export class OfflineQueue {
 
   destroy() {
     this.unsubscribe?.();
+    this.unsubscribe = null;
+    // The app root reuses this exported instance after background/resume.
+    // Reset readiness so start() can safely attach a fresh NetInfo listener.
+    this.ready = false;
     OfflineQueue.instance = null;
   }
 }
