@@ -4,6 +4,7 @@ import * as Sentry from '@sentry/react-native';
 import { TokenService } from './tokenService';
 import { useAuthStore } from '../stores/authStore';
 import { getDatabase } from './database';
+import { persistLocalPayment } from './paymentPersistence';
 import type { TaxCalculationResult } from '../types/taxEngine';
 
 type JsonRecord = Record<string, unknown>;
@@ -390,21 +391,7 @@ export async function initiatePayment(
   });
 
   const db = await getDatabase();
-  // The backend replays the same payment response for a repeated key.
-  // Persist that response under the same local key so retry/recovery calls
-  // cannot create duplicate SQLite payment rows.
-  await db.runAsync(
-    `INSERT OR IGNORE INTO tax_payments (
-       provider, provider_ref, remita_rrr, amount, currency, status, idempotency_key
-     ) VALUES (?, ?, ?, ?, 'NGN', 'pending', ?)`,
-    [
-      response.gateway,
-      response.rrr,
-      response.gateway === 'remita' ? response.rrr : null,
-      response.amount,
-      idempotency_key,
-    ]
-  );
+  await persistLocalPayment(db, response, idempotency_key);
 
   return response;
 }
