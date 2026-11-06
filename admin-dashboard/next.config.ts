@@ -9,6 +9,8 @@ const currentDirectory = dirname(fileURLToPath(import.meta.url));
 if (process.env.VERCEL_ENV === 'production') {
   const required = ['JWT_PUBLIC_KEY', 'INTERNAL_API_KEY', 'ADMIN_API_KEYS'];
   const missing = required.filter((key) => !process.env[key]?.trim());
+  const backendOrigin = process.env.BACKEND_API_URL || process.env.BACKEND_URL;
+  if (!backendOrigin?.trim()) missing.push('BACKEND_API_URL or BACKEND_URL');
   if (process.env.ADMIN_AUTH_ENFORCE !== 'true' || missing.length > 0) {
     throw new Error(
       `Production admin security configuration is incomplete: ${missing.join(', ') || 'ADMIN_AUTH_ENFORCE must be true'}`,
@@ -16,18 +18,13 @@ if (process.env.VERCEL_ENV === 'production') {
   }
 }
 
+
 const nextConfig: NextConfig = {
   // Use default output for Vercel compatibility
   // Ensure proper handling of environment variables
   outputFileTracingRoot: resolve(currentDirectory, '..'),
-  env: {
-    BACKEND_URL: process.env.BACKEND_URL || process.env.BACKEND_API_URL || 'https://taxbridge-api-ker8.onrender.com',
-    BACKEND_API_URL: process.env.BACKEND_API_URL || process.env.BACKEND_URL || 'https://taxbridge-api-ker8.onrender.com',
-    NEXT_PUBLIC_BACKEND_URL: process.env.NEXT_PUBLIC_BACKEND_URL || process.env.NEXT_PUBLIC_API_URL || 'https://taxbridge-api-ker8.onrender.com',
-    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BACKEND_URL || 'https://taxbridge-api-ker8.onrender.com',
-  },
-  
-  // Production optimizations
+  // Runtime configuration is supplied through environment-scoped Vercel variables.
+    // Production optimizations
   compress: true,
   poweredByHeader: false,
   
