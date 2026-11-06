@@ -463,6 +463,9 @@ jobs:
 
       - name: Build backend
         run: npm run build --prefix backend
+        env:
+          DATABASE_URL: postgresql://build:build@127.0.0.1:5432/taxbridge_build
+          DIRECT_URL: postgresql://build:build@127.0.0.1:5432/taxbridge_build
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v3
