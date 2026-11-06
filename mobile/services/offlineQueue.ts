@@ -2,6 +2,8 @@ import * as Crypto from 'expo-crypto';
 import NetInfo from '@react-native-community/netinfo';
 import { getDatabase } from './database';
 import { apiRequest } from './api';
+import { buildMobileOperationEnvelope } from './operationEnvelope';
+import { classifyQueueFailure } from './offlineQueuePolicy';
 
 // The durable server operation pipeline has no approved business handlers yet.
 // Keep queued writes local until the shared contract and server worker are enabled.
@@ -48,9 +50,8 @@ export class OfflineQueue {
 
   async enqueue(type: OpType, payload: Record<string, unknown>): Promise<void> {
     const db = await getDatabase();
-    const clientId = typeof Crypto.randomUUID === 'function'
-      ? Crypto.randomUUID()
-      : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    // Operation IDs must be UUIDs to satisfy the shared API contract.
+    const clientId = Crypto.randomUUID();
 
     await db.runAsync(
       'INSERT OR IGNORE INTO offline_operations (client_id, type, payload) VALUES (?,?,?)',
@@ -89,21 +90,60 @@ export class OfflineQueue {
       for (const operation of operations) {
         await db.runAsync("UPDATE offline_operations SET status='syncing' WHERE id=?", [operation.id]);
 
+        let requestStarted = false;
         try {
+          const localPayload = JSON.parse(operation.payload) as Record<string, unknown>;
+          const operationId = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(operation.client_id)
+            ? operation.client_id
+            : Crypto.randomUUID();
+          const envelope = buildMobileOperationEnvelope({
+            operationId,
+            idempotencyKey: operation.client_id,
+            clientOperationType: operation.type,
+            payload: localPayload,
+            createdAt: new Date().toISOString(),
+          });
+
+          requestStarted = true;
           await apiRequest('/api/v1/sync/operations', {
             method: 'POST',
-            body: JSON.stringify({
-              clientId: operation.client_id,
-              type: operation.type,
-              payload: JSON.parse(operation.payload),
-            }),
+            headers: { 'Idempotency-Key': operation.client_id },
+            body: JSON.stringify(envelope),
           });
 
           await db.runAsync(
-            "UPDATE offline_operations SET status='done', synced_at=datetime('now') WHERE id=?",
+            "UPDATE offline_operations SET status='done', synced_at=datetime('now'), error_msg=NULL WHERE id=?",
             [operation.id]
           );
         } catch (error) {
+          // Malformed local payload/envelope data cannot be fixed by retrying.
+          if (!requestStarted) {
+            await db.runAsync(
+              "UPDATE offline_operations SET status='dead', error_msg=? WHERE id=?",
+              [String(error), operation.id]
+            );
+            continue;
+          }
+
+          const disposition = classifyQueueFailure(error);
+          if (disposition === 'pause') {
+            // Preserve the operation and its idempotency key until the user
+            // restores a valid authenticated session.
+            await db.runAsync(
+              "UPDATE offline_operations SET status='pending', error_msg=? WHERE id=?",
+              [String(error), operation.id]
+            );
+            break;
+          }
+
+          if (disposition === 'terminal') {
+            await db.runAsync(
+              "UPDATE offline_operations SET status='dead', error_msg=? WHERE id=?",
+              [String(error), operation.id]
+            );
+            continue;
+          }
+
           const retryCount = operation.retry_count + 1;
           await db.runAsync(
             'UPDATE offline_operations SET status=?, retry_count=?, error_msg=? WHERE id=?',
