@@ -77,10 +77,8 @@ function canReplayBody(body: BodyInit | null | undefined): boolean {
 function buildRequestHeaders(input: HeadersInit | undefined, method: string): Headers {
   const headers = withTaxBridgeHeaders(input || {});
   if (!headers.has('Accept')) headers.set('Accept', 'application/json');
-  if (isMutatingMethod(method)) {
-    const csrfToken = readCookie('csrf_token');
-    if (csrfToken) headers.set('X-CSRF-Token', csrfToken);
-  }
+  const csrfToken = readCookie('csrf_token');
+  if (csrfToken) headers.set('X-CSRF-Token', csrfToken);
   return headers;
 }
 
