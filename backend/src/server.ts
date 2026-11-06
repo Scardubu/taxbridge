@@ -1,3 +1,5 @@
+import 'dotenv/config';
+import * as Sentry from '@sentry/node';
 import { buildApp } from './app';
 import { initialiseObservability } from './lib/observability';
 import { prisma } from './lib/prisma';
@@ -31,6 +33,8 @@ async function shutdown(signal: string): Promise<void> {
     if (app) await app.close();
     else await prisma.$disconnect();
   } catch (error) {
+    Sentry.captureException(error);
+    await Sentry.flush(2000);
     process.stderr.write(`[server] graceful shutdown failed: ${String(error)}\n`);
     process.exitCode = 1;
   }
@@ -38,7 +42,9 @@ async function shutdown(signal: string): Promise<void> {
 process.once('SIGINT', () => { void shutdown('SIGINT'); });
 process.once('SIGTERM', () => { void shutdown('SIGTERM'); });
 
-start().catch((error) => {
+start().catch(async (error) => {
+  Sentry.captureException(error);
+  await Sentry.flush(2000);
   process.stderr.write(`[server] startup failed: ${String(error)}\n`);
   process.exitCode = 1;
 });
