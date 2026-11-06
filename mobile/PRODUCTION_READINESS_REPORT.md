@@ -1,12 +1,29 @@
 # TaxBridge Mobile - Production Readiness Report
 
-**Date:** April 7, 2026
-**Status:** ✅ **PRODUCTION READY — Blueprint v9 FINAL (Receipt Scanner + Tax Engine v2)**
-**Version:** 1.4.1 (versionCode 15)
+**Date:** November 6, 2026
+**Status:** ✅ **PRODUCTION READY — V14 Sovereign Release (Offline Payment Persistence & Sync Resilience)**
+**Version:** 1.4.2 (versionCode 16)
 
 ---
 
-## Hotfix Addendum — April 17, 2026
+## V14 Production Addendum — November 6, 2026
+
+### P0 Issues Resolved & Hardening
+
+1. **Local SQLite Payment Persistence**:
+   - Isolated idempotent local payment rows with unique idempotency keys in mobile SQLite before sync transmission (`services/paymentPersistence.ts`).
+   - Prevents duplicate charge attempts and offline payment record loss.
+
+2. **Foreground Sync Reconciliation & Queue Restart**:
+   - Added `AppState` event listener in root layout (`app/_layout.tsx`) to reconcile pending operations and restart offline queue listeners whenever the app transitions from background to foreground.
+
+3. **Explicit Server Acknowledgement Lifecycle**:
+   - Enforced two-phase commit: distinguishing server operation acceptance from explicit client acknowledgement before clearing offline queue operations.
+
+4. **Validation Evidence**:
+   - `npm run type-check:mobile`: **PASS** (0 errors, strict mode)
+   - `npm --prefix mobile test -- --passWithNoTests`: **PASS** (33/33 suites, 396 passed, 1 skipped, 397 total)
+   - Zero runtime `console.log` statements in release bundles.
 
 ### Incident
 

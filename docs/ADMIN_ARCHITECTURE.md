@@ -3,7 +3,7 @@
 ## Canonical application
 
 - **Canonical web application:** `admin-dashboard/`.
-- **Framework:** Next.js 16.1.1 / React 19.2.3 (App Router).
+- **Framework:** Next.js 16.1.1 / React 19.1.0 (App Router).
 - **Vercel project root:** `admin-dashboard`.
 - **Package runtime:** Node `26.x` for the current Vercel build environment.
 - **Build:** `npm ci`, then `npm run build`.

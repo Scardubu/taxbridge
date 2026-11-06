@@ -1,8 +1,9 @@
 # TaxBridge Security Architecture & NDPA Compliance
 
-## Status: ✅ Production-Ready
+## Status: ✅ Production-Ready (v14.0.0-production)
 
-**Last Updated:** January 11, 2026  
+**Last Updated:** November 6, 2026  
+**Version:** `v14.0.0` Sovereign Production Hardening  
 **NDPA/NDPC Compliance:** 2023 Act · 2026 Enforcement Active  
 **Security Cost:** $0-15/month (Cloudflare Free + Sentry Free Tier)
 
@@ -57,7 +58,12 @@ This document defines the enterprise-grade security architecture protecting TaxB
 
 ### 1.3 Authentication & Authorization
 
-**Service:** [`backend/src/services/auth.ts`](../backend/src/services/auth.ts)
+**Services:** [`backend/src/services/auth.ts`](../backend/src/services/auth.ts), [`backend/src/plugins/requirePlatformAdmin.ts`](../backend/src/plugins/requirePlatformAdmin.ts), [`backend/src/services/refreshTokenRotation.ts`](../backend/src/services/refreshTokenRotation.ts)
+
+#### Platform-Admin RBAC Guard
+- Sensitive operational, telemetry, DLQ, audit, intelligence, and device sync routes (`/api/v1/auth/totp`, `/api/v1/team`, `/api/v2/monitoring`, `/api/v2/dlq`, `/api/v2/intelligence`, `/api/v2/audit`, `/api/v2/analytics`, `/api/v1/admin/sync`) require database-verified platform administrator credentials (`SUPER_ADMIN` or `ADMIN`).
+- Implemented via `requirePlatformAdmin` Fastify plugin with direct PostgreSQL verification.
+- Platform-aware role selector (`accessTokenRole.ts`) prevents tenant-scoped roles (`ACCOUNTANT`, `OPERATOR`, `AUDITOR`, `TENANT_USER`, `DEVICE_AGENT`) from escalating privileges.
 
 #### Password Policy
 - Minimum 8 characters
@@ -68,18 +74,23 @@ This document defines the enterprise-grade security architecture protecting TaxB
 #### Multi-Factor Authentication (MFA)
 - TOTP via Speakeasy + QRCode
 - 30-second time window with 2-step tolerance
-- Required for admin accounts (optional for users)
+- Required for platform-admin accounts; operational routes enforce verified platform credentials.
 
-#### Session Management
-- Access token: 15 minutes (JWT)
-- Refresh token: 7 days (JWT)
-- Token blacklist in Redis on logout
-- Account lockout after 5 failed login attempts (30-minute cooldown)
+#### Session Lifecycle & Atomic Refresh Token Rotation
+- **Access Tokens:** RS256 JWT tokens with 24-hour expiration.
+- **Refresh Tokens:** Transaction-backed atomic rotation (`refreshTokenRotation.ts`) with automatic replay detection and token family revocation.
+- **Server-Side Logout Revocation:** Database-backed `/api/v1/auth/logout` endpoint deletes active sessions in PostgreSQL, revokes refresh tokens, and clears browser authentication cookies.
+- **Account Lockout:** 5 failed login attempts triggers 30-minute lockout.
+
+#### Admin Dashboard Security Perimeter
+- **Strict Same-Origin Enforcement:** Validates `Origin` and `Host` headers (`lib/auth-origin.ts`) on all proxy handlers, failing closed against cross-origin attacks.
+- **Double-Submit CSRF Protection:** Mutating requests require a valid `tb_csrf` cookie matching the `x-csrf-token` header.
+- **Elimination of Browser-Exposed API Keys:** Removed `NEXT_PUBLIC_ADMIN_API_KEY`. Browser clients communicate exclusively through authenticated same-origin Next.js server route handlers.
 
 #### Device Tracking
-- Last login timestamp
-- Device ID fingerprinting
-- Audit trail for all authentication events
+- Last login timestamp and IP logging
+- Device ID fingerprinting and mobile sync queue tracking
+- Immutable audit logging for all authentication, privilege elevation, and sync events
 
 ---
 

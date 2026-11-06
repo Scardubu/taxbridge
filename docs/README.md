@@ -2,9 +2,14 @@
 
 This directory contains authoritative documentation grouped by category. The PRD is the primary source of truth for product requirements.
 
-## Architecture
+## Architecture & Production State
+- [Production Readiness](PRODUCTION_READY.md)
+- [Production Status](PRODUCTION_STATUS.md)
+- [V14 Production Readiness Summary](V14_PRODUCTION_READINESS_SUMMARY.md)
+- [Admin Architecture](ADMIN_ARCHITECTURE.md)
 - [PRD](PRD.md)
 - [Security Architecture](SECURITY_ARCHITECTURE.md)
+- [Changelog](CHANGELOG.md)
 - [Monitoring Implementation](MONITORING_IMPLEMENTATION.md)
 - [Monitoring Quickstart](MONITORING_QUICKSTART.md)
 - [Runbook](runbook.md)
@@ -18,7 +23,9 @@ This directory contains authoritative documentation grouped by category. The PRD
 - [Integration Contracts](INTEGRATION_CONTRACTS.md)
 
 ## Deployment
-- [Production Deployment Guide](../PRODUCTION_DEPLOYMENT_GUIDE.md)
+- [Deployment Guide](DEPLOYMENT_GUIDE.md)
+- [Deployment Runbook](DEPLOYMENT_RUNBOOK.md)
+- [Production Deployment Runbook](PRODUCTION_DEPLOYMENT_RUNBOOK.md)
 - [Deploy Quick Reference](reference/DEPLOY_QUICK_REFERENCE.md)
 - [Render Database URL Optimization](reference/RENDER_DATABASE_URL_OPTIMIZATION.md)
 - [Verification Checklist](reference/VERIFICATION_CHECKLIST.md)

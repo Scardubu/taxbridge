@@ -1,7 +1,7 @@
 # TaxBridge Deployment Guide
 
-**Version:** 1.0.0  
-**Last Updated:** February 10, 2026
+**Version:** `v14.0.0-production`  
+**Last Updated:** November 6, 2026
 
 ---
 
@@ -26,46 +26,48 @@
 
 2. **Create Web Service**
    - Service Name: `taxbridge-api`
-   - Environment: `Node`
-   - Build Command: `cd contracts && yarn build && cd ../backend && yarn build`
-   - Start Command: `cd backend && node dist/index.js`
+   - Region: `Frankfurt` (`fra`)
+   - Environment: `Docker` (Multi-stage Dockerfile)
+   - Build Command: `npm run build --workspace=@taxbridge/contracts && npm run build --workspace=@taxbridge/backend`
+   - Start Command: `node dist/backend/src/server.js`
    - Instance Type: `Starter` (minimum)
 
 3. **Configure Environment Variables**
 
 ```bash
-# Database
+# Database (PostgreSQL / Supabase)
 DATABASE_URL=postgresql://user:pass@host:6543/db?pgbouncer=true
 DIRECT_URL=postgresql://user:pass@host:5432/db?sslmode=require
 
-# Redis
+# Redis Cache & Message Queues
 REDIS_URL=rediss://default:password@host:port
 
-# JWT
-JWT_SECRET=your-secret-key-min-32-chars
+# JWT & Platform Administration
+JWT_SECRET=your-secret-key-min-64-chars
+JWT_REFRESH_SECRET=your-refresh-secret-min-64-chars
 JWT_EXPIRATION=24h
+INTERNAL_API_KEY=your-server-internal-api-key
+ADMIN_API_KEYS=primary-admin-key,secondary-admin-key
 
-# Encryption
+# Encryption (AES-256-GCM)
+ENCRYPTION_KEY=64-char-hex-string
 TAX_ID_ENCRYPTION_KEY=64-char-hex-string
 
 # Paystack
-PAYSTACK_SECRET_KEY=sk_live_xxx
-PAYSTACK_PUBLIC_KEY=pk_live_xxx
-PAYSTACK_WEBHOOK_SECRET=whsec_xxx
+PAYSTACK_SECRET_KEY=your-paystack-secret-key
+PAYSTACK_PUBLIC_KEY=your-paystack-public-key
+PAYSTACK_WEBHOOK_SECRET=your-paystack-webhook-secret
 
 # Remita
 REMITA_MERCHANT_ID=your-merchant-id
 REMITA_API_KEY=your-api-key
 REMITA_SERVICE_TYPE_ID=your-service-type
 
-# Digitax (NRS)
+# Digitax (NRS Access Point)
 DIGITAX_API_KEY=your-api-key
 DIGITAX_BASE_URL=https://api.digitax.ng
-
-# FIRS
-FIRS_API_KEY=your-api-key
-FIRS_TIN=your-tin
-FIRS_BASE_URL=https://api.firs.gov.ng
+DIGITAX_HMAC_SECRET=your-hmac-secret
+DIGITAX_MOCK_MODE=false
 
 # Youverify
 YOUVERIFY_API_KEY=your-api-key
@@ -137,24 +139,26 @@ npx prisma migrate deploy
    - Select `taxbridge` repository
    - Root Directory: `admin-dashboard`
    - Framework Preset: `Next.js`
-   - Build Command: `yarn build`
+   - Build Command: `npm run build`
    - Output Directory: `.next`
 
 3. **Configure Environment Variables**
 
 ```bash
-# API
-NEXT_PUBLIC_API_URL=https://taxbridge-api.onrender.com
+# Server-Side API & Security Perimeter (Never prefix with NEXT_PUBLIC_)
+BACKEND_API_URL=https://taxbridge-api-ker8.onrender.com
+ADMIN_AUTH_ENFORCE=true
 
-# Database (for admin queries)
+# Server-Only Authentication & Verification Keys
+JWT_PUBLIC_KEY="base64-encoded-rs256-spki-public-pem"
+INTERNAL_API_KEY="your-server-internal-api-key"
+ADMIN_API_KEYS="primary-admin-key,secondary-admin-key"
+
+# Database (direct connection for admin operations)
 DATABASE_URL=postgresql://user:pass@host:6543/db?pgbouncer=true
 
-# NextAuth
-NEXTAUTH_URL=https://taxbridge.vercel.app
-NEXTAUTH_SECRET=your-secret-key-min-32-chars
-
 # Monitoring
-SENTRY_DSN=https://xxx@sentry.io/xxx
+NEXT_PUBLIC_SENTRY_DSN=https://xxx@sentry.io/xxx
 ```
 
 4. **Deploy**
