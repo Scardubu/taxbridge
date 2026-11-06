@@ -28,6 +28,8 @@ const REASON_MESSAGES: Record<string, string> = {
   unauthenticated: 'Please sign in to access the admin dashboard.',
   session_expired: 'Your session has expired. Please sign in again.',
   invalid_token:   'Your session is no longer valid. Please sign in again.',
+  signed_out: 'You have been signed out.',
+  logout_server_unavailable: 'You were signed out on this device, but the server could not revoke other sessions. Please contact an administrator if this was unexpected.',
 };
 
 /**
