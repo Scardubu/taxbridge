@@ -431,6 +431,16 @@ export default async function adminSyncRoutes(app: FastifyInstance) {
         return reply.status(404).send({ error: 'Conflict not found' });
       }
 
+      if (conflict.userId !== conflict.device.userId || conflict.invoice.userId !== conflict.userId) {
+        log.error('Rejected tenant-inconsistent conflict record', {
+          conflictId: conflict.id,
+          conflictUserId: conflict.userId,
+          deviceUserId: conflict.device.userId,
+          invoiceUserId: conflict.invoice.userId,
+        });
+        return reply.status(409).send({ error: 'CONFLICT_TENANT_INTEGRITY_FAILED' });
+      }
+
       if (conflict.resolution) {
         return reply.status(400).send({ error: 'Conflict already resolved' });
       }
