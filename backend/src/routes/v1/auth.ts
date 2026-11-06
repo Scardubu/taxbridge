@@ -138,7 +138,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
     }
 
     const primaryMembership = await (prisma as any).orgMember.findFirst({
-      where: { userId: user.id, removedAt: null, status: 'active' },
+      where: { userId: user.id, removedAt: null, status: 'active', org: { is: { status: 'active' } } },
       orderBy: { createdAt: 'asc' },
     });
 
@@ -252,7 +252,7 @@ const authRoutes: FastifyPluginAsync = async (fastify) => {
       if (!user) return reply.code(401).send({ error: 'USER_NOT_FOUND' });
 
       membership = await (prisma as any).orgMember.findFirst({
-        where: { userId, removedAt: null, status: 'active' },
+        where: { userId, removedAt: null, status: 'active', org: { is: { status: 'active' } } },
         orderBy: { createdAt: 'asc' },
       });
       if (!membership) return reply.code(403).send({ error: 'ORG_ACCESS_DENIED' });
