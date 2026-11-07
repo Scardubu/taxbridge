@@ -20,16 +20,21 @@ declare global {
  * triggers a network call during OpenAPI generation or offline validation.
  */
 function createRedisInstance(): IORedis {
+  const isTest = process.env.NODE_ENV === 'test';
   const redisOptions = {
     maxRetriesPerRequest: null,
     enableReadyCheck: false,
-    lazyConnect: isDocsMode || shouldSkipRedisConnect,
+    lazyConnect: isDocsMode || shouldSkipRedisConnect || isTest,
+    connectTimeout: isTest ? 2000 : 10000,
+    retryStrategy: isTest ? () => null : (times: number) => Math.min(times * 100, 3000),
   } as const;
 
   const instance = new IORedis(process.env.REDIS_URL ?? 'redis://localhost:6379', redisOptions);
 
   instance.on('error', (err) => {
-    process.stderr.write(`[redis] connection error: ${err.message}\n`);
+    if (!isTest) {
+      process.stderr.write(`[redis] connection error: ${err.message}\n`);
+    }
   });
 
   return instance;
@@ -60,17 +65,22 @@ export function createWorkerConnection(options?: import('ioredis').RedisOptions)
     throw new Error('Cannot create worker connection in docs mode');
   }
 
+  const isTest = process.env.NODE_ENV === 'test';
   const workerOptions = {
     maxRetriesPerRequest: null,
     enableReadyCheck: false,
-    lazyConnect: false,
+    lazyConnect: isTest,
+    connectTimeout: isTest ? 2000 : 10000,
+    retryStrategy: isTest ? () => null : undefined,
     ...options,
   };
 
   const instance = new IORedis(process.env.REDIS_URL ?? 'redis://localhost:6379', workerOptions);
 
   instance.on('error', (err) => {
-    process.stderr.write(`[redis-worker] connection error: ${err.message}\n`);
+    if (!isTest) {
+      process.stderr.write(`[redis-worker] connection error: ${err.message}\n`);
+    }
   });
 
   return instance;

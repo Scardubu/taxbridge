@@ -50,6 +50,14 @@ describeIfDb('device sync integration', () => {
 
     const { default: syncRoutes } = await import('../routes/sync');
     app = Fastify({ logger: false });
+    app.decorate('authenticate', async (request: any) => {
+      request.user = {
+        userId: 'test-user-id',
+        orgId: 'test-org-id',
+        role: 'OWNER',
+        roleVersion: 0,
+      };
+    });
     await app.register(syncRoutes);
     await app.ready();
   });

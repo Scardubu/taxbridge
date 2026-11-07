@@ -50,8 +50,10 @@ async function verifyRemitaRRR(rrr: string): Promise<boolean> {
   }
 
   try {
+    const baseUrl = (process.env.REMITA_API_URL || 'https://remitademo.net').replace(/\/$/, '');
+    const cleanBase = baseUrl.endsWith('/remita') ? baseUrl : `${baseUrl}/remita`;
     const res = await fetch(
-      `https://remitademo.net/remita/exapp/api/v1/send/api/echannelsvc/${merchantId}/${rrr}/status.reg`,
+      `${cleanBase}/exapp/api/v1/send/api/echannelsvc/${merchantId}/${rrr}/status.reg`,
       { headers: { 'Content-Type': 'application/json' } },
     );
     const data: any = await res.json();

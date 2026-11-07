@@ -390,9 +390,9 @@ describe('Remita API Integration Tests', () => {
   describe('Error Handling and Edge Cases', () => {
     test('handles missing environment variables gracefully', async () => {
       // Clear environment variables
-      (process.env as any).REMITA_MERCHANT_ID = undefined;
-      (process.env as any).REMITA_API_KEY = undefined;
-      (process.env as any).REMITA_SERVICE_TYPE_ID = undefined;
+      delete process.env.REMITA_MERCHANT_ID;
+      delete process.env.REMITA_API_KEY;
+      delete process.env.REMITA_SERVICE_TYPE_ID;
 
       // Create new client instance to test constructor behavior
       const newClient = new RemitaClient();

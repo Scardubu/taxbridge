@@ -53,9 +53,12 @@ export class RemitaClient {
 
   constructor() {
     this.baseURL = (process.env.REMITA_API_URL || 'https://remitademo.net').replace(/\/$/, '');
-    this.merchantId = process.env.REMITA_MERCHANT_ID || '';
-    this.apiKey = process.env.REMITA_API_KEY || '';
-    this.serviceTypeId = process.env.REMITA_SERVICE_TYPE_ID || '';
+    const envMerchantId = process.env.REMITA_MERCHANT_ID;
+    const envApiKey = process.env.REMITA_API_KEY;
+    const envServiceTypeId = process.env.REMITA_SERVICE_TYPE_ID;
+    this.merchantId = (envMerchantId && envMerchantId !== 'undefined' ? envMerchantId : '').trim();
+    this.apiKey = (envApiKey && envApiKey !== 'undefined' ? envApiKey : '').trim();
+    this.serviceTypeId = (envServiceTypeId && envServiceTypeId !== 'undefined' ? envServiceTypeId : '').trim();
   }
 
   private isMockMode(): boolean {
@@ -81,7 +84,11 @@ export class RemitaClient {
   async checkHealth(): Promise<{ status: 'healthy' | 'degraded' | 'error' | 'unconfigured' | 'mock'; providerState: 'CONFIGURED_AND_HEALTHY' | 'CONFIGURED_AND_DEGRADED' | 'UNCONFIGURED' | 'MOCK' | 'ERROR'; latency: number | null }> {
     const startTime = Date.now();
     const mockMode = this.isMockMode();
-    const hasCreds = Boolean(this.merchantId && this.apiKey && this.serviceTypeId);
+    const hasCreds = Boolean(
+      this.merchantId && this.merchantId !== 'undefined' &&
+      this.apiKey && this.apiKey !== 'undefined' &&
+      this.serviceTypeId && this.serviceTypeId !== 'undefined'
+    );
 
     if (mockMode) {
       return { status: 'mock', providerState: 'MOCK', latency: 2 };

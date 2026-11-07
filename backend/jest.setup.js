@@ -7,10 +7,15 @@ process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-jwt-secret-test-jwt-sec
 process.env.JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'test-refresh-secret-test-refresh-secret-123456';
 process.env.ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || 'test-encryption-key-test-encryption-key';
 
-// Mock DATABASE_URL for integration tests that require Prisma client initialization
-// This URL points to a test database or is used for mocking purposes
-// In CI, set DATABASE_URL explicitly; locally, this mock allows tests to load without a real DB
-process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgresql://test:test@localhost:5432/taxbridge_test?schema=public';
+// In CI, set DATABASE_URL explicitly; locally, default to mock/test URL so host env vars don't contaminate tests
+if (process.env.CI !== 'true') {
+  if (!process.env.TAXBRIDGE_TEST_DB) {
+    process.env.DATABASE_URL = 'postgresql://test:test@localhost:5432/taxbridge_test?schema=public';
+  }
+  process.env.REDIS_URL = process.env.TEST_REDIS_URL || 'redis://localhost:6379';
+} else {
+  process.env.DATABASE_URL = process.env.DATABASE_URL || 'postgresql://test:test@localhost:5432/taxbridge_test?schema=public';
+}
 
 // Global flag to track if database is available
 global.__DB_AVAILABLE__ = false;

@@ -61,8 +61,10 @@ export class DuploClient {
 
   constructor(baseURL?: string, clientId?: string, clientSecret?: string) {
     this.baseURL = (baseURL || process.env.DUPLO_API_URL || process.env.DIGITAX_API_URL || 'https://api.duplo.co').trim();
-    this.clientId = (clientId || process.env.DUPLO_CLIENT_ID || '').trim();
-    this.clientSecret = (clientSecret || process.env.DUPLO_CLIENT_SECRET || '').trim();
+    const envClientId = process.env.DUPLO_CLIENT_ID;
+    const envClientSecret = process.env.DUPLO_CLIENT_SECRET;
+    this.clientId = (clientId || (envClientId && envClientId !== 'undefined' ? envClientId : '')).trim();
+    this.clientSecret = (clientSecret || (envClientSecret && envClientSecret !== 'undefined' ? envClientSecret : '')).trim();
   }
 
   getBaseURL(): string {
@@ -134,7 +136,10 @@ export class DuploClient {
   async checkHealth(): Promise<ProviderHealthResult> {
     const startTime = Date.now();
     const mockMode = String(process.env.DIGITAX_MOCK_MODE || 'false').toLowerCase() === 'true';
-    const hasCreds = Boolean(this.clientId && this.clientSecret);
+    const hasCreds = Boolean(
+      this.clientId && this.clientId !== 'undefined' &&
+      this.clientSecret && this.clientSecret !== 'undefined'
+    );
 
     if (mockMode) {
       return {
