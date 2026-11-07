@@ -36,9 +36,21 @@ services:
         value: "false"
       - key: PAYSTACK_MOCK_MODE
         value: "false"
-      # DigiTax API URL (non-secret)
+      - key: NRS_MOCK_MODE
+        value: "false"
+      # DigiTax / Duplo API URL (non-secret)
+      - key: DUPLO_API_URL
+        value: https://api.digitax.ng
       - key: DIGITAX_API_URL
         value: https://api.digitax.ng
+      - key: NRS_API_URL
+        value: https://api.digitax.ng
+      - key: REMITA_API_URL
+        value: https://login.remita.net/remita/exim/api/v1/send/api
+      - key: PAYSTACK_BASE_URL
+        value: https://api.paystack.co
+      - key: FLW_BASE_URL
+        value: https://api.flutterwave.com
       # Secrets — SET IN RENDER DASHBOARD
       - key: DATABASE_URL
         sync: false
@@ -71,8 +83,6 @@ services:
         sync: false
       - key: OPERATION_PIPELINE_ENABLED
         value: "false"
-      - key: NRS_MOCK_MODE
-        value: "false"
       - key: REMITA_MERCHANT_ID
         sync: false
       - key: REMITA_API_KEY
@@ -82,6 +92,20 @@ services:
       - key: DUPLO_CLIENT_ID
         sync: false
       - key: DUPLO_CLIENT_SECRET
+        sync: false
+      - key: NRS_API_KEY
+        sync: false
+      - key: PAYSTACK_SECRET_KEY
+        sync: false
+      - key: PAYSTACK_PUBLIC_KEY
+        sync: false
+      - key: FLW_PUBLIC_KEY
+        sync: false
+      - key: FLW_SECRET_KEY
+        sync: false
+      - key: FLW_SECRET_HASH
+        sync: false
+      - key: FLW_ENCRYPTION_KEY
         sync: false
   # ============================================
   # WORKER SERVICE (BullMQ Job Processor)
@@ -137,13 +161,25 @@ services:
       - key: NRS_MOCK_MODE
         value: "false"
       # DigiTax API base URL
+      - key: DUPLO_API_URL
+        value: https://api.digitax.ng
       - key: DIGITAX_API_URL
         value: https://api.digitax.ng
+      - key: NRS_API_URL
+        value: https://api.digitax.ng
+      - key: REMITA_API_URL
+        value: https://login.remita.net/remita/exim/api/v1/send/api
+      - key: PAYSTACK_BASE_URL
+        value: https://api.paystack.co
+      - key: FLW_BASE_URL
+        value: https://api.flutterwave.com
       
       # DigiTax / NRS Credentials - SET IN RENDER DASHBOARD
       - key: DUPLO_CLIENT_ID
         sync: false
       - key: DUPLO_CLIENT_SECRET
+        sync: false
+      - key: NRS_API_KEY
         sync: false
 
       # Admin Dashboard API Key(s) - optional for worker
@@ -158,6 +194,20 @@ services:
       - key: REMITA_SERVICE_TYPE_ID
         sync: false
       
+      # Payment Gateway Keys
+      - key: PAYSTACK_SECRET_KEY
+        sync: false
+      - key: PAYSTACK_PUBLIC_KEY
+        sync: false
+      - key: FLW_PUBLIC_KEY
+        sync: false
+      - key: FLW_SECRET_KEY
+        sync: false
+      - key: FLW_SECRET_HASH
+        sync: false
+      - key: FLW_ENCRYPTION_KEY
+        sync: false
+
       # Security Secrets - SET IN RENDER DASHBOARD (same as API service)
       - key: JWT_SECRET
         sync: false

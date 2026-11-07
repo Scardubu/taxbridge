@@ -12,7 +12,7 @@ import { VAT_RATE } from '../lib/constants';
 let initialized = false;
 
 export interface IntegrationHealth {
-  status: 'healthy' | 'degraded' | 'error';
+  status: 'healthy' | 'degraded' | 'error' | 'mock' | 'unconfigured';
   provider: 'digitax' | 'duplo' | 'remita';
   latency?: number | null;
   timestamp: string;
@@ -113,11 +113,11 @@ export function captureWithSentry(error: unknown, request?: FastifyRequest, repl
 }
 
 export async function checkDuploHealth(): Promise<IntegrationHealth> {
-  const mockMode = String(process.env.DIGITAX_MOCK_MODE || 'false').toLowerCase() === 'true';
+  const mockMode = String(process.env.DUPLO_MOCK_MODE || process.env.DIGITAX_MOCK_MODE || 'false').toLowerCase() === 'true';
   if (mockMode) {
     return {
-      status: 'healthy',
-      provider: 'digitax',
+      status: 'mock',
+      provider: 'duplo',
       mode: 'mock',
       latency: 1,
       timestamp: new Date().toISOString()
@@ -125,13 +125,13 @@ export async function checkDuploHealth(): Promise<IntegrationHealth> {
   }
 
   try {
-    const digitaxUrl = (process.env.DIGITAX_API_URL || '').trim();
-    if (!digitaxUrl) {
+    const apiUrl = (process.env.DUPLO_API_URL || process.env.DIGITAX_API_URL || '').trim();
+    if (!apiUrl) {
       return {
-        status: 'error',
-        provider: 'digitax',
+        status: 'unconfigured',
+        provider: 'duplo',
         latency: null,
-        error: 'Missing DIGITAX_API_URL',
+        error: 'Missing DUPLO_API_URL / DIGITAX_API_URL',
         timestamp: new Date().toISOString()
       };
     }
@@ -140,14 +140,14 @@ export async function checkDuploHealth(): Promise<IntegrationHealth> {
     const start = Date.now();
     const timeout = setTimeout(() => controller.abort(), 5000);
 
-    const response = await fetch(digitaxUrl, { method: 'GET', signal: controller.signal });
+    const response = await fetch(apiUrl, { method: 'GET', signal: controller.signal });
     clearTimeout(timeout);
 
     const latency = Date.now() - start;
 
     return {
       status: response.ok || response.status === 302 ? 'healthy' : response.status >= 500 ? 'error' : 'degraded',
-      provider: 'digitax',
+      provider: 'duplo',
       latency,
       timestamp: new Date().toISOString()
     };
@@ -158,9 +158,9 @@ export async function checkDuploHealth(): Promise<IntegrationHealth> {
 
     return {
       status: 'error',
-      provider: 'digitax',
+      provider: 'duplo',
       latency: null,
-      error: error?.message || 'DigiTax health check failed',
+      error: error?.message || 'Duplo health check failed',
       timestamp: new Date().toISOString()
     };
   }

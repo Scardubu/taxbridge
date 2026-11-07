@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useSearchParams, useRouter } from 'next/navigation';
+import useSWR from 'swr';
+import { fetchJson } from '@/lib/fetcher';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { EnterpriseShell } from '@/components/admin-dashboard/shell/EnterpriseShell';
@@ -104,6 +106,53 @@ export default function DashboardPage() {
     router.replace(query ? `/dashboard?${query}` : '/dashboard', { scroll: false });
   };
 
+  const { data: healthData } = useSWR<{ integrations?: { digitax?: { status?: string }; nrs?: { status?: string } } }>(
+    '/api/admin/health/integrations',
+    fetchJson,
+    { refreshInterval: 60_000, revalidateOnFocus: false },
+  );
+
+  const nrsStatusInfo = useMemo(() => {
+    const rawStatus = (healthData?.integrations?.digitax?.status || healthData?.integrations?.nrs?.status || '').toLowerCase();
+    switch (rawStatus) {
+      case 'healthy':
+      case 'ok':
+      case 'connected':
+        return {
+          label: 'NRS Connected',
+          className: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300',
+        };
+      case 'degraded':
+        return {
+          label: 'NRS Degraded',
+          className: 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300',
+        };
+      case 'unconfigured':
+        return {
+          label: 'NRS Unconfigured',
+          className: 'border-slate-300 bg-slate-100 text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300',
+        };
+      case 'mock':
+        return {
+          label: 'NRS Mock',
+          className: 'border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-800 dark:bg-indigo-950 dark:text-indigo-300',
+        };
+      case 'error':
+      case 'down':
+      case 'failed':
+      case 'unavailable':
+        return {
+          label: 'NRS Unavailable',
+          className: 'border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-800 dark:bg-rose-950 dark:text-rose-300',
+        };
+      default:
+        return {
+          label: 'NRS Status Checking...',
+          className: 'border-slate-200 bg-slate-50 text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400',
+        };
+    }
+  }, [healthData]);
+
   const ActiveTabComponent = TAB_COMPONENTS[activeTab];
 
   return (
@@ -113,8 +162,8 @@ export default function DashboardPage() {
       <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
           <div className="mb-1 flex flex-wrap items-center gap-2">
-            <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-[11px] font-semibold text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-              NRS Compliant
+            <Badge variant="outline" className={`text-[11px] font-semibold ${nrsStatusInfo.className}`}>
+              {nrsStatusInfo.label}
             </Badge>
             <Badge variant="outline" className="border-blue-200 bg-blue-50 text-[11px] font-semibold text-blue-700 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-300">
               Operator Console
