@@ -78,11 +78,15 @@ export class RemitaClient {
     return crypto.createHash('sha512').update(payload).digest('hex');
   }
 
-  async checkHealth(): Promise<{ status: 'healthy' | 'degraded' | 'error'; latency: number | null }> {
+  async checkHealth(): Promise<{ status: 'healthy' | 'degraded' | 'error' | 'unconfigured' | 'mock'; latency: number | null }> {
     const startTime = Date.now();
 
     if (this.isMockMode()) {
-      return { status: 'healthy', latency: 2 };
+      return { status: 'mock', latency: null };
+    }
+
+    if (!this.merchantId || !this.apiKey || !this.serviceTypeId) {
+      return { status: 'unconfigured', latency: null };
     }
     
     try {

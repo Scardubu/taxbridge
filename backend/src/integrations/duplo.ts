@@ -47,9 +47,13 @@ export class DuploClient {
   private tokenExpiry: number = 0;
 
   constructor() {
-    this.baseURL = process.env.DUPLO_API_URL || 'https://api.duplo.co';
+    this.baseURL = (process.env.DUPLO_API_URL || process.env.DIGITAX_API_URL || 'https://api.duplo.co').replace(/\/$/, '');
     this.clientId = process.env.DUPLO_CLIENT_ID || '';
     this.clientSecret = process.env.DUPLO_CLIENT_SECRET || '';
+  }
+
+  getBaseURL(): string {
+    return this.baseURL;
   }
 
   private async getAccessToken(): Promise<string> {
@@ -114,15 +118,22 @@ export class DuploClient {
     }
   }
 
-  async checkHealth(): Promise<{ status: 'healthy' | 'degraded' | 'error'; latency: number | null }> {
+  async checkHealth(): Promise<{ status: 'healthy' | 'degraded' | 'error' | 'unconfigured' | 'mock'; latency: number | null }> {
     const startTime = Date.now();
-    const mockMode = String(process.env.DIGITAX_MOCK_MODE || 'false').toLowerCase() === 'true';
+    const mockMode = String(process.env.NRS_MOCK_MODE || process.env.DIGITAX_MOCK_MODE || 'false').toLowerCase() === 'true';
     const hasCreds = Boolean(this.clientId && this.clientSecret);
 
-    if (mockMode || !hasCreds) {
+    if (mockMode) {
       return {
-        status: 'healthy',
-        latency: 2,
+        status: 'mock',
+        latency: null,
+      };
+    }
+
+    if (!hasCreds) {
+      return {
+        status: 'unconfigured',
+        latency: null,
       };
     }
 

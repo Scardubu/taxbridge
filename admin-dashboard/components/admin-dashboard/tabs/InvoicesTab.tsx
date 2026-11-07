@@ -323,7 +323,23 @@ export function InvoicesTab() {
                 )}
               </div>
               {selectedInvoice.ublXml ? (
-                <UBLViewer xml={selectedInvoice.ublXml} />
+                <UBLViewer
+                  xml={selectedInvoice.ublXml}
+                  metadata={{
+                    id: selectedInvoice.id,
+                    status: selectedInvoice.status,
+                    customerName: selectedInvoice.customerName,
+                    customerTIN: selectedInvoice.customerTIN,
+                    supplierName: selectedInvoice.user?.name,
+                    supplierTIN: selectedInvoice.user?.tin,
+                    nrsReference: selectedInvoice.nrsReference,
+                    createdAt: selectedInvoice.createdAt,
+                    updatedAt: selectedInvoice.updatedAt,
+                    subtotal: selectedInvoice.subtotal,
+                    vat: selectedInvoice.vat,
+                    total: selectedInvoice.total,
+                  }}
+                />
               ) : (
                 <p className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900">
                   No UBL XML available for this invoice.

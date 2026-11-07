@@ -1,15 +1,27 @@
 import { withTaxBridgeHeaders } from './api-contract';
 
+export type FetchErrorCode =
+  | 'SESSION_EXPIRED'
+  | 'REFRESHING_SESSION'
+  | 'SESSION_RESTORED'
+  | 'REAUTHENTICATION_REQUIRED'
+  | 'CSRF_REJECTED'
+  | 'BACKEND_UNAVAILABLE'
+  | 'PERMISSION_DENIED'
+  | 'HTTP_ERROR';
+
 export class FetchError extends Error {
   status: number;
   url: string;
+  code?: FetchErrorCode;
   body?: unknown;
 
-  constructor(status: number, url: string, message: string, body?: unknown) {
+  constructor(status: number, url: string, message: string, body?: unknown, code?: FetchErrorCode) {
     super(message);
     this.name = 'FetchError';
     this.status = status;
     this.url = url;
+    this.code = code;
     this.body = body;
   }
 }
@@ -33,17 +45,21 @@ function extractMessage(body: unknown): string | undefined {
   return undefined;
 }
 
-async function safeReadJson(response: Response): Promise<unknown> {
-  const contentType = response.headers.get('content-type') || '';
-  if (!contentType.toLowerCase().includes('application/json')) {
-    return undefined;
+function classifyErrorCode(status: number, body: unknown): FetchErrorCode {
+  if (status === 401) return 'SESSION_EXPIRED';
+  if (status === 403) {
+    if (body && typeof body === 'object') {
+      const record = body as Record<string, unknown>;
+      if (record.error === 'CSRF_INVALID' || String(record.message).toLowerCase().includes('csrf')) {
+        return 'CSRF_REJECTED';
+      }
+    }
+    return 'PERMISSION_DENIED';
   }
-
-  try {
-    return await response.json();
-  } catch {
-    return undefined;
+  if (status === 502 || status === 503 || status === 504) {
+    return 'BACKEND_UNAVAILABLE';
   }
+  return 'HTTP_ERROR';
 }
 
 function readCookie(name: string): string | null {
@@ -61,8 +77,8 @@ function readCookie(name: string): string | null {
   }
 }
 
-function isMutatingMethod(method: string): boolean {
-  return !['GET', 'HEAD', 'OPTIONS'].includes(method.toUpperCase());
+function isSafeMethod(method: string): boolean {
+  return ['GET', 'HEAD', 'OPTIONS'].includes(method.toUpperCase());
 }
 
 function canReplayBody(body: BodyInit | null | undefined): boolean {
@@ -74,12 +90,30 @@ function canReplayBody(body: BodyInit | null | undefined): boolean {
   return ArrayBuffer.isView(body);
 }
 
+function isSafeOrIdempotent(method: string, headers: Headers): boolean {
+  if (isSafeMethod(method)) return true;
+  return headers.has('x-idempotency-key') || headers.has('idempotency-key');
+}
+
 function buildRequestHeaders(input: HeadersInit | undefined, method: string): Headers {
   const headers = withTaxBridgeHeaders(input || {});
   if (!headers.has('Accept')) headers.set('Accept', 'application/json');
   const csrfToken = readCookie('csrf_token');
   if (csrfToken) headers.set('X-CSRF-Token', csrfToken);
   return headers;
+}
+
+async function safeReadJson(response: Response): Promise<unknown> {
+  const contentType = response.headers.get('content-type') || '';
+  if (!contentType.toLowerCase().includes('application/json')) {
+    return undefined;
+  }
+
+  try {
+    return await response.json();
+  } catch {
+    return undefined;
+  }
 }
 
 let refreshInFlight: Promise<boolean> | null = null;
@@ -135,22 +169,88 @@ export async function fetchJson<T>(url: string, options?: RequestInit): Promise<
     headers: buildRequestHeaders(options?.headers, method),
   });
 
-  let response = await execute();
-  const isAuthRoute = url.startsWith('/api/auth/');
-  const shouldRetry = response.status === 401
-    && !isAuthRoute
-    && canReplayBody(options?.body);
-
-  if (shouldRetry && await refreshAdminSession()) {
-    // The refresh endpoint rotates both HttpOnly tokens and the CSRF nonce.
-    // Rebuild headers so the retry uses the newly issued CSRF cookie.
+  let response: Response;
+  try {
     response = await execute();
+  } catch (error) {
+    throw new FetchError(
+      503,
+      url,
+      'Backend authentication or API service unreachable.',
+      undefined,
+      'BACKEND_UNAVAILABLE',
+    );
+  }
+
+  const isAuthRoute = url.startsWith('/api/auth/');
+  const shouldRetry = response.status === 401 && !isAuthRoute;
+
+  if (shouldRetry) {
+    const initialHeaders = buildRequestHeaders(options?.headers, method);
+    const safeToRetry = isSafeOrIdempotent(method, initialHeaders) && canReplayBody(options?.body);
+
+    const refreshed = await refreshAdminSession();
+    if (refreshed) {
+      if (safeToRetry) {
+        // The refresh endpoint rotates both HttpOnly tokens and the CSRF nonce.
+        // Rebuild headers so the retry uses the newly issued CSRF cookie.
+        try {
+          response = await execute();
+        } catch {
+          throw new FetchError(
+            503,
+            url,
+            'Backend unavailable on session refresh retry.',
+            undefined,
+            'BACKEND_UNAVAILABLE',
+          );
+        }
+      } else {
+        throw new FetchError(
+          401,
+          url,
+          'Session refreshed, but this action cannot be safely replayed automatically. Please submit again.',
+          undefined,
+          'REAUTHENTICATION_REQUIRED',
+        );
+      }
+    } else {
+      throw new FetchError(
+        401,
+        url,
+        'Your session has expired. Please sign in again.',
+        undefined,
+        'REAUTHENTICATION_REQUIRED',
+      );
+    }
   }
 
   const body = await safeReadJson(response);
   if (!response.ok) {
-    const message = extractMessage(body) || `Request failed (${response.status})`;
-    throw new FetchError(response.status, url, message, body);
+    const code = classifyErrorCode(response.status, body);
+    let message = extractMessage(body);
+
+    if (!message) {
+      switch (code) {
+        case 'CSRF_REJECTED':
+          message = 'Security validation failed (CSRF token mismatch). Please refresh the page.';
+          break;
+        case 'PERMISSION_DENIED':
+          message = 'Permission denied. Administrator privileges required.';
+          break;
+        case 'BACKEND_UNAVAILABLE':
+          message = 'The backend service is currently unreachable. Please try again.';
+          break;
+        case 'SESSION_EXPIRED':
+          message = 'Session expired. Please sign in again.';
+          break;
+        default:
+          message = `Request failed (${response.status})`;
+      }
+    }
+
+    throw new FetchError(response.status, url, message, body, code);
   }
+
   return body as T;
 }

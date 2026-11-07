@@ -1,7 +1,8 @@
 import 'react-native-reanimated';
 
-import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, AppState, AppStateStatus, View } from 'react-native';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { ActivityIndicator, AppState, AppStateStatus, Pressable, Text, View } from 'react-native';
+import NetInfo from '@react-native-community/netinfo';
 import { isRunningInExpoGo } from 'expo';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -17,7 +18,15 @@ import { offlineQueue } from '../services/offlineQueue';
 import { AppKV } from '../storage/kv';
 import { useBusinessProfileStore } from '../stores/businessProfileStore';
 import { useOnboardingStore } from '../stores/onboardingStore';
-import { Colors } from '../components/design-system/tokens';
+import { Colors, Typography, Spacing, Radii } from '../components/design-system/tokens';
+
+export type BootstrapState =
+  | 'BOOTING'
+  | 'HYDRATING'
+  | 'READY'
+  | 'READY_OFFLINE'
+  | 'RECOVERABLE_ERROR'
+  | 'FATAL_INITIALIZATION_ERROR';
 
 let hasInitializedSentry = false;
 
@@ -39,24 +48,24 @@ function ensureSentryInitialized() {
 void SplashScreen.preventAutoHideAsync().catch(() => undefined);
 ensureSentryInitialized();
 
-function waitForHydration(): Promise<void> {
+function waitForHydration(): Promise<boolean> {
   return new Promise((resolve) => {
     if (useOnboardingStore.getState()._hasHydrated) {
       console.log('[HYDRATION] waitForHydration: already hydrated on entry');
-      resolve();
+      resolve(true);
       return;
     }
 
     const _t0 = Date.now();
     let settled = false;
     let timeoutId: ReturnType<typeof setTimeout>;
-    const finish = () => {
+    const finish = (result: boolean) => {
       if (settled) {
         return;
       }
       settled = true;
       clearTimeout(timeoutId);
-      resolve();
+      resolve(result);
     };
 
     const unsub = useOnboardingStore.subscribe((state) => {
@@ -69,68 +78,98 @@ function waitForHydration(): Promise<void> {
           level: 'info',
           data: { elapsed: Date.now() - _t0 },
         });
-        finish();
+        finish(true);
       }
     });
 
     timeoutId = setTimeout(() => {
       unsub();
-      console.log('[HYDRATION] waitForHydration: 4s timeout fired — forcing KV read');
-      Sentry.captureMessage(
-        'waitForHydration resolved via 4s timeout — previewMode KV read may not have completed. Root index.tsx guard now hardened for Zustand v5 persist + Expo Router v6 + RQ dashboard + EAS compiler cache.',
-        'warning'
-      );
+      console.log('[HYDRATION] waitForHydration: timeout fired — attempting authoritative KV recovery');
       AppKV.flags.getPreviewMode()
         .then((previewMode) => {
           useOnboardingStore.setState({ _hasHydrated: true, previewMode: previewMode ?? false });
+          finish(true);
         })
-        .catch(() => {
-          useOnboardingStore.setState({ _hasHydrated: true });
-        })
-        .finally(() => finish());
+        .catch((err) => {
+          Sentry.captureMessage(
+            'waitForHydration timeout and KV fallback failed; entering recoverable error state',
+            'warning'
+          );
+          finish(false);
+        });
     }, 4000);
   });
 }
 
 function RootLayout() {
-  const [isAppReady, setIsAppReady] = useState(false);
-  // Ref mirrors state so the AppState event listener never closes over a stale `false`.
-  // The effect runs once; without the ref, resume never triggers db/queue re-init.
+  const [bootstrapState, setBootstrapState] = useState<BootstrapState>('BOOTING');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const isAppReadyRef = useRef(false);
+  const isBootingRef = useRef(false);
   const hydrateProfile = useBusinessProfileStore((state) => state.hydrate);
 
-  useEffect(() => {
-    void (async () => {
-      const _bootT0 = Date.now();
-      console.log('[BOOT] RootLayout boot start', { timestamp: _bootT0 });
-      Sentry.addBreadcrumb({ category: 'boot', message: 'RootLayout boot start', level: 'info', data: { timestamp: _bootT0 } });
-      try {
-        await initializeI18n();
-        await initDatabase();
-        await runStorageMigration();
-        await useOnboardingStore.persist.rehydrate();
-        console.log('[BOOT] persist.rehydrate() complete, waiting for hydration', { elapsed: Date.now() - _bootT0 });
-        await waitForHydration();
-        console.log('[BOOT] waitForHydration resolved', { elapsed: Date.now() - _bootT0 });
-        Sentry.addBreadcrumb({ category: 'boot', message: 'waitForHydration resolved', level: 'info', data: { elapsed: Date.now() - _bootT0 } });
-        await hydrateProfile();
-        offlineQueue.start();
-        console.log('[BOOT] RootLayout boot complete', { elapsed: Date.now() - _bootT0 });
-        Sentry.addBreadcrumb({ category: 'boot', message: 'RootLayout boot complete', level: 'info', data: { elapsed: Date.now() - _bootT0 } });
-      } catch (error) {
-        Sentry.captureException(error);
-      } finally {
-        isAppReadyRef.current = true;
-        setIsAppReady(true);
-        // Always hide splash screen, even on error, to prevent hang on restart
-        await SplashScreen.hideAsync().catch(() => undefined);
-        void offlineQueue.flush().catch((error) => {
-          Sentry.captureException(error);
-        });
-      }
-    })();
+  const runBootstrap = useCallback(async () => {
+    if (isBootingRef.current) return;
+    isBootingRef.current = true;
+    setBootstrapState('BOOTING');
+    setErrorMessage(null);
 
-    // Cleanup resources when app goes to background/closed to prevent locks on restart
+    const _bootT0 = Date.now();
+    console.log('[BOOT] RootLayout boot start', { timestamp: _bootT0 });
+    Sentry.addBreadcrumb({ category: 'boot', message: 'RootLayout boot start', level: 'info', data: { timestamp: _bootT0 } });
+
+    let dbInitialized = false;
+
+    try {
+      await initializeI18n();
+
+      await initDatabase();
+      dbInitialized = true;
+
+      await runStorageMigration();
+
+      setBootstrapState('HYDRATING');
+      await useOnboardingStore.persist.rehydrate();
+      const hydrationOk = await waitForHydration();
+
+      if (!hydrationOk) {
+        throw new Error('Onboarding state could not be restored within timeout.');
+      }
+
+      await hydrateProfile();
+
+      offlineQueue.start();
+
+      const net = await NetInfo.fetch();
+      const isOnline = net.isConnected ?? false;
+
+      isAppReadyRef.current = true;
+      setBootstrapState(isOnline ? 'READY' : 'READY_OFFLINE');
+
+      console.log('[BOOT] RootLayout boot complete', { isOnline, elapsed: Date.now() - _bootT0 });
+      Sentry.addBreadcrumb({ category: 'boot', message: 'RootLayout boot complete', level: 'info', data: { isOnline, elapsed: Date.now() - _bootT0 } });
+
+      void offlineQueue.flush().catch((err) => Sentry.captureException(err));
+    } catch (error: any) {
+      Sentry.captureException(error);
+      const msg = error?.message || 'Initialization failed.';
+      setErrorMessage(msg);
+      isAppReadyRef.current = false;
+
+      if (!dbInitialized) {
+        setBootstrapState('FATAL_INITIALIZATION_ERROR');
+      } else {
+        setBootstrapState('RECOVERABLE_ERROR');
+      }
+    } finally {
+      isBootingRef.current = false;
+      await SplashScreen.hideAsync().catch(() => undefined);
+    }
+  }, [hydrateProfile]);
+
+  useEffect(() => {
+    void runBootstrap();
+
     const subscription = AppState.addEventListener('change', (nextAppState: AppStateStatus) => {
       if (nextAppState === 'active' && isAppReadyRef.current) {
         void (async () => {
@@ -157,15 +196,40 @@ function RootLayout() {
     });
 
     return () => subscription.remove();
-  }, [hydrateProfile]);
+  }, [runBootstrap]);
+
+  const isReady = bootstrapState === 'READY' || bootstrapState === 'READY_OFFLINE';
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <I18nextProvider i18n={i18n}>
           <StatusBar style="auto" />
-          {isAppReady ? (
+          {isReady ? (
             <Slot />
+          ) : bootstrapState === 'BOOTING' || bootstrapState === 'HYDRATING' ? (
+            <View
+              style={{
+                flex: 1,
+                backgroundColor: Colors.ui.bg,
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: Spacing.xl,
+              }}
+              accessibilityRole="text"
+              accessibilityLabel="Initializing TaxBridge"
+            >
+              <ActivityIndicator color={Colors.brand.primary} size="large" />
+              <Text
+                style={{
+                  marginTop: Spacing.lg,
+                  color: Colors.ui.textMuted,
+                  ...Typography.caption,
+                }}
+              >
+                {bootstrapState === 'HYDRATING' ? 'Restoring business profile...' : 'Starting TaxBridge...'}
+              </Text>
+            </View>
           ) : (
             <View
               style={{
@@ -173,9 +237,51 @@ function RootLayout() {
                 backgroundColor: Colors.ui.bg,
                 alignItems: 'center',
                 justifyContent: 'center',
+                padding: Spacing.xl,
               }}
             >
-              <ActivityIndicator color={Colors.brand.primary} size="large" />
+              <Text style={{ fontSize: 36, marginBottom: Spacing.md }}>⚠️</Text>
+              <Text
+                style={{
+                  color: Colors.ui.text,
+                  ...Typography.title,
+                  textAlign: 'center',
+                  marginBottom: Spacing.sm,
+                }}
+              >
+                {bootstrapState === 'FATAL_INITIALIZATION_ERROR'
+                  ? 'Database Initialization Failed'
+                  : 'Unable to Load Profile'}
+              </Text>
+              <Text
+                style={{
+                  color: Colors.ui.textMuted,
+                  ...Typography.body,
+                  textAlign: 'center',
+                  marginBottom: Spacing.xl,
+                }}
+              >
+                {errorMessage || 'TaxBridge encountered a startup error. Your saved data is protected.'}
+              </Text>
+              <Pressable
+                onPress={() => void runBootstrap()}
+                accessibilityRole="button"
+                accessibilityLabel="Retry initialization"
+                style={{
+                  backgroundColor: Colors.brand.primary,
+                  paddingHorizontal: Spacing.xxl,
+                  paddingVertical: Spacing.md,
+                  borderRadius: Radii.lg,
+                  minHeight: 48,
+                  minWidth: 160,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Text style={{ color: Colors.ui.white, ...Typography.bodyBold }}>
+                  Retry
+                </Text>
+              </Pressable>
             </View>
           )}
         </I18nextProvider>

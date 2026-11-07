@@ -9,9 +9,16 @@ export function OfflineIndicator() {
   const { t } = useTranslation();
   const [isOnline, setIsOnline] = useState(true);
   const [queueDepth, setQueueDepth] = useState(0);
+  const [deadLetterCount, setDeadLetterCount] = useState(0);
   const [isSyncing, setIsSyncing] = useState(false);
 
-  const syncMessage = isOnline
+  const isPipelineDisabled = process.env.EXPO_PUBLIC_SYNC_PIPELINE_ENABLED === 'false';
+
+  const syncMessage = isPipelineDisabled
+    ? t('offline.pipelineDisabled', { defaultValue: 'Saved on this device — submission pipeline is offline' })
+    : deadLetterCount > 0
+    ? t('offline.attentionRequired', { count: deadLetterCount, defaultValue: `${deadLetterCount} operation(s) require attention` })
+    : isOnline
     ? t('offline.syncing', { count: queueDepth })
     : t('offline.queued', { count: queueDepth });
 
@@ -35,16 +42,24 @@ export function OfflineIndicator() {
   }, [isOnline, queueDepth > 0]);
 
   const handleSync = async () => {
+    if (isPipelineDisabled) return;
     setIsSyncing(true);
     try {
       await offlineQueue.flush();
-      setQueueDepth(0);
     } finally {
+      const [pending, dead] = await Promise.all([
+        offlineQueue.getPendingCount(),
+        typeof (offlineQueue as any).getDeadLetterCount === 'function'
+          ? (offlineQueue as any).getDeadLetterCount()
+          : Promise.resolve(0),
+      ]);
+      setQueueDepth(pending);
+      setDeadLetterCount(dead);
       setIsSyncing(false);
     }
   };
 
-  if (isOnline && queueDepth === 0) return null;
+  if (isOnline && queueDepth === 0 && deadLetterCount === 0) return null;
 
   return (
     <View
@@ -74,7 +89,7 @@ export function OfflineIndicator() {
       >
         {syncMessage}
       </Text>
-      {isOnline && queueDepth > 0 ? (
+      {isOnline && queueDepth > 0 && !isPipelineDisabled ? (
         <Pressable
           onPress={() => void handleSync()}
           disabled={isSyncing}
