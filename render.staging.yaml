@@ -51,7 +51,29 @@ services:
         value: staging_dummy_api_key
       - key: REMITA_SERVICE_TYPE_ID
         value: staging_dummy_service
+      - key: REMITA_API_URL
+        value: https://remitademo.net
       - key: REMITA_WEBHOOK_SECRET
+        sync: false
+      - key: NRS_API_URL
+        value: https://api.nrs.gov.ng
+      - key: NRS_API_KEY
+        value: staging_dummy_nrs_key
+      - key: PAYSTACK_BASE_URL
+        value: https://api.paystack.co
+      - key: PAYSTACK_SECRET_KEY
+        sync: false
+      - key: PAYSTACK_PUBLIC_KEY
+        sync: false
+      - key: FLW_BASE_URL
+        value: https://api.flutterwave.com/v3
+      - key: FLW_PUBLIC_KEY
+        sync: false
+      - key: FLW_SECRET_KEY
+        sync: false
+      - key: FLW_SECRET_HASH
+        sync: false
+      - key: FLW_ENCRYPTION_KEY
         sync: false
       - key: JWT_SECRET
         sync: false

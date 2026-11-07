@@ -85,6 +85,32 @@ services:
         sync: false
       - key: DUPLO_CLIENT_SECRET
         sync: false
+      # NRS Integration
+      - key: NRS_API_URL
+        value: https://api.nrs.gov.ng
+      - key: NRS_API_KEY
+        sync: false
+      # Remita API endpoint
+      - key: REMITA_API_URL
+        value: https://remitademo.net
+      # Paystack Payment Gateway
+      - key: PAYSTACK_SECRET_KEY
+        sync: false
+      - key: PAYSTACK_PUBLIC_KEY
+        sync: false
+      - key: PAYSTACK_BASE_URL
+        value: https://api.paystack.co
+      # Flutterwave Payment Gateway
+      - key: FLW_PUBLIC_KEY
+        sync: false
+      - key: FLW_SECRET_KEY
+        sync: false
+      - key: FLW_SECRET_HASH
+        sync: false
+      - key: FLW_ENCRYPTION_KEY
+        sync: false
+      - key: FLW_BASE_URL
+        value: https://api.flutterwave.com/v3
   # ============================================
   # WORKER SERVICE (BullMQ Job Processor)
   # ============================================
