@@ -140,7 +140,7 @@ export function TaxCalculationSummary({ calculation, isPreviewMode }: Readonly<P
             <Text style={{ ...Typography.micro, color: Colors.ui.textDim, textAlign: 'center' }}>{t('taxCalc.previewNote')}</Text>
           ) : (
             <Pressable
-              onPress={() => void Linking.openURL('https://einvoice.nrs.gov.ng')}
+              onPress={() => void Linking.openURL('https://einvoice.firs.gov.ng')}
               accessibilityRole="link"
               accessibilityLabel={t('taxCalc.confirmCalc')}
               style={{ alignItems: 'center', justifyContent: 'center', minHeight: 48, paddingTop: Spacing.sm }}

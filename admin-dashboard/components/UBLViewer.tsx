@@ -125,14 +125,14 @@ export function UBLViewer({ xml, metadata }: UBLViewerProps) {
     }
 
     // XXE and size protection
-    if (xml.length > MAX_XML_SIZE_BYTES) {
-      setParseError(`XML payload exceeds maximum size limit of ${MAX_XML_SIZE_BYTES / 1024} KB`);
+    if (new Blob([xml]).size > MAX_XML_SIZE_BYTES) {
+      setParseError(`XML payload exceeds the ${MAX_XML_SIZE_BYTES / 1_048_576} MB size limit.`);
       setParsed(null);
       return;
     }
 
-    if (/<!DOCTYPE\s+[^>]*SYSTEM/i.test(xml) || /<!ENTITY/i.test(xml)) {
-      setParseError('Potential XXE construct detected. Parsing blocked for security.');
+    if (/<!DOCTYPE/i.test(xml) || /<!ENTITY/i.test(xml)) {
+      setParseError('DOCTYPE/ENTITY declarations are not permitted in UBL invoices. Parsing blocked for security.');
       setParsed(null);
       return;
     }
@@ -192,6 +192,12 @@ export function UBLViewer({ xml, metadata }: UBLViewerProps) {
       lineAmount: Number(l['cbc:LineExtensionAmount'] || 0),
     }));
   }, [parsed]);
+
+  const xmlMatchCount = useMemo(() => {
+    if (!xmlSearch) return 0;
+    const q = xmlSearch.toLowerCase();
+    return xml.split('\n').filter((line) => line.toLowerCase().includes(q)).length;
+  }, [xml, xmlSearch]);
 
   const handleCopyXml = async () => {
     try {
