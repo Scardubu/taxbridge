@@ -67,7 +67,7 @@ export function OfflineIndicator() {
     }
   };
 
-  if (isOnline && queueDepth === 0 && deadLetterCount === 0) return null;
+  if (isOnline && queueDepth === 0 && deadLetterCount === 0 && !isPipelineDisabled) return null;
 
   return (
     <View

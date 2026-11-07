@@ -5,6 +5,7 @@ import { OfflineIndicator } from '../../components/OfflineIndicator';
 
 const mockFlush = jest.fn(() => Promise.resolve(undefined));
 const mockGetPendingCount = jest.fn(() => Promise.resolve(0));
+const originalSyncPipelineEnabled = process.env.EXPO_PUBLIC_SYNC_PIPELINE_ENABLED;
 let netInfoListener: ((state: { isConnected: boolean | null }) => void) | null = null;
 
 function mockResolveTranslation(source: Record<string, unknown>, key: string, values?: Record<string, unknown>) {
@@ -51,6 +52,7 @@ jest.mock('../../services/offlineQueue', () => ({
 
 describe('OfflineIndicator', () => {
   beforeEach(() => {
+    delete process.env.EXPO_PUBLIC_SYNC_PIPELINE_ENABLED;
     jest.useFakeTimers();
     netInfoListener = null;
     mockFlush.mockClear();
@@ -59,6 +61,11 @@ describe('OfflineIndicator', () => {
   });
 
   afterEach(() => {
+    if (originalSyncPipelineEnabled === undefined) {
+      delete process.env.EXPO_PUBLIC_SYNC_PIPELINE_ENABLED;
+    } else {
+      process.env.EXPO_PUBLIC_SYNC_PIPELINE_ENABLED = originalSyncPipelineEnabled;
+    }
     jest.useRealTimers();
   });
 
@@ -71,6 +78,18 @@ describe('OfflineIndicator', () => {
 
     expect(screen.queryByText(mockEn.offline.syncNow)).toBeNull();
     expect(screen.queryByText(/operations syncing/i)).toBeNull();
+  });
+
+  test('shows the disabled-pipeline warning while online with an empty queue', async () => {
+    process.env.EXPO_PUBLIC_SYNC_PIPELINE_ENABLED = 'false';
+    const screen = render(<OfflineIndicator />);
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(screen.getByText(mockEn.offline.pipelineDisabled)).toBeTruthy();
+    expect(screen.queryByText(mockEn.offline.syncNow)).toBeNull();
   });
 
   test('shows queued operations message while offline', async () => {
