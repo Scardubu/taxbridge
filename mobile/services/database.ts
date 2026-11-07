@@ -18,10 +18,12 @@ export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
     // SDK-06 fix: no options object — openDatabaseAsync('name') only
     const db = await SQLite.openDatabaseAsync('taxbridge_v13.db');
     await db.execAsync(`
+      PRAGMA busy_timeout = 5000;
       PRAGMA journal_mode = WAL;
       PRAGMA foreign_keys = ON;
       PRAGMA cache_size = -8000;
-      PRAGMA synchronous = NORMAL;
+      PRAGMA synchronous = FULL;
+      PRAGMA wal_autocheckpoint = 1000;
     `);
     await runMigrations(db);
     _db = db;
