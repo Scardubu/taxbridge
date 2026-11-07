@@ -233,6 +233,6 @@ services:
   - type: redis
     name: taxbridge-redis
     plan: starter
-    region: oregon
+    region: frankfurt
     maxmemoryPolicy: noeviction
     ipAllowList: []

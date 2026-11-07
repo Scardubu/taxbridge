@@ -14,7 +14,7 @@ import {
   FileCode, Layers, Info, History, Search, FileX
 } from 'lucide-react';
 
-const MAX_XML_SIZE_BYTES = 1_048_576; // 1 MB limit for safe in-browser parsing
+const MAX_XML_SIZE_BYTES = 5_242_880; // 5 MB limit for safe in-browser parsing
 
 export interface InvoiceMetadata {
   id?: string;

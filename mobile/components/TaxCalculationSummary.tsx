@@ -37,7 +37,12 @@ export function TaxCalculationSummary({ calculation, isPreviewMode }: Readonly<P
         overflow: 'hidden',
       }}
     >
-      <Pressable onPress={() => setExpanded((value) => !value)} accessibilityRole="button" accessibilityState={{ expanded }} style={{ padding: Spacing.xl }}>
+      <Pressable
+        onPress={() => setExpanded((value) => !value)}
+        accessibilityRole="button"
+        accessibilityState={{ expanded }}
+        style={{ padding: Spacing.xl, minHeight: 48, justifyContent: 'center' }}
+      >
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing.sm }}>
             <Text style={{ fontSize: 18 }}>🧮</Text>
@@ -135,10 +140,10 @@ export function TaxCalculationSummary({ calculation, isPreviewMode }: Readonly<P
             <Text style={{ ...Typography.micro, color: Colors.ui.textDim, textAlign: 'center' }}>{t('taxCalc.previewNote')}</Text>
           ) : (
             <Pressable
-              onPress={() => void Linking.openURL('https://einvoice.firs.gov.ng')}
+              onPress={() => void Linking.openURL('https://einvoice.nrs.gov.ng')}
               accessibilityRole="link"
               accessibilityLabel={t('taxCalc.confirmCalc')}
-              style={{ alignItems: 'center', paddingTop: Spacing.sm }}
+              style={{ alignItems: 'center', justifyContent: 'center', minHeight: 48, paddingTop: Spacing.sm }}
             >
               <Text style={{ ...Typography.caption, color: Colors.brand.accent }}>{t('taxCalc.confirmCalc')} →</Text>
             </Pressable>
