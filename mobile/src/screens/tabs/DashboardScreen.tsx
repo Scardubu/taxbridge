@@ -6,7 +6,7 @@
  *   C-14  Single useDashboard() composite hook (no waterfall)
  *   C-16  All animations use DURATION.* + EASE.* tokens
  *   C-17  All 5 zones present: apex, signal, action, context, ambient
- *   C-18  Every dashboard section wrapped in <DashboardZone>
+ *   C-18  Every dashboard section wrapped in DashboardZone component
  *   C-19  Anomaly empty state = null (silent, never misleading)
  *   C-20  scale(0.97) visual ack <100ms on all Pressable elements
  *   CF-02 TopAnomaliesSection rendered via SectionState + DashboardZone
