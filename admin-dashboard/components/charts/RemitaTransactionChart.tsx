@@ -44,11 +44,11 @@ export function RemitaTransactionChart({ data }: RemitaTransactionChartProps) {
         <XAxis 
           dataKey="date" 
           tick={{ fontSize: 12 }}
-          tickFormatter={(value) => safeDate(value, { dateStyle: 'short' })}
+          tickFormatter={(value: any) => safeDate(value, { dateStyle: 'short' })}
         />
         <YAxis tick={{ fontSize: 12 }} />
         <Tooltip
-          labelFormatter={(value) => safeDate(value, { dateStyle: 'short' })}
+          labelFormatter={(value: any) => safeDate(value, { dateStyle: 'short' })}
           formatter={tooltipFormatter}
         />
         <Bar dataKey="successful" stackId="a" fill={chartColors.success} name={labels.successful} />

@@ -383,7 +383,7 @@ export function AnalyticsTab() {
                   <LineChart data={remita?.dailyVolume ?? []} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                     <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-                    <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `₦${(v / 1_000_000).toFixed(1)}M`} />
+                    <YAxis tick={{ fontSize: 11 }} tickFormatter={(v: any) => `₦${(Number(v) / 1_000_000).toFixed(1)}M`} />
                     <Tooltip
                       contentStyle={{ fontSize: 12, borderRadius: 8 }}
                       formatter={(v: number) => [`₦${v.toLocaleString()}`, 'Volume']}
@@ -451,7 +451,7 @@ export function AnalyticsTab() {
                   <LineChart data={compliance?.withholdingTaxTracking ?? []} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
                     <XAxis dataKey="month" tick={{ fontSize: 11 }} />
-                    <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `₦${(v / 1_000_000).toFixed(1)}M`} />
+                    <YAxis tick={{ fontSize: 11 }} tickFormatter={(v: any) => `₦${(Number(v) / 1_000_000).toFixed(1)}M`} />
                     <Tooltip
                       contentStyle={{ fontSize: 12, borderRadius: 8 }}
                       formatter={(v: number) => [`₦${v.toLocaleString()}`, 'WHT Amount']}

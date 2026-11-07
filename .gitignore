@@ -44,6 +44,9 @@ yarn-error.log*
 # AI assistant metadata
 .serena/
 **/.serena/
+.agents/
+.claude/
+skills-lock.json
 
 # Android
 android/app/build/

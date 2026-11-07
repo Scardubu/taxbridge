@@ -64,7 +64,7 @@ export const SyncHealthChart = memo<SyncHealthChartProps>(function SyncHealthCha
           tick={{ fontSize: 12, fill: '#6B7280' }}
           axisLine={{ stroke: '#E5E7EB' }}
           domain={[0, 100]}
-          tickFormatter={(v) => `${v}%`}
+          tickFormatter={(v: any) => `${v}%`}
         />
         <Tooltip
           contentStyle={{
