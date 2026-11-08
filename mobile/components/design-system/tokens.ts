@@ -141,19 +141,74 @@ export const radius = {
   full: Radii.pill,
 } as const;
 
+export const LightColors = {
+  brand: {
+    primary: '#1D9E75',
+    primaryDark: '#0F6E56',
+    primaryDim: '#E8F5F1',
+    border: '#A7F3D0',
+    accent: '#059669',
+    badge: '#047857',
+    badgeBg: '#D1FAE5',
+  },
+  status: {
+    dangerBg: '#FEF2F2',
+    dangerBorder: '#FECACA',
+    dangerText: '#DC2626',
+    warningBg: '#FFFBEB',
+    warningBorder: '#FDE68A',
+    warningText: '#D97706',
+    successBg: '#ECFDF5',
+    successBorder: '#A7F3D0',
+    successText: '#059669',
+    neutralBg: '#F3F4F6',
+    neutralText: '#4B5563',
+  },
+  ui: {
+    bg: '#F9FAFB',
+    surface: '#FFFFFF',
+    surfaceAlt: '#F3F4F6',
+    border: '#E5E7EB',
+    text: '#111827',
+    textMuted: '#4B5563',
+    textDim: '#6B7280',
+    white: '#FFFFFF',
+  },
+  shield: Colors.shield,
+  receipt: {
+    vatCredit: '#059669',
+    vatCreditBg: '#ECFDF5',
+    unverified: '#B45309',
+    unverifiedBg: '#FFFBEB',
+    duplicate: '#7C3AED',
+    duplicateBg: '#F5F3FF',
+  },
+} as const;
+
 export function useTokens() {
+  let isDark = true;
+  try {
+    const { AppKV } = require('../../storage/kv');
+    isDark = AppKV.prefs.isDarkMode();
+  } catch {
+    isDark = true;
+  }
+
+  const active = isDark ? Colors : LightColors;
+
   return {
-    bg: Colors.ui.bg,
-    bgCard: Colors.ui.surface,
-    bgInput: Colors.ui.surfaceAlt,
-    textPrimary: Colors.ui.text,
-    textSecondary: Colors.ui.textMuted,
-    textMuted: Colors.ui.textDim,
-    border: Colors.ui.border,
-    brandPrimary: Colors.brand.primary,
-    complianceShield: Colors.shield.score100,
-    complianceWarning: Colors.shield.score50,
-    complianceDanger: Colors.shield.score20,
+    isDark,
+    bg: active.ui.bg,
+    bgCard: active.ui.surface,
+    bgInput: active.ui.surfaceAlt,
+    textPrimary: active.ui.text,
+    textSecondary: active.ui.textMuted,
+    textMuted: active.ui.textDim,
+    border: active.ui.border,
+    brandPrimary: active.brand.primary,
+    complianceShield: active.shield.score100,
+    complianceWarning: active.shield.score50,
+    complianceDanger: active.shield.score20,
   };
 }
 

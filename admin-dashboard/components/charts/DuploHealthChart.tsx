@@ -42,12 +42,12 @@ export function DuploHealthChart({ data }: DuploHealthChartProps) {
         <XAxis 
           dataKey="timestamp" 
           tick={{ fontSize: 12 }}
-          tickFormatter={(value) => safeDate(value, { timeStyle: 'short' })}
+          tickFormatter={(value: any) => safeDate(value, { timeStyle: 'short' })}
         />
         <YAxis yAxisId="left" tick={{ fontSize: 12 }} />
         <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} />
         <Tooltip
-          labelFormatter={(value) => (value ? safeDate(value) : '')}
+          labelFormatter={(value: any) => (value ? safeDate(value) : '')}
           formatter={tooltipFormatter}
         />
         <Line

@@ -129,7 +129,7 @@ backend/
    REMITA_MERCHANT_ID="your-merchant-id"
    REMITA_API_KEY="your-api-key"
    REMITA_SERVICE_TYPE_ID="your-service-type"
-   REMITA_API_URL="https://remitademo.net"
+   REMITA_API_URL="https://demo.remita.net"
    
    # SMS (Africa's Talking)
    COMMS_PROVIDER=africastalking

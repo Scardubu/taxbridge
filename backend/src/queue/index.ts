@@ -7,6 +7,7 @@ initialiseObservability();
 
 import { closeRedisConnection, getRedisConnection, toBullMQConnection } from './client';
 import { submitToDigiTax } from '../../integrations/digitax/adapter';
+import { resolveDigiTaxMockMode } from '../integrations/digitax/mockMode';
 import { DigiTaxError } from '../../integrations/digitax/adapter';
 import { generateUBL } from '../lib/ubl/generator';
 import { validateUblXml } from '../lib/ubl/validate';
@@ -107,7 +108,7 @@ export const invoiceSyncWorker = new Worker(
         throw new Error(validation.error || 'UBL validation failed');
       }
 
-      const mockMode = String(process.env.DIGITAX_MOCK_MODE || 'true').toLowerCase() !== 'false';
+      const mockMode = resolveDigiTaxMockMode();
       const digitaxApiUrl = (process.env.DIGITAX_API_URL || '').trim();
 
       const submitResult = await submitToDigiTax(

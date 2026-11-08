@@ -82,7 +82,7 @@ export function InvoicesTab() {
   const [resubmittingId, setResubmittingId] = useState<string | null>(null);
 
   const url = statusFilter ? `/api/admin/invoices?status=${statusFilter}` : '/api/admin/invoices';
-  const { data, error, mutate } = useSWR<InvoiceListResponse>(url, fetcher, { refreshInterval: 300_000 });
+  const { data, error, mutate, isLoading } = useSWR<InvoiceListResponse>(url, fetcher, { refreshInterval: 300_000 });
 
   const invoices = data?.invoices ?? [];
   const isFallback = Boolean(data?.fallback);
@@ -208,18 +208,18 @@ export function InvoicesTab() {
               <TableHeader>
                 <TableRow className="bg-slate-50 dark:bg-slate-900">
                   <TableHead className="pl-4">Customer</TableHead>
-                  <TableHead>Business</TableHead>
+                  <TableHead className="hidden lg:table-cell">Business</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Subtotal</TableHead>
-                  <TableHead className="text-right">VAT</TableHead>
+                  <TableHead className="hidden text-right lg:table-cell">Subtotal</TableHead>
+                  <TableHead className="hidden text-right lg:table-cell">VAT</TableHead>
                   <TableHead className="text-right">Total</TableHead>
-                  <TableHead>NRS Ref</TableHead>
-                  <TableHead>Created</TableHead>
+                  <TableHead className="hidden xl:table-cell">NRS Ref</TableHead>
+                  <TableHead className="hidden md:table-cell">Created</TableHead>
                   <TableHead className="w-10" />
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filtered.length === 0 ? (
+                {isLoading ? (Array.from({ length: 5 }).map((_, i) => (<TableRow key={`sk-${i}`} aria-hidden="true"><TableCell colSpan={9} className="p-3"><div className="h-6 animate-pulse rounded bg-slate-100 dark:bg-slate-800" /></TableCell></TableRow>))) : filtered.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={9} className="p-6">
                       <AdminEmptyState
@@ -242,25 +242,25 @@ export function InvoicesTab() {
                       <TableCell className="pl-4 font-medium text-slate-900 dark:text-slate-100">
                         {inv.customerName || <span className="text-slate-400 italic">No name</span>}
                       </TableCell>
-                      <TableCell className="text-sm text-slate-600 dark:text-slate-400">{inv.user.name}</TableCell>
+                      <TableCell className="hidden text-sm text-slate-600 dark:text-slate-400 lg:table-cell">{inv.user.name}</TableCell>
                       <TableCell>
                         <StatusPill status={pill.status} label={inv.status} />
                       </TableCell>
-                      <TableCell className="text-right tabular-nums text-sm">{formatCurrencyNGN(inv.subtotal)}</TableCell>
-                      <TableCell className="text-right tabular-nums text-sm">{formatCurrencyNGN(inv.vat)}</TableCell>
+                      <TableCell className="hidden text-right tabular-nums text-sm lg:table-cell">{formatCurrencyNGN(inv.subtotal)}</TableCell>
+                      <TableCell className="hidden text-right tabular-nums text-sm lg:table-cell">{formatCurrencyNGN(inv.vat)}</TableCell>
                       <TableCell className="text-right tabular-nums text-sm font-semibold">{formatCurrencyNGN(inv.total)}</TableCell>
-                      <TableCell className="text-xs text-slate-500">
+                      <TableCell className="hidden text-xs text-slate-500 xl:table-cell">
                         {inv.nrsReference
                           ? <span className="font-mono text-[11px]">{inv.nrsReference}</span>
                           : <span className="italic text-slate-300">—</span>}
                       </TableCell>
-                      <TableCell className="text-sm text-slate-500">
+                      <TableCell className="hidden text-sm text-slate-500 md:table-cell">
                         {safeDate(inv.createdAt, { dateStyle: 'short' })}
                       </TableCell>
                       <TableCell onClick={(e) => e.stopPropagation()}>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Invoice actions">
+                            <Button variant="ghost" size="icon" className="h-10 w-10" aria-label="Invoice actions">
                               <MoreHorizontal className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>
@@ -323,7 +323,23 @@ export function InvoicesTab() {
                 )}
               </div>
               {selectedInvoice.ublXml ? (
-                <UBLViewer xml={selectedInvoice.ublXml} />
+                <UBLViewer
+                  xml={selectedInvoice.ublXml}
+                  metadata={{
+                    id: selectedInvoice.id,
+                    status: selectedInvoice.status,
+                    customerName: selectedInvoice.customerName,
+                    customerTIN: selectedInvoice.customerTIN,
+                    supplierName: selectedInvoice.user?.name,
+                    supplierTIN: selectedInvoice.user?.tin,
+                    nrsReference: selectedInvoice.nrsReference,
+                    createdAt: selectedInvoice.createdAt,
+                    updatedAt: selectedInvoice.updatedAt,
+                    subtotal: selectedInvoice.subtotal,
+                    vat: selectedInvoice.vat,
+                    total: selectedInvoice.total,
+                  }}
+                />
               ) : (
                 <p className="rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-900">
                   No UBL XML available for this invoice.

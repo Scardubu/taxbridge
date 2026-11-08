@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import { validateUblXml } from '../../lib/ubl/validate';
+import { resolveDigiTaxMockMode } from './mockMode';
 
 export class DigiTaxError extends Error {
   retriable: boolean;
@@ -47,7 +48,7 @@ export async function submitToDigiTax(
   }
 
   // Mock mode for local development / sandbox
-  const useMock = mockMode ?? true;
+  const useMock = mockMode ?? resolveDigiTaxMockMode();
   if (useMock) {
     await new Promise((r) => setTimeout(r, 400));
     return {

@@ -67,19 +67,40 @@ describe('PaystackAdapter', () => {
   });
 
   describe('verifyWebhookSignature', () => {
-    it('should verify valid HMAC-SHA512 signature', () => {
+    it('verifies a legacy signature over the exact raw request body', () => {
       const crypto = require('crypto');
-      const payload = '{"event":"charge.success"}';
-      const expectedHash = crypto
-        .createHmac('sha512', 'sk_test_mock')
-        .update(payload)
-        .digest('hex');
+      const payload = Buffer.from('{"event":"charge.success","data":{"amount":2500.00}}');
+      const expectedHash = crypto.createHmac('sha512', 'sk_test_mock').update(payload).digest('hex');
 
       expect(adapter.verifyWebhookSignature(payload, expectedHash)).toBe(true);
+      expect(adapter.verifyWebhookSignature(Buffer.from(payload.toString() + ' '), expectedHash)).toBe(false);
     });
 
-    it('should reject invalid signature', () => {
+    it('verifies timestamped signatures during signing-secret rotation', () => {
+      const crypto = require('crypto');
+      const payload = Buffer.from('{"event":"charge.success"}');
+      const now = 1_700_000_000;
+      const expectedHash = crypto.createHmac('sha512', 'whsec_mock')
+        .update(Buffer.concat([Buffer.from(String(now) + '.'), payload])).digest('hex');
+      const header = `t=${now},v1=whk_old:0000,v1=whk_current:${expectedHash}`;
+
+      expect(adapter.verifyWebhookSignature(payload, header, now)).toBe(true);
+    });
+
+    it('rejects timestamped signatures outside the 300-second replay window', () => {
+      const crypto = require('crypto');
+      const payload = Buffer.from('{"event":"charge.success"}');
+      const timestamp = 1_700_000_000;
+      const expectedHash = crypto.createHmac('sha512', 'whsec_mock')
+        .update(Buffer.concat([Buffer.from(String(timestamp) + '.'), payload])).digest('hex');
+      const header = `t=${timestamp},v1=whk_current:${expectedHash}`;
+
+      expect(adapter.verifyWebhookSignature(payload, header, timestamp + 301)).toBe(false);
+    });
+
+    it('rejects malformed and invalid signatures', () => {
       expect(adapter.verifyWebhookSignature('payload', 'invalid_sig')).toBe(false);
+      expect(adapter.verifyWebhookSignature('payload', '')).toBe(false);
     });
   });
 });

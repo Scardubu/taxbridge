@@ -1,74 +1,71 @@
-/**
- * Paystack Webhook — TaxBridge V13 Sovereign
- *
- * PAYSTACK uses 'x-paystack-signature' header (NOT verif-hash — that is Flutterwave)
- * Signature: HMAC-SHA256 of raw body, hex-encoded
- * Redis NX idempotency: webhook:paystack:${reference} 48h TTL
- */
-import { FastifyPluginAsync }              from 'fastify';
-import { timingSafeEqual, createHmac }    from 'crypto';
-import { redis }                           from '../../lib/redis';
-import { writeAuditEvent }                 from '../../services/audit';
-import { logger }                          from '../../lib/logger';
+import type { PrismaClient } from '@prisma/client';
+import type { FastifyPluginAsync } from 'fastify';
+import { paystackAdapter } from '../../integrations/paystack/adapter';
+import { settleVerifiedPayment } from '../../services/verifiedPaymentWebhook';
 
-const paystackWebhook: FastifyPluginAsync = async (fastify) => {
+interface PaystackWebhookBody {
+  event?: string;
+  data?: {
+    id?: number | string;
+    reference?: string;
+  };
+}
+
+const paystackWebhook: FastifyPluginAsync<{ prisma: PrismaClient }> = async (fastify, opts) => {
   fastify.post('/paystack', async (request, reply) => {
-    const rawBody = (request as any).rawBody as Buffer | undefined;
-    if (!rawBody) return reply.code(400).send({ error: 'MISSING_BODY' });
+    const rawBody = (request as unknown as { rawBody?: Buffer }).rawBody;
+    if (!rawBody) return reply.code(400).send({ error: 'MISSING_RAW_BODY' });
 
-    const payload  = rawBody.toString('utf8');
-    const webhookSecret = process.env.PAYSTACK_WEBHOOK_SECRET;
-    if (!webhookSecret) return reply.code(500).send({ error: 'WEBHOOK_SECRET_NOT_CONFIGURED' });
-
-    const expected = createHmac('sha256', webhookSecret)
-      .update(payload).digest('hex');
-
-    // Paystack uses x-paystack-signature (hex string, NOT hex-decoded buffer)
-    const received = request.headers['x-paystack-signature'] as string | undefined;
-    if (!received) return reply.code(403).send({ error: 'MISSING_SIGNATURE' });
-
-    if (expected.length !== received.length || !timingSafeEqual(Buffer.from(expected), Buffer.from(received))) {
-      return reply.code(403).send({ error: 'INVALID_SIGNATURE' });
+    const headerValue = request.headers['paystack-signature'] ?? request.headers['x-paystack-signature'];
+    const signature = Array.isArray(headerValue) ? headerValue[0] : headerValue ?? '';
+    if (!paystackAdapter.verifyWebhookSignature(rawBody, signature)) {
+      return reply.code(401).send({ error: 'INVALID_SIGNATURE' });
     }
 
-    const body      = request.body as { data?: { reference?: string; status?: string; amount?: number; currency?: string } };
-    const reference = body.data?.reference;
+    const event = request.body as PaystackWebhookBody;
+    if (event?.event === 'ping') return reply.code(200).send({ status: 'acknowledged' });
+    if (event?.event !== 'charge.success') return reply.code(200).send({ status: 'ignored' });
+
+    const reference = event.data?.reference;
     if (!reference) return reply.code(400).send({ error: 'MISSING_REFERENCE' });
 
-    const idemKey = `webhook:paystack:${reference}`;
-    const isNew   = await redis.set(idemKey, '1', 'EX', 172_800, 'NX'); // 48h TTL
-    if (!isNew) {
-      return reply.send({ status: 'already_processed' });
+    try {
+      // The signed event is only a notification. Confirm the transaction with
+      // Paystack's verify endpoint before changing payment or invoice state.
+      const verified = await paystackAdapter.verifyTransaction(reference);
+      const currency = verified.currency;
+      if (
+        verified.status !== 'success' ||
+        verified.reference !== reference ||
+        verified.amount === undefined ||
+        !currency ||
+        currency.toUpperCase() !== 'NGN'
+      ) {
+        return reply.code(503).send({ error: 'PAYMENT_PROVIDER_VERIFICATION_PENDING' });
+      }
+
+      const outcome = await settleVerifiedPayment(opts.prisma, {
+        gateway: 'paystack',
+        reference,
+        gatewayRef: event.data?.id === undefined ? undefined : String(event.data.id),
+        amountNgn: verified.amount,
+        currency,
+        channel: verified.channel,
+        paidAt: verified.paidAt ? new Date(verified.paidAt) : undefined,
+      });
+
+      if (outcome === 'updated' || outcome === 'already_paid') {
+        request.log.info({ reference, outcome }, 'Paystack payment verified and reconciled');
+        return reply.code(200).send({ status: outcome === 'updated' ? 'accepted' : 'already_processed' });
+      }
+      if (outcome === 'not_found') return reply.code(404).send({ error: 'PAYMENT_NOT_FOUND' });
+      request.log.error({ reference, outcome }, 'Paystack payment requires reconciliation');
+      return reply.code(409).send({ error: 'PAYMENT_RECONCILIATION_REQUIRED', reason: outcome });
+    } catch (error) {
+      request.log.error({ err: error }, 'Paystack webhook verification or settlement failed');
+      return reply.code(503).send({ error: 'PAYMENT_WEBHOOK_RETRY_REQUIRED' });
     }
-
-    processPaystackPayment(reference, body.data?.status, body.data?.amount)
-      .catch(err => fastify.log.error({ err, reference }, 'Paystack payment processing failed'));
-
-    return reply.send({ status: 'accepted' });
   });
 };
-
-async function processPaystackPayment(
-  reference: string,
-  status?:   string,
-  amount?:   number,
-): Promise<void> {
-  if (status !== 'success') {
-    logger.info({ reference, status }, 'Paystack payment not successful — skipping');
-    return;
-  }
-
-  // Amount from Paystack is in kobo (× 100)
-  const amountNGN = (amount ?? 0) / 100;
-
-  await writeAuditEvent({
-    actorId:  'system',
-    action:   'PAYMENT_RECEIVED',
-    resource: 'Payment',
-    details:  { reference, gateway: 'paystack', amount: amountNGN },
-  });
-
-  logger.info({ reference, amount: amountNGN }, 'Paystack payment processed');
-}
 
 export default paystackWebhook;

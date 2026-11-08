@@ -1,22 +1,23 @@
 # TaxBridge Staging Environment - Render Blueprint
 # Deploy: render blueprint create --repo taxbridge --file render.staging.yaml
-# Last Updated: 2026-01-17 16:15 UTC (F3 deployment fixes)
+# Last Updated: 2026-11-07 (V14.2 Staging Blueprint Reconciliation)
 
 services:
   - type: web
     name: taxbridge-api-staging
     runtime: node
     plan: starter
-    region: oregon
+    region: frankfurt
     branch: master
-    autoDeploy: true
+    autoDeploy: false
+    preDeployCommand: npx prisma migrate deploy --schema=backend/prisma/schema.prisma
     buildCommand: >-
-      yarn install --frozen-lockfile --production=false &&
-      yarn workspace @taxbridge/contracts build &&
-      yarn workspace @taxbridge/backend build &&
-      yarn workspace @taxbridge/backend ubl:download-xsd
-    startCommand: yarn workspace @taxbridge/backend start
-    healthCheckPath: /health/live
+      npm ci &&
+      npm run build --workspace=@taxbridge/contracts &&
+      npm run build --workspace=@taxbridge/backend &&
+      npm run ubl:download-xsd --workspace=@taxbridge/backend
+    startCommand: npm run start --workspace=@taxbridge/backend
+    healthCheckPath: /health/ready
     envVars:
       - key: NODE_VERSION
         value: 20.19.4
@@ -28,28 +29,67 @@ services:
         value: "true"
       - key: DIGITAX_MOCK_MODE
         value: "true"
+      - key: NRS_MOCK_MODE
+        value: "true"
       - key: REMITA_MOCK_MODE
         value: "true"
+      - key: PAYSTACK_MOCK_MODE
+        value: "true"
+      - key: FLW_MOCK_MODE
+        value: "true"
+        value: https://sandbox.digitax.com/api
       - key: DIGITAX_API_URL
         value: https://sandbox.digitax.com/api
+      - key: NRS_API_URL
+        value: https://sandbox.digitax.com/api
+      - key: REMITA_API_URL
+        value: https://demo.remita.net
+      - key: PAYSTACK_BASE_URL
+        value: https://api.paystack.co
+      - key: FLW_BASE_URL
+        value: https://api.flutterwave.com
       - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_URL
         sync: false
       - key: REDIS_URL
         fromService:
           type: redis
           name: taxbridge-redis-staging
           property: connectionString
-      - key: DUPLO_CLIENT_ID
-        value: staging_dummy_client_id
-      - key: DUPLO_CLIENT_SECRET
-        value: staging_dummy_client_secret
+        sync: false
+        sync: false
+      - key: NRS_API_KEY
+        sync: false
       - key: REMITA_MERCHANT_ID
-        value: staging_dummy_merchant
+        sync: false
       - key: REMITA_API_KEY
-        value: staging_dummy_api_key
+        sync: false
       - key: REMITA_SERVICE_TYPE_ID
-        value: staging_dummy_service
+        sync: false
       - key: REMITA_WEBHOOK_SECRET
+        sync: false
+      - key: PAYSTACK_SECRET_KEY
+        sync: false
+      - key: PAYSTACK_WEBHOOK_SECRET
+        sync: false
+      - key: PAYSTACK_PUBLIC_KEY
+        sync: false
+      - key: FLW_PUBLIC_KEY
+        sync: false
+      - key: FLW_SECRET_KEY
+        sync: false
+      - key: FLW_SECRET_HASH
+        sync: false
+      - key: FLW_ENCRYPTION_KEY
+        sync: false
+      - key: JWT_PRIVATE_KEY
+        sync: false
+      - key: JWT_PUBLIC_KEY
+        sync: false
+      - key: INTERNAL_API_KEY
+        sync: false
+      - key: ADMIN_API_KEYS
         sync: false
       - key: JWT_SECRET
         sync: false
@@ -80,15 +120,15 @@ services:
     name: taxbridge-worker-staging
     runtime: node
     plan: starter
-    region: oregon
+    region: frankfurt
     branch: master
-    autoDeploy: true
+    autoDeploy: false
     buildCommand: >-
-      yarn install --frozen-lockfile --production=false &&
-      yarn workspace @taxbridge/contracts build &&
-      yarn workspace @taxbridge/backend build &&
-      yarn workspace @taxbridge/backend ubl:download-xsd
-    startCommand: yarn workspace @taxbridge/backend worker
+      npm ci &&
+      npm run build --workspace=@taxbridge/contracts &&
+      npm run build --workspace=@taxbridge/backend &&
+      npm run ubl:download-xsd --workspace=@taxbridge/backend
+    startCommand: npm run worker --workspace=@taxbridge/backend
     envVars:
       - key: NODE_VERSION
         value: 20.19.4
@@ -98,27 +138,56 @@ services:
         value: "true"
       - key: DIGITAX_MOCK_MODE
         value: "true"
+      - key: NRS_MOCK_MODE
+        value: "true"
       - key: REMITA_MOCK_MODE
         value: "true"
+      - key: PAYSTACK_MOCK_MODE
+        value: "true"
+      - key: FLW_MOCK_MODE
+        value: "true"
+        value: https://sandbox.digitax.com/api
       - key: DIGITAX_API_URL
         value: https://sandbox.digitax.com/api
+      - key: NRS_API_URL
+        value: https://sandbox.digitax.com/api
+      - key: REMITA_API_URL
+        value: https://demo.remita.net
+      - key: PAYSTACK_BASE_URL
+        value: https://api.paystack.co
+      - key: FLW_BASE_URL
+        value: https://api.flutterwave.com
       - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_URL
         sync: false
       - key: REDIS_URL
         fromService:
           type: redis
           name: taxbridge-redis-staging
           property: connectionString
-      - key: DUPLO_CLIENT_ID
-        value: staging_dummy_client_id
-      - key: DUPLO_CLIENT_SECRET
-        value: staging_dummy_client_secret
+        sync: false
+        sync: false
+      - key: NRS_API_KEY
+        sync: false
       - key: REMITA_MERCHANT_ID
-        value: staging_dummy_merchant
+        sync: false
       - key: REMITA_API_KEY
-        value: staging_dummy_api_key
+        sync: false
       - key: REMITA_SERVICE_TYPE_ID
-        value: staging_dummy_service
+        sync: false
+      - key: PAYSTACK_SECRET_KEY
+        sync: false
+      - key: PAYSTACK_PUBLIC_KEY
+        sync: false
+      - key: FLW_PUBLIC_KEY
+        sync: false
+      - key: FLW_SECRET_KEY
+        sync: false
+      - key: FLW_SECRET_HASH
+        sync: false
+      - key: FLW_ENCRYPTION_KEY
+        sync: false
       - key: JWT_SECRET
         sync: false
       - key: JWT_REFRESH_SECRET
@@ -139,6 +208,6 @@ services:
   - type: redis
     name: taxbridge-redis-staging
     plan: starter
-    region: oregon
+    region: frankfurt
     maxmemoryPolicy: noeviction
     ipAllowList: []

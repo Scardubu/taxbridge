@@ -35,6 +35,8 @@
     "integrate:new-files": "powershell -ExecutionPolicy Bypass -File scripts/integrate-new-files.ps1"
   },
   "devDependencies": {
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
     "next": "16.1.1",
     "typescript": "~5.9.2"
   }

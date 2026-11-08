@@ -1,70 +1,72 @@
-/**
- * Flutterwave Webhook — TaxBridge V13 Sovereign
- *
- * C-37: HMAC rawBody via Fastify content-type parser + timingSafeEqual
- * Flutterwave uses 'verif-hash' header (NOT x-paystack-signature)
- * Redis NX idempotency: webhook:flw:${txRef} 48h TTL
- */
-import { FastifyPluginAsync }              from 'fastify';
-import { timingSafeEqual }                from 'crypto';
-import { redis }                           from '../../lib/redis';
-import { writeAuditEvent }                 from '../../services/audit';
-import { logger }                          from '../../lib/logger';
+import type { PrismaClient } from '@prisma/client';
+import type { FastifyPluginAsync } from 'fastify';
+import { flutterwaveAdapter } from '../../integrations/flutterwave/adapter';
+import { settleVerifiedPayment } from '../../services/verifiedPaymentWebhook';
 
-const flutterwaveWebhook: FastifyPluginAsync = async (fastify) => {
+interface FlutterwaveWebhookBody {
+  event?: string;
+  data?: {
+    id?: number | string;
+    tx_ref?: string;
+  };
+}
+
+const flutterwaveWebhook: FastifyPluginAsync<{ prisma: PrismaClient }> = async (fastify, opts) => {
   fastify.post('/flutterwave', async (request, reply) => {
-    const rawBody = (request as any).rawBody as Buffer | undefined;
-    if (!rawBody) return reply.code(400).send({ error: 'MISSING_BODY' });
-
-    const hashHeader = request.headers['verif-hash'] as string | undefined;
-    if (!hashHeader) return reply.code(403).send({ error: 'MISSING_SIGNATURE' });
-
-    const secretHash = process.env.FLW_SECRET_HASH;
-    if (!secretHash) return reply.code(500).send({ error: 'WEBHOOK_SECRET_NOT_CONFIGURED' });
-
-    const expected = Buffer.from(secretHash, 'utf8');
-    const received = Buffer.from(hashHeader, 'utf8');
-
-    if (expected.length !== received.length || !timingSafeEqual(expected, received)) {
-      return reply.code(403).send({ error: 'INVALID_SIGNATURE' });
+    const headerValue = request.headers['verif-hash'];
+    const signature = Array.isArray(headerValue) ? headerValue[0] : headerValue ?? '';
+    if (!flutterwaveAdapter.verifyWebhookSignature(signature)) {
+      return reply.code(401).send({ error: 'INVALID_SIGNATURE' });
     }
 
-    const body  = request.body as { data?: { tx_ref?: string; status?: string; amount?: number } };
-    const txRef = body.data?.tx_ref;
-    if (!txRef) return reply.code(400).send({ error: 'MISSING_TX_REF' });
+    const event = request.body as FlutterwaveWebhookBody;
+    if (event?.event !== 'charge.completed') return reply.code(200).send({ status: 'ignored' });
 
-    const idemKey = `webhook:flw:${txRef}`;
-    const isNew   = await redis.set(idemKey, '1', 'EX', 172_800, 'NX'); // 48h TTL
-    if (!isNew) {
-      return reply.send({ status: 'already_processed' });
+    const reference = event.data?.tx_ref;
+    const transactionId = event.data?.id;
+    if (!reference || transactionId === undefined) {
+      return reply.code(400).send({ error: 'MISSING_TRANSACTION_REFERENCE' });
     }
 
-    // Process payment fire-and-forget
-    processFlutterwavePayment(txRef, body.data?.status, body.data?.amount)
-      .catch(err => fastify.log.error({ err, txRef }, 'Flutterwave payment processing failed'));
+    try {
+      // Verify by transaction ID and reconcile the authoritative reference,
+      // currency, and amount before any payment state transition.
+      const verified = await flutterwaveAdapter.verifyTransaction(String(transactionId));
+      const currency = verified.currency;
+      if (
+        verified.status !== 'successful' ||
+        verified.reference !== reference ||
+        verified.amount === undefined ||
+        !currency ||
+        currency.toUpperCase() !== 'NGN'
+      ) {
+        return reply.code(503).send({ error: 'PAYMENT_PROVIDER_VERIFICATION_PENDING' });
+      }
 
-    return reply.send({ status: 'accepted' });
+      const outcome = await settleVerifiedPayment(opts.prisma, {
+        gateway: 'flutterwave',
+        reference,
+        gatewayRef: verified.flwRef,
+        amountNgn: verified.amount,
+        currency,
+        channel: verified.channel,
+        paidAt: verified.paidAt ? new Date(verified.paidAt) : undefined,
+        // Flutterwave permits overpayment but not underpayment.
+        allowOverpayment: true,
+      });
+
+      if (outcome === 'updated' || outcome === 'already_paid') {
+        request.log.info({ reference, outcome }, 'Flutterwave payment verified and reconciled');
+        return reply.code(200).send({ status: outcome === 'updated' ? 'accepted' : 'already_processed' });
+      }
+      if (outcome === 'not_found') return reply.code(404).send({ error: 'PAYMENT_NOT_FOUND' });
+      request.log.error({ reference, outcome }, 'Flutterwave payment requires reconciliation');
+      return reply.code(409).send({ error: 'PAYMENT_RECONCILIATION_REQUIRED', reason: outcome });
+    } catch (error) {
+      request.log.error({ err: error }, 'Flutterwave webhook verification or settlement failed');
+      return reply.code(503).send({ error: 'PAYMENT_WEBHOOK_RETRY_REQUIRED' });
+    }
   });
 };
-
-async function processFlutterwavePayment(
-  txRef:  string,
-  status?: string,
-  amount?: number,
-): Promise<void> {
-  if (status !== 'successful') {
-    logger.info({ txRef, status }, 'Flutterwave payment not successful — skipping');
-    return;
-  }
-
-  await writeAuditEvent({
-    actorId:  'system',
-    action:   'PAYMENT_RECEIVED',
-    resource: 'Payment',
-    details:  { txRef, gateway: 'flutterwave', amount },
-  });
-
-  logger.info({ txRef, amount }, 'Flutterwave payment processed');
-}
 
 export default flutterwaveWebhook;

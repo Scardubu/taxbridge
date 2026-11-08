@@ -1,65 +1,61 @@
-/**
- * Remita Webhook — TaxBridge V13 Sovereign
- *
- * Verify RRR (Remita Retrieval Reference) via Remita status API.
- * Redis NX idempotency: webhook:remita:${rrr} 48h TTL
- */
-import { FastifyPluginAsync }  from 'fastify';
-import { redis }               from '../../lib/redis';
-import { writeAuditEvent }     from '../../services/audit';
-import { logger }              from '../../lib/logger';
+import type { PrismaClient } from '@prisma/client';
+import type { FastifyPluginAsync } from 'fastify';
+import { remitaAdapter } from '../../integrations/remita/adapter';
+import { settleVerifiedPayment } from '../../services/verifiedPaymentWebhook';
 
-const remitaWebhook: FastifyPluginAsync = async (fastify) => {
+interface RemitaWebhookBody {
+  rrr?: string;
+}
+
+const remitaWebhook: FastifyPluginAsync<{ prisma: PrismaClient }> = async (fastify, opts) => {
   fastify.post('/remita', async (request, reply) => {
-    const body = request.body as { rrr?: string; status?: string; amount?: number };
-    const rrr  = body.rrr;
-
+    const body = request.body as RemitaWebhookBody;
+    const rrr = body?.rrr?.trim();
     if (!rrr) return reply.code(400).send({ error: 'MISSING_RRR' });
 
-    const idemKey = `webhook:remita:${rrr}`;
-    const isNew   = await redis.set(idemKey, '1', 'EX', 172_800, 'NX'); // 48h TTL
-    if (!isNew) {
-      return reply.send({ status: 'already_processed' });
+    // Never accept webhook-only confirmation. Missing credentials, an unknown
+    // RRR, or a non-final provider status all keep the payment unpaid.
+    if (
+      !process.env.REMITA_MERCHANT_ID ||
+      !process.env.REMITA_API_KEY ||
+      !process.env.REMITA_SERVICE_TYPE_ID ||
+      !process.env.REMITA_API_URL
+    ) {
+      request.log.error({ rrr }, 'Remita verification configuration is incomplete');
+      return reply.code(503).send({ error: 'REMITA_VERIFICATION_UNCONFIGURED' });
     }
 
-    // Verify RRR via Remita status API
-    const verified = await verifyRemitaRRR(rrr).catch(() => false);
-    if (!verified) {
-      // Remove idempotency key to allow retry
-      await redis.del(idemKey).catch(() => {});
-      return reply.code(422).send({ error: 'RRR_VERIFICATION_FAILED' });
+    try {
+      const verified = await remitaAdapter.verifyPayment(rrr, 'webhook');
+      if (
+        verified.status !== 'paid' ||
+        verified.transactionRef !== rrr ||
+        verified.amount === undefined
+      ) {
+        return reply.code(503).send({ error: 'REMITA_PROVIDER_VERIFICATION_PENDING' });
+      }
+
+      const outcome = await settleVerifiedPayment(opts.prisma, {
+        gateway: 'remita',
+        reference: rrr,
+        gatewayRef: verified.transactionRef,
+        amountNgn: verified.amount,
+        currency: 'NGN',
+        paidAt: verified.paymentDate ? new Date(verified.paymentDate) : undefined,
+      });
+
+      if (outcome === 'updated' || outcome === 'already_paid') {
+        request.log.info({ rrr, outcome }, 'Remita payment verified and reconciled');
+        return reply.code(200).send({ status: outcome === 'updated' ? 'accepted' : 'already_processed' });
+      }
+      if (outcome === 'not_found') return reply.code(404).send({ error: 'PAYMENT_NOT_FOUND' });
+      request.log.error({ rrr, outcome }, 'Remita payment requires reconciliation');
+      return reply.code(409).send({ error: 'PAYMENT_RECONCILIATION_REQUIRED', reason: outcome });
+    } catch (error) {
+      request.log.error({ err: error, rrr }, 'Remita webhook verification or settlement failed');
+      return reply.code(503).send({ error: 'PAYMENT_WEBHOOK_RETRY_REQUIRED' });
     }
-
-    await writeAuditEvent({
-      actorId:  'system',
-      action:   'PAYMENT_RECEIVED',
-      resource: 'Payment',
-      details:  { rrr, gateway: 'remita', amount: body.amount },
-    });
-
-    logger.info({ rrr, amount: body.amount }, 'Remita payment processed');
-    return reply.send({ status: 'accepted' });
   });
 };
-
-async function verifyRemitaRRR(rrr: string): Promise<boolean> {
-  const merchantId = process.env.REMITA_MERCHANT_ID;
-  if (!merchantId) {
-    logger.warn({ rrr }, 'REMITA_MERCHANT_ID not set — skipping RRR verification');
-    return true; // Graceful degradation in dev
-  }
-
-  try {
-    const res = await fetch(
-      `https://remitademo.net/remita/exapp/api/v1/send/api/echannelsvc/${merchantId}/${rrr}/status.reg`,
-      { headers: { 'Content-Type': 'application/json' } },
-    );
-    const data: any = await res.json();
-    return data?.status === '00' || data?.status === 'PAID';
-  } catch (err) {
-    logger.warn({ err, rrr }, 'Remita RRR verification failed');
-    return false;
-  }
-}
 
 export default remitaWebhook;

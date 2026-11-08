@@ -466,6 +466,7 @@ jest.mock('expo-sqlite', () => ({
     runAsync: jest.fn(() => Promise.resolve({ lastInsertRowId: 1, changes: 1 })),
     getFirstAsync: jest.fn(() => Promise.resolve(null)),
     execAsync: jest.fn(() => Promise.resolve()),
+    closeAsync: jest.fn(() => Promise.resolve()),
     withExclusiveTransactionAsync: jest.fn((fn) => fn({
       getAllAsync: jest.fn(() => Promise.resolve([])),
       runAsync: jest.fn(() => Promise.resolve({ lastInsertRowId: 1, changes: 1 })),

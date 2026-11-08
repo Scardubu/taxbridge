@@ -52,7 +52,7 @@ export class RemitaClient {
   private serviceTypeId: string;
 
   constructor() {
-    this.baseURL = (process.env.REMITA_API_URL || 'https://remitademo.net').replace(/\/$/, '');
+    this.baseURL = (process.env.REMITA_API_URL || 'https://demo.remita.net').replace(/\/$/, '');
     this.merchantId = process.env.REMITA_MERCHANT_ID || '';
     this.apiKey = process.env.REMITA_API_KEY || '';
     this.serviceTypeId = process.env.REMITA_SERVICE_TYPE_ID || '';
@@ -78,11 +78,15 @@ export class RemitaClient {
     return crypto.createHash('sha512').update(payload).digest('hex');
   }
 
-  async checkHealth(): Promise<{ status: 'healthy' | 'degraded' | 'error'; latency: number | null }> {
+  async checkHealth(): Promise<{ status: 'healthy' | 'degraded' | 'error' | 'unconfigured' | 'mock'; latency: number | null }> {
     const startTime = Date.now();
 
     if (this.isMockMode()) {
-      return { status: 'healthy', latency: 2 };
+      return { status: 'mock', latency: null };
+    }
+
+    if (!this.merchantId || !this.apiKey || !this.serviceTypeId) {
+      return { status: 'unconfigured', latency: null };
     }
     
     try {

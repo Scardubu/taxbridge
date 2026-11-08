@@ -442,6 +442,7 @@
   "offline": {
     "title": "Offline mode active",
     "body": "Changes are being saved locally and will sync when connectivity returns.",
+    "pipelineDisabled": "Saved on this device — submission pipeline is disabled.",
     "syncing_one": "{{count}} operation syncing...",
     "syncing_other": "{{count}} operations syncing...",
     "syncing": "{{count}} operations syncing...",

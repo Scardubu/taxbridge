@@ -40,12 +40,6 @@ interface SubmissionDataPoint {
   failed: number;
 }
 
-interface MonthlyDataPoint {
-  month: string;
-  wthAmount: number;
-  invoiceCount: number;
-}
-
 // ─── C-12: Admin cold-start FALLBACK constants ──────────────────────────────
 // Returns 200 + zeroed data when DB is unavailable (Render idle cold-start).
 // C-08: No Math.random() — all values are deterministic zeroes.
@@ -81,14 +75,7 @@ const FALLBACK_LAUNCH_METRICS = {
   warnings:          ['Database unavailable — cold-start mode'],
 };
 
-const FALLBACK_ANALYTICS = {
-  overview:          { totalUsers: 0, totalInvoices: 0, totalPayments: 0, complianceRate: 0, monthlyGrowth: 0 },
-  duploMetrics:      { successTrend: [], errorBreakdown: [], dailySubmissions: [] },
-  remitaMetrics:     { transactionTrend: [], paymentBreakdown: [], dailyVolume: [] },
-  complianceMetrics: { exemptionUtilization: [], withholdingTaxTracking: [], nrsComplianceTrend: [] },
-  _coldStart:        true,
-  warnings:          ['Database unavailable — cold-start mode'],
-};
+
 
 export async function adminRoutes(app: FastifyInstance, options: { prisma: PrismaClient }) {
   const { prisma } = options;
@@ -521,361 +508,155 @@ export async function adminRoutes(app: FastifyInstance, options: { prisma: Prism
     }
   });
 
-  // Resubmit invoice to Duplo
+  // Legacy Duplo OAuth/XML submission is intentionally disabled.
+  // The approved NRS Gateway contract requires NRS JSON, per-business
+  // sub-business identity, an approved gateway domain, and idempotency.
   app.post('/invoices/:id/resubmit-duplo', {
-    schema: {
-      params: z.object({
-        id: z.string().uuid()
-      })
-    }
-  }, async (request, reply) => {
-    try {
-      const { id } = request.params as any;
-
-      const invoice = await prisma.invoice.findUnique({
-        where: { id },
-        include: { user: true }
-      });
-
-      if (!invoice) {
-        reply.code(404).send({ error: 'Invoice not found' });
-        return;
-      }
-
-      // Generate UBL XML (simplified version - in real implementation, use proper UBL generator)
-      const ublXml = generateUBLXml(invoice);
-
-      // Submit to Duplo
-      const duploResponse = await duploClient.submitEInvoice(ublXml);
-
-      // Update invoice with new IRN and status
-      await prisma.invoice.update({
-        where: { id },
-        data: {
-          ublXml,
-          nrsReference: duploResponse.irn,
-          status: duploResponse.status === 'success' ? 'stamped' : 'processing',
-          updatedAt: new Date()
-        }
-      });
-
-      // Create audit log
-      await prisma.auditLog.create({
-        data: {
-          action: 'INVOICE_RESUBMITTED',
-          userId: invoice.userId,
-          metadata: {
-            invoiceId: id,
-            irn: duploResponse.irn,
-            resubmittedBy: 'admin'
-          }
-        }
-      });
-
-      return { success: true, irn: duploResponse.irn };
-    } catch (error: unknown) {
-      app.log.error({ err: error }, 'Error resubmitting invoice');
-      
-      if (error instanceof PrismaClientKnownRequestError) {
-        if (error.code === 'P2025') {
-          return reply.code(404).send({ 
-            error: 'Invoice not found', 
-            code: 'INVOICE_NOT_FOUND' 
-          });
-        }
-        return reply.code(503).send({ 
-          error: 'Database update failed', 
-          code: 'DATABASE_ERROR',
-          details: error.code 
-        });
-      }
-      
-      if (error instanceof Error && error.message.includes('Duplo')) {
-        return reply.code(502).send({ 
-          error: 'Integration service unavailable', 
-          code: 'INTEGRATION_ERROR',
-          details: error.message 
-        });
-      }
-      
-      return reply.code(500).send({ 
-        error: 'Failed to resubmit invoice', 
-        code: 'INTERNAL_ERROR' 
-      });
-    }
+    schema: { params: z.object({ id: z.string().uuid() }) }
+  }, async (_request, reply) => {
+    return reply.code(409).send({
+      error: 'NRS gateway integration is not provisioned',
+      code: 'NRS_GATEWAY_MIGRATION_REQUIRED',
+      retryable: false
+    });
   });
 
-  // Get analytics data
+  // Daily analytics are grouped by UTC calendar day; period totals are never
+  // copied into each day and unsupported tax classifications remain unavailable.
   app.get('/analytics', {
     schema: {
       querystring: z.object({
-        range: z.string().optional().default('30d')
+        range: z.enum(['7d', '30d', '90d']).optional().default('30d')
       })
     }
   }, async (request, reply) => {
     try {
-      const range = (request.query as any).range as string;
-      const days = parseInt(range.replace('d', ''));
-      
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - days);
+      const range = (request.query as { range: '7d' | '30d' | '90d' }).range;
+      const days = Number.parseInt(range, 10);
+      const now = new Date();
+      const endDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
+      const startDate = new Date(endDate.getTime() - days * 86400000);
+      const previousStartDate = new Date(startDate.getTime() - days * 86400000);
 
-      // Run all queries in parallel for performance
+      type DailyInvoiceAggregate = { day: string; status: string; count: number };
+      type DailyPaymentAggregate = { day: string; status: string; count: number; amount: Prisma.Decimal | null };
+
       const [
-        totalUsers,
-        totalInvoices,
-        totalPayments,
-        recentUsers,
-        recentInvoices,
-        stampedInvoices,
-        invoicesByStatus,
-        paymentsByStatus,
-        dailyInvoices,
-        dailyPayments
+        totalUsers, totalInvoices, totalPayments, recentUsers, previousUsers,
+        stampedInvoices, invoicesByStatus, paymentsByStatus, dailyInvoices, dailyPayments
       ] = await Promise.all([
         prisma.user.count(),
         prisma.invoice.count(),
         prisma.payment.count(),
-        prisma.user.count({
-          where: { createdAt: { gte: startDate } }
-        }),
-        prisma.invoice.count({
-          where: { createdAt: { gte: startDate } }
-        }),
+        prisma.user.count({ where: { createdAt: { gte: startDate, lt: endDate } } }),
+        prisma.user.count({ where: { createdAt: { gte: previousStartDate, lt: startDate } } }),
         prisma.invoice.count({ where: { status: 'stamped' } }),
-        prisma.invoice.groupBy({
-          by: ['status'],
-          _count: { status: true }
-        }) as any,
-        prisma.payment.groupBy({
-          by: ['status'],
-          _count: { status: true },
-          _sum: { amount: true }
-        }) as any,
-        // Get daily invoice submissions for the period
-        prisma.invoice.groupBy({
-          by: ['status'],
-          where: { createdAt: { gte: startDate } },
-          _count: { status: true }
-        }) as any,
-        // Get daily payment data for the period
-        prisma.payment.groupBy({
-          by: ['status'],
-          where: { createdAt: { gte: startDate } },
-          _count: { status: true },
-          _sum: { amount: true }
-        }) as any
+        prisma.invoice.groupBy({ by: ['status'], _count: { status: true } }),
+        prisma.payment.groupBy({ by: ['status'], _count: { status: true }, _sum: { amount: true } }),
+        prisma.$queryRaw<DailyInvoiceAggregate[]>\`
+          SELECT TO_CHAR(DATE_TRUNC('day', created_at), 'YYYY-MM-DD') AS day,
+                 status, COUNT(*)::int AS count
+          FROM invoices
+          WHERE created_at >= \${startDate} AND created_at < \${endDate}
+          GROUP BY DATE_TRUNC('day', created_at), status
+        \`,
+        prisma.$queryRaw<DailyPaymentAggregate[]>\`
+          SELECT TO_CHAR(DATE_TRUNC('day', created_at), 'YYYY-MM-DD') AS day,
+                 status, COUNT(*)::int AS count, SUM(amount) AS amount
+          FROM payments
+          WHERE created_at >= \${startDate} AND created_at < \${endDate}
+          GROUP BY DATE_TRUNC('day', created_at), status
+        \`
       ]);
 
-      const monthlyGrowth = totalUsers > 0 ? (recentUsers / totalUsers) * 100 : 0;
+      const monthlyGrowth = previousUsers > 0
+        ? ((recentUsers - previousUsers) / previousUsers) * 100
+        : recentUsers > 0 ? 100 : 0;
       const complianceRate = totalInvoices > 0 ? (stampedInvoices / totalInvoices) * 100 : 0;
+      const invoiceDays = new Map<string, Map<string, number>>();
+      const paymentDays = new Map<string, Map<string, { count: number; amount: number }>>();
 
-      // Generate trend data from real database queries
+      for (const row of dailyInvoices) {
+        const statuses = invoiceDays.get(row.day) || new Map<string, number>();
+        statuses.set(row.status, row.count);
+        invoiceDays.set(row.day, statuses);
+      }
+      for (const row of dailyPayments) {
+        const statuses = paymentDays.get(row.day) || new Map<string, { count: number; amount: number }>();
+        statuses.set(row.status, { count: row.count, amount: asNumber(row.amount) });
+        paymentDays.set(row.day, statuses);
+      }
+
       const successTrend: TrendDataPoint[] = [];
       const dailySubmissions: SubmissionDataPoint[] = [];
       const transactionTrend: TransactionDataPoint[] = [];
       const volumeData: VolumeDataPoint[] = [];
       const complianceTrend: ComplianceDataPoint[] = [];
 
-      // Generate day-by-day data (we query aggregates above; fill in with zeros for missing days)
-      for (let i = days - 1; i >= 0; i--) {
-        const date = new Date();
-        date.setDate(date.getDate() - i);
-        const dateStr = date.toISOString().split('T')[0];
-        
-        // Find stamped vs failed for this period
-        const stampedCount = invoicesByStatus.find(s => s.status === 'stamped')?._count.status || 0;
-        const failedCount = invoicesByStatus.find(s => s.status === 'failed')?._count.status || 0;
-        const totalSubmissions = stampedCount + failedCount;
-        
+      for (let i = 0; i < days; i++) {
+        const date = new Date(startDate.getTime() + i * 86400000);
+        const dateStr = date.toISOString().slice(0, 10);
+        const invoiceStatuses = invoiceDays.get(dateStr) || new Map<string, number>();
+        const paymentStatuses = paymentDays.get(dateStr) || new Map<string, { count: number; amount: number }>();
+        const stamped = invoiceStatuses.get('stamped') || 0;
+        const failed = invoiceStatuses.get('failed') || 0;
+        const submissions = stamped + failed;
+        const paid = paymentStatuses.get('paid')?.count || 0;
+        const pending = paymentStatuses.get('pending')?.count || 0;
+        const failedPayments = paymentStatuses.get('failed')?.count || 0;
+        const dayVolume = Array.from(paymentStatuses.values()).reduce((sum, value) => sum + value.amount, 0);
+        const dayPaymentCount = Array.from(paymentStatuses.values()).reduce((sum, value) => sum + value.count, 0);
+
         successTrend.push({
           timestamp: date.toISOString(),
-          successRate: totalSubmissions > 0 ? (stampedCount / totalSubmissions) * 100 : 0,
-          latency: 0, // No latency tracking yet
-          submissions: totalSubmissions
+          successRate: submissions > 0 ? (stamped / submissions) * 100 : 0,
+          latency: 0,
+          submissions
         });
-
-        dailySubmissions.push({
-          date: dateStr,
-          successful: stampedCount,
-          failed: failedCount
-        });
-
-        // Payment transaction data
-        const paidCount = paymentsByStatus.find(s => s.status === 'paid')?._count.status || 0;
-        const pendingCount = paymentsByStatus.find(s => s.status === 'pending')?._count.status || 0;
-        const failedPayments = paymentsByStatus.find(s => s.status === 'failed')?._count.status || 0;
-        
+        dailySubmissions.push({ date: dateStr, successful: stamped, failed });
         transactionTrend.push({
-          date: dateStr,
-          successful: paidCount,
-          failed: failedPayments,
-          pending: pendingCount,
-          total: paidCount + pendingCount + failedPayments
+          date: dateStr, successful: paid, failed: failedPayments, pending, total: dayPaymentCount
         });
-
-        const totalVolume = paymentsByStatus.reduce((acc, p) => acc + asNumber(p._sum.amount), 0);
-        volumeData.push({
-          date: dateStr,
-          volume: totalVolume,
-          count: paidCount + pendingCount + failedPayments
-        });
-
-        // Compliance trend
-        complianceTrend.push({
-          date: dateStr,
-          compliant: stampedCount,
-          nonCompliant: failedCount
-        });
+        volumeData.push({ date: dateStr, volume: dayVolume, count: dayPaymentCount });
+        complianceTrend.push({ date: dateStr, compliant: stamped, nonCompliant: failed });
       }
 
-      // Calculate real payment breakdown
-      const paymentBreakdown = paymentsByStatus.map(p => ({
-        status: p.status === 'paid' ? 'successful' : p.status,
-        count: p._count.status,
-        amount: asNumber(p._sum.amount)
+      const paymentBreakdown = paymentsByStatus.map((payment) => ({
+        status: payment.status === 'paid' ? 'successful' : payment.status,
+        count: payment._count.status,
+        amount: asNumber(payment._sum.amount)
       }));
-
-      // Calculate error breakdown from failed invoices (if we had error tracking, we'd use that)
-      // For now, show actual status distribution
       const errorBreakdown = invoicesByStatus
-        .filter(s => s.status === 'failed' || s.status === 'queued')
-        .map((s, idx, arr) => {
-          const total = arr.reduce((acc, item) => acc + item._count.status, 0);
-          return {
-            error: s.status === 'failed' ? 'Submission Failed' : 'Pending Queue',
-            count: s._count.status,
-            percentage: total > 0 ? Math.round((s._count.status / total) * 100) : 0
-          };
-        });
+        .filter((status) => status.status === 'failed' || status.status === 'queued')
+        .map((status) => ({
+          error: status.status === 'failed' ? 'Submission Failed' : 'Pending Queue',
+          count: status._count.status,
+          percentage: totalInvoices > 0 ? Math.round((status._count.status / totalInvoices) * 100) : 0
+        }));
 
-      // If no errors, provide empty data
-      if (errorBreakdown.length === 0) {
-        errorBreakdown.push({ error: 'No errors', count: 0, percentage: 100 });
-      }
-
-      const analyticsData = {
+      return {
         overview: {
-          totalUsers,
-          totalInvoices,
-          totalPayments,
+          totalUsers, totalInvoices, totalPayments,
           complianceRate: Math.round(complianceRate),
           monthlyGrowth: Math.round(monthlyGrowth)
         },
-        duploMetrics: {
-          successTrend,
-          errorBreakdown,
-          dailySubmissions
-        },
-        remitaMetrics: {
-          transactionTrend,
-          paymentBreakdown: paymentBreakdown.length > 0 ? paymentBreakdown : [
-            { status: 'successful', count: 0, amount: 0 },
-            { status: 'pending', count: 0, amount: 0 },
-            { status: 'failed', count: 0, amount: 0 }
-          ],
-          dailyVolume: volumeData
-        },
+        duploMetrics: { successTrend, errorBreakdown, dailySubmissions },
+        remitaMetrics: { transactionTrend, paymentBreakdown, dailyVolume: volumeData },
         complianceMetrics: {
-          // Real exemption data would come from invoice metadata if tracked
-          exemptionUtilization: [
-            { exemption: 'Standard Rate', count: totalInvoices, percentage: 100 }
-          ],
-          withholdingTaxTracking: generateMockMonthlyData(6), // Keep mock for now - needs schema update
+          exemptionUtilization: [],
+          withholdingTaxTracking: [],
           nrsComplianceTrend: complianceTrend
-        }
+        },
+        dataWindow: { start: startDate.toISOString(), end: endDate.toISOString(), days }
       };
-
-      return analyticsData;
     } catch (error: unknown) {
       app.log.error({ err: error }, 'Error fetching analytics');
-      // C-12: Return 200 + FALLBACK on cold-start / DB errors.
-      return reply.code(200).send({ ...FALLBACK_ANALYTICS });
+      return reply.code(503).send({
+        error: 'Analytics data is temporarily unavailable',
+        code: 'ANALYTICS_UNAVAILABLE',
+        retryable: true
+      });
     }
   });
 }
 
-// Helper function to generate UBL XML (simplified)
-function generateUBLXml(invoice: any): string {
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<Invoice xmlns="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2"
-         xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2"
-         xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2">
-  <cbc:ID>${invoice.id}</cbc:ID>
-  <cbc:IssueDate>${invoice.createdAt.toISOString().split('T')[0]}</cbc:IssueDate>
-  <cbc:InvoiceTypeCode>380</cbc:InvoiceTypeCode>
-  <cbc:DocumentCurrencyCode>NGN</cbc:DocumentCurrencyCode>
-  <cac:AccountingSupplierParty>
-    <cac:Party>
-      <cac:PartyIdentification>
-        <cbc:ID schemeID="TIN">${invoice.user.tin || 'N/A'}</cbc:ID>
-      </cac:PartyIdentification>
-      <cac:PartyName>
-        <cbc:Name>${invoice.user.name}</cbc:Name>
-      </cac:PartyName>
-    </cac:Party>
-  </cac:AccountingSupplierParty>
-  <cac:LegalMonetaryTotal>
-    <cbc:LineExtensionAmount>${invoice.subtotal}</cbc:LineExtensionAmount>
-    <cbc:TaxExclusiveAmount>${invoice.subtotal}</cbc:TaxExclusiveAmount>
-    <cbc:TaxInclusiveAmount>${invoice.total}</cbc:TaxInclusiveAmount>
-    <cbc:PayableAmount>${invoice.total}</cbc:PayableAmount>
-  </cac:LegalMonetaryTotal>
-</Invoice>`;
-}
-
-// Helper functions to generate mock data
-// C-08: deterministic fallback — no Math.random() allowed in admin chart data.
-function generateMockTrendData(days: number, _type: string): TrendDataPoint[] {
-  const data: TrendDataPoint[] = [];
-  for (let i = days - 1; i >= 0; i--) {
-    const date = new Date();
-    date.setDate(date.getDate() - i);
-    data.push({
-      timestamp:   date.toISOString(),
-      successRate: 0,   // zeroed until real DB data available
-      latency:     0,
-      submissions: 0,
-    });
-  }
-  return data;
-}
-
-// C-08: deterministic fallback — no Math.random() allowed in admin chart data.
-function generateMockDailyData(
-  days: number,
-  type: string,
-): Array<TransactionDataPoint | VolumeDataPoint | SubmissionDataPoint | ComplianceDataPoint> {
-  const data: Array<TransactionDataPoint | VolumeDataPoint | SubmissionDataPoint | ComplianceDataPoint> = [];
-  for (let i = days - 1; i >= 0; i--) {
-    const date = new Date();
-    date.setDate(date.getDate() - i);
-    const dateStr = date.toISOString().split('T')[0];
-
-    if (type === 'transactions') {
-      data.push({ date: dateStr, successful: 0, failed: 0, pending: 0, total: 0 } as TransactionDataPoint);
-    } else if (type === 'volume') {
-      data.push({ date: dateStr, volume: 0, count: 0 } as VolumeDataPoint);
-    } else if (type === 'submissions') {
-      data.push({ date: dateStr, successful: 0, failed: 0 } as SubmissionDataPoint);
-    } else if (type === 'compliance') {
-      data.push({ date: dateStr, compliant: 0, nonCompliant: 0 } as ComplianceDataPoint);
-    }
-  }
-  return data;
-}
-
-// C-08: deterministic fallback — no Math.random() allowed in admin chart data.
-function generateMockMonthlyData(months: number): MonthlyDataPoint[] {
-  const data: MonthlyDataPoint[] = [];
-  for (let i = months - 1; i >= 0; i--) {
-    const date = new Date();
-    date.setMonth(date.getMonth() - i);
-    data.push({
-      month:        date.toLocaleDateString('en-US', { year: 'numeric', month: 'short' }),
-      wthAmount:    0,   // zeroed until real WHT tracking schema is available
-      invoiceCount: 0,
-    });
-  }
-  return data;
-}

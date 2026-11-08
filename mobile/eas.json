@@ -50,7 +50,7 @@
       },
       "env": {
         "EXPO_PUBLIC_ENV": "preview",
-        "EXPO_PUBLIC_API_URL": "https://taxbridge-api-ker8.onrender.com"
+        "EXPO_PUBLIC_API_URL": "https://taxbridge-api-staging.onrender.com"
       }
     },
     "production-apk": {

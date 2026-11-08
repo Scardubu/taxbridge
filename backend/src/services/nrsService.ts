@@ -21,7 +21,7 @@ const log = createLogger('nrs-service');
 
 const NRS_API_URL  = process.env.NRS_API_URL  || 'https://api.nrs.gov.ng';
 const NRS_API_KEY  = process.env.NRS_API_KEY  || '';
-const MOCK_MODE    = process.env.DIGITAX_MOCK_MODE === 'true';
+const MOCK_MODE    = (process.env.NRS_MOCK_MODE ?? process.env.DIGITAX_MOCK_MODE) === 'true';
 
 // ─── prom-client gauge (criterion #14) ───────────────────────────────────────
 // 0 = CLOSED (healthy), 1 = OPEN (failing), 2 = HALF_OPEN (probing)
@@ -41,7 +41,7 @@ try {
 // ─── Output types ─────────────────────────────────────────────────────────────
 
 export interface NrsHealthResult {
-  status:      'healthy' | 'degraded' | 'down' | 'mock' | 'unknown';
+  status:      'healthy' | 'degraded' | 'down' | 'mock' | 'unknown' | 'unconfigured';
   latencyMs:   number | null;
   lastChecked: string;
 }
@@ -112,6 +112,10 @@ nrsCircuitStateGauge.set(0);
 export async function getNrsHealth(): Promise<NrsHealthResult> {
   if (MOCK_MODE) {
     return { status: 'mock', latencyMs: null, lastChecked: new Date().toISOString() };
+  }
+
+  if (!NRS_API_KEY) {
+    return { status: 'unconfigured', latencyMs: null, lastChecked: new Date().toISOString() };
   }
 
   const t0 = Date.now();

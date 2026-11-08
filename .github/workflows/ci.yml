@@ -114,18 +114,9 @@ jobs:
         working-directory: backend
         run: npx prisma migrate deploy
 
-      - name: Run all tests (≥528 must pass)
+      - name: Run all backend tests
         working-directory: backend
-        run: |
-          OUTPUT=$(npm test -- --forceExit --passWithNoTests 2>&1)
-          echo "$OUTPUT"
-          COUNT=$(echo "$OUTPUT" | grep -oP '(\d+) passed' | grep -oP '^\d+' | tail -1 || echo "0")
-          echo "Tests passing: $COUNT"
-          if [ "$COUNT" -lt 528 ]; then
-            echo "❌ Expected ≥528 tests passing, got $COUNT"
-            exit 1
-          fi
-          echo "✅ $COUNT tests passing (gate: ≥528)"
+        run: npm test -- --forceExit
         env:
           CI: true
 

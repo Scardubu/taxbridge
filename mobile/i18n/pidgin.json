@@ -475,6 +475,7 @@
   "offline": {
     "title": "You dey offline",
     "body": "We don save your work. E go sync when you get signal back.",
+    "pipelineDisabled": "We don save am for this device — submission pipeline no dey active.",
     "syncing_one": "{{count}} operation dey sync...",
     "syncing_other": "{{count}} operations dey sync...",
     "syncing": "{{count}} operations dey sync...",

@@ -26,8 +26,11 @@ export class FlutterwaveAdapter {
   private client: AxiosInstance;
 
   constructor(private config: FlutterwaveConfig) {
+    const normalizedBaseUrl = (config.baseUrl || 'https://api.flutterwave.com')
+      .replace(/\/+$/, '')
+      .replace(/\/v3$/, '');
     this.client = axios.create({
-      baseURL: config.baseUrl,
+      baseURL: normalizedBaseUrl,
       headers: {
         Authorization: `Bearer ${config.secretKey}`,
         'Content-Type': 'application/json',
@@ -156,6 +159,7 @@ export class FlutterwaveAdapter {
         return {
           status: 'successful',
           amount: data.amount,
+          currency: data.currency,
           reference: data.tx_ref,
           flwRef: data.flw_ref,
           channel: data.payment_type,
@@ -185,7 +189,11 @@ export class FlutterwaveAdapter {
    * @see https://developer.flutterwave.com/docs/integration-guides/webhooks
    */
   verifyWebhookSignature(signatureHeader: string): boolean {
-    return signatureHeader === this.config.secretHash;
+    if (!signatureHeader || !this.config.secretHash) return false;
+    const headerBuf = Buffer.from(signatureHeader, 'utf8');
+    const secretBuf = Buffer.from(this.config.secretHash, 'utf8');
+    if (headerBuf.length !== secretBuf.length) return false;
+    return crypto.timingSafeEqual(headerBuf, secretBuf);
   }
 }
 

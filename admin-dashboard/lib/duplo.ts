@@ -1,18 +1,10 @@
-import axios from 'axios';
-import { logError } from './logger';
-
-export interface DuploTokenResponse {
-  access_token: string;
-  token_type: string;
-  expires_in: number;
-}
-
-export interface DuploHealthResponse {
-  status: string;
-  timestamp: string;
-  version: string;
-}
-
+/**
+ * Browser-facing admin integration boundary.
+ *
+ * Do not call legacy Duplo OAuth/XML endpoints from the dashboard. The
+ * approved NRS Gateway requires server-side credentials and per-business
+ * identity; those must never be exposed to browser code.
+ */
 export interface DuploSubmitResponse {
   irn: string;
   status: 'success' | 'pending' | 'failed';
@@ -28,117 +20,16 @@ export interface DuploStatusResponse {
 }
 
 class DuploClient {
-  private baseURL: string;
-  private clientId: string;
-  private clientSecret: string;
-  private accessToken: string | null = null;
-  private tokenExpiry: number = 0;
-
-  constructor() {
-    this.baseURL = process.env.DUPLO_API_URL || 'https://api.duplo.co';
-    this.clientId = process.env.DUPLO_CLIENT_ID || '';
-    this.clientSecret = process.env.DUPLO_CLIENT_SECRET || '';
+  async checkHealth(): Promise<{ status: 'healthy' | 'degraded' | 'error' | 'unconfigured'; latency: number | null }> {
+    return { status: 'unconfigured', latency: null };
   }
 
-  private async getAccessToken(): Promise<string> {
-    // Check if current token is valid
-    if (this.accessToken && Date.now() < this.tokenExpiry) {
-      return this.accessToken;
-    }
-
-    try {
-      const response = await axios.post<DuploTokenResponse>(
-        `${this.baseURL}/oauth2/token`,
-        {
-          grant_type: 'client_credentials',
-          client_id: this.clientId,
-          client_secret: this.clientSecret,
-        },
-        {
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-          },
-        }
-      );
-
-      this.accessToken = response.data.access_token;
-      this.tokenExpiry = Date.now() + (response.data.expires_in - 60) * 1000; // Refresh 1 minute early
-
-      return this.accessToken;
-    } catch (error) {
-      logError('admin/duplo: Failed to get access token', error);
-      throw new Error('Authentication failed');
-    }
+  async submitEInvoice(_ublXml: string): Promise<DuploSubmitResponse> {
+    throw new Error('NRS_GATEWAY_MIGRATION_REQUIRED');
   }
 
-  async checkHealth(): Promise<{ status: 'healthy' | 'degraded' | 'error'; latency: number | null }> {
-    const startTime = Date.now();
-    
-    try {
-      const token = await this.getAccessToken();
-      const response = await axios.get<DuploHealthResponse>(
-        `${this.baseURL}/v1/health`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          timeout: 10000, // 10 second timeout
-        }
-      );
-
-      const latency = Date.now() - startTime;
-      return {
-        status: response.data.status === 'ok' ? 'healthy' : 'degraded',
-        latency,
-      };
-    } catch {
-      return {
-        status: 'error',
-        latency: null,
-      };
-    }
-  }
-
-  async submitEInvoice(ublXml: string): Promise<DuploSubmitResponse> {
-    try {
-      const token = await this.getAccessToken();
-      const response = await axios.post<DuploSubmitResponse>(
-        `${this.baseURL}/v1/einvoice/submit`,
-        ublXml,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/xml',
-          },
-          timeout: 30000, // 30 second timeout
-        }
-      );
-
-      return response.data;
-    } catch (error) {
-      logError('admin/duplo: Failed to submit e-invoice', error);
-      throw new Error('E-invoice submission failed');
-    }
-  }
-
-  async getEInvoiceStatus(irn: string): Promise<DuploStatusResponse> {
-    try {
-      const token = await this.getAccessToken();
-      const response = await axios.get<DuploStatusResponse>(
-        `${this.baseURL}/v1/einvoice/status/${irn}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          timeout: 10000,
-        }
-      );
-
-      return response.data;
-    } catch (error) {
-      logError('admin/duplo: Failed to get e-invoice status', error, { irn });
-      throw new Error('Status check failed');
-    }
+  async getEInvoiceStatus(_irn: string): Promise<DuploStatusResponse> {
+    throw new Error('NRS_GATEWAY_MIGRATION_REQUIRED');
   }
 }
 

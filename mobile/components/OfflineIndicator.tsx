@@ -9,9 +9,18 @@ export function OfflineIndicator() {
   const { t } = useTranslation();
   const [isOnline, setIsOnline] = useState(true);
   const [queueDepth, setQueueDepth] = useState(0);
+  const [deadLetterCount, setDeadLetterCount] = useState(0);
   const [isSyncing, setIsSyncing] = useState(false);
 
-  const syncMessage = isOnline
+  const isPipelineDisabled = process.env.EXPO_PUBLIC_SYNC_PIPELINE_ENABLED === 'false';
+
+  const needsAttention = isPipelineDisabled || deadLetterCount > 0 || !isOnline;
+
+  const syncMessage = isPipelineDisabled
+    ? t('offline.pipelineDisabled', { defaultValue: 'Saved on this device — submission pipeline is offline' })
+    : deadLetterCount > 0
+    ? t('offline.attentionRequired', { count: deadLetterCount, defaultValue: `${deadLetterCount} operation(s) require attention` })
+    : isOnline
     ? t('offline.syncing', { count: queueDepth })
     : t('offline.queued', { count: queueDepth });
 
@@ -24,7 +33,13 @@ export function OfflineIndicator() {
 
   useEffect(() => {
     const refresh = () => {
-      void offlineQueue.getPendingCount().then(setQueueDepth);
+      void Promise.all([
+        offlineQueue.getPendingCount(),
+        typeof (offlineQueue as any).getDeadLetterCount === 'function' ? (offlineQueue as any).getDeadLetterCount() : Promise.resolve(0),
+      ]).then(([pending, dead]) => {
+        setQueueDepth(pending);
+        setDeadLetterCount(dead);
+      }).catch(() => undefined);
     };
     refresh();
     if (!isOnline || queueDepth > 0) {
@@ -35,16 +50,24 @@ export function OfflineIndicator() {
   }, [isOnline, queueDepth > 0]);
 
   const handleSync = async () => {
+    if (isPipelineDisabled) return;
     setIsSyncing(true);
     try {
       await offlineQueue.flush();
-      setQueueDepth(0);
     } finally {
+      const [pending, dead] = await Promise.all([
+        offlineQueue.getPendingCount(),
+        typeof (offlineQueue as any).getDeadLetterCount === 'function'
+          ? (offlineQueue as any).getDeadLetterCount()
+          : Promise.resolve(0),
+      ]);
+      setQueueDepth(pending);
+      setDeadLetterCount(dead);
       setIsSyncing(false);
     }
   };
 
-  if (isOnline && queueDepth === 0) return null;
+  if (isOnline && queueDepth === 0 && deadLetterCount === 0 && !isPipelineDisabled) return null;
 
   return (
     <View
@@ -53,8 +76,8 @@ export function OfflineIndicator() {
       style={{
         marginHorizontal: Spacing.xxl,
         marginTop: Spacing.md,
-        backgroundColor: isOnline ? Colors.status.successBg : Colors.status.warningBg,
-        borderColor: isOnline ? Colors.status.successBorder : Colors.status.warningBorder,
+        backgroundColor: needsAttention ? Colors.status.warningBg : Colors.status.successBg,
+        borderColor: needsAttention ? Colors.status.warningBorder : Colors.status.successBorder,
         borderWidth: 1,
         borderRadius: Radii.lg,
         paddingHorizontal: Spacing.lg,
@@ -64,17 +87,17 @@ export function OfflineIndicator() {
         gap: Spacing.md,
       }}
     >
-      <Text style={{ fontSize: 16 }}>{isOnline ? '\uD83D\uDD04' : '\uD83D\uDCE1'}</Text>
+      <Text style={{ fontSize: 16 }}>{isPipelineDisabled ? '\uD83D\uDCBE' : isOnline ? '\uD83D\uDD04' : '\uD83D\uDCE1'}</Text>
       <Text
         style={{
           flex: 1,
           ...Typography.caption,
-          color: isOnline ? Colors.status.successText : Colors.status.warningText,
+          color: needsAttention ? Colors.status.warningText : Colors.status.successText,
         }}
       >
         {syncMessage}
       </Text>
-      {isOnline && queueDepth > 0 ? (
+      {isOnline && queueDepth > 0 && !isPipelineDisabled ? (
         <Pressable
           onPress={() => void handleSync()}
           disabled={isSyncing}
@@ -85,6 +108,8 @@ export function OfflineIndicator() {
             borderRadius: Radii.sm,
             paddingHorizontal: Spacing.md,
             paddingVertical: Spacing.xs,
+            minHeight: 48,
+            justifyContent: 'center',
           }}
         >
           <Text style={{ color: Colors.ui.white, ...Typography.micro }}>

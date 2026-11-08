@@ -67,15 +67,15 @@ jobs:
         working-directory: ./backend
         run: |
           npm run ubl:download-xsd
-          npm run ubl:validate || echo "UBL validation skipped - no invoice files to validate"
+          npm run ubl:validate
 
       - name: Run linting
         working-directory: ./backend
-        run: npm run lint || echo "Linting completed with warnings"
+        run: npm run lint
 
       - name: Security audit
         working-directory: ./backend
-        run: npm audit --audit-level=high || true
+        run: npm audit --audit-level=high
 
   # Backend tests
   backend-tests:
@@ -160,8 +160,21 @@ jobs:
       - name: Check coverage threshold
         working-directory: ./backend
         run: |
-          COVERAGE=$(cat coverage/lcov.info | grep -oP 'LF:\d+' | head -1 | grep -oP '\d+')
-          echo "Coverage: ${COVERAGE:-0}%"
+          node -e '
+            const fs = require("fs");
+            const lcov = fs.readFileSync("coverage/lcov.info", "utf8");
+            let found = 0, hit = 0;
+            for (const line of lcov.split("\n")) {
+              if (line.startsWith("LF:")) found += parseInt(line.slice(3), 10);
+              if (line.startsWith("LH:")) hit += parseInt(line.slice(3), 10);
+            }
+            const pct = found > 0 ? (hit / found) * 100 : 0;
+            console.log(`Backend line coverage: ${pct.toFixed(2)}% (${hit}/${found})`);
+            if (pct < 70) {
+              console.error(`Line coverage ${pct.toFixed(2)}% is below 70% threshold`);
+              process.exit(1);
+            }
+          '
 
       - name: Upload coverage
         uses: codecov/codecov-action@v4

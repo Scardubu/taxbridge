@@ -51,6 +51,7 @@ const SECRET_REGISTRY: SecretDefinition[] = [
 
   // Payment gateways
   { envVar: 'PAYSTACK_SECRET_KEY', required: false, description: 'Paystack secret key', sensitive: true },
+  { envVar: 'PAYSTACK_WEBHOOK_SECRET', required: false, minLength: 16, description: 'Paystack webhook signing secret (whsec_)', sensitive: true },
   { envVar: 'PAYSTACK_PUBLIC_KEY', required: false, description: 'Paystack public key' },
   { envVar: 'FLW_SECRET_KEY', required: false, description: 'Flutterwave secret key', sensitive: true },
   { envVar: 'FLW_PUBLIC_KEY', required: false, description: 'Flutterwave public key' },

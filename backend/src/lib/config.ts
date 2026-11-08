@@ -53,8 +53,8 @@ const RemitaConfigSchema = z.object({
   merchantId: z.string().min(1).optional(),
   apiKey: z.string().min(1).optional(),
   serviceTypeId: z.string().min(1).optional(),
-  // Base host (e.g. https://remitademo.net or https://login.remita.net). Path is handled by the integration.
-  apiUrl: z.string().min(1).default('https://remitademo.net'),
+  // Base host (e.g. https://demo.remita.net or https://login.remita.net). Path is handled by the integration.
+  apiUrl: z.string().min(1).default('https://demo.remita.net'),
   webhookSecret: z.string().optional(),
   timeout: z.coerce.number().positive().default(30000)
 });
