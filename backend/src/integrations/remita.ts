@@ -52,7 +52,7 @@ export class RemitaClient {
   private serviceTypeId: string;
 
   constructor() {
-    this.baseURL = (process.env.REMITA_API_URL || 'https://remitademo.net').replace(/\/$/, '');
+    this.baseURL = (process.env.REMITA_API_URL || 'https://demo.remita.net').replace(/\/$/, '');
     this.merchantId = process.env.REMITA_MERCHANT_ID || '';
     this.apiKey = process.env.REMITA_API_KEY || '';
     this.serviceTypeId = process.env.REMITA_SERVICE_TYPE_ID || '';
