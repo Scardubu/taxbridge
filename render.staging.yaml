@@ -37,7 +37,6 @@ services:
         value: "true"
       - key: FLW_MOCK_MODE
         value: "true"
-      - key: DUPLO_API_URL
         value: https://sandbox.digitax.com/api
       - key: DIGITAX_API_URL
         value: https://sandbox.digitax.com/api
@@ -58,9 +57,7 @@ services:
           type: redis
           name: taxbridge-redis-staging
           property: connectionString
-      - key: DUPLO_CLIENT_ID
         sync: false
-      - key: DUPLO_CLIENT_SECRET
         sync: false
       - key: NRS_API_KEY
         sync: false
@@ -149,7 +146,6 @@ services:
         value: "true"
       - key: FLW_MOCK_MODE
         value: "true"
-      - key: DUPLO_API_URL
         value: https://sandbox.digitax.com/api
       - key: DIGITAX_API_URL
         value: https://sandbox.digitax.com/api
@@ -170,9 +166,7 @@ services:
           type: redis
           name: taxbridge-redis-staging
           property: connectionString
-      - key: DUPLO_CLIENT_ID
         sync: false
-      - key: DUPLO_CLIENT_SECRET
         sync: false
       - key: NRS_API_KEY
         sync: false
