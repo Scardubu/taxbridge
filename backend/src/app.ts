@@ -185,8 +185,8 @@ export async function buildApp(): Promise<FastifyInstance> {
   await fastify.register(syncRoutes);
   await fastify.register(syncOperationRoutes);
   await fastify.register(adminSyncRoutes);
-  await fastify.register(flutterwaveWebhook,  { prefix: '/webhooks' });
-  await fastify.register(paystackWebhook,     { prefix: '/webhooks' });
+  await fastify.register(flutterwaveWebhook,  { prefix: '/webhooks', prisma });
+  await fastify.register(paystackWebhook,     { prefix: '/webhooks', prisma });
   await fastify.register(remitaWebhook,       { prefix: '/webhooks' });
 
   fastify.get<{ Params: { userId: string } }>('/api/v1/admin/role-version/:userId', async (request, reply) => {
