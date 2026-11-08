@@ -521,88 +521,17 @@ export async function adminRoutes(app: FastifyInstance, options: { prisma: Prism
     }
   });
 
-  // Resubmit invoice to Duplo
+  // Legacy Duplo OAuth/XML submission is intentionally disabled.
+  // The approved NRS Gateway contract requires NRS JSON, per-business
+  // sub-business identity, an approved gateway domain, and idempotency.
   app.post('/invoices/:id/resubmit-duplo', {
-    schema: {
-      params: z.object({
-        id: z.string().uuid()
-      })
-    }
-  }, async (request, reply) => {
-    try {
-      const { id } = request.params as any;
-
-      const invoice = await prisma.invoice.findUnique({
-        where: { id },
-        include: { user: true }
-      });
-
-      if (!invoice) {
-        reply.code(404).send({ error: 'Invoice not found' });
-        return;
-      }
-
-      // Generate UBL XML (simplified version - in real implementation, use proper UBL generator)
-      const ublXml = generateUBLXml(invoice);
-
-      // Submit to Duplo
-      const duploResponse = await duploClient.submitEInvoice(ublXml);
-
-      // Update invoice with new IRN and status
-      await prisma.invoice.update({
-        where: { id },
-        data: {
-          ublXml,
-          nrsReference: duploResponse.irn,
-          status: duploResponse.status === 'success' ? 'stamped' : 'processing',
-          updatedAt: new Date()
-        }
-      });
-
-      // Create audit log
-      await prisma.auditLog.create({
-        data: {
-          action: 'INVOICE_RESUBMITTED',
-          userId: invoice.userId,
-          metadata: {
-            invoiceId: id,
-            irn: duploResponse.irn,
-            resubmittedBy: 'admin'
-          }
-        }
-      });
-
-      return { success: true, irn: duploResponse.irn };
-    } catch (error: unknown) {
-      app.log.error({ err: error }, 'Error resubmitting invoice');
-      
-      if (error instanceof PrismaClientKnownRequestError) {
-        if (error.code === 'P2025') {
-          return reply.code(404).send({ 
-            error: 'Invoice not found', 
-            code: 'INVOICE_NOT_FOUND' 
-          });
-        }
-        return reply.code(503).send({ 
-          error: 'Database update failed', 
-          code: 'DATABASE_ERROR',
-          details: error.code 
-        });
-      }
-      
-      if (error instanceof Error && error.message.includes('Duplo')) {
-        return reply.code(502).send({ 
-          error: 'Integration service unavailable', 
-          code: 'INTEGRATION_ERROR',
-          details: error.message 
-        });
-      }
-      
-      return reply.code(500).send({ 
-        error: 'Failed to resubmit invoice', 
-        code: 'INTERNAL_ERROR' 
-      });
-    }
+    schema: { params: z.object({ id: z.string().uuid() }) }
+  }, async (_request, reply) => {
+    return reply.code(503).send({
+      error: 'NRS gateway integration is not provisioned',
+      code: 'NRS_GATEWAY_MIGRATION_REQUIRED',
+      retryable: false
+    });
   });
 
   // Get analytics data
@@ -793,35 +722,6 @@ export async function adminRoutes(app: FastifyInstance, options: { prisma: Prism
       return reply.code(200).send({ ...FALLBACK_ANALYTICS });
     }
   });
-}
-
-// Helper function to generate UBL XML (simplified)
-function generateUBLXml(invoice: any): string {
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<Invoice xmlns="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2"
-         xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2"
-         xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2">
-  <cbc:ID>${invoice.id}</cbc:ID>
-  <cbc:IssueDate>${invoice.createdAt.toISOString().split('T')[0]}</cbc:IssueDate>
-  <cbc:InvoiceTypeCode>380</cbc:InvoiceTypeCode>
-  <cbc:DocumentCurrencyCode>NGN</cbc:DocumentCurrencyCode>
-  <cac:AccountingSupplierParty>
-    <cac:Party>
-      <cac:PartyIdentification>
-        <cbc:ID schemeID="TIN">${invoice.user.tin || 'N/A'}</cbc:ID>
-      </cac:PartyIdentification>
-      <cac:PartyName>
-        <cbc:Name>${invoice.user.name}</cbc:Name>
-      </cac:PartyName>
-    </cac:Party>
-  </cac:AccountingSupplierParty>
-  <cac:LegalMonetaryTotal>
-    <cbc:LineExtensionAmount>${invoice.subtotal}</cbc:LineExtensionAmount>
-    <cbc:TaxExclusiveAmount>${invoice.subtotal}</cbc:TaxExclusiveAmount>
-    <cbc:TaxInclusiveAmount>${invoice.total}</cbc:TaxInclusiveAmount>
-    <cbc:PayableAmount>${invoice.total}</cbc:PayableAmount>
-  </cac:LegalMonetaryTotal>
-</Invoice>`;
 }
 
 // Helper functions to generate mock data
