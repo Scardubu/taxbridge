@@ -534,192 +534,141 @@ export async function adminRoutes(app: FastifyInstance, options: { prisma: Prism
     });
   });
 
-  // Get analytics data
+  // Daily analytics are grouped by UTC calendar day; period totals are never
+  // copied into each day and unsupported tax classifications remain unavailable.
   app.get('/analytics', {
     schema: {
       querystring: z.object({
-        range: z.string().optional().default('30d')
+        range: z.enum(['7d', '30d', '90d']).optional().default('30d')
       })
     }
   }, async (request, reply) => {
     try {
-      const range = (request.query as any).range as string;
-      const days = parseInt(range.replace('d', ''));
-      
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - days);
+      const range = (request.query as { range: '7d' | '30d' | '90d' }).range;
+      const days = Number.parseInt(range, 10);
+      const now = new Date();
+      const endDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
+      const startDate = new Date(endDate.getTime() - days * 86400000);
+      const previousStartDate = new Date(startDate.getTime() - days * 86400000);
 
-      // Run all queries in parallel for performance
+      type DailyInvoiceAggregate = { day: string; status: string; count: number };
+      type DailyPaymentAggregate = { day: string; status: string; count: number; amount: Prisma.Decimal | null };
+
       const [
-        totalUsers,
-        totalInvoices,
-        totalPayments,
-        recentUsers,
-        recentInvoices,
-        stampedInvoices,
-        invoicesByStatus,
-        paymentsByStatus,
-        dailyInvoices,
-        dailyPayments
+        totalUsers, totalInvoices, totalPayments, recentUsers, previousUsers,
+        stampedInvoices, invoicesByStatus, paymentsByStatus, dailyInvoices, dailyPayments
       ] = await Promise.all([
         prisma.user.count(),
         prisma.invoice.count(),
         prisma.payment.count(),
-        prisma.user.count({
-          where: { createdAt: { gte: startDate } }
-        }),
-        prisma.invoice.count({
-          where: { createdAt: { gte: startDate } }
-        }),
+        prisma.user.count({ where: { createdAt: { gte: startDate, lt: endDate } } }),
+        prisma.user.count({ where: { createdAt: { gte: previousStartDate, lt: startDate } } }),
         prisma.invoice.count({ where: { status: 'stamped' } }),
-        prisma.invoice.groupBy({
-          by: ['status'],
-          _count: { status: true }
-        }) as any,
-        prisma.payment.groupBy({
-          by: ['status'],
-          _count: { status: true },
-          _sum: { amount: true }
-        }) as any,
-        // Get daily invoice submissions for the period
-        prisma.invoice.groupBy({
-          by: ['status'],
-          where: { createdAt: { gte: startDate } },
-          _count: { status: true }
-        }) as any,
-        // Get daily payment data for the period
-        prisma.payment.groupBy({
-          by: ['status'],
-          where: { createdAt: { gte: startDate } },
-          _count: { status: true },
-          _sum: { amount: true }
-        }) as any
+        prisma.invoice.groupBy({ by: ['status'], _count: { status: true } }),
+        prisma.payment.groupBy({ by: ['status'], _count: { status: true }, _sum: { amount: true } }),
+        prisma.$queryRaw<DailyInvoiceAggregate[]>\`
+          SELECT TO_CHAR(DATE_TRUNC('day', created_at), 'YYYY-MM-DD') AS day,
+                 status, COUNT(*)::int AS count
+          FROM invoices
+          WHERE created_at >= \${startDate} AND created_at < \${endDate}
+          GROUP BY DATE_TRUNC('day', created_at), status
+        \`,
+        prisma.$queryRaw<DailyPaymentAggregate[]>\`
+          SELECT TO_CHAR(DATE_TRUNC('day', created_at), 'YYYY-MM-DD') AS day,
+                 status, COUNT(*)::int AS count, SUM(amount) AS amount
+          FROM payments
+          WHERE created_at >= \${startDate} AND created_at < \${endDate}
+          GROUP BY DATE_TRUNC('day', created_at), status
+        \`
       ]);
 
-      const monthlyGrowth = totalUsers > 0 ? (recentUsers / totalUsers) * 100 : 0;
+      const monthlyGrowth = previousUsers > 0
+        ? ((recentUsers - previousUsers) / previousUsers) * 100
+        : recentUsers > 0 ? 100 : 0;
       const complianceRate = totalInvoices > 0 ? (stampedInvoices / totalInvoices) * 100 : 0;
+      const invoiceDays = new Map<string, Map<string, number>>();
+      const paymentDays = new Map<string, Map<string, { count: number; amount: number }>>();
 
-      // Generate trend data from real database queries
+      for (const row of dailyInvoices) {
+        const statuses = invoiceDays.get(row.day) || new Map<string, number>();
+        statuses.set(row.status, row.count);
+        invoiceDays.set(row.day, statuses);
+      }
+      for (const row of dailyPayments) {
+        const statuses = paymentDays.get(row.day) || new Map<string, { count: number; amount: number }>();
+        statuses.set(row.status, { count: row.count, amount: asNumber(row.amount) });
+        paymentDays.set(row.day, statuses);
+      }
+
       const successTrend: TrendDataPoint[] = [];
       const dailySubmissions: SubmissionDataPoint[] = [];
       const transactionTrend: TransactionDataPoint[] = [];
       const volumeData: VolumeDataPoint[] = [];
       const complianceTrend: ComplianceDataPoint[] = [];
 
-      // Generate day-by-day data (we query aggregates above; fill in with zeros for missing days)
-      for (let i = days - 1; i >= 0; i--) {
-        const date = new Date();
-        date.setDate(date.getDate() - i);
-        const dateStr = date.toISOString().split('T')[0];
-        
-        // Find stamped vs failed for this period
-        const stampedCount = invoicesByStatus.find(s => s.status === 'stamped')?._count.status || 0;
-        const failedCount = invoicesByStatus.find(s => s.status === 'failed')?._count.status || 0;
-        const totalSubmissions = stampedCount + failedCount;
-        
+      for (let i = 0; i < days; i++) {
+        const date = new Date(startDate.getTime() + i * 86400000);
+        const dateStr = date.toISOString().slice(0, 10);
+        const invoiceStatuses = invoiceDays.get(dateStr) || new Map<string, number>();
+        const paymentStatuses = paymentDays.get(dateStr) || new Map<string, { count: number; amount: number }>();
+        const stamped = invoiceStatuses.get('stamped') || 0;
+        const failed = invoiceStatuses.get('failed') || 0;
+        const submissions = stamped + failed;
+        const paid = paymentStatuses.get('paid')?.count || 0;
+        const pending = paymentStatuses.get('pending')?.count || 0;
+        const failedPayments = paymentStatuses.get('failed')?.count || 0;
+        const dayVolume = Array.from(paymentStatuses.values()).reduce((sum, value) => sum + value.amount, 0);
+        const dayPaymentCount = Array.from(paymentStatuses.values()).reduce((sum, value) => sum + value.count, 0);
+
         successTrend.push({
           timestamp: date.toISOString(),
-          successRate: totalSubmissions > 0 ? (stampedCount / totalSubmissions) * 100 : 0,
-          latency: 0, // No latency tracking yet
-          submissions: totalSubmissions
+          successRate: submissions > 0 ? (stamped / submissions) * 100 : 0,
+          latency: 0,
+          submissions
         });
-
-        dailySubmissions.push({
-          date: dateStr,
-          successful: stampedCount,
-          failed: failedCount
-        });
-
-        // Payment transaction data
-        const paidCount = paymentsByStatus.find(s => s.status === 'paid')?._count.status || 0;
-        const pendingCount = paymentsByStatus.find(s => s.status === 'pending')?._count.status || 0;
-        const failedPayments = paymentsByStatus.find(s => s.status === 'failed')?._count.status || 0;
-        
+        dailySubmissions.push({ date: dateStr, successful: stamped, failed });
         transactionTrend.push({
-          date: dateStr,
-          successful: paidCount,
-          failed: failedPayments,
-          pending: pendingCount,
-          total: paidCount + pendingCount + failedPayments
+          date: dateStr, successful: paid, failed: failedPayments, pending, total: dayPaymentCount
         });
-
-        const totalVolume = paymentsByStatus.reduce((acc, p) => acc + asNumber(p._sum.amount), 0);
-        volumeData.push({
-          date: dateStr,
-          volume: totalVolume,
-          count: paidCount + pendingCount + failedPayments
-        });
-
-        // Compliance trend
-        complianceTrend.push({
-          date: dateStr,
-          compliant: stampedCount,
-          nonCompliant: failedCount
-        });
+        volumeData.push({ date: dateStr, volume: dayVolume, count: dayPaymentCount });
+        complianceTrend.push({ date: dateStr, compliant: stamped, nonCompliant: failed });
       }
 
-      // Calculate real payment breakdown
-      const paymentBreakdown = paymentsByStatus.map(p => ({
-        status: p.status === 'paid' ? 'successful' : p.status,
-        count: p._count.status,
-        amount: asNumber(p._sum.amount)
+      const paymentBreakdown = paymentsByStatus.map((payment) => ({
+        status: payment.status === 'paid' ? 'successful' : payment.status,
+        count: payment._count.status,
+        amount: asNumber(payment._sum.amount)
       }));
-
-      // Calculate error breakdown from failed invoices (if we had error tracking, we'd use that)
-      // For now, show actual status distribution
       const errorBreakdown = invoicesByStatus
-        .filter(s => s.status === 'failed' || s.status === 'queued')
-        .map((s, idx, arr) => {
-          const total = arr.reduce((acc, item) => acc + item._count.status, 0);
-          return {
-            error: s.status === 'failed' ? 'Submission Failed' : 'Pending Queue',
-            count: s._count.status,
-            percentage: total > 0 ? Math.round((s._count.status / total) * 100) : 0
-          };
-        });
+        .filter((status) => status.status === 'failed' || status.status === 'queued')
+        .map((status) => ({
+          error: status.status === 'failed' ? 'Submission Failed' : 'Pending Queue',
+          count: status._count.status,
+          percentage: totalInvoices > 0 ? Math.round((status._count.status / totalInvoices) * 100) : 0
+        }));
 
-      // If no errors, provide empty data
-      if (errorBreakdown.length === 0) {
-        errorBreakdown.push({ error: 'No errors', count: 0, percentage: 100 });
-      }
-
-      const analyticsData = {
+      return {
         overview: {
-          totalUsers,
-          totalInvoices,
-          totalPayments,
+          totalUsers, totalInvoices, totalPayments,
           complianceRate: Math.round(complianceRate),
           monthlyGrowth: Math.round(monthlyGrowth)
         },
-        duploMetrics: {
-          successTrend,
-          errorBreakdown,
-          dailySubmissions
-        },
-        remitaMetrics: {
-          transactionTrend,
-          paymentBreakdown: paymentBreakdown.length > 0 ? paymentBreakdown : [
-            { status: 'successful', count: 0, amount: 0 },
-            { status: 'pending', count: 0, amount: 0 },
-            { status: 'failed', count: 0, amount: 0 }
-          ],
-          dailyVolume: volumeData
-        },
+        duploMetrics: { successTrend, errorBreakdown, dailySubmissions },
+        remitaMetrics: { transactionTrend, paymentBreakdown, dailyVolume: volumeData },
         complianceMetrics: {
-          // Real exemption data would come from invoice metadata if tracked
-          exemptionUtilization: [
-            { exemption: 'Standard Rate', count: totalInvoices, percentage: 100 }
-          ],
-          withholdingTaxTracking: generateMockMonthlyData(6), // Keep mock for now - needs schema update
+          exemptionUtilization: [],
+          withholdingTaxTracking: [],
           nrsComplianceTrend: complianceTrend
-        }
+        },
+        dataWindow: { start: startDate.toISOString(), end: endDate.toISOString(), days }
       };
-
-      return analyticsData;
     } catch (error: unknown) {
       app.log.error({ err: error }, 'Error fetching analytics');
-      // C-12: Return 200 + FALLBACK on cold-start / DB errors.
-      return reply.code(200).send({ ...FALLBACK_ANALYTICS });
+      return reply.code(503).send({
+        error: 'Analytics data is temporarily unavailable',
+        code: 'ANALYTICS_UNAVAILABLE',
+        retryable: true
+      });
     }
   });
 }
