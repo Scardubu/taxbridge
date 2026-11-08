@@ -119,73 +119,17 @@ export class DuploClient {
   }
 
   async checkHealth(): Promise<{ status: 'healthy' | 'degraded' | 'error' | 'unconfigured' | 'mock'; latency: number | null }> {
-    const startTime = Date.now();
-    const mockMode = String(process.env.NRS_MOCK_MODE || process.env.DIGITAX_MOCK_MODE || 'false').toLowerCase() === 'true';
-    const hasCreds = Boolean(this.clientId && this.clientSecret);
-
-    if (mockMode) {
-      return {
-        status: 'mock',
-        latency: null,
-      };
-    }
-
-    if (!hasCreds) {
-      return {
-        status: 'unconfigured',
-        latency: null,
-      };
-    }
-
-    try {
-      const token = await this.getAccessToken();
-      const response = await axios.get<DuploHealthResponse>(
-        `${this.baseURL}/v1/health`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          timeout: 10000, // 10 second timeout
-        }
-      );
-
-      const latency = Date.now() - startTime;
-      return {
-        status: response.data.status === 'ok' ? 'healthy' : 'degraded',
-        latency,
-      };
-    } catch (error) {
-      return {
-        status: 'error',
-        latency: null,
-      };
-    }
+    // The legacy OAuth health endpoint is not the approved Duplo NRS Gateway API.
+    // Do not report a healthy integration until the approved gateway is configured.
+    return { status: 'unconfigured', latency: null };
   }
 
-  async submitEInvoice(ublXml: string): Promise<DuploSubmitResponse> {
-    const submissionStart = Date.now();
-    const mandatoryAnalysis = analyzeMandatoryFields(ublXml);
-
-    try {
-      const token = await this.getAccessToken();
-      const response = await axios.post<DuploSubmitResponse>(
-        `${this.baseURL}/v1/einvoice/submit`,
-        ublXml,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            'Content-Type': 'application/xml',
-          },
-          timeout: 30000, // 30 second timeout
-        }
-      );
-      metrics.recordDuploSubmission(true, Date.now() - submissionStart, mandatoryAnalysis.missingFields.length);
-      return response.data;
-    } catch (error) {
-      metrics.recordDuploSubmission(false, Date.now() - submissionStart, mandatoryAnalysis.missingFields.length);
-      log.error('Failed to submit e-invoice', { err: error });
-      throw new Error('E-invoice submission failed');
-    }
+  async submitEInvoice(_ublXml: string): Promise<DuploSubmitResponse> {
+    // The supported Duplo NRS Gateway accepts validated NRS JSON, not this
+    // legacy OAuth + raw UBL XML contract. Fail closed until tenant mapping,
+    // approved gateway domain, API key, and IRN template are provisioned.
+    metrics.recordDuploSubmission(false, 0, 0);
+    throw new Error('NRS_GATEWAY_MIGRATION_REQUIRED');
   }
 
   async getEInvoiceStatus(irn: string): Promise<DuploStatusResponse> {
