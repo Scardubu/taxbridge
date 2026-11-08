@@ -5,41 +5,99 @@ import * as SQLite from 'expo-sqlite';
 
 let _db: SQLite.SQLiteDatabase | null = null;
 let _dbPromise: Promise<SQLite.SQLiteDatabase> | null = null;
+let _dbClosePromise: Promise<void> | null = null;
+let _dbGeneration = 0;
 
 export async function initDatabase(): Promise<void> {
   await getDatabase();
 }
 
 export async function getDatabase(): Promise<SQLite.SQLiteDatabase> {
+  // Do not open a second connection while an app-background close is in flight.
+  if (_dbClosePromise) await _dbClosePromise;
   if (_db) return _db;
-  // Deduplicate concurrent initialisation calls
+  // Deduplicate concurrent initialisation calls.
   if (_dbPromise) return _dbPromise;
-  _dbPromise = (async () => {
-    // SDK-06 fix: no options object — openDatabaseAsync('name') only
-    const db = await SQLite.openDatabaseAsync('taxbridge_v13.db');
-    await db.execAsync(`
-      PRAGMA busy_timeout = 5000;
-      PRAGMA journal_mode = WAL;
-      PRAGMA foreign_keys = ON;
-      PRAGMA cache_size = -8000;
-      PRAGMA synchronous = FULL;
-      PRAGMA wal_autocheckpoint = 1000;
-    `);
-    await runMigrations(db);
-    _db = db;
-    return db;
+
+  const generation = _dbGeneration;
+  const opening = (async () => {
+    let db: SQLite.SQLiteDatabase | null = null;
+    let closeAttempted = false;
+    try {
+      // SDK-06 fix: no options object — openDatabaseAsync('name') only.
+      db = await SQLite.openDatabaseAsync('taxbridge_v13.db');
+      await db.execAsync(`
+        PRAGMA busy_timeout = 5000;
+        PRAGMA journal_mode = WAL;
+        PRAGMA foreign_keys = ON;
+        PRAGMA cache_size = -8000;
+        PRAGMA synchronous = FULL;
+        PRAGMA wal_autocheckpoint = 1000;
+      `);
+      await runMigrations(db);
+
+      // AppState can transition to background while a database open/migration
+      // is still running. Never publish a connection from an obsolete lifecycle.
+      if (generation !== _dbGeneration) {
+        closeAttempted = true;
+        await db.closeAsync();
+        throw new Error('SQLite initialization was cancelled during database shutdown.');
+      }
+
+      _db = db;
+      return db;
+    } catch (error) {
+      if (db && !closeAttempted && _db !== db) {
+        await db.closeAsync().catch(() => undefined);
+      }
+      throw error;
+    }
   })();
-  _dbPromise.catch(() => { _dbPromise = null; });
-  return _dbPromise;
+
+  _dbPromise = opening;
+  try {
+    return await opening;
+  } catch (error) {
+    if (_dbPromise === opening) _dbPromise = null;
+    throw error;
+  }
 }
 
-/** Close the database connection. Call this on app exit to prevent locks and corruption. */
+/**
+ * Close the connection and invalidate any in-flight initialization. This
+ * prevents an older open/migration promise from publishing a connection after
+ * the app has entered the background.
+ */
 export async function closeDatabase(): Promise<void> {
-  if (_db) {
-    await _db.closeAsync();
-    _db = null;
-  }
+  if (_dbClosePromise) return _dbClosePromise;
+
+  const db = _db;
+  const opening = _dbPromise;
+  _db = null;
   _dbPromise = null;
+  _dbGeneration += 1;
+
+  const closing = (async () => {
+    if (db) {
+      await db.closeAsync();
+      return;
+    }
+
+    // An in-flight open notices the generation change and closes its own
+    // connection before rejecting. Await it so resume cannot race that close.
+    if (opening) {
+      try {
+        await opening;
+      } catch {
+        // Cancellation during shutdown is expected.
+      }
+    }
+  })();
+
+  _dbClosePromise = closing.finally(() => {
+    _dbClosePromise = null;
+  });
+  return _dbClosePromise;
 }
 
 async function runMigrations(db: SQLite.SQLiteDatabase): Promise<void> {

@@ -1,5 +1,5 @@
 import * as SQLite from 'expo-sqlite';
-import { getDatabase } from '../../services/database';
+import { closeDatabase, getDatabase } from '../../services/database';
 
 describe('mobile SQLite durability configuration', () => {
   test('opens the canonical database and enables durable WAL settings', async () => {
@@ -16,4 +16,8 @@ describe('mobile SQLite durability configuration', () => {
     expect(initializationSql).toContain('PRAGMA synchronous = FULL;');
     expect(initializationSql).toContain('PRAGMA wal_autocheckpoint = 1000;');
   });
+});
+
+afterEach(async () => {
+  await closeDatabase();
 });
