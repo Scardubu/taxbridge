@@ -3,7 +3,7 @@ import { DuploClient } from '../integrations/duplo';
 describe('Duplo NRS Gateway migration boundary', () => {
   const client = new DuploClient();
 
-  afterEach(() => {
+  beforeEach(() => {
     delete process.env.DUPLO_GATEWAY_URL;
   });
 
