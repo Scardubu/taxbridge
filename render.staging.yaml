@@ -44,7 +44,7 @@ services:
       - key: NRS_API_URL
         value: https://sandbox.digitax.com/api
       - key: REMITA_API_URL
-        value: https://remitademo.net/remita/exim/api/v1/send/api
+        value: https://demo.remita.net
       - key: PAYSTACK_BASE_URL
         value: https://api.paystack.co
       - key: FLW_BASE_URL
@@ -73,6 +73,8 @@ services:
       - key: REMITA_WEBHOOK_SECRET
         sync: false
       - key: PAYSTACK_SECRET_KEY
+        sync: false
+      - key: PAYSTACK_WEBHOOK_SECRET
         sync: false
       - key: PAYSTACK_PUBLIC_KEY
         sync: false
@@ -154,7 +156,7 @@ services:
       - key: NRS_API_URL
         value: https://sandbox.digitax.com/api
       - key: REMITA_API_URL
-        value: https://remitademo.net/remita/exim/api/v1/send/api
+        value: https://demo.remita.net
       - key: PAYSTACK_BASE_URL
         value: https://api.paystack.co
       - key: FLW_BASE_URL
