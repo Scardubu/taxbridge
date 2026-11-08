@@ -166,14 +166,15 @@ export class RemitaAdapter {
       );
 
       const duration = Date.now() - verifyStart;
-      const { message, amount, RRR, transactiontime } = response.data;
+      const { message, amount, RRR, rrr: lowerCaseRrr, transactiontime } = response.data;
+      const verifiedReference = String(RRR || lowerCaseRrr || '');
 
       if (message === '00' || message === '01') { // Success codes
         metrics.recordRemitaStatus(true, duration);
         return {
           status: 'paid',
           amount: parseFloat(amount) / 100, // Convert from kobo to naira
-          transactionRef: RRR,
+          transactionRef: verifiedReference,
           paymentDate: transactiontime
         };
       } else {
@@ -199,6 +200,6 @@ export class RemitaAdapter {
 export const remitaAdapter = new RemitaAdapter({
   merchantId: process.env.REMITA_MERCHANT_ID || '',
   apiKey: process.env.REMITA_API_KEY || '',
-  apiUrl: process.env.REMITA_API_URL || 'https://remitademo.net',
+  apiUrl: process.env.REMITA_API_URL || 'https://demo.remita.net',
   serviceTypeId: process.env.REMITA_SERVICE_TYPE_ID || ''
 });
