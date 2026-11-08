@@ -1,39 +1,43 @@
 import type { PrismaClient } from '@prisma/client';
 import { settleVerifiedPayment } from '../services/verifiedPaymentWebhook';
 
-function makePrisma(overrides?: {
-  payment?: Record<string, jest.Mock>;
-  transactionPayment?: Record<string, jest.Mock>;
-  invoice?: Record<string, jest.Mock>;
-}) {
-  const payment = {
+function makePrisma(options: {
+  paymentRecord?: Record<string, unknown>;
+  updateCount?: number;
+  statusAfterConcurrentUpdate?: string;
+} = {}) {
+  const paymentRecord = {
     id: 'payment-1',
     invoiceId: 'invoice-1',
     gateway: 'paystack',
     rrr: 'TB-REFERENCE-0001',
     amount: { toString: () => '2500.00' },
     status: 'pending',
-    ...overrides?.payment,
+    ...options.paymentRecord,
   };
-  const tx = {
+
+  const transactionClient = {
     payment: {
-      updateMany: jest.fn().mockResolvedValue({ count: 1 }),
-      findUnique: jest.fn().mockResolvedValue({ status: 'paid' }),
-      ...overrides?.transactionPayment,
+      updateMany: jest.fn().mockResolvedValue({ count: options.updateCount ?? 1 }),
+      findUnique: jest.fn().mockResolvedValue({
+        status: options.statusAfterConcurrentUpdate ?? 'paid',
+      }),
     },
     invoice: {
       update: jest.fn().mockResolvedValue({ id: 'invoice-1', status: 'paid' }),
-      ...overrides?.invoice,
     },
   };
+
   const prisma = {
     payment: {
-      findUnique: jest.fn().mockResolvedValue(payment),
-      ...overrides?.payment,
+      findUnique: jest.fn().mockResolvedValue(paymentRecord),
     },
-    $transaction: jest.fn(async (callback: (client: typeof tx) => Promise<unknown>) => callback(tx)),
+    $transaction: jest.fn(
+      async (callback: (client: typeof transactionClient) => Promise<unknown>) => callback(transactionClient),
+    ),
   };
-  return { prisma: prisma as unknown as PrismaClient, tx };
+
+  return { prisma: prisma as unknown as PrismaClient, transactionClient };
 }
 
 const validInput = {
@@ -47,11 +51,11 @@ const validInput = {
 
 describe('settleVerifiedPayment', () => {
   test('atomically marks the provider payment and invoice paid after verification', async () => {
-    const { prisma, tx } = makePrisma();
+    const { prisma, transactionClient } = makePrisma();
 
     await expect(settleVerifiedPayment(prisma, validInput)).resolves.toBe('updated');
 
-    expect(tx.payment.updateMany).toHaveBeenCalledWith({
+    expect(transactionClient.payment.updateMany).toHaveBeenCalledWith({
       where: { id: 'payment-1', status: { in: ['pending', 'processing'] } },
       data: expect.objectContaining({
         status: 'paid',
@@ -59,20 +63,20 @@ describe('settleVerifiedPayment', () => {
         channel: 'card',
       }),
     });
-    expect(tx.invoice.update).toHaveBeenCalledWith({
+    expect(transactionClient.invoice.update).toHaveBeenCalledWith({
       where: { id: 'invoice-1' },
       data: { status: 'paid' },
     });
   });
 
-  test('does not settle a payment from another gateway', async () => {
-    const { prisma } = makePrisma({ payment: { gateway: 'flutterwave' } });
+  test('does not settle a payment belonging to another gateway', async () => {
+    const { prisma } = makePrisma({ paymentRecord: { gateway: 'flutterwave' } });
 
     await expect(settleVerifiedPayment(prisma, validInput)).resolves.toBe('gateway_mismatch');
     expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 
-  test('rejects a non-NGN currency and an amount below the reserved invoice amount', async () => {
+  test('rejects non-NGN currency and an amount below the reserved invoice amount', async () => {
     const { prisma } = makePrisma();
 
     await expect(settleVerifiedPayment(prisma, { ...validInput, currency: 'USD' })).resolves.toBe('currency_mismatch');
@@ -81,7 +85,7 @@ describe('settleVerifiedPayment', () => {
   });
 
   test('allows Flutterwave overpayment but still rejects underpayment', async () => {
-    const { prisma } = makePrisma({ payment: { gateway: 'flutterwave' } });
+    const { prisma } = makePrisma({ paymentRecord: { gateway: 'flutterwave' } });
 
     await expect(settleVerifiedPayment(prisma, {
       ...validInput,
@@ -89,6 +93,7 @@ describe('settleVerifiedPayment', () => {
       amountNgn: 2500.01,
       allowOverpayment: true,
     })).resolves.toBe('updated');
+
     await expect(settleVerifiedPayment(prisma, {
       ...validInput,
       gateway: 'flutterwave',
@@ -97,8 +102,8 @@ describe('settleVerifiedPayment', () => {
     })).resolves.toBe('amount_mismatch');
   });
 
-  test('treats a duplicate notification as already paid without reopening the transaction', async () => {
-    const { prisma } = makePrisma({ payment: { status: 'paid' } });
+  test('treats an existing paid payment as an idempotent duplicate', async () => {
+    const { prisma } = makePrisma({ paymentRecord: { status: 'paid' } });
 
     await expect(settleVerifiedPayment(prisma, validInput)).resolves.toBe('already_paid');
     expect(prisma.$transaction).not.toHaveBeenCalled();
@@ -106,8 +111,8 @@ describe('settleVerifiedPayment', () => {
 
   test('handles concurrent duplicate webhook deliveries idempotently', async () => {
     const { prisma } = makePrisma({
-      transactionPayment: { updateMany: jest.fn().mockResolvedValue({ count: 0 }) },
-      payment: { status: 'pending' },
+      updateCount: 0,
+      statusAfterConcurrentUpdate: 'paid',
     });
 
     await expect(settleVerifiedPayment(prisma, validInput)).resolves.toBe('already_paid');
