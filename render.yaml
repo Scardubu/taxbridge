@@ -38,8 +38,6 @@ services:
         value: "false"
       - key: NRS_MOCK_MODE
         value: "false"
-      # DigiTax / Duplo API URL (non-secret)
-      - key: DUPLO_API_URL
         value: https://api.digitax.ng
       - key: DIGITAX_API_URL
         value: https://api.digitax.ng
@@ -89,9 +87,7 @@ services:
         sync: false
       - key: REMITA_SERVICE_TYPE_ID
         sync: false
-      - key: DUPLO_CLIENT_ID
         sync: false
-      - key: DUPLO_CLIENT_SECRET
         sync: false
       - key: NRS_API_KEY
         sync: false
@@ -163,7 +159,6 @@ services:
       - key: NRS_MOCK_MODE
         value: "false"
       # DigiTax API base URL
-      - key: DUPLO_API_URL
         value: https://api.digitax.ng
       - key: DIGITAX_API_URL
         value: https://api.digitax.ng
@@ -177,9 +172,7 @@ services:
         value: https://api.flutterwave.com
       
       # DigiTax / NRS Credentials - SET IN RENDER DASHBOARD
-      - key: DUPLO_CLIENT_ID
         sync: false
-      - key: DUPLO_CLIENT_SECRET
         sync: false
       - key: NRS_API_KEY
         sync: false
