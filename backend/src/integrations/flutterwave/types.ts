@@ -107,6 +107,7 @@ export interface FlutterwaveInitResult {
 export interface FlutterwaveVerifyResult {
   status: 'successful' | 'failed' | 'pending';
   amount?: number;
+  currency?: string;
   reference?: string;
   flwRef?: string;
   channel?: string;

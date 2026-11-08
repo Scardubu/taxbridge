@@ -109,6 +109,7 @@ export interface PaystackInitResult {
 export interface PaystackVerifyResult {
   status: 'success' | 'failed' | 'abandoned' | 'pending';
   amount?: number; // In Naira
+  currency?: string;
   reference?: string;
   channel?: string;
   paidAt?: string;

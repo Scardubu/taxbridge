@@ -159,6 +159,7 @@ export class FlutterwaveAdapter {
         return {
           status: 'successful',
           amount: data.amount,
+          currency: data.currency,
           reference: data.tx_ref,
           flwRef: data.flw_ref,
           channel: data.payment_type,

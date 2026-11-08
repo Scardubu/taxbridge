@@ -149,6 +149,7 @@ export class PaystackAdapter {
         return {
           status: 'success',
           amount: data.amount / 100, // Convert kobo to Naira
+          currency: data.currency,
           reference: data.reference,
           channel: data.channel,
           paidAt: data.paid_at || undefined,
@@ -177,12 +178,43 @@ export class PaystackAdapter {
    * Verify Paystack webhook signature
    * @see https://paystack.com/docs/payments/webhooks/#verify-event-origin
    */
-  verifyWebhookSignature(payload: string, signature: string): boolean {
-    const hash = crypto
-      .createHmac('sha512', this.config.secretKey)
-      .update(payload)
-      .digest('hex');
-    return hash === signature;
+  /**
+   * Verify Paystack webhook signatures over the unmodified request body.
+   * Supports legacy x-paystack-signature and timestamped Paystack-Signature.
+   */
+  verifyWebhookSignature(
+    payload: string | Buffer,
+    signature: string,
+    nowSeconds = Math.floor(Date.now() / 1000),
+  ): boolean {
+    if (!signature) return false;
+    const rawBody = Buffer.isBuffer(payload) ? payload : Buffer.from(payload, 'utf8');
+
+    if (signature.includes('t=')) {
+      if (!this.config.webhookSecret.startsWith('whsec_')) return false;
+      const fields = signature.split(',').map((field) => field.trim());
+      const timestampText = fields.find((field) => field.startsWith('t='))?.slice(2) ?? '';
+      if (!/^\\d+$/.test(timestampText)) return false;
+      const timestamp = Number(timestampText);
+      if (!Number.isSafeInteger(timestamp) || Math.abs(nowSeconds - timestamp) > 300) return false;
+
+      const signedPayload = Buffer.concat([Buffer.from(timestampText + '.', 'utf8'), rawBody]);
+      const expected = crypto.createHmac('sha512', this.config.webhookSecret).update(signedPayload).digest();
+      const candidates = fields
+        .filter((field) => field.startsWith('v1='))
+        .map((field) => field.slice(3).split(':').slice(1).join(':'))
+        .filter((candidate) => /^[a-f0-9]{128}$/i.test(candidate));
+
+      return candidates.some((candidate) => {
+        const received = Buffer.from(candidate, 'hex');
+        return received.length === expected.length && crypto.timingSafeEqual(expected, received);
+      });
+    }
+
+    if (!/^[a-f0-9]{128}$/i.test(signature)) return false;
+    const expected = crypto.createHmac('sha512', this.config.secretKey).update(rawBody).digest();
+    const received = Buffer.from(signature, 'hex');
+    return received.length === expected.length && crypto.timingSafeEqual(expected, received);
   }
 }
 
