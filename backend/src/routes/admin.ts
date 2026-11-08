@@ -527,7 +527,7 @@ export async function adminRoutes(app: FastifyInstance, options: { prisma: Prism
   app.post('/invoices/:id/resubmit-duplo', {
     schema: { params: z.object({ id: z.string().uuid() }) }
   }, async (_request, reply) => {
-    return reply.code(503).send({
+    return reply.code(409).send({
       error: 'NRS gateway integration is not provisioned',
       code: 'NRS_GATEWAY_MIGRATION_REQUIRED',
       retryable: false
