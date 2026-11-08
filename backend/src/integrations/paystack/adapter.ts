@@ -194,7 +194,7 @@ export class PaystackAdapter {
       if (!this.config.webhookSecret.startsWith('whsec_')) return false;
       const fields = signature.split(',').map((field) => field.trim());
       const timestampText = fields.find((field) => field.startsWith('t='))?.slice(2) ?? '';
-      if (!/^\\d+$/.test(timestampText)) return false;
+      if (!/^\d+$/.test(timestampText)) return false;
       const timestamp = Number(timestampText);
       if (!Number.isSafeInteger(timestamp) || Math.abs(nowSeconds - timestamp) > 300) return false;
 
