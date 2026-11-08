@@ -84,6 +84,36 @@ describe('settleVerifiedPayment', () => {
     expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 
+  test('settles Remita only after verified RRR amount matches the payment record', async () => {
+    const { prisma, transactionClient } = makePrisma({ paymentRecord: { gateway: 'remita' } });
+
+    await expect(settleVerifiedPayment(prisma, {
+      ...validInput,
+      gateway: 'remita',
+      reference: 'TB-REFERENCE-0001',
+      gatewayRef: 'TB-REFERENCE-0001',
+      amountNgn: 2500,
+      currency: 'NGN',
+    })).resolves.toBe('updated');
+
+    expect(transactionClient.invoice.update).toHaveBeenCalledWith({
+      where: { id: 'invoice-1' },
+      data: { status: 'paid' },
+    });
+  });
+
+  test('does not settle Remita when the provider amount does not match', async () => {
+    const { prisma } = makePrisma({ paymentRecord: { gateway: 'remita' } });
+
+    await expect(settleVerifiedPayment(prisma, {
+      ...validInput,
+      gateway: 'remita',
+      amountNgn: 2499,
+      currency: 'NGN',
+    })).resolves.toBe('amount_mismatch');
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
   test('allows Flutterwave overpayment but still rejects underpayment', async () => {
     const { prisma } = makePrisma({ paymentRecord: { gateway: 'flutterwave' } });
 

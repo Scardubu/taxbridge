@@ -1,6 +1,6 @@
 import type { PrismaClient } from '@prisma/client';
 
-export type VerifiedPaymentGateway = 'paystack' | 'flutterwave';
+export type VerifiedPaymentGateway = 'paystack' | 'flutterwave' | 'remita';
 export type VerifiedPaymentSettlement =
   | 'updated'
   | 'already_paid'
