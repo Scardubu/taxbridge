@@ -40,12 +40,6 @@ interface SubmissionDataPoint {
   failed: number;
 }
 
-interface MonthlyDataPoint {
-  month: string;
-  wthAmount: number;
-  invoiceCount: number;
-}
-
 // ─── C-12: Admin cold-start FALLBACK constants ──────────────────────────────
 // Returns 200 + zeroed data when DB is unavailable (Render idle cold-start).
 // C-08: No Math.random() — all values are deterministic zeroes.
@@ -81,14 +75,7 @@ const FALLBACK_LAUNCH_METRICS = {
   warnings:          ['Database unavailable — cold-start mode'],
 };
 
-const FALLBACK_ANALYTICS = {
-  overview:          { totalUsers: 0, totalInvoices: 0, totalPayments: 0, complianceRate: 0, monthlyGrowth: 0 },
-  duploMetrics:      { successTrend: [], errorBreakdown: [], dailySubmissions: [] },
-  remitaMetrics:     { transactionTrend: [], paymentBreakdown: [], dailyVolume: [] },
-  complianceMetrics: { exemptionUtilization: [], withholdingTaxTracking: [], nrsComplianceTrend: [] },
-  _coldStart:        true,
-  warnings:          ['Database unavailable — cold-start mode'],
-};
+
 
 export async function adminRoutes(app: FastifyInstance, options: { prisma: PrismaClient }) {
   const { prisma } = options;
@@ -673,58 +660,3 @@ export async function adminRoutes(app: FastifyInstance, options: { prisma: Prism
   });
 }
 
-// Helper functions to generate mock data
-// C-08: deterministic fallback — no Math.random() allowed in admin chart data.
-function generateMockTrendData(days: number, _type: string): TrendDataPoint[] {
-  const data: TrendDataPoint[] = [];
-  for (let i = days - 1; i >= 0; i--) {
-    const date = new Date();
-    date.setDate(date.getDate() - i);
-    data.push({
-      timestamp:   date.toISOString(),
-      successRate: 0,   // zeroed until real DB data available
-      latency:     0,
-      submissions: 0,
-    });
-  }
-  return data;
-}
-
-// C-08: deterministic fallback — no Math.random() allowed in admin chart data.
-function generateMockDailyData(
-  days: number,
-  type: string,
-): Array<TransactionDataPoint | VolumeDataPoint | SubmissionDataPoint | ComplianceDataPoint> {
-  const data: Array<TransactionDataPoint | VolumeDataPoint | SubmissionDataPoint | ComplianceDataPoint> = [];
-  for (let i = days - 1; i >= 0; i--) {
-    const date = new Date();
-    date.setDate(date.getDate() - i);
-    const dateStr = date.toISOString().split('T')[0];
-
-    if (type === 'transactions') {
-      data.push({ date: dateStr, successful: 0, failed: 0, pending: 0, total: 0 } as TransactionDataPoint);
-    } else if (type === 'volume') {
-      data.push({ date: dateStr, volume: 0, count: 0 } as VolumeDataPoint);
-    } else if (type === 'submissions') {
-      data.push({ date: dateStr, successful: 0, failed: 0 } as SubmissionDataPoint);
-    } else if (type === 'compliance') {
-      data.push({ date: dateStr, compliant: 0, nonCompliant: 0 } as ComplianceDataPoint);
-    }
-  }
-  return data;
-}
-
-// C-08: deterministic fallback — no Math.random() allowed in admin chart data.
-function generateMockMonthlyData(months: number): MonthlyDataPoint[] {
-  const data: MonthlyDataPoint[] = [];
-  for (let i = months - 1; i >= 0; i--) {
-    const date = new Date();
-    date.setMonth(date.getMonth() - i);
-    data.push({
-      month:        date.toLocaleDateString('en-US', { year: 'numeric', month: 'short' }),
-      wthAmount:    0,   // zeroed until real WHT tracking schema is available
-      invoiceCount: 0,
-    });
-  }
-  return data;
-}
